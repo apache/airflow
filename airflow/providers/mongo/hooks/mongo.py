@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import warnings
-from ssl import CERT_NONE, CERT_REQUIRED
 from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
@@ -75,8 +74,9 @@ class MongoHook(BaseHook):
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
 
+        self.allow_insecure = True
         if self.extras.get("ssl", False):
-            self.extras["allow_insecure"] = False
+            self.allow_insecure = False
 
     def __enter__(self):
         return self
@@ -99,15 +99,8 @@ class MongoHook(BaseHook):
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
 
-        # If we are using SSL disable requiring certs from specific hostname
-        if options.get("ssl", False):
-            allow_insecure = self.extras.get("allow_insecure", True)
-            if pymongo.__version__ >= "4.0.0":
-                # For pymongo 4.0.0+, use 'tlsAllowInvalidCertificates'
-                options["tlsAllowInvalidCertificates"] = allow_insecure
-            else:
-                # For older pymongo versions, use 'ssl_cert_reqs'
-                options["ssl_cert_reqs"] = CERT_NONE if allow_insecure else CERT_REQUIRED
+        # set the tlsAllowInvalidCertificates based on allow_insecure
+        options["tlsAllowInvalidCertificates"] = self.allow_insecure
 
         self.client = MongoClient(self.uri, **options)
         return self.client
