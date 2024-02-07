@@ -80,7 +80,7 @@ class TestAppriseHook:
         with patch.object(
             AppriseHook,
             "get_connection",
-            return_value=Connection(conn_type="apprise", extra={"config": extra}),
+            return_value=Connection(conn_type="apprise", extra=extra),
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
