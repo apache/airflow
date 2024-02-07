@@ -42,6 +42,7 @@ import pendulum
 
 from airflow.datasets import Dataset
 from airflow.models.dag import DAG
+from airflow.models.dataset import DatasetAll, DatasetAny
 from airflow.operators.bash import BashOperator
 from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
@@ -50,6 +51,7 @@ from airflow.timetables.trigger import CronTriggerTimetable
 dag1_dataset = Dataset("s3://dag1/output_1.txt", extra={"hi": "bye"})
 # [END dataset_def]
 dag2_dataset = Dataset("s3://dag2/output_1.txt", extra={"hi": "bye"})
+dag3_dataset = Dataset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
 with DAG(
     dag_id="dataset_produces_1",
@@ -143,5 +145,36 @@ with DAG(
     BashOperator(
         outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
         task_id="consuming_dataset_time_based",
+        bash_command="sleep 5",
+    )
+
+with DAG(
+    dag_id="consume_1_and_2_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=DatasetAll(dag1_dataset, dag2_dataset),
+) as dag5:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_and_2_with_dataset_expressions",
+        bash_command="sleep 5",
+    )
+with DAG(
+    dag_id="consume_1_or_2_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=DatasetAny(dag1_dataset, dag2_dataset),
+) as dag6:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_or_2_with_dataset_expressions",
+        bash_command="sleep 5",
+    )
+with DAG(
+    dag_id="consume_1_or_-2_and_3_with_dataset_expressions",
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    schedule=DatasetAny(dag1_dataset, DatasetAll(dag2_dataset, dag3_dataset)),
+) as dag7:
+    BashOperator(
+        outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
+        task_id="consume_1_or_-2_and_3_with_dataset_expressions",
         bash_command="sleep 5",
     )
