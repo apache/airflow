@@ -420,7 +420,7 @@ jobs:
         run: killall python || true  # just in case there is a webserver running in the background
         if: always()
       - name: "Upload python client packages"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-client-packages
           path: ./dist/apache_airflow_client-*
@@ -537,7 +537,7 @@ jobs:
             cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
           done
       - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: constraints
           path: ./files/constraints-*/constraints-*.txt
@@ -767,25 +767,25 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -1111,7 +1111,7 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Helm artifacts
           path: ./dist/airflow-*
@@ -1497,7 +1497,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-postgres"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1569,7 +1569,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-mysql"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1666,9 +1666,9 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "no-db-${{matrix.python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1705,7 +1705,7 @@ jobs:
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "no-db-pendulum-2-${{needs.build-info.outputs.default-python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       DOWNGRADE_PENDULUM: "true"
     if: needs.build-info.outputs.run-tests == 'true'
@@ -1754,7 +1754,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
       - name: "Summarize all warnings"
@@ -2243,7 +2243,7 @@ jobs:
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
           VERBOSE: "false"
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -2251,7 +2251,7 @@ jobs:
           retention-days: 7
       - name: >
           Upload test resource logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: k8s-test-resources-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -2307,7 +2307,7 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
       - name: "Download constraints from the constraints generated by build CI image"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./files
