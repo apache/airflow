@@ -1,8 +1,0 @@
-The helm chart is now using a newer version of ``bitnami/postgresql`` dependency
-
-The version of ``bitnami/postgresql`` subchart upgraded from ``12.10.0`` to ``13.2.24``.
-The version of ``PostgreSQL`` binaries upgraded from ``11`` to ``16.1.0``.
-
-The change requires existing ``bitnami/postgresql`` subchart users to perform manual major version upgrade using ``pg_dumpall`` or ``pg_upgrade``.
-
-As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.

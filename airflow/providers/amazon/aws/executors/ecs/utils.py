@@ -23,6 +23,7 @@ Data classes and utility functions used by the ECS executor.
 
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
@@ -58,6 +59,7 @@ class EcsQueuedTask:
     queue: str
     executor_config: ExecutorConfigType
     attempt_number: int
+    next_attempt_time: datetime.datetime
 
 
 @dataclass
