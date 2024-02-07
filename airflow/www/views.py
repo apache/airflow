@@ -1316,9 +1316,7 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.dag_details", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/details")
-    @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @provide_session
-    def dag_details(self, dag_id, session: Session = NEW_SESSION):
+    def dag_details(self, dag_id):
         """Get Dag details."""
         return redirect(url_for("Airflow.grid", dag_id=dag_id))
 
