@@ -41,7 +41,7 @@ runs:
       shell: bash
       run: >
         breeze release-management prepare-provider-packages
-        --package-list-file ./airflow/providers/installed_providers.txt
+        --package-list-file ./dev/prod_image_installed_providers.txt
         --package-format wheel --version-suffix-for-pypi dev0
       if: ${{ inputs.build-provider-packages == 'true' }}
     - name: "Prepare chicken-eggs provider packages"
@@ -62,13 +62,13 @@ runs:
       shell: bash
       run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
     - name: "Download constraints from the CI build"
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: source-constraints
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages == 'true' }}
     - name: "Download constraints from the Generate & Verify build"
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: constraints
         path: ./docker-context-files

@@ -7,6 +7,7 @@ Ack
 ack
 ackIds
 acknowledgement
+acks
 actionCard
 Acyclic
 acyclic
@@ -314,6 +315,7 @@ coverals
 cp
 cpu
 cpus
+CRD
 crd
 createDisposition
 CreateQueryOperator
@@ -386,6 +388,7 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataprocDiagnoseClusterOperator
 DataScan
 dataScans
 Dataset
@@ -421,6 +424,7 @@ dbutils
 ddl
 de
 Debounce
+debuggability
 declaratively
 decomissioning
 Decrypt
@@ -459,6 +463,7 @@ dest
 dev
 devel
 DevOps
+devscripts
 devtools
 df
 dicts
@@ -516,6 +521,7 @@ dsn
 dttm
 dtypes
 du
+duckdb
 durations
 dylib
 Dynamodb
@@ -550,6 +556,7 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
 eof
@@ -898,6 +905,7 @@ kubeclient
 kubeconfig
 Kubernetes
 kubernetes
+KubernetesPodOperator
 Kusto
 kv
 kwarg
@@ -937,6 +945,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1073,6 +1082,7 @@ Oauth
 oauth
 Oauthlib
 objectORfile
+objectstorage
 observability
 od
 odbc
@@ -1143,6 +1153,7 @@ Pem
 pem
 performant
 permalinks
+persistentVolume
 personalizations
 pformat
 PgBouncer
@@ -1440,6 +1451,7 @@ Spark
 sparkappinfo
 sparkApplication
 sparkcmd
+SparkKubernetesOperator
 SparkPi
 SparkR
 sparkr
@@ -1564,6 +1576,7 @@ TaskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
+taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta
@@ -1637,6 +1650,7 @@ TZ
 tz
 tzinfo
 UA
+UI
 ui
 uid
 ukey

@@ -30,6 +30,7 @@ from typing import Any, Iterable, NamedTuple
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.common_options import (
     option_answer,
     option_dry_run,
@@ -197,14 +198,14 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 @click.option(
     "--default-branch",
     help="Branch against which the PR should be run",
-    default="main",
+    default=AIRFLOW_BRANCH,
     envvar="DEFAULT_BRANCH",
     show_default=True,
 )
 @click.option(
     "--default-constraints-branch",
     help="Constraints Branch against which the PR should be run",
-    default="constraints-main",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     show_default=True,
 )

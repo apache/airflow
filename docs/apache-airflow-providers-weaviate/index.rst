@@ -114,7 +114,7 @@ Package apache-airflow-providers-weaviate
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.3.0
+Release: 1.3.1
 
 Provider package
 ----------------
@@ -139,5 +139,5 @@ PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.6.0``
 ``weaviate-client``  ``>=3.24.2``
-``pandas``           ``>=0.17.1``
+``pandas``           ``>=1.2.5``
 ===================  ==================

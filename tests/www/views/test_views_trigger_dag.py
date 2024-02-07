@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from urllib.parse import quote
 
 import pytest
 
@@ -369,6 +370,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
 def test_dag_run_id_pattern(session, admin_client, pattern, run_id, result):
     with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
         test_dag_id = "example_bash_operator"
+        run_id = quote(run_id)
         admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"})
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
         if result:

@@ -29,7 +29,6 @@ import inspect
 import json
 import logging
 import os
-import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from pathlib import Path
@@ -44,6 +43,7 @@ import tenacity
 from botocore.config import Config
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
+from deprecated import deprecated
 from slugify import slugify
 
 from airflow.configuration import conf
@@ -629,6 +629,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Verify or not SSL certificates boto3 client/resource read-only property."""
         return self.conn_config.verify
 
+    @cached_property
+    def account_id(self) -> str:
+        """Return associated AWS Account ID."""
+        return (
+            self.get_session(region_name=self.region_name)
+            .client(
+                service_name="sts",
+                endpoint_url=self.conn_config.get_service_endpoint_url("sts"),
+                config=self.config,
+                verify=self.verify,
+            )
+            .get_caller_identity()["Account"]
+        )
+
     def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
@@ -1006,6 +1020,13 @@ except ImportError:
     pass
 
 
+@deprecated(
+    reason=(
+        "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BaseAsyncSessionFactory(BaseSessionFactory):
     """
     Base AWS Session Factory class to handle aiobotocore session creation.
@@ -1015,12 +1036,6 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated and "
-            "will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)
 
     async def get_role_credentials(self) -> dict:
@@ -1099,6 +1114,13 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         return self._get_session_with_assume_role()
 
 
+@deprecated(
+    reason=(
+        "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class AwsBaseAsyncHook(AwsBaseHook):
     """Interacts with AWS using aiobotocore asynchronously.
 
@@ -1115,12 +1137,6 @@ class AwsBaseAsyncHook(AwsBaseHook):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook has been deprecated and "
-            "will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)
 
     def get_async_session(self) -> AioSession:

@@ -74,7 +74,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0", "v1.29.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.16", "v1.26.13", "v1.27.10", "v1.28.6", "v1.29.1"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -111,7 +111,7 @@ ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.2"
+MYSQL_INNOVATION_RELEASE = "8.3"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
@@ -382,8 +382,7 @@ with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open(
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
-    "setup.py",
-    "setup.cfg",
+    "pyproject.toml",
     "Dockerfile.ci",
     ".dockerignore",
     "generated/provider_dependencies.json",
@@ -403,8 +402,8 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.20.0"
-HELM_VERSION = "v3.9.4"
+KIND_VERSION = "v0.21.0"
+HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -425,19 +424,19 @@ DEFAULT_EXTRAS = [
     "amazon",
     "async",
     "celery",
-    "cncf.kubernetes",
-    "common.io",
+    "cncf-kubernetes",
+    "common-io",
     "docker",
     "elasticsearch",
     "ftp",
     "google",
-    "google_auth",
+    "google-auth",
     "graphviz",
     "grpc",
     "hashicorp",
     "http",
     "ldap",
-    "microsoft.azure",
+    "microsoft-azure",
     "mysql",
     "odbc",
     "openlineage",

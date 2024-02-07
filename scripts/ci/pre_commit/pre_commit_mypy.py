@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import sys
 from pathlib import Path
 
@@ -34,9 +33,6 @@ from common_precommit_utils import (
 initialize_breeze_precommit(__name__, __file__)
 
 files_to_test = pre_process_files(sys.argv[1:])
-mypy_packages = os.environ.get("MYPY_PACKAGES")
-if mypy_packages:
-    files_to_test += shlex.split(mypy_packages)
 if files_to_test == ["--namespace-packages"] or files_to_test == []:
     print("No files to tests. Quitting")
     sys.exit(0)
@@ -57,14 +53,6 @@ res = run_command_via_breeze_shell(
 )
 ci_environment = os.environ.get("CI")
 if res.returncode != 0:
-    if mypy_packages and ci_environment:
-        console.print(
-            "[yellow]You are running mypy with the packages selected. If you want to"
-            "reproduce it locally, you need to run the following command:\n"
-        )
-        console.print(
-            f'MYPY_PACKAGES="{mypy_packages}" pre-commit run --hook-stage manual mypy --all-files\n'
-        )
     upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
     if upgrading:
         console.print(

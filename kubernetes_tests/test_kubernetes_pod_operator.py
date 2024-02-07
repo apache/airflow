@@ -26,7 +26,6 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
@@ -53,7 +52,9 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
-    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=pendulum.tz.timezone("Europe/Amsterdam"))
+    execution_date = timezone.datetime(
+        2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam")
+    )
     dag_run = DagRun(
         dag_id=dag.dag_id,
         execution_date=execution_date,
@@ -941,7 +942,6 @@ class TestKubernetesPodOperatorSystem:
                 "kind: Pod",
                 "metadata:",
                 "  annotations: {}",
-                "  cluster_name: null",
                 "  creation_timestamp: null",
                 "  deletion_grace_period_seconds: null",
             ]

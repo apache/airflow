@@ -26,7 +26,6 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Callable
 
-import pendulum
 import pluggy
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -39,6 +38,7 @@ from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
+from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -49,13 +49,12 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 try:
-    tz = conf.get_mandatory_value("core", "default_timezone")
-    if tz == "system":
-        TIMEZONE = pendulum.tz.local_timezone()
+    if (tz := conf.get_mandatory_value("core", "default_timezone")) != "system":
+        TIMEZONE = parse_timezone(tz)
     else:
-        TIMEZONE = pendulum.tz.timezone(tz)
+        TIMEZONE = local_timezone()
 except Exception:
-    TIMEZONE = pendulum.tz.timezone("UTC")
+    TIMEZONE = utc
 
 log.info("Configured default timezone %s", TIMEZONE)
 
@@ -192,6 +191,7 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
@@ -211,7 +211,8 @@ class SkipDBTestsSession:
         raise RuntimeError(
             "Your test accessed the DB but `_AIRFLOW_SKIP_DB_TESTS` is set.\n"
             "Either make sure your test does not use database or mark the test with `@pytest.mark.db_test`\n"
-            "See https://github.com/apache/airflow/blob/main/TESTING.rst#best-practices-for-db-tests on how "
+            "See https://github.com/apache/airflow/blob/main/contributing-docs/testing/unit_tests.rst#"
+            "best-practices-for-db-tests on how "
             "to deal with it and consult examples."
         )
 
@@ -222,6 +223,20 @@ class SkipDBTestsSession:
 def configure_orm(disable_connection_pool=False, pool_class=None):
     """Configure ORM using SQLAlchemy."""
     from airflow.utils.log.secrets_masker import mask_secret
+
+    if (
+        SQL_ALCHEMY_CONN
+        and SQL_ALCHEMY_CONN.startswith("sqlite")
+        and not SQL_ALCHEMY_CONN.startswith("sqlite:////")
+        # In memory is not useful for production, but useful for writing tests against Airflow for extensions
+        and SQL_ALCHEMY_CONN != "sqlite://"
+    ):
+        from airflow.exceptions import AirflowConfigException
+
+        raise AirflowConfigException(
+            f"Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. "
+            "Please use absolute path such as `sqlite:////tmp/airflow.db`."
+        )
 
     global Session
     global engine

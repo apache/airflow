@@ -43,6 +43,7 @@ Currently, **officially** using Airflow:
 1. [Akamai](https://www.akamai.com/) [[@anirudhbagri](https://github.com/anirudhbagri)]
 1. [Akamas](https://akamas.io) [[@GiovanniPaoloGibilisco](https://github.com/GiovanniPaoloGibilisco), [@lucacavazzana](https://github.com/lucacavazzana)]
 1. [Alan](https://alan.eu) [[@charles-go](https://github.com/charles-go)]
+1. [AliFone](https://www.alifone.com.br/)
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 1. [Allo-Media](https://www.allo-media.net) [[@merwan](https://github.com/merwan/)]
 1. [AloPeyk](https://alopeyk.com) [[@blcksrx](https://github.com/blcksrx), [@AloPeyk](https://github.com/AloPeyk)]
@@ -111,6 +112,7 @@ Currently, **officially** using Airflow:
 1. [Capital One](https://www.capitalone.com) [[@anoopengineer](https://github.com/anoopengineer)]
 1. [Carbonite](https://www.carbonite.com) [[@ajbosco](https://github.com/ajbosco)]
 1. [CarLabs](https://www.carlabs.ai/) [[@sganz](https://github.com/sganz) & [@odannyc](https://github.com/odannyc)]
+1. [Carpe Data](https://www.carpe.io/) [[@manugarri](https://github.com/manugarri)]]
 1. [CAVA](https://www.cava.com) [[@minh5](https://github.com/minh5) & [@patchus](https://github.com/patchus)]
 1. [Celect](http://www.celect.com) [[@superdosh](https://github.com/superdosh) & [@chadcelect](https://github.com/chadcelect)]
 1. [Censys](https://censys.io) [[@zakird](https://github.com/zakird), [@dadrian](https://github.com/dadrian), & [@andrewsardone](https://github.com/andrewsardone)]
@@ -170,6 +172,7 @@ Currently, **officially** using Airflow:
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [Disney](https://www.disney.com/) [[@coolbeans201](https://github.com/coolbeans201)]
 1. [Docsity](https://www.docsity.com/)
+1. [Doctrine](https://www.doctrine.fr/)[[@anteverse](https://github.com/anteverse)]
 1. [DoorDash](https://www.doordash.com/)
 1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
@@ -254,7 +257,9 @@ Currently, **officially** using Airflow:
 1. [iHeartRadio](http://www.iheart.com/) [[@yiwang](https://github.com/yiwang)]
 1. [imgix](https://www.imgix.com/) [[@dclubb](https://github.com/dclubb)]
 1. [Indeed](https://www.indeed.com/) [[@chrismclennon](https://github.com/chrismclennon), [@raj-manvar](https://github.com/raj-manvar), [@Adil-Ibragimov](https://github.com/Adil-Ibragimov)]
-1. [IndiaMART](https://www.indiamart.com) [@sumit-kushwah](https://github.com/sumit-kushwah)]
+1. [IndiaMART](https://www.indiamart.com) [[@sumit-kushwah](https://github.com/sumit-kushwah)]
+1. [Infoedge](https://www.infoedge.in/) [[@amolsr](https://github.com/amolsr)]
+1. [Infofarm](https://infofarm.be/) [[@infofarm](https://github.com/infofarm), [@kobethuwis](https://github.com/kobethuwis)]
 1. [Infrabel](https://infrabel.be) [[@Joffreybvn](https://github.com/Joffreybvn), [@dabla](https://github.com/dabla), [@robbydb88](https://github.com/robbydb88), [@jarnedemunter1](https://github.com/jarnedemunter1)]
 1. [ING](http://www.ing.com/)
 1. [Instacart 🥕](http://www.instacart.com/) [[@arp1t](https://github.com/arp1t) & [@code-sauce](https://github.com/code-sauce) & [@jasonlew](https://github.com/jasonlew) & [@j4p3](https://github.com/j4p3) & [@lubert](https://github.com/lubert) & [@mmontagna](https://github.com/mmontagna) & [@RyanAD](https://github.com/RyanAD) &[@zzadeh](https://github.com/zzadeh)]
@@ -289,6 +294,7 @@ Currently, **officially** using Airflow:
 1. [LetsBonus](http://www.letsbonus.com) [[@jesusfcr](https://github.com/jesusfcr) & [@OpringaoDoTurno](https://github.com/OpringaoDoTurno)]
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
+1. [Lineas](https://lineas.net/) [[@lineashub](https://github.com/lineashub), [@kobethuwis](https://github.com/kobethuwis)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [LinkedIn](http://linkedin.com/) [[@csm10495](https://github.com/csm10495)]
 1. [Loadsmart](https://loadsmart.com/) [[@loadsmart](https://github.com/loadsmart)]
@@ -391,6 +397,7 @@ Currently, **officially** using Airflow:
 1. [Raízen](https://www.raizen.com.br/) [[@rudlac](https://github.com/rudlac) & [@guifneves](https://github.com/guifneves)]
 1. [REA Group](https://www.rea-group.com/)
 1. [Reddit](https://www.reddit.com/) [[@reddit](https://github.com/reddit/)]
+1. [Restb.ai](https://restb.ai/) [[@ferrannoguera](https://github.com/ferrannoguera)]
 1. [Retailink](https://retailink.fr/) [[@Harisonm](https://github.com/Harisonm)]
 1. [ReUp Education](https://reupeducation.com/) [[@Reup-Education](https://github.com/Reup-Education)]
 1. [Reverb](https://reverb.com)[[@reverbdotcom](https://github.com/reverbdotcom)]
@@ -411,10 +418,12 @@ Currently, **officially** using Airflow:
 1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
 1. [Simply Business](https://www.simplybusiness.com/) [[@simplybusiness](https://github.com/simplybusiness)]
+1. [SIRCLO](https://www.sirclo.com/)
 1. [Skai](https://www.skai.io/) [[@kenshoo](https://github.com/kenshoo)]
 1. [Skyscanner](https://www.skyscanner.net/) [[@skyscanner](https://github.com/Skyscanner)]
 1. [SMAP Energy Ltd.](https://smapenergy.com) [[@camenergydatalab](https://github.com/camenergydatalab)]
 1. [SmartNews](https://www.smartnews.com/) [[@takus](https://github.com/takus)]
+1. [SmartQ](https://www.thesmartq.com/)
 1. [SnapTravel](https://www.snaptravel.com/)
 1. [SocialCops](https://www.socialcops.com/) [[@vinayak-mehta](https://github.com/vinayak-mehta) & [@sharky93](https://github.com/sharky93)]
 1. [Société générale](https://www.societegenerale.fr/) [[@medmrgh](https://github.com/medmrgh) & [@s83](https://github.com/s83)]
@@ -458,7 +467,7 @@ Currently, **officially** using Airflow:
 1. [Tinder](https://tinder.com/) [[@kbendick](https://github.com/kbendick)]
 1. [Tink](https://tink.com/) [[@tink-ab](https://github.com/tink-ab)]
 1. [TokenAnalyst](https://github.com/tokenanalyst) [[@simonohanlon101](https://github.com/simonohanlon101), [@ankitchiplunkar](https://github.com/ankitchiplunkar), [@sidshekhar](https://github.com/sidshekhar), [@sp6pe](https://github.com/sp6pe)]
-1. [Tokopedia](https://www.tokopedia.com/) [[@topedmaria](https://github.com/topedmaria)]
+1. [Tokopedia](https://www.tokopedia.com/) [[@tokopedia](https://github.com/tokopedia)]
 1. [Topgolf](https://topgolf.com/)[[@BhaveshSK](https://github.com/BhaveshSK)]
 1. [Trade Republic](https://traderepublic.com/)
 1. [Trakken](https://www.trkkn.com/) [[@itroulli](https://github.com/itroulli), [@gthar](https://github.com/gthar), [@qulo](https://github.com/qulo), [@Oscar-Rod](https://github.com/Oscar-Rod), [@kondla](https://github.com/kondla), [@semuar](https://github.com/semuar), [@ManuelFreytag](https://github.com/ManuelFreytag)

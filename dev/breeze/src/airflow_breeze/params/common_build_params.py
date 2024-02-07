@@ -46,10 +46,8 @@ class CommonBuildParams:
     additional_dev_apt_env: str | None = None
     additional_python_deps: str | None = None
     additional_pip_install_flags: str | None = None
-    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
-    default_constraints_branch: str = os.environ.get(
-        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
+    airflow_branch: str = AIRFLOW_BRANCH
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_location: str | None = None
     builder: str = "autodetect"
     build_progress: str = ALLOWED_BUILD_PROGRESS[0]
@@ -63,7 +61,6 @@ class CommonBuildParams:
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     image_tag: str | None = None
-    install_providers_from_sources: bool = False
     install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False

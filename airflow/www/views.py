@@ -133,7 +133,6 @@ from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
-from airflow.www.auth import has_access_with_pk
 from airflow.www.decorators import action_logging, gzipped
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
@@ -1945,7 +1944,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def trigger(self, dag_id: str, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
-        run_id = request.values.get("run_id", "").replace(" ", "+")
+        run_id = request.values.get("run_id", "")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
@@ -2030,6 +2029,7 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
 
+        num_recent_confs = conf.getint("webserver", "num_recent_configurations_for_trigger")
         recent_runs = session.execute(
             select(DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date))
             .where(
@@ -2039,7 +2039,7 @@ class Airflow(AirflowBaseView):
             )
             .group_by(DagRun.conf)
             .order_by(func.max(DagRun.execution_date).desc())
-            .limit(5)
+            .limit(num_recent_confs)
         )
         recent_confs = {
             run_id: json.dumps(run_conf)
@@ -2189,7 +2189,8 @@ class Airflow(AirflowBaseView):
             form = DateTimeForm(data={"execution_date": execution_date})
             # Take over "bad" submitted fields for new form display
             for k, v in form_fields.items():
-                form_fields[k]["value"] = run_conf[k]
+                if k in run_conf:
+                    form_fields[k]["value"] = run_conf[k]
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
@@ -2974,7 +2975,7 @@ class Airflow(AirflowBaseView):
                 for (date, count) in dates.items()
             )
 
-        now = DateTime.utcnow()
+        now = timezone.utcnow()
         data = {
             "dag_states": data_dag_states,
             "start_date": (dag.start_date or now).date().isoformat(),
@@ -3560,7 +3561,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.run_type, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.run_type)
             ).all()
@@ -3569,7 +3570,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.state, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.state)
             ).all()
@@ -3580,7 +3581,7 @@ class Airflow(AirflowBaseView):
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(TaskInstance.state)
             ).all()
@@ -3994,7 +3995,7 @@ class AirflowModelView(ModelView):
         return attribute
 
     @expose("/show/<pk>", methods=["GET"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def show(self, pk):
         """
         Show view.
@@ -4016,7 +4017,7 @@ class AirflowModelView(ModelView):
         )
 
     @expose("/edit/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def edit(self, pk):
         """
         Edit view.
@@ -4040,7 +4041,7 @@ class AirflowModelView(ModelView):
             )
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """
         Delete view.
@@ -4738,7 +4739,7 @@ class PoolModelView(AirflowModelView):
         return redirect(self.get_redirect())
 
     @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access_with_pk
+    @auth.has_access_with_pk
     def delete(self, pk):
         """Single delete."""
         if models.Pool.is_default_pool(pk):
@@ -5475,7 +5476,7 @@ class TaskInstanceModelView(AirflowModelView):
         "priority_weight",
         "queue",
         "queued_dttm",
-        "try_number",
+        "prev_attempted_tries",
         "pool",
         "queued_by_job_id",
         "external_executor_id",
@@ -5504,9 +5505,7 @@ class TaskInstanceModelView(AirflowModelView):
         "queued_by_job_id",
     ]
 
-    label_columns = {
-        "dag_run.execution_date": "Logical Date",
-    }
+    label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [
         "state",

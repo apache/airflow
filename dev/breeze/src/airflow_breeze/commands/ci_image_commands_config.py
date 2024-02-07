@@ -58,7 +58,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--commit-sha",
                 "--debian-version",
                 "--install-mysql-client-type",
-                "--install-providers-from-sources",
                 "--python-image",
             ],
         },

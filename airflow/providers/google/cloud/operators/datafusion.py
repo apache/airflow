@@ -537,6 +537,7 @@ class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         self.log.info("Pipeline %s created", self.pipeline_name)
 
@@ -705,7 +706,12 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Pipelines: %s", pipelines)
 
-        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=service_endpoint)
+        DataFusionPipelinesLink.persist(
+            context=context,
+            task_instance=self,
+            uri=service_endpoint,
+            namespace=self.namespace,
+        )
         return pipelines
 
 
@@ -825,6 +831,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
 
         if self.deferrable:
@@ -954,6 +961,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,

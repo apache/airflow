@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver Service
 #################################
+{{- if .Values.webserver.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -43,10 +44,12 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
-  {{- range .Values.webserver.service.ports }}
-    - {{ range $key, $val := . }}
-      {{- $key }}: {{ tpl (toString $val) $ }}
-      {{ end }}
+  ports:
+  {{ range .Values.webserver.service.ports }}
+    -
+      {{- range $key, $val := . }}
+      {{ $key }}: {{ tpl (toString $val) $ }}
+      {{- end }}
   {{- end }}
   {{- if .Values.webserver.service.loadBalancerIP }}
   loadBalancerIP: {{ .Values.webserver.service.loadBalancerIP }}
@@ -54,3 +57,4 @@ spec:
   {{- if .Values.webserver.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges: {{- toYaml .Values.webserver.service.loadBalancerSourceRanges | nindent 4 }}
   {{- end }}
+{{- end }}

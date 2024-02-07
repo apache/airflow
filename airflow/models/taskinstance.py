@@ -410,6 +410,17 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
+
+    def _execute_callable(context, **execute_callable_kwargs):
+        try:
+            return execute_callable(context=context, **execute_callable_kwargs)
+        except SystemExit as e:
+            # Handle only successful cases here. Failure cases will be handled upper
+            # in the exception chain.
+            if e.code is not None and e.code != 0:
+                raise
+            return None
+
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
     if task_to_execute.execution_timeout:
@@ -427,12 +438,12 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute_callable(context=context, **execute_callable_kwargs)
+                result = _execute_callable(context=context, **execute_callable_kwargs)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = execute_callable(context=context, **execute_callable_kwargs)
+        result = _execute_callable(context=context, **execute_callable_kwargs)
     with create_session() as session:
         if task_to_execute.do_xcom_push:
             xcom_value = result
@@ -1259,7 +1270,6 @@ class TaskInstance(Base, LoggingMixin):
         # Existing "ti_state_lkp" is not enough for such query when this table has millions of rows, since
         # rows have to be fetched in order to retrieve the start_date column. With this index, INDEX ONLY SCAN
         # is performed and that query runs within milliseconds.
-        Index("ti_state_incl_start_date", dag_id, task_id, state, postgresql_include=["start_date"]),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
@@ -1422,6 +1432,18 @@ class TaskInstance(Base, LoggingMixin):
         This is designed so that task logs end up in the right file.
         """
         return _get_try_number(task_instance=self)
+
+    @try_number.expression
+    def try_number(cls):
+        """
+        This is what will be used by SQLAlchemy when filtering on try_number.
+
+        This is required because the override in the get_try_number function causes
+        try_number values to be off by one when listing tasks in the UI.
+
+        :meta private:
+        """
+        return cls._try_number
 
     @try_number.setter
     def try_number(self, value: int) -> None:
@@ -2362,6 +2384,8 @@ class TaskInstance(Base, LoggingMixin):
                     self.log.info(e)
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
+                _run_finished_callback(callbacks=self.task.on_skipped_callback, context=context)
+                session.commit()
                 self.state = TaskInstanceState.SKIPPED
             except AirflowRescheduleException as reschedule_exception:
                 self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
@@ -2392,6 +2416,13 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
+            except SystemExit as e:
+                # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
+                # Therefore, here we must handle only error codes.
+                msg = f"Task failed due to SystemExit({e.code})"
+                self.handle_failure(msg, test_mode, context, session=session)
+                session.commit()
+                raise Exception(msg)
             finally:
                 Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
                 # Same metric with tagging
@@ -3226,7 +3257,6 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     @internal_api_call
-    @Sentry.enrich_errors
     @provide_session
     def _schedule_downstream_tasks(
         cls,

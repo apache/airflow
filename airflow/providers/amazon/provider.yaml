@@ -22,8 +22,9 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1704610260
+source-date-epoch: 1705911803
 versions:
+  - 8.17.0
   - 8.16.0
   - 8.15.0
   - 8.14.0
@@ -92,13 +93,45 @@ dependencies:
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
   - asgiref
+  - PyAthena>=3.0.10
+
+additional-extras:
+  - name: pandas
+    dependencies:
+      - pandas>=1.2.5
+  # There is conflict between boto3 and aiobotocore dependency botocore.
+  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
+  # boto3 have native async support and we move away from aio aiobotocore
+  - name: aiobotocore
+    dependencies:
+      - aiobotocore[boto3]>=2.5.3
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs>=2023.10.0
+  - name: python3-saml
+    dependencies:
+      - python3-saml>=1.16.0
+
+devel-dependencies:
+  - aiobotocore>=2.7.0
+  - aws_xray_sdk>=2.12.0
+  - moto[cloudformation,glue]>=5.0.0
+  - mypy-boto3-appflow>=1.33.0
+  - mypy-boto3-rds>=1.33.0
+  - mypy-boto3-redshift-data>=1.33.0
+  - mypy-boto3-s3>=1.33.0
+  - s3fs>=2023.10.0
 
 integrations:
   - integration-name: Amazon Athena
     external-doc-url: https://aws.amazon.com/athena/
     logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/athena.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
+      - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
     tags: [aws]
   - integration-name: Amazon Chime
     external-doc-url: https://aws.amazon.com/chime/
@@ -304,6 +337,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /integration-logos/aws/Amazon-Verified-Permissions.png
     tags: [aws]
+  - integration-name: Amazon Neptune
+    external-doc-url: https://aws.amazon.com/neptune/
+    logo: /integration-logos/aws/Amazon-Neptune_64.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/neptune.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -383,6 +422,9 @@ operators:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.operators.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.operators.neptune
 
 sensors:
   - integration-name: Amazon Athena
@@ -458,6 +500,7 @@ hooks:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
+      - airflow.providers.amazon.aws.hooks.athena_sql
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
@@ -568,6 +611,9 @@ hooks:
   - integration-name: Amazon Verified Permissions
     python-modules:
       - airflow.providers.amazon.aws.hooks.verified_permissions
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.neptune
 
 triggers:
   - integration-name: Amazon Web Services
@@ -588,6 +634,7 @@ triggers:
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
+      - airflow.providers.amazon.aws.triggers.redshift_data
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
@@ -619,6 +666,9 @@ triggers:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.neptune
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -725,6 +775,8 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+  - hook-class-name: airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook
+    connection-type: athena
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
@@ -738,26 +790,6 @@ secrets-backends:
 logging:
   - airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler
   - airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler
-
-additional-extras:
-  - name: pandas
-    dependencies:
-      - pandas>=0.17.1
-  # There is conflict between boto3 and aiobotocore dependency botocore.
-  # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-  # boto3 have native async support and we move away from aio aiobotocore
-  - name: aiobotocore
-    dependencies:
-      - aiobotocore[boto3]>=2.5.3
-  - name: cncf.kubernetes
-    dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.2.0
-  - name: s3fs
-    dependencies:
-      - s3fs>=2023.10.0
-  - name: python3-saml
-    dependencies:
-      - python3-saml>=1.16.0
 
 config:
   aws:
@@ -828,6 +860,19 @@ config:
         type: string
         example: "ecs_executor_cluster"
         default: ~
+      capacity_provider_strategy:
+        description: |
+          The capacity provider strategy to use for the task.
+
+          If a Capacity Provider Strategy is specified, the Launch Type parameter must be omitted. If
+          no Capacity Provider Strategy or Launch Type is specified, the Default CapacityProvider Strategy
+          for the cluster is used, if present.
+
+          When you use cluster auto scaling, you must specify Capacity Provider Strategy and not Launch Type.
+        version_added: "8.17"
+        type: string
+        example: "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        default: ~
       container_name:
         description: |
           Name of the container that will be used to execute Airflow tasks via the ECS executor.
@@ -843,6 +888,10 @@ config:
           Launch type can either be 'FARGATE' OR 'EC2'. For more info see url to
           Boto3 docs above.
 
+          If a Launch Type is specified, the Capacity Provider Strategy parameter must be omitted. If
+          no Capacity Provider Strategy or Launch Type is specified, the Default Capacity Provider Strategy
+          for the cluster is used, if present.
+
           If the launch type is EC2, the executor will attempt to place tasks on
           empty EC2 instances. If there are no EC2 instances available, no task
           is placed and this function will be called again in the next heart-beat.
@@ -852,7 +901,7 @@ config:
         version_added: "8.10"
         type: string
         example: "FARGATE"
-        default: "FARGATE"
+        default: ~
       platform_version:
         description: |
           The platform version the task uses. A platform version is only specified

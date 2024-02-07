@@ -25,13 +25,8 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 from google.cloud.container_v1.types import Operation
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-
-try:
-    from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -81,6 +76,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
     ):
@@ -101,11 +98,14 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
 
         if should_delete_pod is not None:
             warnings.warn(
                 "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
@@ -135,6 +135,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
+                "gcp_conn_id": self.gcp_conn_id,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
@@ -143,6 +145,8 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         return GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
 

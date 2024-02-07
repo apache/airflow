@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+
 3.6.0
 .....
 

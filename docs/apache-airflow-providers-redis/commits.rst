@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2024-01-26
+
+=================================================================================================  ===========  ====================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================================
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+=================================================================================================  ===========  ====================================================================================================================
+
 3.6.0
 .....
 
-Latest change: 2024-01-04
+Latest change: 2024-01-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `9829e86cf6 <https://github.com/apache/airflow/commit/9829e86cf6f111814b23746e25d316f34d502466>`_  2024-01-04   ``Add docs to redis connection (#36581)``
 `08f6e2e5d2 <https://github.com/apache/airflow/commit/08f6e2e5d21382494597e6cac66725bc85729656>`_  2024-01-04   ``Fix misconfiguration of redis client with ssl (#36561)``
 `66f9b385f5 <https://github.com/apache/airflow/commit/66f9b385f5a0d135ce5ec821103c761693874c74>`_  2024-01-03   ``Add username authenticating to the Redis hook (#36562)``

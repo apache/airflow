@@ -17,7 +17,8 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, List, NamedTuple, Sequence, cast
+from collections import namedtuple
+from typing import Any, List, Sequence, cast
 from urllib.parse import quote_plus
 
 from pyodbc import Connection, Row, connect
@@ -229,14 +230,16 @@ class OdbcHook(DbApiHook):
         return cnx
 
     def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
-        """Transform the pyodbc.Row objects returned from an SQL command into typed NamedTuples."""
-        # Below ignored lines respect NamedTuple docstring, but mypy do not support dynamically
-        # instantiated typed Namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        """Transform the pyodbc.Row objects returned from an SQL command into namedtuples."""
+        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
+        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
         field_names: list[tuple[str, type]] | None = None
+        if not result:
+            return []
         if isinstance(result, Sequence):
-            field_names = [col[:2] for col in result[0].cursor_description]
-            row_object = NamedTuple("Row", field_names)  # type: ignore[misc]
+            field_names = [col[0] for col in result[0].cursor_description]
+            row_object = namedtuple("Row", field_names, rename=True)  # type: ignore
             return cast(List[tuple], [row_object(*row) for row in result])
         else:
-            field_names = [col[:2] for col in result.cursor_description]
-            return cast(tuple, NamedTuple("Row", field_names)(*result))  # type: ignore[misc, operator]
+            field_names = [col[0] for col in result.cursor_description]
+            return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore

@@ -23,7 +23,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from moto import mock_rds
+from moto import mock_aws
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
@@ -171,7 +171,7 @@ class TestRdsCreateDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_create_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         instance_snapshot_operator = RdsCreateDbSnapshotOperator(
@@ -191,7 +191,7 @@ class TestRdsCreateDbSnapshotOperator:
         assert instance_snapshots
         assert len(instance_snapshots) == 1
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_snapshot_state")
     def test_create_db_instance_snapshot_no_wait(self, mock_wait):
         _create_db_instance(self.hook)
@@ -214,7 +214,7 @@ class TestRdsCreateDbSnapshotOperator:
         assert len(instance_snapshots) == 1
         mock_wait.assert_not_called()
 
-    @mock_rds
+    @mock_aws
     def test_create_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         cluster_snapshot_operator = RdsCreateDbSnapshotOperator(
@@ -234,7 +234,7 @@ class TestRdsCreateDbSnapshotOperator:
         assert cluster_snapshots
         assert len(cluster_snapshots) == 1
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_cluster_snapshot_state")
     def test_create_db_cluster_snapshot_no_wait(self, mock_wait):
         _create_db_cluster(self.hook)
@@ -270,7 +270,7 @@ class TestRdsCopyDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_copy_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -291,7 +291,7 @@ class TestRdsCopyDbSnapshotOperator:
         assert instance_snapshots
         assert len(instance_snapshots) == 1
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_snapshot_state")
     def test_copy_db_instance_snapshot_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -315,7 +315,7 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(instance_snapshots) == 1
         mock_await_status.assert_not_called()
 
-    @mock_rds
+    @mock_aws
     def test_copy_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
@@ -338,7 +338,7 @@ class TestRdsCopyDbSnapshotOperator:
         assert cluster_snapshots
         assert len(cluster_snapshots) == 1
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_snapshot_state")
     def test_copy_db_cluster_snapshot_no_wait(self, mock_await_status):
         _create_db_cluster(self.hook)
@@ -376,7 +376,7 @@ class TestRdsDeleteDbSnapshotOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_delete_db_instance_snapshot(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -396,7 +396,7 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
 
-    @mock_rds
+    @mock_aws
     def test_delete_db_instance_snapshot_no_wait(self):
         """
         Check that the operator does not wait for the DB instance snapshot delete operation to complete when
@@ -421,7 +421,7 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_snapshots(DBSnapshotIdentifier=DB_INSTANCE_SNAPSHOT)
 
-    @mock_rds
+    @mock_aws
     def test_delete_db_cluster_snapshot(self):
         _create_db_cluster(self.hook)
         _create_db_cluster_snapshot(self.hook)
@@ -441,7 +441,7 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
-    @mock_rds
+    @mock_aws
     def test_delete_db_cluster_snapshot_no_wait(self):
         """
         Check that the operator does not wait for the DB cluster snapshot delete operation to complete when
@@ -479,7 +479,7 @@ class TestRdsStartExportTaskOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_start_export_task(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -504,7 +504,7 @@ class TestRdsStartExportTaskOperator:
         assert len(export_tasks) == 1
         assert export_tasks[0]["Status"] == "complete"
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_export_task_state")
     def test_start_export_task_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -545,7 +545,7 @@ class TestRdsCancelExportTaskOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_cancel_export_task(self):
         _create_db_instance(self.hook)
         _create_db_instance_snapshot(self.hook)
@@ -567,7 +567,7 @@ class TestRdsCancelExportTaskOperator:
         assert len(export_tasks) == 1
         assert export_tasks[0]["Status"] == "canceled"
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_export_task_state")
     def test_cancel_export_task_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -605,7 +605,7 @@ class TestRdsCreateEventSubscriptionOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_create_event_subscription(self):
         _create_db_instance(self.hook)
 
@@ -628,7 +628,7 @@ class TestRdsCreateEventSubscriptionOperator:
         assert len(subscriptions) == 1
         assert subscriptions[0]["Status"] == "active"
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_event_subscription_state")
     def test_create_event_subscription_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -667,7 +667,7 @@ class TestRdsDeleteEventSubscriptionOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_delete_event_subscription(self):
         _create_event_subscription(self.hook)
 
@@ -696,7 +696,7 @@ class TestRdsCreateDbInstanceOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_create_db_instance(self):
         create_db_instance_operator = RdsCreateDbInstanceOperator(
             task_id="test_create_db_instance",
@@ -719,7 +719,7 @@ class TestRdsCreateDbInstanceOperator:
         assert len(db_instances) == 1
         assert db_instances[0]["DBInstanceStatus"] == "available"
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_instance_state")
     def test_create_db_instance_no_wait(self, mock_await_status):
         create_db_instance_operator = RdsCreateDbInstanceOperator(
@@ -758,7 +758,7 @@ class TestRdsDeleteDbInstanceOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_delete_db_instance(self):
         _create_db_instance(self.hook)
 
@@ -777,7 +777,7 @@ class TestRdsDeleteDbInstanceOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_instance_state")
     def test_delete_db_instance_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -812,7 +812,7 @@ class TestRdsStopDbOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_instance_state")
     def test_stop_db_instance(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -824,7 +824,7 @@ class TestRdsStopDbOperator:
         assert status == "stopped"
         mock_await_status.assert_called()
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_instance_state")
     def test_stop_db_instance_no_wait(self, mock_await_status):
         _create_db_instance(self.hook)
@@ -851,7 +851,7 @@ class TestRdsStopDbOperator:
 
         assert isinstance(defer.value.trigger, RdsDbStoppedTrigger)
 
-    @mock_rds
+    @mock_aws
     def test_stop_db_instance_create_snapshot(self):
         _create_db_instance(self.hook)
         stop_db_instance = RdsStopDbOperator(
@@ -871,7 +871,7 @@ class TestRdsStopDbOperator:
         assert instance_snapshots
         assert len(instance_snapshots) == 1
 
-    @mock_rds
+    @mock_aws
     @patch.object(RdsHook, "wait_for_db_cluster_state")
     def test_stop_db_cluster(self, mock_await_status):
         _create_db_cluster(self.hook)
@@ -886,7 +886,7 @@ class TestRdsStopDbOperator:
         assert status == "stopped"
         mock_await_status.assert_called()
 
-    @mock_rds
+    @mock_aws
     def test_stop_db_cluster_create_snapshot_logs_warning_message(self, caplog):
         _create_db_cluster(self.hook)
         stop_db_cluster = RdsStopDbOperator(
@@ -916,7 +916,7 @@ class TestRdsStartDbOperator:
         del cls.dag
         del cls.hook
 
-    @mock_rds
+    @mock_aws
     def test_start_db_instance(self):
         _create_db_instance(self.hook)
         self.hook.conn.stop_db_instance(DBInstanceIdentifier=DB_INSTANCE_NAME)
@@ -934,7 +934,7 @@ class TestRdsStartDbOperator:
         status_after = result_after["DBInstances"][0]["DBInstanceStatus"]
         assert status_after == "available"
 
-    @mock_rds
+    @mock_aws
     def test_start_db_cluster(self):
         _create_db_cluster(self.hook)
         self.hook.conn.stop_db_cluster(DBClusterIdentifier=DB_CLUSTER_NAME)

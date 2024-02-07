@@ -431,7 +431,7 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id
@@ -458,7 +458,7 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id

@@ -115,7 +115,7 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    airflow_branch: str = os.environ.get("DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    airflow_branch: str = AIRFLOW_BRANCH
     airflow_constraints_location: str = ""
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
@@ -130,12 +130,11 @@ class ShellParams:
     collect_only: bool = False
     database_isolation: bool = False
     db_reset: bool = False
-    default_constraints_branch: str = os.environ.get(
-        "DEFAULT_CONSTRAINTS_BRANCH", DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    )
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
     docker_host: str | None = os.environ.get("DOCKER_HOST")
     downgrade_sqlalchemy: bool = False
+    downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
@@ -150,7 +149,6 @@ class ShellParams:
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
-    install_providers_from_sources: bool = True
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
@@ -483,6 +481,7 @@ class ShellParams:
         _set_var(_env, "DEV_MODE", self.dev_mode)
         _set_var(_env, "DOCKER_IS_ROOTLESS", self.rootless_docker)
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
+        _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -492,7 +491,6 @@ class ShellParams:
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
         _set_var(_env, "INIT_SCRIPT_FILE", None, "init.sh")
         _set_var(_env, "INSTALL_AIRFLOW_VERSION", self.install_airflow_version)
-        _set_var(_env, "INSTALL_PROVIDERS_FROM_SOURCES", self.install_providers_from_sources)
         _set_var(_env, "INSTALL_SELECTED_PROVIDERS", self.install_selected_providers)
         _set_var(_env, "ISSUE_ID", self.issue_id)
         _set_var(_env, "LOAD_DEFAULT_CONNECTIONS", self.load_default_connections)
