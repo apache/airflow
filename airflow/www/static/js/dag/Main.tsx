@@ -38,7 +38,7 @@ import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
-const collapsedWidth = "28px";
+const collapsedWidth = "32px";
 
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(

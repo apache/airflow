@@ -87,7 +87,7 @@ const Header = () => {
   const isMappedTaskDetails = runId && taskId && mapIndex !== undefined;
 
   return (
-    <Breadcrumb separator={<Text color="gray.300">/</Text>}>
+    <Breadcrumb ml={3} separator={<Text color="gray.300">/</Text>}>
       <BreadcrumbItem isCurrentPage={isDagDetails} mt={4}>
         <BreadcrumbLink
           onClick={clearSelection}

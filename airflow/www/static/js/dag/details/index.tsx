@@ -197,7 +197,7 @@ const Details = ({
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" pl={3} height="100%">
+    <Flex flexDirection="column" height="100%">
       <Flex
         alignItems="center"
         justifyContent="space-between"
