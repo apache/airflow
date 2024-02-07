@@ -52,6 +52,7 @@ from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -437,15 +438,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
+
+            jinja_context = {
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            }
+
+            if inspect.getfile(self.python_callable) == self.dag.fileloc:
+                jinja_context["modified_dag_module_name"] = get_unique_dag_module_name(self.dag.fileloc)
+
             write_python_script(
-                jinja_context={
-                    "op_args": self.op_args,
-                    "op_kwargs": op_kwargs,
-                    "expect_airflow": self.expect_airflow,
-                    "pickling_library": self.pickling_library.__name__,
-                    "python_callable": self.python_callable.__name__,
-                    "python_callable_source": self.get_python_source(),
-                },
+                jinja_context=jinja_context,
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
