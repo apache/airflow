@@ -131,21 +131,24 @@ def get_dataset_events(
     )
 
 
-def _get_ddrq(dag_id: str, uri: str, session: Session, before: str | None = None) -> DatasetDagRunQueue:
-    """Get DatasetDagRunQueue."""
-    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri))
-    if not dataset:
-        return None
-    dataset_id = dataset.id
-
-    where_clause_conditions = [
-        DatasetDagRunQueue.target_dag_id == dag_id,
-        DatasetDagRunQueue.dataset_id == dataset_id,
-    ]
+def _generate_queue_event_where_clause(
+    *,
+    dag_id: str | None = None,
+    dataset_id: int | None = None,
+    uri: str | None = None,
+    before: str | None = None,
+) -> list:
+    """Get DatasetDagRunQueue where clause."""
+    where_clause = []
+    if dag_id is not None:
+        where_clause.append(DatasetDagRunQueue.target_dag_id == dag_id)
+    if dataset_id is not None:
+        where_clause.append(DatasetDagRunQueue.dataset_id == dataset_id)
+    if uri is not None:
+        where_clause.append(DatasetModel.uri == uri)
     if before is not None:
-        where_clause_conditions.append(DatasetDagRunQueue.created_at < format_datetime(before))
-
-    return session.scalar(select(DatasetDagRunQueue).where(*where_clause_conditions))
+        where_clause.append(DatasetDagRunQueue.created_at < format_datetime(before))
+    return where_clause
 
 
 @security.requires_access_dataset("GET")
@@ -154,7 +157,12 @@ def get_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get a queued Dataset event for a DAG."""
-    ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
+    where_clause = _generate_queue_event_where_clause(dag_id=dag_id, uri=uri, before=before)
+    ddrq = session.scalar(
+        select(DatasetDagRunQueue)
+        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+        .where(*where_clause)
+    )
     if ddrq is None:
         raise NotFound(
             "Queue event not found",
@@ -169,21 +177,16 @@ def delete_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete a queued Dataset event for a DAG."""
-    ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
-    if ddrq is None:
-        raise NotFound(
-            "Queue event not found",
-            detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
-        )
-    session.delete(ddrq)
-    return NoContent, HTTPStatus.NO_CONTENT
-
-
-def _build_get_ddrqs_where_clause(dag_id: str, before: str | None = None):
-    where_clauses = [DatasetDagRunQueue.target_dag_id == dag_id]
-    if before is not None:
-        where_clauses.append(DatasetDagRunQueue.created_at < format_datetime(before))
-    return where_clauses
+    dataset_id = session.scalars(select(DatasetModel.id).where(DatasetModel.uri == uri)).one_or_none()
+    where_clause = _generate_queue_event_where_clause(dag_id=dag_id, dataset_id=dataset_id, before=before)
+    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
+    result = session.execute(delete_stmt)
+    if result.rowcount > 0:
+        return NoContent, HTTPStatus.NO_CONTENT
+    raise NotFound(
+        "Queue event not found",
+        detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
+    )
 
 
 @security.requires_access_dataset("GET")
@@ -192,8 +195,8 @@ def get_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued Dataset events for a DAG."""
-    where_clauses = _build_get_ddrqs_where_clause(dag_id=dag_id, before=before)
-    query = select(DatasetDagRunQueue).where(*where_clauses)
+    where_clause = _generate_queue_event_where_clause(dag_id=dag_id, before=before)
+    query = select(DatasetDagRunQueue).where(*where_clause)
     total_entries = get_query_count(query, session=session)
     ddrqs = session.scalars(query).all()
     if not ddrqs:
@@ -212,28 +215,16 @@ def delete_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued Dataset events for a DAG."""
-    where_clauses = _build_get_ddrqs_where_clause(dag_id=dag_id, before=before)
-    if where_clauses:
-        delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
-        s = session.execute(delete_stmt)
-        if s.rowcount:
-            return NoContent, HTTPStatus.NO_CONTENT
+    where_clause = _generate_queue_event_where_clause(dag_id=dag_id, before=before)
+    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
+    result = session.execute(delete_stmt)
+    if result.rowcount > 0:
+        return NoContent, HTTPStatus.NO_CONTENT
+
     raise NotFound(
         "Queue event not found",
         detail=f"Queue event with dag_id: `{dag_id}` was not found",
     )
-
-
-def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: str | None = None):
-    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri))
-    if not dataset:
-        return None
-    dataset_id = dataset.id
-
-    where_clauses = [DatasetDagRunQueue.dataset_id == dataset_id]
-    if before is not None:
-        where_clauses.append(DatasetDagRunQueue.created_at < format_datetime(before))
-    return where_clauses
 
 
 @security.requires_access_dataset("GET")
@@ -242,19 +233,21 @@ def get_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued Dataset events for a Dataset."""
-    where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
-    ddrqs = None
-    if where_clauses:
-        query = select(DatasetDagRunQueue).where(*where_clauses)
-        total_entries = get_query_count(query, session=session)
-        ddrqs = session.scalars(query).all()
-    if not where_clauses or not ddrqs:
-        raise NotFound(
-            "Queue event not found",
-            detail=f"Queue event with dataset uri: `{uri}` was not found",
+    where_clause = _generate_queue_event_where_clause(uri=uri, before=before)
+    query = (
+        select(DatasetDagRunQueue)
+        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+        .where(*where_clause)
+    )
+    total_entries = get_query_count(query, session=session)
+    ddrqs = session.scalars(query).all()
+    if total_entries > 0:
+        return dataset_dag_run_queue_collection_schema.dump(
+            DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
         )
-    return dataset_dag_run_queue_collection_schema.dump(
-        DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
+    raise NotFound(
+        "Queue event not found",
+        detail=f"Queue event with dataset uri: `{uri}` was not found",
     )
 
 
@@ -264,12 +257,13 @@ def delete_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued Dataset events for a Dataset."""
-    where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
-    if where_clauses:
-        delete_stmt = delete(DatasetDagRunQueue).where(*where_clauses)
-        s = session.execute(delete_stmt)
-        if s.rowcount:
-            return NoContent, HTTPStatus.NO_CONTENT
+    dataset_id = session.scalars(select(DatasetModel.id).where(DatasetModel.uri == uri)).one_or_none()
+    where_clause = _generate_queue_event_where_clause(dataset_id=dataset_id, before=before)
+
+    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
+    result = session.execute(delete_stmt)
+    if result.rowcount > 0:
+        return NoContent, HTTPStatus.NO_CONTENT
     raise NotFound(
         "Queue event not found",
         detail=f"Queue event with dataset uri: `{uri}` was not found",
