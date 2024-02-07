@@ -678,7 +678,7 @@ exasol = [ # source: airflow/providers/exasol/provider.yaml
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.10",
+  "flask-appbuilder==4.3.11",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
