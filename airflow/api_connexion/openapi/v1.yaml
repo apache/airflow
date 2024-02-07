@@ -986,19 +986,19 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/{uri}/pendingEvents:
+  /dags/{dag_id}/datasets/eventQueue/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DatasetURI"
 
     get:
-      summary: Get a Dag Dataset pending event.
+      summary: Get a queued Dataset event for a DAG
       description: |
-        Get a Dag Dataset pending event.
+        Get a queued Dataset event for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_pending_event
+      operationId: get_dag_dataset_queue_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1017,13 +1017,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete a Dag Dataset pending event.
+      summary: Delete a queued Dataset event for a DAG.
       description: |
-        Delete a Dag Dataset pending event.
+        Delete a queued Dataset event for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_pending_event
+      operationId: delete_dag_dataset_queue_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1039,18 +1039,18 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/pendingEvents:
+  /dags/{dag_id}/datasets/eventQueue:
     parameters:
       - $ref: "#/components/parameters/DAGID"
 
     get:
-      summary: Get Dag Dataset pending events.
+      summary: Get queued Dataset events for a DAG.
       description: |
-        Get Dag Dataset pending events.
+        Get queued Dataset events for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_pending_events
+      operationId: get_dag_dataset_queue_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1069,13 +1069,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete Dag Dataset pending events.
+      summary: Delete queued Dataset events for a DAG.
       description: |
-        Delete Dag Dataset pending events.
+        Delete queued Dataset events for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_pending_events
+      operationId: delete_dag_dataset_queue_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1091,18 +1091,18 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/{uri}/pendingEvents:
+  /datasets/{uri}/eventQueue:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
 
     get:
-      summary: Get Dataset pending events.
+      summary: Get queued Dataset events for a Dataset.
       description: |
-        Get Dataset pending events.
+        Get queued Dataset events for a Dataset
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_pending_events
+      operationId: get_dataset_queue_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1121,13 +1121,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete Dataset pending events.
+      summary: Delete queued Dataset events for a Dataset.
       description: |
-        Delete Dataset pending events.
+        Delete queued Dataset events for a Dataset.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dataset_pending_events
+      operationId: delete_dataset_queue_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]

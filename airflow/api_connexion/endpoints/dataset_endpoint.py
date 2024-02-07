@@ -149,10 +149,10 @@ def _get_ddrq(dag_id: str, uri: str, session: Session, before: str | None = None
 @security.requires_access_dataset("GET")
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag_dataset_pending_event(
+def get_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get a pending dataset event for a DAG."""
+    """Get a queued Dataset event for a DAG."""
     ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
     if ddrq is None:
         raise NotFound(
@@ -165,10 +165,10 @@ def get_dag_dataset_pending_event(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("DELETE")
 @provide_session
-def delete_dag_dataset_pending_event(
+def delete_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete a pending dataset event for a DAG."""
+    """Delete a queued Dataset event for a DAG."""
     ddrq = _get_ddrq(dag_id=dag_id, uri=uri, session=session, before=before)
     if ddrq is None:
         raise NotFound(
@@ -189,10 +189,10 @@ def _build_get_ddrqs_where_clause(dag_id: str, before: str | None = None):
 @security.requires_access_dataset("GET")
 @security.requires_access_dag("GET")
 @provide_session
-def get_dag_dataset_pending_events(
+def get_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get pending dataset events for a DAG."""
+    """Get queued Dataset events for a DAG."""
     where_clauses = _build_get_ddrqs_where_clause(dag_id=dag_id, before=before)
     query = select(DatasetDagRunQueue).where(*where_clauses)
     total_entries = get_query_count(query, session=session)
@@ -210,10 +210,10 @@ def get_dag_dataset_pending_events(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("DELETE")
 @provide_session
-def delete_dag_dataset_pending_events(
+def delete_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete pending dataset events for a DAG."""
+    """Delete queued Dataset events for a DAG."""
     where_clauses = _build_get_ddrqs_where_clause(dag_id=dag_id, before=before)
     query = select(DatasetDagRunQueue).where(*where_clauses)
     ddrqs = session.scalars(query).all()
@@ -240,10 +240,10 @@ def _build_get_dataset_ddrqs_where_clause(uri: str, session: Session, before: st
 @security.requires_access_dataset("GET")
 @security.requires_access_dag("GET")
 @provide_session
-def get_dataset_pending_events(
+def get_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get pending dataset events."""
+    """Get queued Dataset events for a Dataset"""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
     query = select(DatasetDagRunQueue).where(*where_clauses)
     total_entries = get_query_count(query, session=session)
@@ -261,10 +261,10 @@ def get_dataset_pending_events(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("DELETE")
 @provide_session
-def delete_dataset_pending_events(
+def delete_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete pending dataset events."""
+    """Delete queued Dataset events for a Dataset"""
     where_clauses = _build_get_dataset_ddrqs_where_clause(uri=uri, session=session, before=before)
     query = select(DatasetDagRunQueue).where(*where_clauses)
     ddrqs = session.scalars(query).all()
