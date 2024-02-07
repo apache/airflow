@@ -64,12 +64,12 @@ you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 Offline SQL migration scripts
 =============================
 If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
-to get the SQL statements that would be executed. You may also specify the starting airflow version with the ``--from-version`` flag. This feature is supported in Postgres and MySQL
+to get the SQL statements that would be executed. You may also specify the starting airflow version with the ``--from-version`` flag and the ending airflow version with the ``-n`` or ``--to-version`` flag. This feature is supported in Postgres and MySQL
 from Airflow 2.0.0 onward.
 
 Sample usage for Airflow version 2.7.0 or greater:
-   ``airflow db migrate -s --from-version "2.4.3"``
-   ``airflow db migrate --show-sql-only --from-version "2.4.3"``
+   ``airflow db migrate -s --from-version "2.4.3" --to-version "2.7.3"``
+   ``airflow db migrate --show-sql-only --from-version "2.4.3" --to-version "2.7.3"``
 
 .. note::
     ``airflow db upgrade`` has been replaced by ``airflow db migrate`` since Airflow version 2.7.0
