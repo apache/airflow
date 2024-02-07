@@ -1,0 +1,13 @@
+apiVersion: "dataprocgdc.cloud.google.com/v1alpha1"
+kind: ApplicationEnvironment
+metadata:
+  name: exampleappenv
+  namespace: default
+spec:
+  sparkApplicationEnvironmentConfig:
+    defaultProperties:
+      "spark.hadoop.fs.s3a.endpoint": "***"
+      "spark.hadoop.fs.s3a.access.key": "***"
+      "spark.hadoop.fs.s3a.secret.key": "***"
+      "spark.hadoop.fs.s3a.path.style.access": "true"
+      "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
