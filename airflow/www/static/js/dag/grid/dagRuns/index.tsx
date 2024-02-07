@@ -147,11 +147,21 @@ const DagRuns = ({
           </Flex>
         </Th>
       )}
-      <Th align="right" verticalAlign="bottom">
+      <Th
+        align="right"
+        verticalAlign="bottom"
+        borderRightWidth="16px"
+        borderRightColor="white"
+      >
         <Flex
           justifyContent="flex-end"
           borderBottomWidth={3}
           position="relative"
+          borderRightWidth="16px"
+          borderRightColor="white"
+          marginRight="-16px"
+          borderTopWidth="50px"
+          borderTopColor="white"
         >
           {runs.map((run: RunWithDuration, index) => (
             <DagRunBar
