@@ -38,7 +38,7 @@ if sys.version_info >= (3,6):
 {{ python_callable_source }}
 
 # monkey patching for the cases when python_callable is part of the dag module.
-{% if modified_dag_module_name %}
+{% if modified_dag_module_name is defined %}
 
 import types
 
