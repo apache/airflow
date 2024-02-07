@@ -18,10 +18,13 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
 
 
 class TestQdrantIngestOperator:
+    @pytest.mark.db_test
     def test_operator_execution(self, dag_maker):
         """
         Test the execution of the QdrantIngestOperator.
