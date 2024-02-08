@@ -165,6 +165,10 @@ class DbApiHook(BaseHook):
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
         self._placeholder: str = "%s"
+        self._insert_statement_format: str = kwargs.get("insert_statement_format",
+                                                        "INSERT INTO {} {} VALUES ({})")
+        self._replace_statement_format: str = kwargs.get("replace_statement_format",
+                                                         "REPLACE INTO {} {} VALUES ({})")
 
     @property
     def placeholder(self) -> str:
@@ -504,15 +508,10 @@ class DbApiHook(BaseHook):
         else:
             target_fields = ""
 
-        sql = f"{table} {target_fields} VALUES ({','.join(placeholders)})"
-
         if not replace:
-            return f"INSERT INTO {sql}"
+            return self._insert_statement_format.format(table, target_fields, ",".join(placeholders))
 
-        if self.get_sqlalchemy_engine().dialect.name == "hana":
-            return f"UPSERT {sql} WITH PRIMARY KEY"
-
-        return f"REPLACE INTO {sql}"
+        return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
     def insert_rows(
         self, table, rows, target_fields=None, commit_every=1000, replace=False,executemany=False, **kwargs

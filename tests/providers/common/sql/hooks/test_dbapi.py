@@ -19,10 +19,8 @@ from __future__ import annotations
 
 import json
 from unittest import mock
-from unittest.mock import patch
 
 import pytest
-from sqlalchemy.engine import Dialect, Engine
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -38,7 +36,7 @@ class NonDbApiHook(BaseHook):
 
 
 class TestDbApiHook:
-    def setup_method(self):
+    def setup_method(self, **kwargs):
         self.cur = mock.MagicMock(
             rowcount=0,
             spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"],
@@ -59,18 +57,9 @@ class TestDbApiHook:
             def get_conn(self):
                 return conn
 
-        self.db_hook = DbApiHookMock()
+        self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
-
-    @staticmethod
-    def create_engine(dialect_name: str = "sqlite") -> mock.MagicMock:
-        # Mocking create_engine to return a mock engine
-        mock_dialect = mock.MagicMock(spec=Dialect)
-        mock_dialect.name = dialect_name
-        mock_engine = mock.MagicMock(spec=Engine)
-        mock_engine.dialect = mock_dialect
-        return mock.MagicMock(return_value=mock_engine)
 
     def test_get_records(self):
         statement = "SQL"
@@ -125,22 +114,20 @@ class TestDbApiHook:
             self.cur.execute.assert_any_call(sql, row)
 
     def test_insert_rows_replace(self):
-        # Patching create_engine in the module where it is used
-        with patch(f"{DbApiHook.__module__}.create_engine", self.create_engine()):
-            table = "table"
-            rows = [("hello",), ("world",)]
+        table = "table"
+        rows = [("hello",), ("world",)]
 
-            self.db_hook.insert_rows(table, rows, replace=True)
+        self.db_hook.insert_rows(table, rows, replace=True)
 
-            assert self.conn.close.call_count == 1
-            assert self.cur.close.call_count == 1
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
 
-            commit_count = 2  # The first and last commit
-            assert commit_count == self.conn.commit.call_count
+        commit_count = 2  # The first and last commit
+        assert commit_count == self.conn.commit.call_count
 
-            sql = f"REPLACE INTO {table}  VALUES (%s)"
-            for row in rows:
-                self.cur.execute.assert_any_call(sql, row)
+        sql = f"REPLACE INTO {table}  VALUES (%s)"
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
 
     def test_insert_rows_target_fields(self):
         table = "table"
@@ -190,19 +177,18 @@ class TestDbApiHook:
         self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace_executemany_hana_dialect(self):
-        # Patching create_engine in the module where it is used
-        with patch(f"{DbApiHook.__module__}.create_engine", self.create_engine(dialect_name="hana")):
-            table = "table"
-            rows = [("hello",), ("world",)]
+        self.setup_method(replace_statement_format="UPSERT {} {} VALUES ({}) WITH PRIMARY KEY")
+        table = "table"
+        rows = [("hello",), ("world",)]
 
-            self.db_hook.insert_rows(table, rows, replace=True, executemany=True)
+        self.db_hook.insert_rows(table, rows, replace=True, executemany=True)
 
-            assert self.conn.close.call_count == 1
-            assert self.cur.close.call_count == 1
-            assert self.conn.commit.call_count == 2
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
 
-            sql = f"UPSERT {table}  VALUES (%s) WITH PRIMARY KEY"
-            self.cur.executemany.assert_any_call(sql, rows)
+        sql = f"UPSERT {table}  VALUES (%s) WITH PRIMARY KEY"
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_get_uri_schema_not_none(self):
         self.db_hook.get_connection = mock.MagicMock(
