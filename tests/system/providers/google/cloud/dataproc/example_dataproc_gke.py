@@ -30,8 +30,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
-from airflow.operators.bash import BashOperator
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
@@ -66,7 +65,7 @@ VIRTUAL_CLUSTER_CONFIG = {
             "gke_cluster_target": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}",
             "node_pool_target": [
                 {
-                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",  # noqa
+                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",
                     "roles": ["DEFAULT"],
                     "node_pool_config": {
                         "config": {
@@ -84,7 +83,7 @@ VIRTUAL_CLUSTER_CONFIG = {
 # [END how_to_cloud_dataproc_create_cluster_in_gke_config]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -96,13 +95,6 @@ with models.DAG(
         project_id=PROJECT_ID,
         location=REGION,
         body=GKE_CLUSTER_CONFIG,
-    )
-
-    add_iam_policy_binding = BashOperator(
-        task_id="add_iam_policy_binding",
-        bash_command=f"gcloud projects add-iam-policy-binding {PROJECT_ID} "
-        f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
-        "--role=roles/iam.workloadIdentityUser",
     )
 
     # [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
@@ -134,11 +126,12 @@ with models.DAG(
     (
         # TEST SETUP
         create_gke_cluster
-        >> add_iam_policy_binding
         # TEST BODY
         >> create_cluster_in_gke
         # TEST TEARDOWN
-        >> [delete_gke_cluster, delete_dataproc_cluster]
+        # >> delete_gke_cluster
+        >> delete_dataproc_cluster
+        >> delete_gke_cluster
     )
 
     from tests.system.utils.watcher import watcher

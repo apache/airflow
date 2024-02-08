@@ -20,49 +20,72 @@ from __future__ import annotations
 import json
 import warnings
 from functools import cached_property
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
+
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.log.secrets_masker import mask_secret
+
+if TYPE_CHECKING:
+    from slack_sdk.http_retry import RetryHandler
+
+    from airflow.utils.context import Context
 
 
 class SlackAPIOperator(BaseOperator):
     """Base Slack Operator class.
 
-    Only one of ``slack_conn_id`` or ``token`` is required.
-
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
-        which its password is Slack API token. Optional
-    :param token: Slack API token (https://api.slack.com/web). Optional
-    :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
+        which its password is Slack API token.
+    :param method: The Slack API Method to Call (https://api.slack.com/methods).
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
-    :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
+    :param timeout: The maximum number of seconds the client will wait to connect
+        and receive a response from Slack. Optional
+    :param base_url: A string representing the Slack API base URL. Optional
+    :param proxy: Proxy to make the Slack API call. Optional
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``. Optional
     """
 
     def __init__(
         self,
         *,
-        slack_conn_id: str | None = None,
-        token: str | None = None,
+        slack_conn_id: str = SlackHook.default_conn_name,
         method: str | None = None,
         api_params: dict | None = None,
+        base_url: str | None = None,
+        proxy: str | None = None,
+        timeout: int | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
+        if not method:
+            warnings.warn(
+                "Define `method` parameter as empty string or None is deprecated. "
+                "In the future it will raise an error on task initialisation.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(**kwargs)
-        if token:
-            mask_secret(token)
-        self.token = token
         self.slack_conn_id = slack_conn_id
-
         self.method = method
         self.api_params = api_params
+        self.base_url = base_url
+        self.timeout = timeout
+        self.proxy = proxy
+        self.retry_handlers = retry_handlers
 
     @cached_property
     def hook(self) -> SlackHook:
         """Slack Hook."""
-        return SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
+        return SlackHook(
+            slack_conn_id=self.slack_conn_id,
+            base_url=self.base_url,
+            timeout=self.timeout,
+            proxy=self.proxy,
+            retry_handlers=self.retry_handlers,
+        )
 
     def construct_api_call_params(self) -> Any:
         """API call parameters used by the execute function.
@@ -78,7 +101,10 @@ class SlackAPIOperator(BaseOperator):
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
         )
 
-    def execute(self, **kwargs):
+    def execute(self, context: Context):
+        if not self.method:
+            msg = f"Expected non empty `method` attribute in {type(self).__name__!r}, but got {self.method!r}"
+            raise ValueError(msg)
         if not self.api_params:
             self.construct_api_call_params()
         self.hook.call(self.method, json=self.api_params)
@@ -92,7 +118,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
         slack = SlackAPIPostOperator(
             task_id="post_hello",
             dag=dag,
-            token="...",
             text="hello there!",
             channel="#random",
         )
@@ -102,10 +127,10 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param username: Username that airflow will be posting to Slack as. (templated)
     :param text: message to send to slack. (templated)
     :param icon_url: URL to icon used for this message
-    :param attachments: extra formatting details. (templated)
-        See https://api.slack.com/docs/attachments
-    :param blocks: extra block layouts. (templated)
+    :param blocks: A list of blocks to send with the message. (templated)
         See https://api.slack.com/reference/block-kit/blocks
+    :param attachments: (legacy) A list of attachments to send with the message. (templated)
+        See https://api.slack.com/docs/attachments
     """
 
     template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
@@ -123,18 +148,17 @@ class SlackAPIPostOperator(SlackAPIOperator):
         icon_url: str = (
             "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
         ),
-        attachments: list | None = None,
         blocks: list | None = None,
+        attachments: list | None = None,
         **kwargs,
     ) -> None:
-        self.method = "chat.postMessage"
+        super().__init__(method="chat.postMessage", **kwargs)
         self.channel = channel
         self.username = username
         self.text = text
         self.icon_url = icon_url
         self.attachments = attachments or []
         self.blocks = blocks or []
-        super().__init__(method=self.method, **kwargs)
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {
@@ -180,7 +204,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
     :param filetype: slack filetype. (templated) See: https://api.slack.com/types/file#file_types
     :param content: file content. (templated)
     :param title: title of file. (templated)
-    :param channel: (deprecated) channel in which to sent file on slack name
+    :param method_version: The version of the method of Slack SDK Client to be used, either "v1" or "v2".
     """
 
     template_fields: Sequence[str] = (
@@ -201,10 +225,10 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
-        channel: str | None = None,
+        method_version: Literal["v1", "v2"] = "v1",
         **kwargs,
     ) -> None:
-        if channel:
+        if channel := kwargs.pop("channel", None):
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
@@ -215,16 +239,23 @@ class SlackAPIFileOperator(SlackAPIOperator):
                 raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
             channels = channel
 
+        super().__init__(method="files.upload", **kwargs)
         self.channels = channels
         self.initial_comment = initial_comment
         self.filename = filename
         self.filetype = filetype
         self.content = content
         self.title = title
-        super().__init__(method="files.upload", **kwargs)
+        self.method_version = method_version
 
-    def execute(self, **kwargs):
-        self.hook.send_file(
+    @property
+    def _method_resolver(self):
+        if self.method_version == "v1":
+            return self.hook.send_file
+        return self.hook.send_file_v1_to_v2
+
+    def execute(self, context: Context):
+        self._method_resolver(
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,

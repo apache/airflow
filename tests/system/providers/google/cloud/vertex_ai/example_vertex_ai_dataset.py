@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Dataset operations.
@@ -26,15 +24,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
@@ -44,26 +44,15 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     ListDatasetsOperator,
     UpdateDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_dataset_operations"
+DAG_ID = "example_vertex_ai_dataset_operations"
 REGION = "us-central1"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-
-RESOURCES_PATH = Path(__file__).parent / "resources"
-ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "all-datasets.zip")
-
-CSV_FILES_LOCAL_PATH = [
-    "/all-datasets/forecast-dataset.csv",
-    "/all-datasets/image-dataset.csv",
-    "/all-datasets/tabular-dataset.csv",
-    "/all-datasets/text-dataset.csv",
-    "/all-datasets/video-dataset.csv",
-]
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
 TIME_SERIES_DATASET = {
     "display_name": f"time-series-dataset-{ENV_ID}",
@@ -113,18 +102,14 @@ TEST_IMPORT_CONFIG = [
         "import_schema_uri": (
             "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml"
         ),
-        "gcs_source": {
-            "uris": [
-                "gs://system-tests-resources/vertex-ai/dataset/salads_oid_ml_use_public_unassigned.jsonl"
-            ]
-        },
+        "gcs_source": {"uris": ["gs://cloud-samples-data/vision/salads.csv"]},
     },
 ]
 DATASET_TO_UPDATE = {"display_name": "test-name"}
 TEST_UPDATE_MASK = {"paths": ["displayName"]}
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -137,15 +122,14 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"unzip {ALL_DATASETS_ZIP_CSV_FILE_LOCAL_PATH} -d /all-datasets/",
-    )
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=CSV_FILES_LOCAL_PATH,
-        dst="vertex-ai/",
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+
+    move_datasets_files = GCSSynchronizeBucketsOperator(
+        task_id="move_datasets_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/datasets",
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
 
     # [START how_to_cloud_vertex_ai_create_dataset_operator]
@@ -276,16 +260,10 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /all-datasets/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_datasets_files
         # TEST BODY
         >> [
             create_time_series_dataset_job >> delete_time_series_dataset_job,
@@ -297,7 +275,6 @@ with models.DAG(
         ]
         # TEST TEARDOWN
         >> delete_bucket
-        >> clear_folder
     )
 
 

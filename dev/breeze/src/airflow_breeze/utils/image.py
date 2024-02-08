@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import subprocess
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -26,8 +26,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
@@ -41,6 +39,10 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
 
 
 def run_pull_in_parallel(
@@ -244,6 +246,8 @@ def just_pull_ci_image(github_repository, python_version: str) -> tuple[ShellPar
         python=python_version,
         github_repository=github_repository,
         skip_environment_initialization=True,
+        skip_image_upgrade_check=True,
+        quiet=True,
     )
     get_console().print(f"[info]Pulling {shell_params.airflow_image_name_with_tag}.[/]")
     pull_command_result = run_command(
@@ -261,6 +265,8 @@ def check_if_ci_image_available(
         python=python_version,
         github_repository=github_repository,
         skip_environment_initialization=True,
+        skip_image_upgrade_check=True,
+        quiet=True,
     )
     inspect_command_result = run_command(
         ["docker", "inspect", shell_params.airflow_image_name_with_tag],

@@ -21,7 +21,7 @@ Deprecated REST API
 .. warning::
 
   This REST API is deprecated since version 2.0. Please consider using the :doc:`stable REST API <stable-rest-api-ref>`.
-  For more information on migration, see `UPDATING.md <https://github.com/apache/airflow/blob/main/UPDATING.md>`_
+  For more information on migration, see `UPDATING.md <https://airflow.apache.org/docs/apache-airflow/stable/howto/upgrading-from-1-10/>`_
 
 Before Airflow 2.0 this REST API was known as the "experimental" API, but now that the :doc:`stable REST API <stable-rest-api-ref>` is available, it has been renamed.
 

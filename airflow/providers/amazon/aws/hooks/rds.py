@@ -61,10 +61,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBSnapshotNotFound":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBSnapshots"][0]["Status"].lower()
 
     def wait_for_db_snapshot_state(
@@ -109,10 +107,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBClusterSnapshotNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBClusterSnapshots"][0]["Status"].lower()
 
     def wait_for_db_cluster_snapshot_state(
@@ -146,7 +142,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_export_task_state(self, export_task_id: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
@@ -187,7 +183,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_event_subscription_state(self, subscription_name: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
@@ -239,10 +235,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBInstanceNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBInstanceNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBInstances"][0]["DBInstanceStatus"].lower()
 
     def wait_for_db_instance_state(
@@ -292,10 +286,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBClusterNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBClusterNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBClusters"][0]["Status"].lower()
 
     def wait_for_db_cluster_state(
@@ -335,7 +327,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         max_attempts: int,
     ) -> None:
         """
-        Polls the poke function for the current state until it reaches the target_state.
+        Poll the poke function for the current state until it reaches the target_state.
 
         :param poke: A function that returns the current state of the target resource as a string.
         :param target_state: Wait until this state is reached

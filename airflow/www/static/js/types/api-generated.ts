@@ -44,6 +44,15 @@ export interface paths {
     /**
      * Test a connection.
      *
+     * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+     * For more information on capabilities of users, see the documentation:
+     * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+     * It is strongly advised to not enable the feature until you make sure that only
+     * highly trusted UI/API users have "edit connection" permissions.
+     *
+     * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+     * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+     *
      * *New in version 2.2.0*
      */
     post: operations["test_connection"];
@@ -667,13 +676,13 @@ export interface paths {
     /**
      * Get a list of roles.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_roles"];
     /**
      * Create a new role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_role"];
   };
@@ -681,19 +690,19 @@ export interface paths {
     /**
      * Get a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_role"];
     /**
      * Delete a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_role"];
     /**
      * Update a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_role"];
     parameters: {
@@ -707,7 +716,7 @@ export interface paths {
     /**
      * Get a list of permissions.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_permissions"];
   };
@@ -715,13 +724,13 @@ export interface paths {
     /**
      * Get a list of users.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_users"];
     /**
      * Create a new user with unique username and email.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_user"];
   };
@@ -729,19 +738,19 @@ export interface paths {
     /**
      * Get a user with a specific username.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_user"];
     /**
      * Delete a user with a specific username.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_user"];
     /**
      * Update fields for a user.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_user"];
     parameters: {
@@ -1068,9 +1077,15 @@ export interface components {
       start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The beginning of the interval the DAG run covers.
+       */
       data_interval_start?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The end of the interval the DAG run covers.
+       */
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
@@ -1361,6 +1376,7 @@ export interface components {
       priority_weight?: number | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
+      /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
@@ -1461,10 +1477,10 @@ export interface components {
      * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
-      timezone?: components["schemas"]["Timezone"];
-      catchup?: boolean;
-      orientation?: string;
-      concurrency?: number;
+      timezone?: components["schemas"]["Timezone"] | null;
+      catchup?: boolean | null;
+      orientation?: string | null;
+      concurrency?: number | null;
       /**
        * Format: date-time
        * @description The DAG's start date.
@@ -1472,9 +1488,9 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"];
+      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
       doc_md?: string | null;
-      default_view?: string;
+      default_view?: string | null;
       /**
        * @description User-specified DAG params.
        *
@@ -1575,19 +1591,25 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
-      flask_blueprints?: ({ [key: string]: unknown } | null)[];
+      flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
       appbuilder_menu_items?: ({ [key: string]: unknown } | null)[];
       /** @description The global operator extra links */
-      global_operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      global_operator_extra_links?: (string | null)[];
       /** @description Operator extra links */
-      operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
@@ -1897,25 +1919,17 @@ export interface components {
       include_future?: boolean;
       /** @description If set to True, also tasks from past DAG Runs are affected. */
       include_past?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     UpdateTaskInstance: {
       /**
        * @description If set, don't actually run this operation. The response will contain the task instance
        * planned to be affected, but won't be modified in any way.
        *
-       * @default false
+       * @default true
        */
       dry_run?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -2182,6 +2196,14 @@ export interface components {
         )
       | null;
     /**
+     * @description Expected new state. Only a subset of TaskState are available.
+     *
+     * Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+     *
+     * @enum {string}
+     */
+    UpdateTaskState: "success" | "failed" | "skipped";
+    /**
      * @description DAG State.
      *
      * *Changed in version 2.1.3*&#58; 'queued' is added as a possible value.
@@ -2192,7 +2214,13 @@ export interface components {
     /**
      * @description Trigger rule.
      *
-     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+     *
+     * *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+     *
+     * *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+     *
+     * *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
      *
      * @enum {string}
      */
@@ -2200,13 +2228,17 @@ export interface components {
       | "all_success"
       | "all_failed"
       | "all_done"
+      | "all_done_setup_success"
       | "one_success"
       | "one_failed"
+      | "one_done"
       | "none_failed"
       | "none_skipped"
       | "none_failed_or_skipped"
       | "none_failed_min_one_success"
-      | "dummy";
+      | "dummy"
+      | "all_skipped"
+      | "always";
     /**
      * @description Weight rule.
      * @enum {string}
@@ -2287,6 +2319,14 @@ export interface components {
     DAGID: string;
     /** @description The task ID. */
     TaskID: string;
+    /** @description The name of event log. */
+    Event: string;
+    /** @description The owner's name of event log. */
+    Owner: string;
+    /** @description Timestamp to select event logs occurring before. */
+    Before: string;
+    /** @description Timestamp to select event logs occurring after. */
+    After: string;
     /** @description The map index. */
     MapIndex: number;
     /** @description The DAG run ID. */
@@ -2424,6 +2464,10 @@ export interface components {
     Paused: boolean;
     /** @description Only filter the XCom records which have the provided key. */
     FilterXcomKey: string;
+    /** @description Returns objects matched by the DAG ID. */
+    FilterDAGID: string;
+    /** @description Returns objects matched by the Task ID. */
+    FilterTaskID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2435,6 +2479,8 @@ export interface components {
      * A comma-separated list of fully qualified names of fields.
      */
     UpdateMask: string[];
+    /** @description List of field for return. */
+    ReturnFields: string[];
   };
   requestBodies: {};
   headers: {};
@@ -2556,6 +2602,15 @@ export interface operations {
   /**
    * Test a connection.
    *
+   * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+   * For more information on capabilities of users, see the documentation:
+   * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+   * It is strongly advised to not enable the feature until you make sure that only
+   * highly trusted UI/API users have "edit connection" permissions.
+   *
+   * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+   * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+   *
    * *New in version 2.2.0*
    */
   test_connection: {
@@ -2613,6 +2668,8 @@ export interface operations {
          * *New in version 2.6.0*
          */
         paused?: components["parameters"]["Paused"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2686,6 +2743,10 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -2951,6 +3012,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3016,6 +3079,10 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
         /** The DAG run ID. */
         dag_run_id: components["parameters"]["DAGRunID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3187,6 +3254,18 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** Returns objects matched by the DAG ID. */
+        dag_id?: components["parameters"]["FilterDAGID"];
+        /** Returns objects matched by the Task ID. */
+        task_id?: components["parameters"]["FilterTaskID"];
+        /** The name of event log. */
+        event?: components["parameters"]["Event"];
+        /** The owner's name of event log. */
+        owner?: components["parameters"]["Owner"];
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+        /** Timestamp to select event logs occurring after. */
+        after?: components["parameters"]["After"];
       };
     };
     responses: {
@@ -4040,6 +4119,10 @@ export interface operations {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
       };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
+      };
     };
     responses: {
       /** Success. */
@@ -4342,7 +4425,7 @@ export interface operations {
   /**
    * Get a list of roles.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_roles: {
     parameters: {
@@ -4374,7 +4457,7 @@ export interface operations {
   /**
    * Create a new role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_role: {
     responses: {
@@ -4397,7 +4480,7 @@ export interface operations {
   /**
    * Get a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_role: {
     parameters: {
@@ -4421,7 +4504,7 @@ export interface operations {
   /**
    * Delete a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_role: {
     parameters: {
@@ -4442,7 +4525,7 @@ export interface operations {
   /**
    * Update a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_role: {
     parameters: {
@@ -4479,7 +4562,7 @@ export interface operations {
   /**
    * Get a list of permissions.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_permissions: {
     parameters: {
@@ -4504,7 +4587,7 @@ export interface operations {
   /**
    * Get a list of users.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_users: {
     parameters: {
@@ -4536,7 +4619,7 @@ export interface operations {
   /**
    * Create a new user with unique username and email.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_user: {
     responses: {
@@ -4560,7 +4643,7 @@ export interface operations {
   /**
    * Get a user with a specific username.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_user: {
     parameters: {
@@ -4588,7 +4671,7 @@ export interface operations {
   /**
    * Delete a user with a specific username.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_user: {
     parameters: {
@@ -4613,7 +4696,7 @@ export interface operations {
   /**
    * Update fields for a user.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_user: {
     parameters: {
@@ -4882,6 +4965,9 @@ export type CollectionInfo = CamelCasedPropertiesDeep<
 export type TaskState = CamelCasedPropertiesDeep<
   components["schemas"]["TaskState"]
 >;
+export type UpdateTaskState = CamelCasedPropertiesDeep<
+  components["schemas"]["UpdateTaskState"]
+>;
 export type DagState = CamelCasedPropertiesDeep<
   components["schemas"]["DagState"]
 >;
@@ -4927,7 +5013,8 @@ export type PatchDagsVariables = CamelCasedPropertiesDeep<
     operations["patch_dags"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagVariables = CamelCasedPropertiesDeep<
-  operations["get_dag"]["parameters"]["path"]
+  operations["get_dag"]["parameters"]["path"] &
+    operations["get_dag"]["parameters"]["query"]
 >;
 export type DeleteDagVariables = CamelCasedPropertiesDeep<
   operations["delete_dag"]["parameters"]["path"]
@@ -4965,7 +5052,8 @@ export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<
   operations["get_dag_runs_batch"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagRunVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_run"]["parameters"]["path"]
+  operations["get_dag_run"]["parameters"]["path"] &
+    operations["get_dag_run"]["parameters"]["query"]
 >;
 export type DeleteDagRunVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_run"]["parameters"]["path"]
@@ -5072,7 +5160,8 @@ export type GetLogVariables = CamelCasedPropertiesDeep<
     operations["get_log"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_details"]["parameters"]["path"]
+  operations["get_dag_details"]["parameters"]["path"] &
+    operations["get_dag_details"]["parameters"]["query"]
 >;
 export type GetTasksVariables = CamelCasedPropertiesDeep<
   operations["get_tasks"]["parameters"]["path"] &

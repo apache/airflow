@@ -40,10 +40,7 @@ class TestScheduler:
         ],
     )
     def test_scheduler_kind(self, executor, persistence, kind):
-        """
-        Test scheduler kind is StatefulSet only when using a local executor &
-        worker persistence is enabled.
-        """
+        """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -197,7 +194,7 @@ class TestScheduler:
             values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -317,6 +314,17 @@ class TestScheduler:
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
 
@@ -418,19 +426,26 @@ class TestScheduler:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_volume",
+        "log_values, expected_volume",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+    def test_logs_persistence_changes_volume(self, log_values, expected_volume):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"logs": log_values},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
@@ -676,6 +691,7 @@ class TestScheduler:
     ):
         """
         DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
+
         The only exception is when we have a Local executor.
         In these cases, the scheduler does the worker role and needs access to DAGs anyway.
         """
@@ -757,6 +773,24 @@ class TestScheduler:
 
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
+    def test_scheduler_template_storage_class_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                        "enabled": True,
+                    }
+                },
+                "logs": {"persistence": {"enabled": False}},
+                "executor": "LocalExecutor",
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
 
 
 class TestSchedulerNetworkPolicy:
@@ -857,7 +891,7 @@ class TestSchedulerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "scheduler": {
@@ -867,3 +901,20 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestSchedulerCreation:
+    """Tests scheduler deployment creation."""
+
+    def test_can_be_disabled(self):
+        """
+        Scheduler should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using scheduler and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"scheduler": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)

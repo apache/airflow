@@ -18,20 +18,23 @@
 """Hook for Google Cloud Build service."""
 from __future__ import annotations
 
-import warnings
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
-from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -186,6 +189,10 @@ class CloudBuildHook(GoogleBaseHook):
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `create_build_without_waiting_for_result`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_build(
         self,
         build: dict | Build,
@@ -210,11 +217,6 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
-        warnings.warn(
-            "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_conn()
 
         self.log.info("Start creating build...")
@@ -643,7 +645,7 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         location: str = "global",

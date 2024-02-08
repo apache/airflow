@@ -26,6 +26,105 @@
 Changelog
 ---------
 
+2.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'analyticdb_spark.py' (#36911)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+2.7.1
+.....
+
+Misc
+~~~~
+
+* ``Clean OSS task handler code after bumping min Airflow version to 2.6.0 (#36420)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
+2.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update information about links into the provider.yaml files (#35837)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+
+
+2.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in AnalyticDBSparkSensor (#34435)``
+* ``Consolidate hook management in AnalyticDBSparkBaseOperator (#34434)``
+* ``Deprecate get_hook in OSSKeySensor and use hook instead (#34426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+
+2.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/alibaba): respect soft_fail argument when exception is raised (#34157)``
+
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/alibaba (#33225)``
+
 2.5.0
 .....
 

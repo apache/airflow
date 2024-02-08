@@ -23,7 +23,7 @@ Best Practices
 Creating a new DAG is a three-step process:
 
 - writing Python code to create a DAG object,
-- testing if the code meets our expectations,
+- testing if the code meets your expectations,
 - configuring environment dependencies to run your DAG
 
 This tutorial will introduce you to the best practices for these three steps.
@@ -115,10 +115,10 @@ One of the important factors impacting DAG loading time, that might be overlooke
 that top-level imports might take surprisingly a lot of time and they can generate a lot of overhead
 and this can be easily avoided by converting them to local imports inside Python callables for example.
 
-Consider the example below - the first DAG will parse significantly slower (in the orders of seconds)
-than equivalent DAG where the ``numpy`` module is imported as local import in the callable.
+Consider the two examples below. In the first example, DAG will take an additional 1000 seconds to parse
+than the functionally equivalent DAG in the second example where the ``expensive_api_call`` is executed from the context of its task.
 
-Bad example:
+Not avoiding top-level DAG code:
 
 .. code-block:: python
 
@@ -127,7 +127,13 @@ Bad example:
   from airflow import DAG
   from airflow.decorators import task
 
-  import numpy as np  # <-- THIS IS A VERY BAD IDEA! DON'T DO THAT!
+
+  def expensive_api_call():
+      print("Hello from Airflow!")
+      sleep(1000)
+
+
+  my_expensive_response = expensive_api_call()
 
   with DAG(
       dag_id="example_python_operator",
@@ -138,15 +144,10 @@ Bad example:
   ) as dag:
 
       @task()
-      def print_array():
-          """Print Numpy array."""
-          a = np.arange(15).reshape(3, 5)
-          print(a)
-          return a
+      def print_expensive_api_call():
+          print(my_expensive_response)
 
-      print_array()
-
-Good example:
+Avoiding top-level DAG code:
 
 .. code-block:: python
 
@@ -154,6 +155,12 @@ Good example:
 
   from airflow import DAG
   from airflow.decorators import task
+
+
+  def expensive_api_call():
+      sleep(1000)
+      return "Hello from Airflow!"
+
 
   with DAG(
       dag_id="example_python_operator",
@@ -164,17 +171,130 @@ Good example:
   ) as dag:
 
       @task()
-      def print_array():
-          """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
+      def print_expensive_api_call():
+          my_expensive_response = expensive_api_call()
+          print(my_expensive_response)
 
-          a = np.arange(15).reshape(3, 5)
-          print(a)
-          return a
+In the first example, ``expensive_api_call`` is executed each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the second example, ``expensive_api_call`` is only called when the task is running and thus is able to be parsed without suffering any performance hits. To test it out yourself, implement the first DAG and see "Hello from Airflow!" printed in the scheduler logs!
 
-      print_array()
+Note that import statements also count as top-level code. So, if you have an import statement that takes a long time or the imported module itself executes code at the top-level, that can also impact the performance of the scheduler. The following example illustrates how to handle expensive imports.
 
-In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+.. code-block:: python
+
+  # It's ok to import modules that are not expensive to load at top-level of a DAG file
+  import random
+  import pendulum
+
+  # Expensive imports should be avoided as top level imports, because DAG files are parsed frequently, resulting in top-level code being executed.
+  #
+  # import pandas
+  # import torch
+  # import tensorflow
+  #
+
+  ...
+
+
+  @task()
+  def do_stuff_with_pandas_and_torch():
+      import pandas
+      import torch
+
+      # do some operations using pandas and torch
+
+
+  @task()
+  def do_stuff_with_tensorflow():
+      import tensorflow
+
+      # do some operations using tensorflow
+
+
+How to check if my code is "top-level" code
+-------------------------------------------
+
+In order to understand whether your code is "top-level" or not you need to understand a lot of
+intricacies of how parsing Python works. In general, when Python parses the python file it executes
+the code it sees, except (in general) internal code of the methods that it does not execute.
+
+It has a number of special cases that are not obvious - for example top-level code also means
+any code that is used to determine default values of methods.
+
+However, there is an easy way to check whether your code is "top-level" or not. You simply need to
+parse your code and see if the piece of code gets executed.
+
+Imagine this code:
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+  import pendulum
+
+
+  def get_task_id():
+      return "print_array_task"  # <- is that code going to be executed?
+
+
+  def get_array():
+      return [1, 2, 3]  # <- is that code going to be executed?
+
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule=None,
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+      operator = PythonOperator(
+          task_id=get_task_id(),
+          python_callable=get_array,
+          dag=dag,
+      )
+
+What you can do to check it is add some print statements to the code you want to check and then run
+``python <my_dag_file>.py``.
+
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.operators.python import PythonOperator
+  import pendulum
+
+
+  def get_task_id():
+      print("Executing 1")
+      return "print_array_task"  # <- is that code going to be executed? YES
+
+
+  def get_array():
+      print("Executing 2")
+      return [1, 2, 3]  # <- is that code going to be executed? NO
+
+
+  with DAG(
+      dag_id="example_python_operator",
+      schedule=None,
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+      catchup=False,
+      tags=["example"],
+  ) as dag:
+      operator = PythonOperator(
+          task_id=get_task_id(),
+          python_callable=get_array,
+          dag=dag,
+      )
+
+When you execute that code you will see:
+
+.. code-block:: bash
+
+    root@cf85ab34571e:/opt/airflow# python /files/test_python.py
+    Executing 1
+
+This means that the ``get_array`` is not executed as top-level code, but ``get_task_id`` is.
 
 .. _best_practices/dynamic_dag_generation:
 
@@ -331,7 +451,7 @@ Example of watcher pattern with trigger rules
 ---------------------------------------------
 
 The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
-It's primary purpose is to fail a DAG Run when any other task fail.
+Its primary purpose is to fail a DAG Run when any other task fail.
 The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
 
 Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But

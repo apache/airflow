@@ -61,7 +61,7 @@ Package apache-airflow-providers-segment
 `Segment <https://segment.com/>`__
 
 
-Release: 3.2.1
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -79,11 +79,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ====================  ==================
 PIP package           Version required
 ====================  ==================
-``apache-airflow``    ``>=2.4.0``
+``apache-airflow``    ``>=2.6.0``
 ``analytics-python``  ``>=1.2.9``
 ====================  ==================

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
@@ -29,7 +28,6 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
-    DEFAULT_CONN_ID,
     EcsBaseOperator,
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
@@ -113,30 +111,28 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else DEFAULT_CONN_ID)
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
         assert op.region == (region_name if region_name is not NOTSET else None)
 
-    @mock.patch("airflow.providers.amazon.aws.operators.ecs.EcsHook")
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
     @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
-    def test_hook_and_client(self, mock_ecs_hook_cls, aws_conn_id, region_name):
-        """Test initialize ``EcsHook`` and ``boto3.client``."""
-        mock_ecs_hook = mock_ecs_hook_cls.return_value
-        mock_conn = mock.MagicMock()
-        type(mock_ecs_hook).conn = mock.PropertyMock(return_value=mock_conn)
-
+    def test_initialise_operator_hook(self, aws_conn_id, region_name):
+        """Test initialize operator."""
         op_kw = {"aws_conn_id": aws_conn_id, "region": region_name}
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
-        op = EcsBaseOperator(task_id="test_ecs_base_hook_client", **op_kw)
+        op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        hook = op.hook
-        assert op.hook is hook
-        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
+        assert op.hook.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.hook.region_name == (region_name if region_name is not NOTSET else None)
 
-        client = op.client
-        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
-        assert client == mock_conn
-        assert op.client is client
+        with mock.patch.object(EcsBaseOperator, "hook", new_callable=mock.PropertyMock) as m:
+            mocked_hook = mock.MagicMock(name="MockHook")
+            mocked_client = mock.MagicMock(name="Mocklient")
+            mocked_hook.conn = mocked_client
+            m.return_value = mocked_hook
+
+            assert op.client == mocked_client
+            m.assert_called_once()
 
 
 class TestEcsRunTaskOperator(EcsBaseTestCase):
@@ -265,6 +261,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ],
         ],
     )
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsBaseOperator, "client")
@@ -273,6 +270,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock,
         check_mock,
         wait_mock,
+        xcom_mock,
         launch_type,
         capacity_provider_strategy,
         platform_version,
@@ -346,9 +344,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs._wait_for_task_ended()
         client_mock.get_waiter.assert_called_once_with("tasks_stopped")
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
-            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 100}
+            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 1000000}
         )
-        assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_check_success_tasks_raises_failed_to_start(self, client_mock):
@@ -521,39 +518,47 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ["", {"testTagKey": "testTagValue"}],
         ],
     )
-    @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
-    @mock.patch.object(
-        EcsRunTaskOperator,
-        "xcom_pull",
-        return_value=f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+    @pytest.mark.parametrize(
+        "arns, expected_arn",
+        [
+            pytest.param(
+                [
+                    f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                    "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b54",
+                ],
+                f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                id="multiple-arns",
+            ),
+            pytest.param(
+                [
+                    f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                ],
+                f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
+                id="simgle-arn",
+            ),
+        ],
     )
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.generate_uuid")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsRunTaskOperator, "_start_task")
     @mock.patch.object(EcsBaseOperator, "client")
     def test_reattach_successful(
-        self,
-        client_mock,
-        start_mock,
-        check_mock,
-        wait_mock,
-        xcom_pull_mock,
-        xcom_del_mock,
-        launch_type,
-        tags,
+        self, client_mock, start_mock, check_mock, wait_mock, uuid_mock, launch_type, tags, arns, expected_arn
     ):
+        """Test reattach on first running Task ARN."""
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        mock_ti.key.primary = ("mock_dag", "mock_ti", "mock_runid", 42)
+        fake_uuid = "01-02-03-04"
+        uuid_mock.return_value = fake_uuid
 
         self.set_up_operator(launch_type=launch_type, tags=tags)
-        client_mock.describe_task_definition.return_value = {"taskDefinition": {"family": "f"}}
-        client_mock.list_tasks.return_value = {
-            "taskArns": [
-                "arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b54",
-                f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}",
-            ]
-        }
+        client_mock.list_tasks.return_value = {"taskArns": arns}
 
         self.ecs.reattach = True
-        self.ecs.execute(self.mock_context)
+        self.ecs.execute({"ti": mock_ti})
+
+        uuid_mock.assert_called_once_with("mock_dag", "mock_ti", "mock_runid", "42")
 
         extend_args = {}
         if launch_type:
@@ -563,20 +568,14 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         if tags:
             extend_args["tags"] = [{"key": k, "value": v} for (k, v) in tags.items()]
 
-        client_mock.describe_task_definition.assert_called_once_with(taskDefinition="t")
-
-        client_mock.list_tasks.assert_called_once_with(cluster="c", desiredStatus="RUNNING", family="f")
+        client_mock.list_tasks.assert_called_once_with(
+            cluster="c", desiredStatus="RUNNING", startedBy=fake_uuid
+        )
 
         start_mock.assert_not_called()
-        xcom_pull_mock.assert_called_once_with(
-            self.mock_context,
-            key=self.ecs.REATTACH_XCOM_KEY,
-            task_ids=self.ecs.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.ecs.task_id),
-        )
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
-        xcom_del_mock.assert_called_once()
-        assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        assert self.ecs.arn == expected_arn
 
     @pytest.mark.parametrize(
         "launch_type, tags",
@@ -587,29 +586,25 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ["", {"testTagKey": "testTagValue"}],
         ],
     )
-    @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
-    @mock.patch.object(EcsRunTaskOperator, "_try_reattach_task")
+    @mock.patch("airflow.providers.amazon.aws.operators.ecs.generate_uuid")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsBaseOperator, "client")
     def test_reattach_save_task_arn_xcom(
-        self,
-        client_mock,
-        check_mock,
-        wait_mock,
-        reattach_mock,
-        xcom_del_mock,
-        launch_type,
-        tags,
+        self, client_mock, check_mock, wait_mock, uuid_mock, launch_type, tags, caplog
     ):
+        """Test no reattach in no running Task started by this Task ID."""
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        mock_ti.key.primary = ("mock_dag", "mock_ti", "mock_runid", 42)
+        fake_uuid = "01-02-03-04"
+        uuid_mock.return_value = fake_uuid
 
         self.set_up_operator(launch_type=launch_type, tags=tags)
-        client_mock.describe_task_definition.return_value = {"taskDefinition": {"family": "f"}}
         client_mock.list_tasks.return_value = {"taskArns": []}
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
 
         self.ecs.reattach = True
-        self.ecs.execute(self.mock_context)
+        self.ecs.execute({"ti": mock_ti})
 
         extend_args = {}
         if launch_type:
@@ -619,16 +614,19 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         if tags:
             extend_args["tags"] = [{"key": k, "value": v} for (k, v) in tags.items()]
 
-        reattach_mock.assert_called_once()
+        client_mock.list_tasks.assert_called_once_with(
+            cluster="c", desiredStatus="RUNNING", startedBy=fake_uuid
+        )
         client_mock.run_task.assert_called_once()
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
-        xcom_del_mock.assert_called_once()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+        assert "No active previously launched task found to reattach" in caplog.messages
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock):
+    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
@@ -636,9 +634,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.execute(None) == "Log output"
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock):
+    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
@@ -646,8 +645,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.execute(None) is None
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
-    def test_execute_xcom_with_no_log_fetcher(self, client_mock):
+    def test_execute_xcom_with_no_log_fetcher(self, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         assert self.ecs.execute(None) is None
 
@@ -657,8 +657,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsRunTaskOperator, "client")
-    def test_with_defer(self, client_mock):
+    def test_with_defer(self, client_mock, xcom_mock):
         self.ecs.deferrable = True
 
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
@@ -670,8 +671,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
     @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
-    @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
-    def test_execute_complete(self, xcom_del_mock: MagicMock, client_mock):
+    def test_execute_complete(self, client_mock):
         event = {"status": "success", "task_arn": "my_arn"}
         self.ecs.reattach = True
 
@@ -679,8 +679,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
-        # if reattach mode, xcom value is deleted on success
-        xcom_del_mock.assert_called_once()
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
@@ -722,7 +720,7 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34
@@ -786,7 +784,7 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34

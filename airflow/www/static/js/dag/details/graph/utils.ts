@@ -28,7 +28,7 @@ import type { Task, TaskInstance, NodeType } from "src/types";
 import type { CustomNodeProps } from "./Node";
 
 interface FlattenNodesProps {
-  children: NodeType[];
+  children?: NodeType[];
   selected: SelectionProps;
   groups: Task;
   latestDagRunId: string;
@@ -36,6 +36,7 @@ interface FlattenNodesProps {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isZoomedOut: boolean;
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -48,17 +49,13 @@ export const flattenNodes = ({
   openGroupIds,
   parent,
   hoveredTaskState,
+  isZoomedOut,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
+  let edges: ElkExtendedEdge[] = [];
+  if (!children) return { nodes, edges };
   const parentNode = parent ? { parentNode: parent.id } : undefined;
 
-  let fullParentNode: string | undefined;
-  if (parent) {
-    fullParentNode =
-      parent.parentNode && !parent.id.startsWith(parent.parentNode)
-        ? `${parent.parentNode}.${parent.id}`
-        : parent.id;
-  }
   children.forEach((node) => {
     let instance: TaskInstance | undefined;
     const group = getTask({ taskId: node.id, task: groups });
@@ -81,16 +78,16 @@ export const flattenNodes = ({
         isSelected,
         latestDagRunId,
         isActive,
+        isZoomedOut,
         onToggleCollapse: () => {
           let newGroupIds = [];
           if (!node.value.isOpen) {
-            newGroupIds = [...openGroupIds, node.value.label];
+            newGroupIds = [...openGroupIds, node.id];
           } else {
-            newGroupIds = openGroupIds.filter((g) => g !== node.value.label);
+            newGroupIds = openGroupIds.filter((g) => g !== node.id);
           }
           onToggleGroups(newGroupIds);
         },
-        fullParentNode,
         ...node.value,
       },
       type: "custom",
@@ -105,10 +102,14 @@ export const flattenNodes = ({
       ...parentNode,
     };
 
+    if (node.edges) {
+      edges = [...edges, ...node.edges];
+    }
+
     nodes.push(newNode);
 
     if (node.children) {
-      const childNodes = flattenNodes({
+      const { nodes: childNodes, edges: childEdges } = flattenNodes({
         children: node.children,
         selected,
         groups,
@@ -117,11 +118,16 @@ export const flattenNodes = ({
         openGroupIds,
         parent: newNode,
         hoveredTaskState,
+        isZoomedOut,
       });
       nodes = [...nodes, ...childNodes];
+      edges = [...edges, ...childEdges];
     }
   });
-  return nodes;
+  return {
+    nodes,
+    edges,
+  };
 };
 
 export const nodeColor = ({
@@ -143,10 +149,15 @@ export const nodeStrokeColor = (
   colors: Record<string, string>
 ) => (isSelected ? colors.blue[500] : "");
 
+interface Edge extends ElkExtendedEdge {
+  parentNode?: string;
+}
+
 interface BuildEdgesProps {
-  edges?: ElkExtendedEdge[];
+  edges?: Edge[];
   nodes: ReactFlowNode<CustomNodeProps>[];
   selectedTaskId?: string | null;
+  isZoomedOut?: boolean;
 }
 
 // Format edge data to what react-flow needs to render successfully
@@ -154,6 +165,7 @@ export const buildEdges = ({
   edges = [],
   nodes,
   selectedTaskId,
+  isZoomedOut,
 }: BuildEdgesProps) =>
   edges
     .map((edge) => ({
@@ -164,57 +176,25 @@ export const buildEdges = ({
       type: "custom",
     }))
     .map((e) => {
-      const sourceNode = nodes.find((n) => n.id === e.source);
-      const targetNode = nodes.find((n) => n.id === e.target);
-
-      // Before finding the depth of the edge, append the parentNode in case prefix_group_id is false
-      const sourceIds = (
-        sourceNode?.data.fullParentNode &&
-        e.source.startsWith(sourceNode.data.fullParentNode)
-          ? e.source
-          : `${sourceNode?.data.fullParentNode}.${e.source}`
-      ).split(".");
-      const targetIds = (
-        targetNode?.data.fullParentNode &&
-        e.target.startsWith(targetNode.data.fullParentNode)
-          ? e.target
-          : `${targetNode?.data.fullParentNode}.${e.target}`
-      ).split(".");
-
       const isSelected =
         selectedTaskId &&
         (e.source === selectedTaskId || e.target === selectedTaskId);
 
-      if (
-        sourceIds.length === targetIds.length &&
-        sourceIds[0] === targetIds[0]
-      ) {
-        let parentIds =
-          sourceIds.length > targetIds.length ? sourceIds : targetIds;
-
-        if (e.target.endsWith("_join_id") && e.source.endsWith("_join_id")) {
-          /** edges between join ids are positioned absolutely,
-           * other edges are positioned relative to their parent */
-          parentIds = [];
-        } else {
-          // remove the last node
-          parentIds.pop();
-        }
-        let parentX = 0;
-        let parentY = 0;
-
-        nodes
-          .filter((n) => parentIds.some((p) => p === n.data.label))
-          .forEach((p) => {
-            parentX += p.position.x;
-            parentY += p.position.y;
-          });
-
+      if (e.data.rest?.parentNode) {
+        const parentNode = nodes.find((n) => n.id === e.data.rest.parentNode);
+        const parentX =
+          parentNode?.positionAbsolute?.x || parentNode?.position.x || 0;
+        const parentY =
+          parentNode?.positionAbsolute?.y || parentNode?.position.y || 0;
         return {
           ...e,
           data: {
             rest: {
+              isZoomedOut,
               ...e.data.rest,
+              labels: e.data.rest.labels?.map((l) =>
+                l.x && l.y ? { ...l, x: l.x + parentX, y: l.y + parentY } : l
+              ),
               isSelected,
               sections: e.data.rest.sections.map((s) => ({
                 ...s,
@@ -242,6 +222,7 @@ export const buildEdges = ({
           rest: {
             ...e.data.rest,
             isSelected,
+            isZoomedOut,
           },
         },
       };

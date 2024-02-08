@@ -19,12 +19,14 @@ from __future__ import annotations
 import logging
 import os
 from datetime import timedelta
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from tabulate import tabulate
 
-from airflow.utils.context import Context
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def get_test_run(dag):

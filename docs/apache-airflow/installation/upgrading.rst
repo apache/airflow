@@ -25,6 +25,11 @@ Newer Airflow versions can contain database migrations so you must run ``airflow
 to migrate your database with the schema changes in the Airflow version you are upgrading to.
 Don't worry, it's safe to run even if there are no migrations to perform.
 
+What are the changes between Airflow version x and y?
+=====================================================
+
+The :doc:`release notes <../release_notes>` lists the changes that were included in any given Airflow release.
+
 Upgrade preparation - make a backup of DB
 =========================================
 
@@ -58,17 +63,13 @@ you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 
 Offline SQL migration scripts
 =============================
-If you want to run the upgrade script offline, you can use the ``-r`` or ``--revision-range`` flag
-to get the SQL statements that would be executed. This feature is supported in Postgres and MySQL
-from Airflow 2.0.0 onward and in MSSQL from Airflow 2.2.0 onward.
+If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
+to get the SQL statements that would be executed. You may also specify the starting airflow version with the ``--from-version`` flag and the ending airflow version with the ``-n`` or ``--to-version`` flag. This feature is supported in Postgres and MySQL
+from Airflow 2.0.0 onward.
 
-Sample usage:
-   ``airflow db migrate -r "2.0.0:2.2.0"``
-   ``airflow db migrate --revision-range "e959f08ac86c:142555e44c17"``
-
-But for Airflow version 2.7.0 or greater, please use
-    ``airflow db migrate -r "2.0.0:2.2.0"``
-    ``airflow db migrate --revision-range "e959f08ac86c:142555e44c17"``
+Sample usage for Airflow version 2.7.0 or greater:
+   ``airflow db migrate -s --from-version "2.4.3" -n "2.7.3"``
+   ``airflow db migrate --show-sql-only --from-version "2.4.3" --to-version "2.7.3"``
 
 .. note::
     ``airflow db upgrade`` has been replaced by ``airflow db migrate`` since Airflow version 2.7.0

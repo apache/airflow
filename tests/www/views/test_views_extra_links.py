@@ -18,19 +18,24 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
 from unittest import mock
 
 import pytest
 
-from airflow.models import DAG
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
+from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
 
-DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+pytestmark = pytest.mark.db_test
+
+DEFAULT_DATE = timezone.datetime(2017, 1, 1, tzinfo=timezone.utc)
+STR_DEFAULT_DATE = urllib.parse.quote(DEFAULT_DATE.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
 
 ENDPOINT = "extra_links"
 
@@ -129,7 +134,7 @@ def reset_task_instances():
 def test_extra_links_works(dag_run, task_1, viewer_client, session):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=foo-bar",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=foo-bar",
         follow_redirects=True,
     )
 
@@ -143,7 +148,7 @@ def test_extra_links_works(dag_run, task_1, viewer_client, session):
 def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={dag_run.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=github",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=github",
         follow_redirects=True,
     )
 
@@ -157,7 +162,7 @@ def test_global_extra_links_works(dag_run, task_1, viewer_client, session):
 def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -171,7 +176,7 @@ def test_operator_extra_link_override_global_extra_link(dag_run, task_1, viewer_
 def test_extra_links_error_raised(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=raise_error",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=raise_error",
         follow_redirects=True,
     )
 
@@ -185,7 +190,7 @@ def test_extra_links_error_raised(dag_run, task_1, viewer_client):
 def test_extra_links_no_response(dag_run, task_1, viewer_client):
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_1.dag_id}&task_id={task_1.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=no_response",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=no_response",
         follow_redirects=True,
     )
 
@@ -206,7 +211,7 @@ def test_operator_extra_link_override_plugin(dag_run, task_2, viewer_client):
     """
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_2.dag_id}&task_id={task_2.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -228,7 +233,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     """
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_2.dag_id}&task_id={task_2.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -240,7 +245,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
 
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=airflow",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=airflow",
         follow_redirects=True,
     )
 
@@ -253,7 +258,7 @@ def test_operator_extra_link_multiple_operators(dag_run, task_2, task_3, viewer_
     # Also check that the other Operator Link defined for this operator exists
     response = viewer_client.get(
         f"{ENDPOINT}?dag_id={task_3.dag_id}&task_id={task_3.task_id}"
-        f"&execution_date={DEFAULT_DATE}&link_name=google",
+        f"&execution_date={STR_DEFAULT_DATE}&link_name=google",
         follow_redirects=True,
     )
 

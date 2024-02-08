@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import time
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
-from airflow import AirflowException
+from deprecated import deprecated
+
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -38,6 +38,16 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    reason=(
+        "This class is deprecated. Please use "
+        "`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`. "
+        "Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>, "
+        "'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,"
+        "'session_parameters': <session_parameters>}`."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database.
@@ -105,15 +115,6 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
                 **hook_params,
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
-            Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
-            'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
-            'session_parameters': <session_parameters>}`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         validated_descriptions: list[Sequence[Sequence]] = []
@@ -213,6 +214,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -282,6 +284,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -362,6 +365,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -503,12 +507,29 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             deferrable=self.deferrable,
         )
         self.query_ids = self._hook.execute_query(
-            self.sql, statement_count=self.statement_count, bindings=self.bindings  # type: ignore[arg-type]
+            self.sql,  # type: ignore[arg-type]
+            statement_count=self.statement_count,
+            bindings=self.bindings,
         )
         self.log.info("List of query ids %s", self.query_ids)
 
         if self.do_xcom_push:
             context["ti"].xcom_push(key="query_ids", value=self.query_ids)
+
+        succeeded_query_ids = []
+        for query_id in self.query_ids:
+            self.log.info("Retrieving status for query id %s", query_id)
+            statement_status = self._hook.get_sql_api_query_status(query_id)
+            if statement_status.get("status") == "running":
+                break
+            elif statement_status.get("status") == "success":
+                succeeded_query_ids.append(query_id)
+            else:
+                raise AirflowException(f"{statement_status.get('status')}: {statement_status.get('message')}")
+
+        if len(self.query_ids) == len(succeeded_query_ids):
+            self.log.info("%s completed successfully.", self.task_id)
+            return
 
         if self.deferrable:
             self.defer(

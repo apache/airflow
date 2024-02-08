@@ -27,22 +27,27 @@ import logging
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pendulum import DateTime
 from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import Query, Session, aliased
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
-from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
-from airflow.models import Base
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.models import Base
 
 logger = logging.getLogger(__file__)
 
@@ -82,13 +87,13 @@ class _TableConfig:
 
     @property
     def readable_config(self):
-        return dict(
-            table=self.orm_model.name,
-            recency_column=str(self.recency_column),
-            keep_last=self.keep_last,
-            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
-            keep_last_group_by=str(self.keep_last_group_by),
-        )
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
 
 
 config_list: list[_TableConfig] = [
@@ -113,7 +118,11 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="trigger", recency_column_name="created_date"),
 ]
+
+if conf.get("webserver", "session_backend") == "database":
+    config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
@@ -143,14 +152,12 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):
-    from datetime import datetime
-
     import re2
 
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    timestamp_str = re2.sub(r"[^\d]", "", timezone.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()
@@ -190,6 +197,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
+        metadata.bind = session.get_bind()
         target_table.drop()
     session.commit()
     print("Finished Performing Delete")
@@ -219,11 +227,6 @@ class CreateTableAs(Executable, ClauseElement):
 @compiles(CreateTableAs)
 def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
-
-
-@compiles(CreateTableAs, "mssql")
-def _compile_create_table_as__mssql(element, compiler, **kw):
-    return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
 def _build_query(
@@ -310,7 +313,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == "delete rows":
+    if answer != "delete rows":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -330,7 +333,7 @@ def _confirm_drop_archives(*, tables: list[str]):
         if show_tables:
             print(tables, "\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
-    if not answer == "drop archived tables":
+    if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -426,19 +429,19 @@ def run_cleanup(
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
-        if table_name not in existing_tables:
+        if table_name in existing_tables:
+            with _suppress_with_logging(table_name, session):
+                _cleanup_table(
+                    clean_before_timestamp=clean_before_timestamp,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                    **table_config.__dict__,
+                    skip_archive=skip_archive,
+                    session=session,
+                )
+                session.commit()
+        else:
             logger.warning("Table %s not found.  Skipping.", table_name)
-            continue
-        with _suppress_with_logging(table_name, session):
-            _cleanup_table(
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-                **table_config.__dict__,
-                skip_archive=skip_archive,
-                session=session,
-            )
-            session.commit()
 
 
 @provide_session

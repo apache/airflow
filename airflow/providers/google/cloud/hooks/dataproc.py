@@ -20,15 +20,12 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Sequence
+from collections.abc import MutableSequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.operation_async import AsyncOperation
-from google.api_core.operations_v1.operations_client import OperationsClient
-from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerAsyncClient,
@@ -44,13 +41,21 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
     WorkflowTemplateServiceClient,
 )
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.operation_async import AsyncOperation
+    from google.api_core.operations_v1.operations_client import OperationsClient
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from google.protobuf.duration_pb2 import Duration
+    from google.protobuf.field_mask_pb2 import FieldMask
+    from google.type.interval_pb2 import Interval
 
 
 class DataProcJobBuilder:
@@ -254,7 +259,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         operation: Operation,
         timeout: float | None = None,
-        result_retry: Retry | _MethodDefault = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault = DEFAULT,
     ) -> Any:
         """Wait for a long-lasting operation to complete."""
         try:
@@ -383,17 +388,25 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
+        tarball_gcs_dir: str | None = None,
+        diagnosis_interval: dict | Interval | None = None,
+        jobs: MutableSequence[str] | None = None,
+        yarn_application_ids: MutableSequence[str] | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> str:
+    ) -> Operation:
         """Get cluster diagnostic information.
 
-        After the operation completes, the GCS URI to diagnose is returned.
+        After the operation completes, the response contains the Cloud Storage URI of the diagnostic output report containing a summary of collected diagnostics.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
         :param cluster_name: Name of the cluster.
+        :param tarball_gcs_dir:  The output Cloud Storage directory for the diagnostic tarball. If not specified, a task-specific directory in the cluster's staging bucket will be used.
+        :param diagnosis_interval: Time interval in which diagnosis should be carried out on the cluster.
+        :param jobs: Specifies a list of jobs on which diagnosis is to be performed. Format: `projects/{project}/regions/{region}/jobs/{job}`
+        :param yarn_application_ids: Specifies a list of yarn applications on which diagnosis is to be performed.
         :param retry: A retry object used to retry requests. If *None*, requests
             will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the request
@@ -402,15 +415,21 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_cluster_client(region=region)
-        operation = client.diagnose_cluster(
-            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
+        result = client.diagnose_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "tarball_gcs_dir": tarball_gcs_dir,
+                "diagnosis_interval": diagnosis_interval,
+                "jobs": jobs,
+                "yarn_application_ids": yarn_application_ids,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        operation.result()
-        gcs_uri = str(operation.operation.response.value)
-        return gcs_uri
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_cluster(
@@ -563,6 +582,94 @@ class DataprocHook(GoogleBaseHook):
             metadata=metadata,
         )
         return operation
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def start_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """Start a cluster in a project.
+
+        :param region: Cloud Dataproc region to handle the request.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
+        :param cluster_name: The cluster name.
+        :param cluster_uuid: The cluster UUID
+        :param request_id: A unique id used to identify the request. If the
+            server receives two *UpdateClusterRequest* requests with the same
+            ID, the second request will be ignored, and an operation created
+            for the first one and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If *None*, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. If *retry* is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: An instance of ``google.api_core.operation.Operation``
+        """
+        client = self.get_cluster_client(region=region)
+        return client.start_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "cluster_uuid": cluster_uuid,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def stop_cluster(
+        self,
+        region: str,
+        project_id: str,
+        cluster_name: str,
+        cluster_uuid: str | None = None,
+        request_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """Start a cluster in a project.
+
+        :param region: Cloud Dataproc region to handle the request.
+        :param project_id: Google Cloud project ID that the cluster belongs to.
+        :param cluster_name: The cluster name.
+        :param cluster_uuid: The cluster UUID
+        :param request_id: A unique id used to identify the request. If the
+            server receives two *UpdateClusterRequest* requests with the same
+            ID, the second request will be ignored, and an operation created
+            for the first one and stored in the backend is returned.
+        :param retry: A retry object used to retry requests. If *None*, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. If *retry* is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: An instance of ``google.api_core.operation.Operation``
+        """
+        client = self.get_cluster_client(region=region)
+        return client.stop_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "cluster_uuid": cluster_uuid,
+                "request_id": request_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow_template(
@@ -995,7 +1102,7 @@ class DataprocHook(GoogleBaseHook):
         region: str,
         project_id: str,
         wait_check_interval: int = 10,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
@@ -1130,7 +1237,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         virtual_cluster_config: dict | None = None,
         labels: dict[str, str] | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1197,7 +1304,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         cluster_uuid: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1240,17 +1347,25 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        tarball_gcs_dir: str | None = None,
+        diagnosis_interval: dict | Interval | None = None,
+        jobs: MutableSequence[str] | None = None,
+        yarn_application_ids: MutableSequence[str] | None = None,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-    ) -> str:
+    ) -> AsyncOperation:
         """Get cluster diagnostic information.
 
-        After the operation completes, the GCS URI to diagnose is returned.
+        After the operation completes, the response contains the Cloud Storage URI of the diagnostic output report containing a summary of collected diagnostics.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
         :param cluster_name: Name of the cluster.
+        :param tarball_gcs_dir:  The output Cloud Storage directory for the diagnostic tarball. If not specified, a task-specific directory in the cluster's staging bucket will be used.
+        :param diagnosis_interval: Time interval in which diagnosis should be carried out on the cluster.
+        :param jobs: Specifies a list of jobs on which diagnosis is to be performed. Format: `projects/{project}/regions/{region}/jobs/{job}`
+        :param yarn_application_ids: Specifies a list of yarn applications on which diagnosis is to be performed.
         :param retry: A retry object used to retry requests. If *None*, requests
             will not be retried.
         :param timeout: The amount of time, in seconds, to wait for the request
@@ -1259,15 +1374,21 @@ class DataprocAsyncHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_cluster_client(region=region)
-        operation = await client.diagnose_cluster(
-            request={"project_id": project_id, "region": region, "cluster_name": cluster_name},
+        result = await client.diagnose_cluster(
+            request={
+                "project_id": project_id,
+                "region": region,
+                "cluster_name": cluster_name,
+                "tarball_gcs_dir": tarball_gcs_dir,
+                "diagnosis_interval": diagnosis_interval,
+                "jobs": jobs,
+                "yarn_application_ids": yarn_application_ids,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        operation.result()
-        gcs_uri = str(operation.operation.response.value)
-        return gcs_uri
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def get_cluster(
@@ -1275,7 +1396,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         cluster_name: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Cluster:
@@ -1307,7 +1428,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         filter_: str,
         project_id: str,
         page_size: int | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
@@ -1347,7 +1468,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         region: str,
         graceful_decommission_timeout: dict | Duration | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1427,7 +1548,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         template: dict | WorkflowTemplate,
         project_id: str,
         region: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
@@ -1463,7 +1584,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         version: int | None = None,
         request_id: str | None = None,
         parameters: dict[str, str] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1509,7 +1630,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1552,7 +1673,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1586,7 +1707,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1622,7 +1743,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         job_id: str,
         project_id: str,
         region: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
@@ -1656,7 +1777,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch: dict | Batch,
         batch_id: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -1701,7 +1822,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
@@ -1735,7 +1856,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         batch_id: str,
         region: str,
         project_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
@@ -1771,7 +1892,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         project_id: str,
         page_size: int | None = None,
         page_token: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         filter: str | None = None,

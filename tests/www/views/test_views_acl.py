@@ -34,6 +34,8 @@ from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 NEXT_YEAR = datetime.datetime.now().year + 1
 DEFAULT_DATE = timezone.datetime(NEXT_YEAR, 6, 1)
 DEFAULT_RUN_ID = "TEST_RUN_ID"
@@ -122,7 +124,7 @@ def acl_app(app):
 
     yield app
 
-    for username, _ in USER_DATA.items():
+    for username in USER_DATA:
         user = security_manager.find_user(username=username)
         if user:
             security_manager.del_register_user(user)
@@ -336,7 +338,7 @@ def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
 def test_dag_stats_success(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("dag_stats", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-    assert set(list(resp.json.items())[0][1][0].keys()) == {"state", "count"}
+    assert set(next(iter(resp.json.items()))[1][0].keys()) == {"state", "count"}
 
 
 def test_task_stats_failure(dag_test_client):
@@ -457,19 +459,6 @@ def test_code_success_for_all_dag_user(client_all_dags_codes, dag_id):
     check_content_in_response(dag_id, resp)
 
 
-def test_dag_details_success(client_all_dags_dagruns):
-    """User without RESOURCE_DAG_CODE can see the page, just not the ID."""
-    url = "dag_details?dag_id=example_bash_operator"
-    resp = client_all_dags_dagruns.get(url, follow_redirects=True)
-    check_content_in_response("DAG Details", resp)
-
-
-def test_dag_details_failure(dag_faker_client):
-    url = "dag_details?dag_id=example_bash_operator"
-    resp = dag_faker_client.get(url, follow_redirects=True)
-    check_content_not_in_response("DAG Details", resp)
-
-
 @pytest.mark.parametrize(
     "dag_id",
     ["example_bash_operator", "example_subdag_operator"],
@@ -488,6 +477,7 @@ def user_all_dags_tis(acl_app):
         role_name="role_all_dags_tis",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -537,6 +527,7 @@ def user_dags_tis_logs(acl_app):
         role_name="role_dags_tis_logs",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -693,6 +684,7 @@ def user_all_dags_edit_tis(acl_app):
         role_name="role_all_dags_edit_tis",
         permissions=[
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -855,6 +847,8 @@ def user_dag_level_access_with_ti_edit(acl_app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("example_bash_operator")),

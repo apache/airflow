@@ -18,6 +18,7 @@
 """This module contains hook to integrate with Apache Cassandra."""
 from __future__ import annotations
 
+import re
 from typing import Any, Union
 
 from cassandra.auth import PlainTextAuthProvider
@@ -47,11 +48,7 @@ class CassandraHook(BaseHook, LoggingMixin):
     If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
     ``ssl.wrap_socket()``. For example::
 
-        {
-            'ssl_options' : {
-                'ca_certs' : PATH_TO_CA_CERTS
-            }
-        }
+        {"ssl_options": {"ca_certs": PATH_TO_CA_CERTS}}
 
     Default load balancing policy is RoundRobinPolicy. To specify a different
     LB policy::
@@ -125,25 +122,25 @@ class CassandraHook(BaseHook, LoggingMixin):
         self.session = None
 
     def get_conn(self) -> Session:
-        """Returns a cassandra Session object."""
+        """Return a cassandra Session object."""
         if self.session and not self.session.is_shutdown:
             return self.session
         self.session = self.cluster.connect(self.keyspace)
         return self.session
 
     def get_cluster(self) -> Cluster:
-        """Returns Cassandra cluster."""
+        """Return Cassandra cluster."""
         return self.cluster
 
     def shutdown_cluster(self) -> None:
-        """Closes all sessions and connections associated with this Cluster."""
+        """Close all sessions and connections associated with this Cluster."""
         if not self.cluster.is_shutdown:
             self.cluster.shutdown()
 
     @staticmethod
     def get_lb_policy(policy_name: str, policy_args: dict[str, Any]) -> Policy:
         """
-        Creates load balancing policy.
+        Create load balancing policy.
 
         :param policy_name: Name of the policy to use.
         :param policy_args: Parameters for the policy.
@@ -177,7 +174,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     def table_exists(self, table: str) -> bool:
         """
-        Checks if a table exists in Cassandra.
+        Check if a table exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
@@ -188,17 +185,26 @@ class CassandraHook(BaseHook, LoggingMixin):
         cluster_metadata = self.get_conn().cluster.metadata
         return keyspace in cluster_metadata.keyspaces and table in cluster_metadata.keyspaces[keyspace].tables
 
+    @staticmethod
+    def _sanitize_input(input_string: str) -> str:
+        if re.match(r"^\w+$", input_string):
+            return input_string
+        else:
+            raise ValueError(f"Invalid input: {input_string}")
+
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """
-        Checks if a record exists in Cassandra.
+        Check if a record exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
         :param keys: The keys and their values to check the existence.
         """
-        keyspace = self.keyspace
+        keyspace = self._sanitize_input(self.keyspace) if self.keyspace else self.keyspace
         if "." in table:
-            keyspace, table = table.split(".", 1)
+            keyspace, table = map(self._sanitize_input, table.split(".", 1))
+        else:
+            table = self._sanitize_input(table)
         ks_str = " AND ".join(f"{key}=%({key})s" for key in keys)
         query = f"SELECT * FROM {keyspace}.{table} WHERE {ks_str}"
         try:

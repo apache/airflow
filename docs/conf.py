@@ -40,14 +40,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from packaging.version import parse as parse_version
+from packaging.version import Version, parse as parse_version
 
 import airflow
 from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
-from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
+from docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
@@ -63,7 +63,7 @@ if PACKAGE_NAME == "apache-airflow":
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
-    ALL_PROVIDER_YAMLS = load_package_data()
+    ALL_PROVIDER_YAMLS = load_package_data(include_suspended=True)
     try:
         CURRENT_PROVIDER = next(
             provider_yaml
@@ -102,6 +102,12 @@ os.environ["AIRFLOW_PACKAGE_NAME"] = PACKAGE_NAME
 # behavior of the utils.apply_default that was hiding function headers
 os.environ["BUILDING_AIRFLOW_DOCS"] = "TRUE"
 
+# Use for generate rst_epilog and other post-generation substitutions
+global_substitutions = {
+    "version": PACKAGE_VERSION,
+    "airflow-version": airflow.__version__,
+}
+
 # == Sphinx configuration ======================================================
 
 # -- Project information -------------------------------------------------------
@@ -114,17 +120,18 @@ version = PACKAGE_VERSION
 # The full version, including alpha/beta/rc tags.
 release = PACKAGE_VERSION
 
-rst_epilog = f"""
-.. |version| replace:: {version}
-.. |airflow-version| replace:: {airflow.__version__}
-.. |experimental| replace:: This is an :ref:`experimental feature <experimental>`.
-"""
-
-smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
-
-
 # -- General configuration -----------------------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+rst_epilog = "\n".join(
+    f".. |{key}| replace:: {replace}"
+    for key, replace in {
+        **global_substitutions,
+        "experimental": "This is an :ref:`experimental feature <experimental>`.",
+    }.items()
+)
+
+smartquotes_excludes = {"builders": ["man", "text", "spelling"]}
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -144,6 +151,7 @@ extensions = [
     "sphinx_airflow_theme",
     "redirects",
     "substitution_extensions",
+    "sphinx_design",
 ]
 if PACKAGE_NAME == "apache-airflow":
     extensions.extend(
@@ -171,13 +179,13 @@ if PACKAGE_NAME == "apache-airflow-providers":
 elif PACKAGE_NAME == "helm-chart":
     extensions.append("sphinx_jinja")
 elif PACKAGE_NAME == "docker-stack":
-    # No extra extensions
-    pass
+    extensions.append("extra_files_with_substitutions")
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     extensions.extend(
         [
             "extra_provider_files_with_substitutions",
             "autoapi.extension",
+            "providers_extensions",
         ]
     )
 else:
@@ -189,6 +197,8 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
+        # "_api/airflow/operators/index.rst",
+        # "_api/airflow/sensors/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
@@ -236,12 +246,16 @@ if PACKAGE_NAME == "apache-airflow":
         "triggers",
         "utils",
     }
-    browsable_utils: set[str] = set()
+    browsable_utils: set[str] = {
+        "state.py",
+    }
 
     models_included: set[str] = {
         "baseoperator.py",
+        "baseoperatorlink.py",
         "connection.py",
         "dag.py",
+        "dagrun.py",
         "dagbag.py",
         "param.py",
         "taskinstance.py",
@@ -257,7 +271,7 @@ if PACKAGE_NAME == "apache-airflow":
         if path.is_dir() and path.name not in browsable_packages:
             exclude_patterns.append(f"_api/airflow/{path.name}")
 
-    # Don't include all of utils, just the specific ones we decoded to include
+    # Don't include all of utils, just the specific ones we decided to include
     for path in (root / "utils").iterdir():
         if path.name not in browsable_utils:
             exclude_patterns.append(_get_rst_filepath_from_path(path))
@@ -269,7 +283,7 @@ if PACKAGE_NAME == "apache-airflow":
 
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
+        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -307,6 +321,9 @@ if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
     html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []
+
+html_static_path.append("sphinx_design/static/")  # Style overrides for the sphinx-design extension.
+
 # A list of JavaScript filename. The entry must be a filename string or a
 # tuple containing the filename string and the attributes dictionary. The
 # filename must be relative to the html_static_path, or a full URI with
@@ -321,18 +338,21 @@ if PACKAGE_NAME == "apache-airflow":
     ]
     html_extra_with_substitutions = [
         f"{ROOT_DIR}/docs/apache-airflow/howto/docker-compose/docker-compose.yaml",
-        f"{ROOT_DIR}/docs/docker-stack/build.rst",
     ]
-    # Replace "|version|" in links
+    # Substitute in links
     manual_substitutions_in_generated_html = [
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
+        "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
+        "howto/docker-compose/index.html",
     ]
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
-    # Replace "|version|" inside ```` quotes
+    # Substitute in links
     manual_substitutions_in_generated_html = ["build.html"]
+
+html_css_files = ["custom.css"]
 
 # -- Theme configuration -------------------------------------------------------
 # Custom sidebar templates, maps document names to template names.
@@ -410,6 +430,7 @@ airflow_version = parse_version(
 
 def get_configs_and_deprecations(
     package_name: str,
+    package_version: Version,
 ) -> tuple[dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]]:
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
@@ -438,7 +459,7 @@ def get_configs_and_deprecations(
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
             version_added = option["version_added"]
-            if version_added is not None and parse_version(version_added) > airflow_version:
+            if version_added is not None and parse_version(version_added) > package_version:
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
@@ -452,7 +473,7 @@ def get_configs_and_deprecations(
 
 # Jinja context
 if PACKAGE_NAME == "apache-airflow":
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, airflow_version)
     jinja_contexts = {
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
@@ -465,7 +486,7 @@ if PACKAGE_NAME == "apache-airflow":
         },
     }
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, parse_version(PACKAGE_VERSION))
     jinja_contexts = {
         "config_ctx": {
             "configs": configs,
@@ -748,7 +769,6 @@ elif PACKAGE_NAME == "docker-stack":
     autoapi_ignore.append("*/airflow/providers/*")
 else:
     autoapi_ignore.append("*/airflow/providers/cncf/kubernetes/backcompat/*")
-    autoapi_ignore.append("*/airflow/providers/google/ads/*")
     autoapi_ignore.append("*/example_dags/*")
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.
@@ -803,6 +823,25 @@ if PACKAGE_NAME == "apache-airflow":
     redoc = [
         {
             "name": "Airflow REST API",
+            "page": "stable-rest-api-ref",
+            "spec": OPENAPI_FILE,
+            "opts": {
+                "hide-hostname": True,
+                "no-auto-auth": True,
+            },
+        },
+    ]
+
+    # Options for script updater
+    redoc_script_url = "https://cdn.jsdelivr.net/npm/redoc@2.0.0-rc.48/bundles/redoc.standalone.js"
+
+elif PACKAGE_NAME == "apache-airflow-providers-fab":
+    OPENAPI_FILE = os.path.join(
+        os.path.dirname(__file__), "..", "airflow", "providers", "fab", "auth_manager", "openapi", "v1.yaml"
+    )
+    redoc = [
+        {
+            "name": "Fab provider REST API",
             "page": "stable-rest-api-ref",
             "spec": OPENAPI_FILE,
             "opts": {

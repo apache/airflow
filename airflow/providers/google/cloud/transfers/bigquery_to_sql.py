@@ -22,11 +22,11 @@ import abc
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 
 if TYPE_CHECKING:
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -68,6 +68,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "target_table_name",
         "impersonation_chain",
+        "dataset_id",
+        "table_id",
     )
 
     def __init__(
@@ -82,6 +84,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         batch_size: int = 1000,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -93,6 +97,8 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         self.batch_size = batch_size
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.dataset_id = dataset_id
+        self.table_id = table_id
         try:
             self.dataset_id, self.table_id = dataset_table.split(".")
         except ValueError:

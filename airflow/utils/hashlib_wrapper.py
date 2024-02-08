@@ -28,8 +28,7 @@ from airflow import PY39
 
 def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     """
-    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in
-    the configuration.
+    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
 
     :param __string: The data to hash. Default to empty str byte.
     :return: The hashed value.

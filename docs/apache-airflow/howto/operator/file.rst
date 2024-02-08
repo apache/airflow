@@ -22,7 +22,7 @@
 FileSensor
 ==========
 
-Use the :class:`~airflow.sensors.filesystem.FileSensor` to detect files appearing your local
+Use the :class:`~airflow.sensors.filesystem.FileSensor` to detect files appearing in your local
 filesystem. You need to have connection defined to use it (pass connection id via ``fs_conn_id``).
 Default connection is ``fs_default``.
 
@@ -31,3 +31,11 @@ Default connection is ``fs_default``.
     :dedent: 4
     :start-after: [START example_file_sensor]
     :end-before: [END example_file_sensor]
+
+Also for this job you can use sensor in the deferrable mode:
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_file_sensor_async]
+    :end-before: [END example_file_sensor_async]

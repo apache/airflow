@@ -20,8 +20,10 @@ from __future__ import annotations
 from sched import scheduler
 from typing import Callable
 
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-class EventScheduler(scheduler):
+
+class EventScheduler(scheduler, LoggingMixin):
     """General purpose event scheduler."""
 
     def call_regular_interval(
@@ -29,15 +31,16 @@ class EventScheduler(scheduler):
         delay: float,
         action: Callable,
         arguments=(),
-        kwargs={},
+        kwargs=None,
     ):
-        """Helper to call a function at (roughly) a given interval."""
+        """Call a function at (roughly) a given interval."""
 
         def repeat(*args, **kwargs):
+            self.log.debug("Calling %s", action)
             action(*args, **kwargs)
             # This is not perfect. If we want a timer every 60s, but action
             # takes 10s to run, this will run it every 70s.
             # Good enough for now
             self.enter(delay, 1, repeat, args, kwargs)
 
-        self.enter(delay, 1, repeat, arguments, kwargs)
+        self.enter(delay, 1, repeat, arguments, kwargs or {})

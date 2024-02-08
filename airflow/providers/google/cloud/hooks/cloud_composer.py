@@ -17,28 +17,33 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.operation_async import AsyncOperation
-from google.api_core.retry import Retry
 from google.cloud.orchestration.airflow.service_v1 import (
     EnvironmentsAsyncClient,
     EnvironmentsClient,
     ImageVersionsClient,
 )
-from google.cloud.orchestration.airflow.service_v1.services.environments.pagers import ListEnvironmentsPager
-from google.cloud.orchestration.airflow.service_v1.services.image_versions.pagers import (
-    ListImageVersionsPager,
-)
-from google.cloud.orchestration.airflow.service_v1.types import Environment
-from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.operation_async import AsyncOperation
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from google.cloud.orchestration.airflow.service_v1.services.environments.pagers import (
+        ListEnvironmentsPager,
+    )
+    from google.cloud.orchestration.airflow.service_v1.services.image_versions.pagers import (
+        ListImageVersionsPager,
+    )
+    from google.cloud.orchestration.airflow.service_v1.types import Environment
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class CloudComposerHook(GoogleBaseHook):
@@ -328,7 +333,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment: Environment | dict,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -357,7 +362,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
@@ -385,7 +390,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
         environment_id: str,
         environment: Environment | dict,
         update_mask: dict | FieldMask,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:

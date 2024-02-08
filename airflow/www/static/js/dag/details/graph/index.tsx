@@ -24,9 +24,10 @@ import ReactFlow, {
   Controls,
   Background,
   MiniMap,
-  Node as ReactFlowNode,
   useReactFlow,
   Panel,
+  useOnViewportChange,
+  Viewport,
 } from "reactflow";
 
 import { useGraphData, useGridData } from "src/api";
@@ -35,7 +36,7 @@ import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 
-import Node, { CustomNodeProps } from "./Node";
+import Node from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
 
 const nodeTypes = { custom: Node };
@@ -52,6 +53,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -72,19 +74,25 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
 
-  const nodes: ReactFlowNode<CustomNodeProps>[] = useMemo(
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => {
+      if (viewport.zoom < 0.5 && !isZoomedOut) setIsZoomedOut(true);
+      if (viewport.zoom >= 0.5 && isZoomedOut) setIsZoomedOut(false);
+    },
+  });
+
+  const { nodes, edges: nodeEdges } = useMemo(
     () =>
-      graphData?.children
-        ? flattenNodes({
-            children: graphData.children,
-            selected,
-            openGroupIds,
-            onToggleGroups,
-            latestDagRunId,
-            groups,
-            hoveredTaskState,
-          })
-        : [],
+      flattenNodes({
+        children: graphData?.children,
+        selected,
+        openGroupIds,
+        onToggleGroups,
+        latestDagRunId,
+        groups,
+        hoveredTaskState,
+        isZoomedOut,
+      }),
     [
       graphData?.children,
       selected,
@@ -93,6 +101,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       latestDagRunId,
       groups,
       hoveredTaskState,
+      isZoomedOut,
     ]
   );
 
@@ -100,6 +109,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   useEffect(() => {
     if (hasRendered) {
       const zoom = getZoom();
+      if (zoom < 0.5) setIsZoomedOut(true);
       fitView({
         duration: 750,
         nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
@@ -110,10 +120,16 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setHasRendered(true);
   }, [fitView, hasRendered, selected.taskId, getZoom]);
 
+  // merge & dedupe edges
+  const flatEdges = [...(graphData?.edges || []), ...(nodeEdges || [])].filter(
+    (value, index, self) => index === self.findIndex((t) => t.id === value.id)
+  );
+
   const edges = buildEdges({
-    edges: graphData?.edges,
+    edges: flatEdges,
     nodes,
     selectedTaskId: selected.taskId,
+    isZoomedOut,
   });
 
   return (

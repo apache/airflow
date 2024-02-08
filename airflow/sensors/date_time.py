@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import datetime
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DateTimeSensor(BaseSensorOperator):
@@ -77,7 +79,7 @@ class DateTimeSensor(BaseSensorOperator):
 
 class DateTimeSensorAsync(DateTimeSensor):
     """
-    Waits until the specified datetime occurs.
+    Wait until the specified datetime occurs.
 
     Deferring itself to avoid taking up a worker slot while it is waiting.
     It is a drop-in replacement for DateTimeSensor.
@@ -85,12 +87,16 @@ class DateTimeSensorAsync(DateTimeSensor):
     :param target_time: datetime after which the job succeeds. (templated)
     """
 
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
     def execute(self, context: Context):
+        trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
         self.defer(
-            trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
+            trigger=trigger,
             method_name="execute_complete",
         )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - returns immediately."""
         return None

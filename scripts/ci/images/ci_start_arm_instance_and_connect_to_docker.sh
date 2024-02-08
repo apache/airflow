@@ -20,7 +20,7 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 WORKING_DIR="/tmp/armdocker"
 INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
 ARM_AMI="ami-0e43196369d299715"  # AMI ID of latest arm-docker-ami-v*
-INSTANCE_TYPE="m6g.2xlarge"  # m6g.2xlarge -> 8 vCPUS 32 GB RAM
+INSTANCE_TYPE="m7g.2xlarge"  # m7g.2xlarge -> 8 vCPUS 32 GB RAM
 MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.25,SpotInstanceType=one-time}"
 REGION="us-east-2"
 EC2_USER="ec2-user"
@@ -38,6 +38,7 @@ function start_arm_instance() {
         --image-id "${ARM_AMI}" \
         --count 1 \
         --instance-type "${INSTANCE_TYPE}" \
+        --block-device-mappings 'DeviceName=/dev/xvda,Ebs={VolumeSize=16}' \
         --user-data "file://${USER_DATA_FILE}" \
         --instance-market-options "${MARKET_OPTIONS}" \
         --instance-initiated-shutdown-behavior terminate \

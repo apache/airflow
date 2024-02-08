@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 from contextlib import closing, contextmanager
-from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
@@ -32,7 +31,7 @@ from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.utils.strings import to_boolean
 
@@ -46,31 +45,6 @@ def _try_to_boolean(value: Any):
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
-
-
-# TODO: Remove this when provider min airflow version >= 2.5.0 since this is
-# handled by provider manager from that version.
-def _ensure_prefixes(conn_type):
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class SnowflakeHook(DbApiHook):
@@ -116,8 +90,8 @@ class SnowflakeHook(DbApiHook):
     supports_autocommit = True
     _test_connection_sql = "select 1"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -138,9 +112,8 @@ class SnowflakeHook(DbApiHook):
             ),
         }
 
-    @staticmethod
-    @_ensure_prefixes(conn_type="snowflake")
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -197,7 +170,9 @@ class SnowflakeHook(DbApiHook):
                 warnings.warn(
                     f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras. "
                     f"Using value for `{field_name}`.  Please ensure this is the correct "
-                    f"value and remove the backcompat key `{backcompat_key}`."
+                    f"value and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
@@ -312,11 +287,11 @@ class SnowflakeHook(DbApiHook):
         engine_kwargs = engine_kwargs or {}
         conn_params = self._get_conn_params()
         if "insecure_mode" in conn_params:
-            engine_kwargs.setdefault("connect_args", dict())
+            engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
         for key in ["session_parameters", "private_key"]:
             if conn_params.get(key):
-                engine_kwargs.setdefault("connect_args", dict())
+                engine_kwargs.setdefault("connect_args", {})
                 engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
@@ -327,7 +302,7 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -350,7 +325,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -362,7 +337,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
         return_dictionaries: bool = False,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Runs a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
@@ -412,10 +387,10 @@ class SnowflakeHook(DbApiHook):
             with self._get_cursor(conn, return_dictionaries) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
 
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_common_data_structure(handler(cur))  # type: ignore[attr-defined]
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -467,6 +442,7 @@ class SnowflakeHook(DbApiHook):
                 "column_name",
                 "ordinal_position",
                 "data_type",
+                "table_catalog",
             ],
             database=database,
             is_information_schema_cross_db=True,
@@ -506,7 +482,7 @@ class SnowflakeHook(DbApiHook):
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_database_info(connection))
+        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
 
         if self.query_ids:
             return OperatorLineage(

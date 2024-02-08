@@ -156,7 +156,6 @@ class S3ToGCSOperator(S3ListOperator):
         poll_interval: int = 10,
         **kwargs,
     ):
-
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
         self.apply_gcs_prefix = apply_gcs_prefix
         self.gcp_conn_id = gcp_conn_id
@@ -334,6 +333,7 @@ class S3ToGCSOperator(S3ListOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
+
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """

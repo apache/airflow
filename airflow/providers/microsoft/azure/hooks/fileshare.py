@@ -17,13 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import IO, Any
 
-from azure.storage.file import File, FileService
+from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureFileShareHook(BaseHook):
@@ -31,9 +33,8 @@ class AzureFileShareHook(BaseHook):
     Interacts with Azure FileShare Storage.
 
     :param azure_fileshare_conn_id: Reference to the
-        :ref:`Azure Container Volume connection id<howto/connection:azure_fileshare>`
-        of an Azure account of which container volumes should be used.
-
+        :ref:`Azure FileShare connection id<howto/connection:azure_fileshare>`
+        of an Azure account of which file share should be used.
     """
 
     conn_name_attr = "azure_fileshare_conn_id"
@@ -41,13 +42,9 @@ class AzureFileShareHook(BaseHook):
     conn_type = "azure_fileshare"
     hook_name = "Azure FileShare"
 
-    def __init__(self, azure_fileshare_conn_id: str = "azure_fileshare_default") -> None:
-        super().__init__()
-        self.conn_id = azure_fileshare_conn_id
-        self._conn = None
-
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -58,13 +55,10 @@ class AzureFileShareHook(BaseHook):
             "connection_string": StringField(
                 lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
             ),
-            "protocol": StringField(
-                lazy_gettext("Account URL or token (optional)"), widget=BS3TextFieldWidget()
-            ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -73,218 +67,203 @@ class AzureFileShareHook(BaseHook):
                 "password": "Blob Storage Key (optional)",
             },
             "placeholders": {
-                "login": "account name",
+                "login": "account name or account url",
                 "password": "secret",
                 "sas_token": "account url or token (optional)",
                 "connection_string": "account url or token (optional)",
-                "protocol": "account url or token (optional)",
             },
         }
 
-    def get_conn(self) -> FileService:
-        """Return the FileService object."""
+    def __init__(
+        self,
+        share_name: str | None = None,
+        file_path: str | None = None,
+        directory_path: str | None = None,
+        azure_fileshare_conn_id: str = "azure_fileshare_default",
+    ) -> None:
+        super().__init__()
+        self._conn_id = azure_fileshare_conn_id
+        self.share_name = share_name
+        self.file_path = file_path
+        self.directory_path = directory_path
+        self._account_url: str | None = None
+        self._connection_string: str | None = None
+        self._account_access_key: str | None = None
+        self._sas_token: str | None = None
 
-        def check_for_conflict(key):
-            backcompat_key = f"{backcompat_prefix}{key}"
-            if backcompat_key in extras:
-                warnings.warn(
-                    f"Conflicting params `{key}` and `{backcompat_key}` found in extras for conn "
-                    f"{self.conn_id}. Using value for `{key}`.  Please ensure this is the correct value "
-                    f"and remove the backcompat key `{backcompat_key}`."
-                )
-
-        backcompat_prefix = "extra__azure_fileshare__"
-        if self._conn:
-            return self._conn
-        conn = self.get_connection(self.conn_id)
+    def get_conn(self) -> None:
+        conn = self.get_connection(self._conn_id)
         extras = conn.extra_dejson
-        service_options = {}
-        for key, value in extras.items():
-            if value == "":
-                continue
-            if not key.startswith("extra__"):
-                service_options[key] = value
-                check_for_conflict(key)
-            elif key.startswith(backcompat_prefix):
-                short_name = key[len(backcompat_prefix) :]
-                warnings.warn(
-                    f"`{key}` is deprecated in azure connection extra please use `{short_name}` instead",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                if short_name not in service_options:  # prefer values provided with short name
-                    service_options[short_name] = value
-            else:
-                warnings.warn(f"Extra param `{key}` not recognized; ignoring.")
-        self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
-        return self._conn
+        self._connection_string = extras.get("connection_string")
+        if conn.login:
+            self._account_url = self._parse_account_url(conn.login)
+        self._sas_token = extras.get("sas_token")
+        self._account_access_key = conn.password
 
-    def check_for_directory(self, share_name: str, directory_name: str, **kwargs) -> bool:
-        """
-        Check if a directory exists on Azure File Share.
+    @staticmethod
+    def _parse_account_url(account_url: str) -> str:
+        if not account_url.lower().startswith("https"):
+            return f"https://{account_url}.file.core.windows.net"
+        return account_url
 
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param kwargs: Optional keyword arguments that
-            `FileService.exists()` takes.
-        :return: True if the file exists, False otherwise.
-        """
-        return self.get_conn().exists(share_name, directory_name, **kwargs)
+    def _get_sync_default_azure_credential(self):
+        conn = self.get_connection(self._conn_id)
+        extras = conn.extra_dejson
+        managed_identity_client_id = extras.get("managed_identity_client_id")
+        workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
+        return get_sync_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
 
-    def check_for_file(self, share_name: str, directory_name: str, file_name: str, **kwargs) -> bool:
-        """
-        Check if a file exists on Azure File Share.
+    @property
+    def share_service_client(self):
+        self.get_conn()
+        if self._connection_string:
+            return ShareServiceClient.from_connection_string(
+                conn_str=self._connection_string,
+            )
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
+            return ShareServiceClient(account_url=self._account_url, credential=credential)
+        else:
+            return ShareServiceClient(
+                account_url=self._account_url,
+                credential=self._get_sync_default_azure_credential(),
+                token_intent="backup",
+            )
 
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param kwargs: Optional keyword arguments that
-            `FileService.exists()` takes.
-        :return: True if the file exists, False otherwise.
-        """
-        return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
+    @property
+    def share_directory_client(self):
+        self.get_conn()
+        if self._connection_string:
+            return ShareDirectoryClient.from_connection_string(
+                conn_str=self._connection_string,
+                share_name=self.share_name,
+                directory_path=self.directory_path,
+            )
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
+            return ShareDirectoryClient(
+                account_url=self._account_url,
+                share_name=self.share_name,
+                directory_path=self.directory_path,
+                credential=credential,
+            )
+        else:
+            return ShareDirectoryClient(
+                account_url=self._account_url,
+                share_name=self.share_name,
+                directory_path=self.directory_path,
+                credential=self._get_sync_default_azure_credential(),
+                token_intent="backup",
+            )
 
-    def list_directories_and_files(
-        self, share_name: str, directory_name: str | None = None, **kwargs
-    ) -> list:
-        """
-        Return the list of directories and files stored on a Azure File Share.
+    @property
+    def share_file_client(self):
+        self.get_conn()
+        if self._connection_string:
+            return ShareFileClient.from_connection_string(
+                conn_str=self._connection_string,
+                share_name=self.share_name,
+                file_path=self.file_path,
+            )
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
+            return ShareFileClient(
+                account_url=self._account_url,
+                share_name=self.share_name,
+                file_path=self.file_path,
+                credential=credential,
+            )
+        else:
+            return ShareFileClient(
+                account_url=self._account_url,
+                share_name=self.share_name,
+                file_path=self.file_path,
+                credential=self._get_sync_default_azure_credential(),
+                token_intent="backup",
+            )
 
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param kwargs: Optional keyword arguments that
-            `FileService.list_directories_and_files()` takes.
-        :return: A list of files and directories
-        """
-        return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
+    def check_for_directory(self) -> bool:
+        """Check if a directory exists on Azure File Share."""
+        return self.share_directory_client.exists()
 
-    def list_files(self, share_name: str, directory_name: str | None = None, **kwargs) -> list[str]:
-        """
-        Return the list of files stored on a Azure File Share.
+    def list_directories_and_files(self) -> list:
+        """Return the list of directories and files stored on a Azure File Share."""
+        return list(self.share_directory_client.list_directories_and_files())
 
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param kwargs: Optional keyword arguments that
-            `FileService.list_directories_and_files()` takes.
-        :return: A list of files
-        """
-        return [
-            obj.name
-            for obj in self.list_directories_and_files(share_name, directory_name, **kwargs)
-            if isinstance(obj, File)
-        ]
+    def list_files(self) -> list[str]:
+        """Return the list of files stored on a Azure File Share."""
+        return [obj.name for obj in self.list_directories_and_files() if isinstance(obj, FileProperties)]
 
     def create_share(self, share_name: str, **kwargs) -> bool:
         """
         Create new Azure File Share.
 
         :param share_name: Name of the share.
-        :param kwargs: Optional keyword arguments that
-            `FileService.create_share()` takes.
         :return: True if share is created, False if share already exists.
         """
-        return self.get_conn().create_share(share_name, **kwargs)
+        try:
+            self.share_service_client.create_share(share_name, **kwargs)
+        except Exception as e:
+            self.log.warning(e)
+            return False
+        return True
 
     def delete_share(self, share_name: str, **kwargs) -> bool:
         """
         Delete existing Azure File Share.
 
         :param share_name: Name of the share.
-        :param kwargs: Optional keyword arguments that
-            `FileService.delete_share()` takes.
         :return: True if share is deleted, False if share does not exist.
         """
-        return self.get_conn().delete_share(share_name, **kwargs)
+        try:
+            self.share_service_client.delete_share(share_name, **kwargs)
+        except Exception as e:
+            self.log.warning(e)
+            return False
+        return True
 
-    def create_directory(self, share_name: str, directory_name: str, **kwargs) -> list:
-        """
-        Create a new directory on a Azure File Share.
+    def create_directory(self, **kwargs) -> Any:
+        """Create a new directory on a Azure File Share."""
+        return self.share_directory_client.create_directory(**kwargs)
 
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param kwargs: Optional keyword arguments that
-            `FileService.create_directory()` takes.
-        :return: A list of files and directories
-        """
-        return self.get_conn().create_directory(share_name, directory_name, **kwargs)
-
-    def get_file(
-        self, file_path: str, share_name: str, directory_name: str, file_name: str, **kwargs
-    ) -> None:
+    def get_file(self, file_path: str, **kwargs) -> None:
         """
         Download a file from Azure File Share.
 
         :param file_path: Where to store the file.
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param kwargs: Optional keyword arguments that
-            `FileService.get_file_to_path()` takes.
         """
-        self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
+        with open(file_path, "wb") as file_handle:
+            data = self.share_file_client.download_file(**kwargs)
+            data.readinto(file_handle)
 
-    def get_file_to_stream(
-        self, stream: IO, share_name: str, directory_name: str, file_name: str, **kwargs
-    ) -> None:
+    def get_file_to_stream(self, stream: IO, **kwargs) -> None:
         """
         Download a file from Azure File Share.
 
         :param stream: A filehandle to store the file to.
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param kwargs: Optional keyword arguments that
-            `FileService.get_file_to_stream()` takes.
         """
-        self.get_conn().get_file_to_stream(share_name, directory_name, file_name, stream, **kwargs)
+        data = self.share_file_client.download_file(**kwargs)
+        data.readinto(stream)
 
-    def load_file(
-        self, file_path: str, share_name: str, directory_name: str, file_name: str, **kwargs
-    ) -> None:
+    def load_file(self, file_path: str, **kwargs) -> None:
         """
         Upload a file to Azure File Share.
 
         :param file_path: Path to the file to load.
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param kwargs: Optional keyword arguments that
-            `FileService.create_file_from_path()` takes.
         """
-        self.get_conn().create_file_from_path(share_name, directory_name, file_name, file_path, **kwargs)
+        with open(file_path, "rb") as source_file:
+            self.share_file_client.upload_file(source_file, **kwargs)
 
-    def load_string(
-        self, string_data: str, share_name: str, directory_name: str, file_name: str, **kwargs
-    ) -> None:
+    def load_data(self, string_data: bytes | str | IO, **kwargs) -> None:
         """
         Upload a string to Azure File Share.
 
-        :param string_data: String to load.
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param kwargs: Optional keyword arguments that
-            `FileService.create_file_from_text()` takes.
+        :param string_data: String/Stream to load.
         """
-        self.get_conn().create_file_from_text(share_name, directory_name, file_name, string_data, **kwargs)
-
-    def load_stream(
-        self, stream: str, share_name: str, directory_name: str, file_name: str, count: str, **kwargs
-    ) -> None:
-        """
-        Upload a stream to Azure File Share.
-
-        :param stream: Opened file/stream to upload as the file content.
-        :param share_name: Name of the share.
-        :param directory_name: Name of the directory.
-        :param file_name: Name of the file.
-        :param count: Size of the stream in bytes
-        :param kwargs: Optional keyword arguments that
-            `FileService.create_file_from_stream()` takes.
-        """
-        self.get_conn().create_file_from_stream(
-            share_name, directory_name, file_name, stream, count, **kwargs
-        )
+        self.share_file_client.upload_file(string_data, **kwargs)
 
     def test_connection(self):
         """Test Azure FileShare connection."""
@@ -292,7 +271,7 @@ class AzureFileShareHook(BaseHook):
 
         try:
             # Attempt to retrieve file share information
-            next(iter(self.get_conn().list_shares()))
+            next(iter(self.share_service_client.list_shares()))
             return success
         except StopIteration:
             # If the iterator returned is empty it should still be considered a successful connection since

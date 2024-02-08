@@ -23,10 +23,10 @@ from typing import TYPE_CHECKING, Iterable
 import pendulum
 
 from airflow.operators.branch import BaseBranchOperator
-from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun
+    from airflow.utils.context import Context
 
 
 class LatestOnlyOperator(BaseBranchOperator):
@@ -45,7 +45,7 @@ class LatestOnlyOperator(BaseBranchOperator):
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
-        dag_run: DagRun = context["dag_run"]
+        dag_run: DagRun = context["dag_run"]  # type: ignore[assignment]
         if dag_run.external_trigger:
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return list(context["task"].get_direct_relative_ids(upstream=False))

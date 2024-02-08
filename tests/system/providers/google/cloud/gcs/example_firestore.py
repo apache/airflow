@@ -27,7 +27,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
@@ -36,7 +36,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.operators.dataflow import DataflowTemplatedJobStartOperator
 from airflow.providers.google.cloud.operators.datastore import (
-    CloudDatastoreBeginTransactionOperator,
     CloudDatastoreCommitOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -44,7 +43,7 @@ from airflow.providers.google.firebase.operators.firestore import CloudFirestore
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_firestore_to_gcp"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -64,7 +63,7 @@ KEYS = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",
@@ -74,20 +73,12 @@ with models.DAG(
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, location=DATASET_LOCATION
     )
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset",
         dataset_id=DATASET_NAME,
         location=DATASET_LOCATION,
         project_id=PROJECT_ID,
     )
-
-    begin_transaction_commit = CloudDatastoreBeginTransactionOperator(
-        task_id="begin_transaction_commit",
-        transaction_options={"readWrite": {}},
-        project_id=PROJECT_ID,
-    )
-
     commit_task = CloudDatastoreCommitOperator(
         task_id="commit_task",
         body={
@@ -100,11 +91,10 @@ with models.DAG(
                     }
                 }
             ],
-            "transaction": begin_transaction_commit.output,
+            "singleUseTransaction": {"readWrite": {}},
         },
         project_id=PROJECT_ID,
     )
-
     # [START howto_operator_export_database_to_gcs]
     export_database_to_gcs = CloudFirestoreExportDatabaseOperator(
         task_id="export_database_to_gcs",
@@ -112,7 +102,6 @@ with models.DAG(
         body={"outputUriPrefix": EXPORT_DESTINATION_URL, "collectionIds": [EXPORT_COLLECTION_ID]},
     )
     # [END howto_operator_export_database_to_gcs]
-
     # [START howto_operator_create_external_table_multiple_types]
     create_external_table_multiple_types = BigQueryCreateExternalTableOperator(
         task_id="create_external_table",
@@ -131,7 +120,6 @@ with models.DAG(
         },
     )
     # [END howto_operator_create_external_table_multiple_types]
-
     read_data_from_gcs_multiple_types = BigQueryInsertJobOperator(
         task_id="execute_query",
         configuration={
@@ -141,7 +129,6 @@ with models.DAG(
             }
         },
     )
-
     delete_entity = DataflowTemplatedJobStartOperator(
         task_id="delete-entity-firestore",
         project_id=PROJECT_ID,
@@ -158,7 +145,6 @@ with models.DAG(
         append_job_name=False,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
@@ -166,7 +152,6 @@ with models.DAG(
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -174,7 +159,6 @@ with models.DAG(
     (
         # TEST SETUP
         [create_bucket, create_dataset]
-        >> begin_transaction_commit
         >> commit_task
         # TEST BODY
         >> export_database_to_gcs

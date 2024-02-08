@@ -18,12 +18,9 @@
 """This module contains Google Cloud Bigtable operators."""
 from __future__ import annotations
 
-import enum
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 import google.api_core.exceptions
-from google.cloud.bigtable import enums
-from google.cloud.bigtable.column_family import GarbageCollectionRule
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
@@ -35,6 +32,11 @@ from airflow.providers.google.cloud.links.bigtable import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    import enum
+
+    from google.cloud.bigtable import enums
+    from google.cloud.bigtable.column_family import GarbageCollectionRule
+
     from airflow.utils.context import Context
 
 

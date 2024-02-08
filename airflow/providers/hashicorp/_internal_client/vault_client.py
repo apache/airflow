@@ -147,7 +147,7 @@ class _VaultClient(LoggingMixin):
             if not radius_secret:
                 raise VaultError("The 'radius' authentication type requires 'radius_secret'")
 
-        self.kv_engine_version = kv_engine_version if kv_engine_version else 2
+        self.kv_engine_version = kv_engine_version or 2
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
@@ -373,7 +373,10 @@ class _VaultClient(LoggingMixin):
                 response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
             else:
                 response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point, version=secret_version
+                    path=secret_path,
+                    mount_point=mount_point,
+                    version=secret_version,
+                    raise_on_deleted_version=True,
                 )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
@@ -422,7 +425,10 @@ class _VaultClient(LoggingMixin):
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
             return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=mount_point, version=secret_version
+                path=secret_path,
+                mount_point=mount_point,
+                version=secret_version,
+                raise_on_deleted_version=True,
             )
         except InvalidPath:
             self.log.debug(

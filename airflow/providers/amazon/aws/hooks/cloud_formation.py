@@ -18,10 +18,14 @@
 """This module contains AWS CloudFormation Hook."""
 from __future__ import annotations
 
-from boto3 import client, resource
+from typing import TYPE_CHECKING
+
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if TYPE_CHECKING:
+    from boto3 import client, resource
 
 
 class CloudFormationHook(AwsBaseHook):

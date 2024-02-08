@@ -87,7 +87,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             # LoggingIntegration is set by default.
             integrations = [sentry_flask]
 
-            executor_class, _ = ExecutorLoader.import_default_executor_cls()
+            executor_class, _ = ExecutorLoader.import_default_executor_cls(validate=False)
 
             if executor_class.supports_sentry:
                 from sentry_sdk.integrations.celery import CeleryIntegration
@@ -122,7 +122,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 sentry_sdk.init(integrations=integrations, **sentry_config_opts)
 
         def add_tagging(self, task_instance):
-            """Function to add tagging for a task_instance."""
+            """Add tagging for a task_instance."""
             dag_run = task_instance.dag_run
             task = task_instance.task
 
@@ -141,7 +141,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             task_instance: TaskInstance,
             session: Session | None = None,
         ) -> None:
-            """Function to add breadcrumbs inside of a task_instance."""
+            """Add breadcrumbs inside of a task_instance."""
             if session is None:
                 return
             dr = task_instance.get_dagrun(session)
@@ -161,8 +161,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             """
             Decorate errors.
 
-            Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-            to support task specific tags and breadcrumbs.
+            Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 

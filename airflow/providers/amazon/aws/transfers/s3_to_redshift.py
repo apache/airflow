@@ -77,6 +77,7 @@ class S3ToRedshiftOperator(BaseOperator):
         "copy_options",
         "redshift_conn_id",
         "method",
+        "aws_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#99e699"
@@ -96,7 +97,7 @@ class S3ToRedshiftOperator(BaseOperator):
         autocommit: bool = False,
         method: str = "APPEND",
         upsert_keys: list[str] | None = None,
-        redshift_data_api_kwargs: dict = {},
+        redshift_data_api_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,7 +113,7 @@ class S3ToRedshiftOperator(BaseOperator):
         self.autocommit = autocommit
         self.method = method
         self.upsert_keys = upsert_keys
-        self.redshift_data_api_kwargs = redshift_data_api_kwargs
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:

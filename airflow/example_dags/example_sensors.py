@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import datetime
 
 import pendulum
-from pytz import UTC
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor
@@ -54,32 +53,36 @@ with DAG(
     tags=["example"],
 ) as dag:
     # [START example_time_delta_sensor]
-    t0 = TimeDeltaSensor(task_id="wait_some_seconds", delta=timedelta(seconds=2))
+    t0 = TimeDeltaSensor(task_id="wait_some_seconds", delta=datetime.timedelta(seconds=2))
     # [END example_time_delta_sensor]
 
     # [START example_time_delta_sensor_async]
-    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=timedelta(seconds=2))
+    t0a = TimeDeltaSensorAsync(task_id="wait_some_seconds_async", delta=datetime.timedelta(seconds=2))
     # [END example_time_delta_sensor_async]
 
     # [START example_time_sensors]
-    t1 = TimeSensor(task_id="fire_immediately", target_time=datetime.now(tz=UTC).time())
+    t1 = TimeSensor(
+        task_id="fire_immediately", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+    )
 
     t2 = TimeSensor(
         task_id="timeout_after_second_date_in_the_future",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors]
 
     # [START example_time_sensors_async]
-    t1a = TimeSensorAsync(task_id="fire_immediately_async", target_time=datetime.now(tz=UTC).time())
+    t1a = TimeSensorAsync(
+        task_id="fire_immediately_async", target_time=datetime.datetime.now(tz=datetime.timezone.utc).time()
+    )
 
     t2a = TimeSensorAsync(
         task_id="timeout_after_second_date_in_the_future_async",
         timeout=1,
         soft_fail=True,
-        target_time=(datetime.now(tz=UTC) + timedelta(hours=1)).time(),
+        target_time=(datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1)).time(),
     )
     # [END example_time_sensors_async]
 
@@ -95,20 +98,26 @@ with DAG(
     t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing")
     # [END example_file_sensor]
 
-    t7 = BashOperator(
+    # [START example_file_sensor_async]
+    t7 = FileSensor(
+        task_id="wait_for_file_async", filepath="/tmp/temporary_file_for_testing", deferrable=True
+    )
+    # [END example_file_sensor_async]
+
+    t8 = BashOperator(
         task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
     )
 
     # [START example_python_sensors]
-    t8 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
+    t9 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
-    t9 = PythonSensor(
+    t10 = PythonSensor(
         task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
     )
     # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
-    t10 = DayOfWeekSensor(
+    t11 = DayOfWeekSensor(
         task_id="week_day_sensor_failing_on_timeout", timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
     )
     # [END example_day_of_week_sensor]
@@ -117,7 +126,7 @@ with DAG(
 
     tx.trigger_rule = TriggerRule.NONE_FAILED
     [t0, t0a, t1, t1a, t2, t2a, t3, t4] >> tx
-    t5 >> t6 >> tx
-    t7 >> tx
-    [t8, t9] >> tx
-    t10 >> tx
+    t5 >> t6 >> t7 >> tx
+    t8 >> tx
+    [t9, t10] >> tx
+    t11 >> tx

@@ -1,0 +1,61 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+package-name: apache-airflow-providers-pinecone
+
+name: Pinecone
+
+description: |
+    `Pinecone <https://docs.pinecone.io/docs/overview>`__
+
+state: ready
+source-date-epoch: 1705912222
+
+versions:
+  - 1.1.2
+  - 1.1.1
+  - 1.1.0
+  - 1.0.0
+
+integrations:
+  - integration-name: Pinecone
+    external-doc-url: https://docs.pinecone.io/docs/overview
+    how-to-guide:
+      - /docs/apache-airflow-providers-pinecone/operators/pinecone.rst
+    tags: [software]
+
+dependencies:
+  - apache-airflow>=2.6.0
+  # Pinecone Python SDK v3.0.0 was released at 2024-01-16 and introduce some breaking changes.
+  # It's crucial to adhere to the v3.0.0 Migration Guide before the upper-bound limitation can be removed.
+  # https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b
+  - pinecone-client>=2.2.4,<3.0
+
+hooks:
+  - integration-name: Pinecone
+    python-modules:
+      - airflow.providers.pinecone.hooks.pinecone
+
+connection-types:
+  - hook-class-name: airflow.providers.pinecone.hooks.pinecone.PineconeHook
+    connection-type: pinecone
+
+operators:
+  - integration-name: Pinecone
+    python-modules:
+      - airflow.providers.pinecone.operators.pinecone

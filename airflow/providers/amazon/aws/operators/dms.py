@@ -19,14 +19,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DmsCreateTaskOperator(BaseOperator):
+class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Creates AWS DMS replication task.
 
@@ -42,13 +43,19 @@ class DmsCreateTaskOperator(BaseOperator):
     :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc'), full-load by default.
     :param create_task_kwargs: Extra arguments for DMS replication task creation.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
         "replication_task_id",
         "source_endpoint_arn",
         "target_endpoint_arn",
@@ -57,7 +64,6 @@ class DmsCreateTaskOperator(BaseOperator):
         "migration_type",
         "create_task_kwargs",
     )
-    template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "table_mappings": "json",
         "create_task_kwargs": "json",
@@ -88,13 +94,11 @@ class DmsCreateTaskOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Creates AWS DMS replication task from Airflow.
+        Create AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-
-        task_arn = dms_hook.create_replication_task(
+        task_arn = self.hook.create_replication_task(
             replication_task_id=self.replication_task_id,
             source_endpoint_arn=self.source_endpoint_arn,
             target_endpoint_arn=self.target_endpoint_arn,
@@ -108,7 +112,7 @@ class DmsCreateTaskOperator(BaseOperator):
         return task_arn
 
 
-class DmsDeleteTaskOperator(BaseOperator):
+class DmsDeleteTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Deletes AWS DMS replication task.
 
@@ -118,39 +122,35 @@ class DmsDeleteTaskOperator(BaseOperator):
 
     :param replication_task_arn: Replication task ARN
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("replication_task_arn",)
-    template_ext: Sequence[str] = ()
-    template_fields_renderers: dict[str, str] = {}
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("replication_task_arn")
 
-    def __init__(
-        self,
-        *,
-        replication_task_arn: str | None = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
+    def __init__(self, *, replication_task_arn: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
         """
-        Deletes AWS DMS replication task from Airflow.
+        Delete AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-        dms_hook.delete_replication_task(replication_task_arn=self.replication_task_arn)
+        self.hook.delete_replication_task(replication_task_arn=self.replication_task_arn)
         self.log.info("DMS replication task(%s) has been deleted.", self.replication_task_arn)
 
 
-class DmsDescribeTasksOperator(BaseOperator):
+class DmsDescribeTasksOperator(AwsBaseOperator[DmsHook]):
     """
     Describes AWS DMS replication tasks.
 
@@ -160,38 +160,35 @@ class DmsDescribeTasksOperator(BaseOperator):
 
     :param describe_tasks_kwargs: Describe tasks command arguments
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("describe_tasks_kwargs",)
-    template_ext: Sequence[str] = ()
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("describe_tasks_kwargs")
     template_fields_renderers: dict[str, str] = {"describe_tasks_kwargs": "json"}
 
-    def __init__(
-        self,
-        *,
-        describe_tasks_kwargs: dict | None = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
+    def __init__(self, *, describe_tasks_kwargs: dict | None = None, **kwargs):
         super().__init__(**kwargs)
         self.describe_tasks_kwargs = describe_tasks_kwargs or {}
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> tuple[str | None, list]:
         """
-        Describes AWS DMS replication tasks from Airflow.
+        Describe AWS DMS replication tasks from Airflow.
 
         :return: Marker and list of replication tasks
         """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-        return dms_hook.describe_replication_tasks(**self.describe_tasks_kwargs)
+        return self.hook.describe_replication_tasks(**self.describe_tasks_kwargs)
 
 
-class DmsStartTaskOperator(BaseOperator):
+class DmsStartTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Starts AWS DMS replication task.
 
@@ -204,18 +201,23 @@ class DmsStartTaskOperator(BaseOperator):
         ('start-replication'|'resume-processing'|'reload-target')
     :param start_task_kwargs: Extra start replication task arguments
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
         "replication_task_arn",
         "start_replication_task_type",
         "start_task_kwargs",
     )
-    template_ext: Sequence[str] = ()
     template_fields_renderers = {"start_task_kwargs": "json"}
 
     def __init__(
@@ -234,14 +236,8 @@ class DmsStartTaskOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
-        """
-        Starts AWS DMS replication task from Airflow.
-
-        :return: replication task arn
-        """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-
-        dms_hook.start_replication_task(
+        """Start AWS DMS replication task from Airflow."""
+        self.hook.start_replication_task(
             replication_task_arn=self.replication_task_arn,
             start_replication_task_type=self.start_replication_task_type,
             **self.start_task_kwargs,
@@ -249,7 +245,7 @@ class DmsStartTaskOperator(BaseOperator):
         self.log.info("DMS replication task(%s) is starting.", self.replication_task_arn)
 
 
-class DmsStopTaskOperator(BaseOperator):
+class DmsStopTaskOperator(AwsBaseOperator[DmsHook]):
     """
     Stops AWS DMS replication task.
 
@@ -259,33 +255,25 @@ class DmsStopTaskOperator(BaseOperator):
 
     :param replication_task_arn: Replication task ARN
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("replication_task_arn",)
-    template_ext: Sequence[str] = ()
-    template_fields_renderers: dict[str, str] = {}
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("replication_task_arn")
 
-    def __init__(
-        self,
-        *,
-        replication_task_arn: str | None = None,
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
+    def __init__(self, *, replication_task_arn: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.replication_task_arn = replication_task_arn
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
-        """
-        Stops AWS DMS replication task from Airflow.
-
-        :return: replication task arn
-        """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-        dms_hook.stop_replication_task(replication_task_arn=self.replication_task_arn)
+        """Stop AWS DMS replication task from Airflow."""
+        self.hook.stop_replication_task(replication_task_arn=self.replication_task_arn)
         self.log.info("DMS replication task(%s) is stopping.", self.replication_task_arn)

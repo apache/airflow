@@ -20,20 +20,12 @@ from __future__ import annotations
 import re
 
 import pytest
-from pytest import param
 
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id
-from airflow.providers.cncf.kubernetes.operators.pod import _create_pod_id
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
 
-# todo: when cncf provider min airflow version >= 2.5 remove this parameterization
-# we added this function to provider temporarily until min airflow version catches up
-# meanwhile, we use this one test to test both core and provider
-@pytest.mark.parametrize(
-    "create_pod_id", [param(_create_pod_id, id="provider"), param(create_pod_id, id="core")]
-)
 class TestCreatePodId:
     @pytest.mark.parametrize(
         "val, expected",
@@ -47,7 +39,7 @@ class TestCreatePodId:
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
         ],
     )
-    def test_create_pod_id_task_only(self, val, expected, create_pod_id):
+    def test_create_pod_id_task_only(self, val, expected):
         actual = create_pod_id(task_id=val, unique=False)
         assert actual == expected
         assert re.match(pod_name_regex, actual)
@@ -64,7 +56,7 @@ class TestCreatePodId:
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a"),  # weird unicode
         ],
     )
-    def test_create_pod_id_dag_only(self, val, expected, create_pod_id):
+    def test_create_pod_id_dag_only(self, val, expected):
         actual = create_pod_id(dag_id=val, unique=False)
         assert actual == expected
         assert re.match(pod_name_regex, actual)
@@ -81,26 +73,26 @@ class TestCreatePodId:
             ("90AçLbˆˆç˙ßß˜˜˙c*a", "90AçLbˆˆç˙ßß˜˜˙c*a", "90aclb-c-ssss-c-a-90aclb-c-ssss-c-a"),  # ugly
         ],
     )
-    def test_create_pod_id_dag_and_task(self, dag_id, task_id, expected, create_pod_id):
+    def test_create_pod_id_dag_and_task(self, dag_id, task_id, expected):
         actual = create_pod_id(dag_id=dag_id, task_id=task_id, unique=False)
         assert actual == expected
         assert re.match(pod_name_regex, actual)
 
-    def test_create_pod_id_dag_too_long_with_suffix(self, create_pod_id):
+    def test_create_pod_id_dag_too_long_with_suffix(self):
         actual = create_pod_id("0" * 254)
-        assert len(actual) == 80
-        assert re.match(r"0{71}-[a-z0-9]{8}", actual)
+        assert len(actual) == 63
+        assert re.match(r"0{54}-[a-z0-9]{8}", actual)
         assert re.match(pod_name_regex, actual)
 
-    def test_create_pod_id_dag_too_long_non_unique(self, create_pod_id):
+    def test_create_pod_id_dag_too_long_non_unique(self):
         actual = create_pod_id("0" * 254, unique=False)
-        assert len(actual) == 80
-        assert re.match(r"0{80}", actual)
+        assert len(actual) == 63
+        assert re.match(r"0{63}", actual)
         assert re.match(pod_name_regex, actual)
 
     @pytest.mark.parametrize("unique", [True, False])
     @pytest.mark.parametrize("length", [25, 100, 200, 300])
-    def test_create_pod_id(self, create_pod_id, length, unique):
+    def test_create_pod_id(self, length, unique):
         """Test behavior of max_length and unique."""
         dag_id = "dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-dag-"
         task_id = "task-task-task-task-task-task-task-task-task-task-task-task-task-task-task-task-task-"

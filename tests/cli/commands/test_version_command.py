@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import io
 from contextlib import redirect_stdout
+from io import StringIO
 
 import airflow.cli.commands.version_command
 from airflow.cli import cli_parser
@@ -30,6 +30,6 @@ class TestCliVersion:
         cls.parser = cli_parser.get_parser()
 
     def test_cli_version(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             airflow.cli.commands.version_command.version(self.parser.parse_args(["version"]))
         assert version in stdout.getvalue()

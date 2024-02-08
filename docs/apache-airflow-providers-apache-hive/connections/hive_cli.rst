@@ -64,17 +64,14 @@ Schema (optional)
     Specify your JDBC Hive database that you want to connect to with Beeline
     or specify a schema for an HQL statement to run with the Hive CLI.
 
-Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in Hive CLI connection.
-    The following parameters are all optional:
+Use Beeline (optional)
+    Specify as ``True`` if using the Beeline CLI. Default is ``False``.
 
-    * ``use_beeline``
-      Specify as ``True`` if using the Beeline CLI. Default is ``False``.
-    * ``proxy_user``
-      Specify a proxy user as an ``owner`` or ``login`` or keep blank if using a
-      custom proxy user.
-    * ``principal``
-      Specify the JDBC Hive principal to be used with Hive Beeline.
+Proxy User (optional)
+    Specify a proxy user to run HQL code as this user.
+
+Principal (optional)
+    Specify the JDBC Hive principal to be used with Hive Beeline.
 
 
 When specifying the connection in environment variable you should specify

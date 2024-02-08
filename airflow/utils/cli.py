@@ -27,17 +27,15 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 import re2
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils import cli_action_loggers
+from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -45,6 +43,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def _check_cli_args(args):
 def action_cli(func=None, check_db=True):
     def action_logging(f: T) -> T:
         """
-        Decorates function to execute function at the same time submitting action_logging but in CLI context.
+        Decorate function to execute function at the same time submitting action_logging but in CLI context.
 
         It will call action logger callbacks twice, one for
         pre-execution and the other one for post-execution.
@@ -86,7 +86,7 @@ def action_cli(func=None, check_db=True):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             """
-            A wrapper for cli functions; assumes Namespace instance as first positional argument.
+            Wrap cli functions; assume Namespace instance as first positional argument.
 
             :param args: Positional argument. It assumes to have Namespace instance
                 at 1st positional argument
@@ -115,7 +115,7 @@ def action_cli(func=None, check_db=True):
                 metrics["error"] = e
                 raise
             finally:
-                metrics["end_datetime"] = datetime.utcnow()
+                metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
         return cast(T, wrapper)
@@ -127,7 +127,7 @@ def action_cli(func=None, check_db=True):
 
 def _build_metrics(func_name, namespace):
     """
-    Builds metrics dict from function args.
+    Build metrics dict from function args.
 
     It assumes that function arguments is from airflow.bin.cli module's function
     and has Namespace instance where it optionally contains "dag_id", "task_id",
@@ -154,7 +154,7 @@ def _build_metrics(func_name, namespace):
 
     metrics = {
         "sub_command": func_name,
-        "start_datetime": datetime.utcnow(),
+        "start_datetime": timezone.utcnow(),
         "full_command": f"{full_command}",
         "user": getuser(),
     }
@@ -173,7 +173,7 @@ def _build_metrics(func_name, namespace):
 
 
 def process_subdir(subdir: str | None):
-    """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
+    """Expand path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
         if not settings.DAGS_FOLDER:
             raise ValueError("DAGS_FOLDER variable in settings should be filled.")
@@ -183,7 +183,7 @@ def process_subdir(subdir: str | None):
 
 
 def get_dag_by_file_location(dag_id: str):
-    """Returns DAG of a given dag_id by looking up file location."""
+    """Return DAG of a given dag_id by looking up file location."""
     from airflow.models import DagBag, DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
@@ -219,7 +219,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
 
 def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     """
-    Returns DAG of a given dag_id.
+    Return DAG of a given dag_id.
 
     First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
@@ -248,7 +248,7 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
 
 
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
-    """Returns DAG(s) matching a given regex or dag_id."""
+    """Return DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
     if not use_regex:
@@ -268,7 +268,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id)).first()
+    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id).limit(1))
     if not dag_pickle:
         raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle
@@ -276,7 +276,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
 
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
-    """Creates logging paths."""
+    """Create logging paths."""
     if not stderr:
         stderr = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.err")
     if not stdout:
@@ -293,7 +293,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 
 def setup_logging(filename):
-    """Creates log file handler for daemon process."""
+    """Create log file handler for daemon process."""
     root = logging.getLogger()
     handler = NonCachingFileHandler(filename)
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
@@ -306,7 +306,7 @@ def setup_logging(filename):
 
 def sigint_handler(sig, frame):
     """
-    Returns without error on SIGINT or SIGTERM signals in interactive command mode.
+    Return without error on SIGINT or SIGTERM signals in interactive command mode.
 
     e.g. CTRL+C or kill <PID>
     """
@@ -315,7 +315,7 @@ def sigint_handler(sig, frame):
 
 def sigquit_handler(sig, frame):
     """
-    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT.
+    Help debug deadlocks by printing stacktraces when this gets a SIGQUIT.
 
     e.g. kill -s QUIT <PID> or CTRL+
     """
@@ -340,7 +340,7 @@ class ColorMode:
 
 
 def should_use_colors(args) -> bool:
-    """Processes arguments and decides whether to enable color in output."""
+    """Process arguments and decide whether to enable color in output."""
     if args.color == ColorMode.ON:
         return True
     if args.color == ColorMode.OFF:
@@ -361,7 +361,7 @@ def should_ignore_depends_on_past(args) -> bool:
 
 
 def suppress_logs_and_warning(f: T) -> T:
-    """Decorator to suppress logging and warning messages in cli functions."""
+    """Suppress logging and warning messages in cli functions."""
 
     @functools.wraps(f)
     def _wrapper(*args, **kwargs):

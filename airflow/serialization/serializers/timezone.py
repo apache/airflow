@@ -17,17 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import datetime
+import sys
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
-    from pendulum.tz.timezone import Timezone
-
     from airflow.serialization.serde import U
 
 
-serializers = ["pendulum.tz.timezone.FixedTimezone", "pendulum.tz.timezone.Timezone"]
+serializers = [
+    "pendulum.tz.timezone.FixedTimezone",
+    "pendulum.tz.timezone.Timezone",
+]
+
+PY39 = sys.version_info >= (3, 9)
+
+if PY39:
+    serializers.append("zoneinfo.ZoneInfo")
+else:
+    serializers.append("backports.zoneinfo.ZoneInfo")
+
 deserializers = serializers
 
 __version__ = 1
@@ -43,22 +54,27 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     0 without the special case), but passing 0 into ``pendulum.timezone`` does
     not give us UTC (but ``+00:00``).
     """
-    from pendulum.tz.timezone import FixedTimezone, Timezone
+    from pendulum.tz.timezone import FixedTimezone
 
     name = qualname(o)
+
     if isinstance(o, FixedTimezone):
         if o.offset == 0:
             return "UTC", name, __version__, True
         return o.offset, name, __version__, True
 
-    if isinstance(o, Timezone):
-        return o.name, name, __version__, True
+    tz_name = _get_tzinfo_name(cast(datetime.tzinfo, o))
+    if tz_name is not None:
+        return tz_name, name, __version__, True
+
+    if cast(datetime.tzinfo, o).utcoffset(None) == datetime.timedelta(0):
+        return "UTC", qualname(FixedTimezone), __version__, True
 
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> Timezone:
-    from pendulum.tz import fixed_timezone, timezone
+def deserialize(classname: str, version: int, data: object) -> Any:
+    from airflow.utils.timezone import parse_timezone
 
     if not isinstance(data, (str, int)):
         raise TypeError(f"{data} is not of type int or str but of {type(data)}")
@@ -66,7 +82,30 @@ def deserialize(classname: str, version: int, data: object) -> Timezone:
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
-    if isinstance(data, int):
-        return fixed_timezone(data)
+    if "zoneinfo.ZoneInfo" in classname:
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
 
-    return timezone(data)
+        return ZoneInfo(data)
+
+    return parse_timezone(data)
+
+
+# ported from pendulum.tz.timezone._get_tzinfo_name
+def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
+    if tzinfo is None:
+        return None
+
+    if hasattr(tzinfo, "key"):
+        # zoneinfo timezone
+        return tzinfo.key
+    elif hasattr(tzinfo, "name"):
+        # Pendulum timezone
+        return tzinfo.name
+    elif hasattr(tzinfo, "zone"):
+        # pytz timezone
+        return tzinfo.zone  # type: ignore[no-any-return]
+
+    return None

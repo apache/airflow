@@ -33,7 +33,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DependencyMixin
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -269,7 +270,7 @@ class TaskGroup(DAGNode):
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
         """
-        Overrides TaskMixin.update_relative.
+        Override TaskMixin.update_relative.
 
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids
         accordingly so that we can reduce the number of edges when displaying Graph view.
@@ -341,7 +342,7 @@ class TaskGroup(DAGNode):
         TaskGroupContext.pop_context_managed_task_group()
 
     def has_task(self, task: BaseOperator) -> bool:
-        """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
+        """Return True if this TaskGroup or its children TaskGroups contains the given task."""
         if task.task_id in self.children:
             return True
 
@@ -370,6 +371,16 @@ class TaskGroup(DAGNode):
         tasks = list(self)
         ids = {x.task_id for x in tasks}
 
+        def has_non_teardown_downstream(task, exclude: str):
+            for down_task in task.downstream_list:
+                if down_task.task_id == exclude:
+                    continue
+                elif down_task.task_id not in ids:
+                    continue
+                elif not down_task.is_teardown:
+                    return True
+            return False
+
         def recurse_for_first_non_teardown(task):
             for upstream_task in task.upstream_list:
                 if upstream_task.task_id not in ids:
@@ -380,7 +391,8 @@ class TaskGroup(DAGNode):
                 elif task.is_teardown and upstream_task.is_setup:
                     # don't go through the teardown-to-setup path
                     continue
-                else:
+                # return unless upstream task already has non-teardown downstream in group
+                elif not has_non_teardown_downstream(upstream_task, exclude=task.task_id):
                     yield upstream_task
 
         for task in tasks:
@@ -422,7 +434,7 @@ class TaskGroup(DAGNode):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Returns a flat dictionary of group_id: TaskGroup."""
+        """Return a flat dictionary of group_id: TaskGroup."""
         task_group_map = {}
 
         def build_map(task_group):
@@ -442,14 +454,14 @@ class TaskGroup(DAGNode):
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
+        """Serialize task group; required by DAGNode."""
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def hierarchical_alphabetical_sort(self):
         """
-        Sorts children in hierarchical alphabetical order.
+        Sort children in hierarchical alphabetical order.
 
         - groups in alphabetical order first
         - tasks in alphabetical order after them.
@@ -475,14 +487,14 @@ class TaskGroup(DAGNode):
         graph_sorted: list[DAGNode] = []
 
         # special case
-        if len(self.children) == 0:
+        if not self.children:
             return graph_sorted
 
         # Run until the unsorted graph is empty.
         while graph_unsorted:
             # Go through each of the node/edges pairs in the unsorted graph. If a set of edges doesn't contain
             # any nodes that haven't been resolved, that is, that are still in the unsorted graph, remove the
-            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using using
+            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using
             # the values() method for iterating, a copy of the unsorted graph is used, allowing us to modify
             # the unsorted graph as we move through it.
             #
@@ -533,7 +545,7 @@ class TaskGroup(DAGNode):
             group = group.task_group
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
-        """Returns an iterator of the child tasks."""
+        """Return an iterator of the child tasks."""
         from airflow.models.abstractoperator import AbstractOperator
 
         groups_to_visit = [self]
@@ -565,8 +577,6 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
-        for op, _ in expand_input.iter_references():
-            self.set_upstream(op)
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
@@ -577,7 +587,8 @@ class MappedTaskGroup(TaskGroup):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of instances a task in this group should be mapped to, when a DAG run is created.
+        """
+        Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -596,7 +607,8 @@ class MappedTaskGroup(TaskGroup):
         )
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of instances a task in this group should be mapped to at run time.
+        """
+        Return the number of instances a task in this group should be mapped to at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The
@@ -617,6 +629,11 @@ class MappedTaskGroup(TaskGroup):
             (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for op, _ in self._expand_input.iter_references():
+            self.set_upstream(op)
+        super().__exit__(exc_type, exc_val, exc_tb)
+
 
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
@@ -635,7 +652,7 @@ class TaskGroupContext:
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
-        """Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup."""
+        """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()

@@ -16,30 +16,40 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import warnings
 from typing import Any
 
 import yandexcloud
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.yandex.utils.credentials import (
+    get_credentials,
+    get_service_account_id,
+)
+from airflow.providers.yandex.utils.defaults import conn_name_attr, conn_type, default_conn_name, hook_name
+from airflow.providers.yandex.utils.fields import get_field_from_extras
+from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
 
 class YandexCloudBaseHook(BaseHook):
     """
     A base hook for Yandex.Cloud related tasks.
 
-    :param yandex_conn_id: The connection ID to use when fetching connection info.
+    :param yandex_conn_id: The connection ID to use when fetching connection info
+    :param connection_id: Deprecated, use yandex_conn_id instead
+    :param default_folder_id: The folder ID to use instead of connection folder ID
+    :param default_public_ssh_key: The key to use instead of connection key
+    :param default_service_account_id: The service account ID to use instead of key service account ID
     """
 
-    conn_name_attr = "yandex_conn_id"
-    default_conn_name = "yandexcloud_default"
-    conn_type = "yandexcloud"
-    hook_name = "Yandex Cloud"
+    conn_name_attr = conn_name_attr
+    default_conn_name = default_conn_name
+    conn_type = conn_type
+    hook_name = hook_name
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -50,14 +60,14 @@ class YandexCloudBaseHook(BaseHook):
                 lazy_gettext("Service account auth JSON"),
                 widget=BS3PasswordFieldWidget(),
                 description="Service account auth JSON. Looks like "
-                '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
                 "Will be used instead of OAuth token and SA JSON file path field if specified.",
             ),
             "service_account_json_path": StringField(
                 lazy_gettext("Service account auth JSON file path"),
                 widget=BS3TextFieldWidget(),
                 description="Service account auth JSON file path. File content looks like "
-                '{"id", "...", "service_account_id": "...", "private_key": "..."}. '
+                '{"id": "...", "service_account_id": "...", "private_key": "..."}. '
                 "Will be used instead of OAuth token if specified.",
             ),
             "oauth": PasswordField(
@@ -75,7 +85,7 @@ class YandexCloudBaseHook(BaseHook):
             "public_ssh_key": StringField(
                 lazy_gettext("Public SSH key"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This key will be placed to all created Compute nodes"
+                description="Optional. This key will be placed to all created Compute nodes "
                 "to let you have a root shell there",
             ),
             "endpoint": StringField(
@@ -87,21 +97,16 @@ class YandexCloudBaseHook(BaseHook):
 
     @classmethod
     def provider_user_agent(cls) -> str | None:
-        """Construct User-Agent from Airflow core & provider package versions."""
-        import airflow
-        from airflow.providers_manager import ProvidersManager
+        warnings.warn(
+            "Using `provider_user_agent` in `YandexCloudBaseHook` is deprecated. "
+            "Please use it in `utils.user_agent` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return provider_user_agent()
 
-        try:
-            manager = ProvidersManager()
-            provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
-            provider = manager.providers[provider_name]
-            return f"apache-airflow/{airflow.__version__} {provider_name}/{provider.version}"
-        except KeyError:
-            warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
-            return None
-
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
@@ -110,11 +115,12 @@ class YandexCloudBaseHook(BaseHook):
 
     def __init__(
         self,
-        # Connection id is deprecated. Use yandex_conn_id instead
+        # connection_id is deprecated, use yandex_conn_id instead
         connection_id: str | None = None,
         yandex_conn_id: str | None = None,
         default_folder_id: str | None = None,
         default_public_ssh_key: str | None = None,
+        default_service_account_id: str | None = None,
     ) -> None:
         super().__init__()
         if connection_id:
@@ -123,54 +129,32 @@ class YandexCloudBaseHook(BaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        self.connection_id = yandex_conn_id or connection_id or self.default_conn_name
+        self.connection_id = yandex_conn_id or connection_id or default_conn_name
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
-        credentials = self._get_credentials()
+        credentials = get_credentials(
+            oauth_token=self._get_field("oauth"),
+            service_account_json=self._get_field("service_account_json"),
+            service_account_json_path=self._get_field("service_account_json_path"),
+        )
         sdk_config = self._get_endpoint()
-        self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **sdk_config, **credentials)
-        self.default_folder_id = default_folder_id or self._get_field("folder_id", False)
-        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key", False)
+        self.sdk = yandexcloud.SDK(user_agent=provider_user_agent(), **sdk_config, **credentials)
+        self.default_folder_id = default_folder_id or self._get_field("folder_id")
+        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key")
+        self.default_service_account_id = default_service_account_id or get_service_account_id(
+            service_account_json=self._get_field("service_account_json"),
+            service_account_json_path=self._get_field("service_account_json_path"),
+        )
         self.client = self.sdk.client
-
-    def _get_credentials(self) -> dict[str, Any]:
-        service_account_json_path = self._get_field("service_account_json_path", False)
-        service_account_json = self._get_field("service_account_json", False)
-        oauth_token = self._get_field("oauth", False)
-        if not (service_account_json or oauth_token or service_account_json_path):
-            raise AirflowException(
-                "No credentials are found in connection. Specify either service account "
-                "authentication JSON or user OAuth token in Yandex.Cloud connection"
-            )
-        if service_account_json_path:
-            with open(service_account_json_path) as infile:
-                service_account_json = infile.read()
-        if service_account_json:
-            service_account_key = json.loads(service_account_json)
-            return {"service_account_key": service_account_key}
-        else:
-            return {"token": oauth_token}
 
     def _get_endpoint(self) -> dict[str, str]:
         sdk_config = {}
-        endpoint = self._get_field("endpoint", None)
+        endpoint = self._get_field("endpoint")
         if endpoint:
             sdk_config["endpoint"] = endpoint
         return sdk_config
 
     def _get_field(self, field_name: str, default: Any = None) -> Any:
-        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
         if not hasattr(self, "extras"):
             return default
-        backcompat_prefix = "extra__yandexcloud__"
-        if field_name.startswith("extra__"):
-            raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
-                "when using this method."
-            )
-        if field_name in self.extras:
-            return self.extras[field_name]
-        prefixed_name = f"{backcompat_prefix}{field_name}"
-        if prefixed_name in self.extras:
-            return self.extras[prefixed_name]
-        return default
+        return get_field_from_extras(self.extras, field_name, default)

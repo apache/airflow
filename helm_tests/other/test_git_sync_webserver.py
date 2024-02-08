@@ -82,10 +82,7 @@ class TestGitSyncWebserver:
         ],
     )
     def test_git_sync_with_different_airflow_versions(self, airflow_version, exclude_webserver):
-        """
-        If Airflow >= 2.0.0 - git sync related containers, volume mounts & volumes
-        are not created.
-        """
+        """If Airflow >= 2.0.0 - git sync related containers, volume mounts & volumes are not created."""
         docs = render_chart(
             values={
                 "airflowVersion": airflow_version,

@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import time
-import warnings
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from deprecated import deprecated
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
-from tableauserverclient.server import Auth
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from tableauserverclient.server import Auth
 
 
 def parse_boolean(val: str) -> str | bool:
@@ -119,13 +121,15 @@ class TableauHook(BaseHook):
         )
         return self.server.auth.sign_in(tableau_auth)
 
+    @deprecated(
+        reason=(
+            "Authentication via personal access token is deprecated. "
+            "Please, use the password authentication to avoid inconsistencies."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def _auth_via_token(self) -> Auth.contextmgr:
         """The method is deprecated. Please, use the authentication via password instead."""
-        warnings.warn(
-            "Authentication via personal access token is deprecated. "
-            "Please, use the password authentication to avoid inconsistencies.",
-            AirflowProviderDeprecationWarning,
-        )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
             personal_access_token=self.conn.extra_dejson["personal_access_token"],

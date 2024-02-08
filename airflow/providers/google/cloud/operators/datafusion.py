@@ -17,14 +17,14 @@
 """This module contains Google DataFusion operators."""
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -33,18 +33,28 @@ from airflow.providers.google.cloud.links.datafusion import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
+from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class DataFusionPipelineLinkHelper:
-    """Helper class for Pipeline links."""
+    """
+    Helper class for Pipeline links.
+
+    .. warning::
+        This class is deprecated. Consider using ``resource_path_to_dict()`` instead.
+    """
 
     @staticmethod
     def get_project_id(instance):
+        raise AirflowProviderDeprecationWarning(
+            "DataFusionPipelineLinkHelper is deprecated. Consider using resource_path_to_dict() instead."
+        )
         instance = instance["name"]
-        project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
+        project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id
 
 
@@ -113,7 +123,7 @@ class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
         instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -266,12 +276,12 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
                 if instance["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -360,7 +370,7 @@ class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
         instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s updated successfully", self.instance_name)
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -431,7 +441,7 @@ class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -527,6 +537,7 @@ class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         self.log.info("Pipeline %s created", self.pipeline_name)
 
@@ -695,7 +706,12 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Pipelines: %s", pipelines)
 
-        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=service_endpoint)
+        DataFusionPipelinesLink.persist(
+            context=context,
+            task_instance=self,
+            uri=service_endpoint,
+            namespace=self.namespace,
+        )
         return pipelines
 
 
@@ -708,6 +724,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:CloudDataFusionStartPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :param pipeline_type: Optional pipeline type (BATCH by default).
     :param instance_name: The name of the instance.
     :param success_states: If provided the operator will wait for pipeline to be in one of
         the provided states.
@@ -752,6 +769,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         runtime_args: dict[str, Any] | None = None,
         success_states: list[str] | None = None,
         namespace: str = "default",
@@ -767,6 +785,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
+        self.pipeline_type = pipeline_type
         self.runtime_args = runtime_args
         self.namespace = namespace
         self.instance_name = instance_name
@@ -783,7 +802,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         if success_states:
             self.success_states = success_states
         else:
-            self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.success_states = [*SUCCESS_STATES, PipelineStates.RUNNING]
 
     def execute(self, context: Context) -> str:
         hook = DataFusionHook(
@@ -800,6 +819,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         api_url = instance["apiEndpoint"]
         pipeline_id = hook.start_pipeline(
             pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
             instance_url=api_url,
             namespace=self.namespace,
             runtime_args=self.runtime_args,
@@ -811,6 +831,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
 
         if self.deferrable:
@@ -824,6 +845,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
                     instance_url=api_url,
                     namespace=self.namespace,
                     pipeline_name=self.pipeline_name,
+                    pipeline_type=self.pipeline_type.value,
                     pipeline_id=pipeline_id,
                     poll_interval=self.poll_interval,
                     gcp_conn_id=self.gcp_conn_id,
@@ -839,6 +861,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
                     success_states=self.success_states,
                     pipeline_id=pipeline_id,
                     pipeline_name=self.pipeline_name,
+                    pipeline_type=self.pipeline_type,
                     namespace=self.namespace,
                     instance_url=api_url,
                     timeout=self.pipeline_timeout,
@@ -938,6 +961,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
             task_instance=self,
             uri=instance["serviceEndpoint"],
             pipeline_name=self.pipeline_name,
+            namespace=self.namespace,
         )
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,

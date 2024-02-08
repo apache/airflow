@@ -22,8 +22,10 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
+
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -141,8 +143,16 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
 class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
@@ -248,10 +258,28 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
+
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
+@deprecated(
+    reason=(
+        "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `BigQueryTableExistenceSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
     Checks for the existence of a table in Google Big Query.
@@ -282,16 +310,18 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
 
     def __init__(self, **kwargs):
-        warnings.warn(
-            "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `BigQueryTableExistenceSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-        )
         super().__init__(deferrable=True, **kwargs)
 
 
+@deprecated(
+    reason=(
+        "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `BigQueryTablePartitionExistenceSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):
     """
     Checks for the existence of a partition within a table in Google BigQuery.
@@ -323,11 +353,4 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
     """
 
     def __init__(self, **kwargs):
-        warnings.warn(
-            "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `BigQueryTablePartitionExistenceSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-        )
         super().__init__(deferrable=True, **kwargs)

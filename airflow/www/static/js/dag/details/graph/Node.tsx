@@ -44,9 +44,9 @@ export interface CustomNodeProps {
   isOpen?: boolean;
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
-  fullParentNode?: string;
   labelStyle?: string;
   style?: string;
+  isZoomedOut: boolean;
 }
 
 export const BaseNode = ({
@@ -66,6 +66,7 @@ export const BaseNode = ({
     setupTeardownType,
     labelStyle,
     style,
+    isZoomedOut,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { colors } = useTheme();
@@ -93,6 +94,13 @@ export const BaseNode = ({
   if (labelStyle) {
     [, operatorTextColor] = labelStyle.split(":");
   }
+  if (!operatorTextColor || operatorTextColor === "#000;")
+    operatorTextColor = "gray.500";
+
+  const nodeBorderColor =
+    instance?.state && stateColors[instance.state]
+      ? `${stateColors[instance.state]}.400`
+      : "gray.400";
 
   return (
     <Tooltip
@@ -107,10 +115,15 @@ export const BaseNode = ({
       openDelay={hoverDelay}
     >
       <Box
-        borderRadius={5}
-        borderWidth={1}
-        borderColor={isSelected ? "blue.400" : "gray.400"}
-        bg={isSelected ? "blue.50" : bg}
+        borderRadius={isZoomedOut ? 10 : 5}
+        borderWidth={(isSelected ? 4 : 2) * (isZoomedOut ? 3 : 1)}
+        borderColor={nodeBorderColor}
+        bg={
+          !task.children?.length && operatorBG
+            ? // Fade the operator color to clash less with the task instance status
+              `color-mix(in srgb, ${operatorBG.replace(";", "")} 80%, white)`
+            : bg
+        }
         height={`${height}px`}
         width={`${width}px`}
         cursor={latestDagRunId ? "cursor" : "default"}
@@ -130,13 +143,16 @@ export const BaseNode = ({
           justifyContent="space-between"
           width={width}
           p={2}
-          flexWrap="wrap"
+          flexWrap={isZoomedOut ? "nowrap" : "wrap"}
+          flexDirection={isZoomedOut ? "row" : "column"}
         >
           <Flex flexDirection="column" width="100%">
             <Flex
               justifyContent="space-between"
               alignItems="center"
               width="100%"
+              fontSize={isZoomedOut ? 25 : undefined}
+              fontWeight="bold"
             >
               <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
                 {taskName}
@@ -148,35 +164,48 @@ export const BaseNode = ({
                 <ImArrowDownRight2 size={15} color={colors.gray[800]} />
               )}
             </Flex>
-            {!!instance && instance.state && (
-              <Flex alignItems="center">
-                <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="md">
-                  {instance.state}
-                </Text>
-              </Flex>
-            )}
-            {task?.operator && (
-              <Text
-                fontWeight={400}
-                fontSize="md"
-                width="fit-content"
-                borderRadius={5}
-                bg={operatorBG}
-                color={operatorTextColor || "gray.500"}
-                px={1}
-              >
-                {task.operator}
-              </Text>
+            {!isZoomedOut && (
+              <>
+                {!!instance && instance.state && (
+                  <Flex alignItems="center">
+                    <SimpleStatus state={instance.state} />
+                    <Text
+                      ml={2}
+                      color="gray.500"
+                      fontWeight={400}
+                      fontSize="md"
+                    >
+                      {instance.state}
+                    </Text>
+                  </Flex>
+                )}
+                {task?.operator && (
+                  <Text
+                    noOfLines={1}
+                    maxWidth={`calc(${width}px - 12px)`}
+                    fontWeight={400}
+                    fontSize="md"
+                    width="fit-content"
+                    color={operatorTextColor}
+                    px={1}
+                  >
+                    {task.operator}
+                  </Text>
+                )}
+              </>
             )}
           </Flex>
           {!!childCount && (
             <Text
+              noOfLines={1}
+              fontSize={isZoomedOut ? 25 : undefined}
               color="blue.600"
               cursor="pointer"
+              width="150px"
+              fontWeight="bold"
               // Increase the target area to expand/collapse a group
-              p={3}
-              m={-3}
+              p={2}
+              m={-2}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleCollapse();

@@ -45,7 +45,8 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     :param mssql_conn_id: reference to a specific mssql hook
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
+    template_fields: Sequence[str] = (
+        *BigQueryToSqlBaseOperator.template_fields,
         "source_project_dataset_table",
     )
     operator_extra_links = (BigQueryTableLink(),)
@@ -61,11 +62,9 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     ) -> None:
         if mssql_table is not None:
             warnings.warn(
-                # fmt: off
-                "The `mssql_table` parameter has been deprecated. "
-                "Use `target_table_name` instead.",
-                # fmt: on
+                "The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
             if target_table_name is not None:

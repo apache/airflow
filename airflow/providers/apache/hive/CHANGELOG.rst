@@ -27,6 +27,148 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Remove the ability of specify a proxy user as an ``owner`` or ``login`` or ``as_param`` in the connection. Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_user`` to HiveHook will do the job.
+
+
+6.4.2
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'hive-stats' (#36905)``
+
+Misc
+~~~~
+
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+6.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix assignment of template field in '__init__' in 'hive_to_samba.py' (#36486)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
+6.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add param proxy user for hive (#36221)``
+
+Misc
+~~~~
+
+* ``Add code snippet formatting in docstrings via Ruff (#36262)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
+6.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in HiveOperator (#34430)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: Simplify comparisons (#34181)``
+
+6.1.6
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Replace single element slice by next() in hive provider (#33937)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use startswith once with a tuple in Hive hook (#33765)``
+* ``Refactor: Simplify a few loops (#33736)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+6.1.5
+.....
+
+.. note::
+  The provider now uses pure-sasl, a pure-Python implementation of SASL,
+  which is better maintained than previous sasl implementation, even
+  if a bit slower for sasl interface. It also allows hive to be
+  installed for Python 3.11.
+
+Misc
+~~~~
+
+* ``Bring back hive support for Python 3.11 (#32607)``
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+* ``Replace OrderedDict with plain dict (#33508)``
+* ``Simplify code around enumerate (#33476)``
+* ``Use str.splitlines() to split lines in providers (#33593)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+* ``Replace repr() with proper formatting (#33520)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+* ``Consolidate import and usage of pandas (#33480)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
 6.1.4
 .....
 
@@ -48,6 +190,7 @@ Misc
 
 * ``Add more accurate typing for DbApiHook.run method (#31846)``
 * ``Move Hive configuration to Apache Hive provider (#32777)``
+
 
 6.1.2
 .....

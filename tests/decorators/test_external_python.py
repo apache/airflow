@@ -30,6 +30,9 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = timedelta(hours=12)
@@ -62,6 +65,20 @@ def venv_python_with_dill():
 class TestExternalPythonDecorator:
     def test_with_dill_works(self, dag_maker, venv_python_with_dill):
         @task.external_python(python=venv_python_with_dill, use_dill=True)
+        def f():
+            """Import dill to double-check it is installed ."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_templated_python(self, dag_maker, venv_python_with_dill):
+        # add template that produces empty string when rendered
+        templated_python_with_dill = venv_python_with_dill.as_posix() + "{{ '' }}"
+
+        @task.external_python(python=templated_python_with_dill, use_dill=True)
         def f():
             """Import dill to double-check it is installed ."""
             import dill  # noqa: F401
@@ -122,7 +139,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker():
-            ret = f(datetime.datetime.utcnow())
+            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 

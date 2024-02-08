@@ -54,7 +54,7 @@ GLOBAL_PARAMS = ("pretty", "human", "error_trace", "format", "filter_path")
 
 def get_random_id(size=DEFAULT_ELASTICSEARCH_ID_SIZE):
     """Returns random if for elasticsearch"""
-    return "".join(random.choice(CHARSET_FOR_ELASTICSEARCH_ID) for _ in range(size))
+    return "".join(random.choices(CHARSET_FOR_ELASTICSEARCH_ID, k=size))
 
 
 def query_params(*es_query_params, **kwargs):
@@ -213,12 +213,12 @@ def _escape(value):
 class MissingIndexException(NotFoundError):
     """Exception representing a missing index."""
 
-    def __init__(self, msg, body):
+    def __init__(self, msg, query):
         self.msg = msg
-        self.body = body
+        self.query = query
 
     def __str__(self):
-        return f"IndexMissingException[[{self.msg}] missing] with body {self.body}"
+        return f"IndexMissingException[[{self.msg}] missing] with query {self.query}"
 
 
 class SearchFailedException(NotFoundError):

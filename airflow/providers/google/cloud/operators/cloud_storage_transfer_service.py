@@ -236,7 +236,9 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.body = deepcopy(body)
+        self.body = body
+        if isinstance(self.body, dict):
+            self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -855,7 +857,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
@@ -1023,7 +1024,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket

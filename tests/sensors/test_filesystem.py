@@ -23,10 +23,14 @@ import tempfile
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.sensors.filesystem import FileSensor
+from airflow.triggers.file import FileTrigger
 from airflow.utils.timezone import datetime
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_DAG_ID = "unit_tests_file_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -216,3 +220,17 @@ class TestFileSensor:
         with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             shutil.rmtree(temp_dir)
+
+    def test_task_defer(self):
+        task = FileSensor(
+            task_id="test",
+            filepath="temp_dir",
+            fs_conn_id="fs_default",
+            deferrable=True,
+            dag=self.dag,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(None)
+
+        assert isinstance(exc.value.trigger, FileTrigger), "Trigger is not a FileTrigger"

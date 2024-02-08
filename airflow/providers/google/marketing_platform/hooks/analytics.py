@@ -19,12 +19,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from deprecated import deprecated
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import MediaFileUpload
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
+@deprecated(
+    reason="The `GoogleAnalyticsHook` class is deprecated, please use `GoogleAnalyticsAdminHook` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsHook(GoogleBaseHook):
     """Hook for Google Analytics 360."""
 

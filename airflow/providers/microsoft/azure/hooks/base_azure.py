@@ -24,6 +24,10 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+)
 
 
 class AzureBaseHook(BaseHook):
@@ -43,8 +47,9 @@ class AzureBaseHook(BaseHook):
     conn_type = "azure"
     hook_name = "Azure"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -55,8 +60,8 @@ class AzureBaseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
 
@@ -124,10 +129,22 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        self.log.info("Getting connection using specific credentials and subscription_id.")
-        return self.sdk_client(
-            credentials=ServicePrincipalCredentials(
+        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credentials = ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant
-            ),
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credentials = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
+        return self.sdk_client(
+            credentials=credentials,
             subscription_id=subscription_id,
         )

@@ -21,23 +21,30 @@ import logging
 import random
 import warnings
 from functools import partial
-from typing import Callable, Iterable, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Union
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.metrics import Instrument, Observation
+from opentelemetry.metrics import Observation
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.util.types import Attributes
 
 from airflow.configuration import conf
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     AllowListValidator,
+    ListValidator,
+    get_validator,
     stat_name_otel_handler,
 )
+
+if TYPE_CHECKING:
+    from opentelemetry.metrics import Instrument
+    from opentelemetry.util.types import Attributes
+
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +94,7 @@ def _generate_key_name(name: str, attributes: Attributes = None):
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
     """
-    Returns True if the provided name and prefix would result in a name that meets the OpenTelemetry standard.
+    Return True if the provided name and prefix would result in a name that meets the OpenTelemetry standard.
 
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
@@ -110,7 +117,7 @@ def _type_as_str(obj: Instrument) -> str:
 
 def _get_otel_safe_name(name: str) -> str:
     """
-    Verifies that the provided name does not exceed OpenTelemetry's maximum length for metric names.
+    Verify that the provided name does not exceed OpenTelemetry's maximum length for metric names.
 
     :param name: The original metric name
     :returns: The name, truncated to an OTel-acceptable length if required.
@@ -161,11 +168,11 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        allow_list_validator=AllowListValidator(),
+        metrics_validator: ListValidator = AllowListValidator(),
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
-        self.metrics_validator = allow_list_validator
+        self.metrics_validator = metrics_validator
         self.meter = otel_provider.get_meter(__name__)
         self.metrics_map = MetricsMap(self.meter)
 
@@ -290,7 +297,7 @@ class MetricsMap:
         self.map.clear()
 
     def _create_counter(self, name):
-        """Creates a new counter or up_down_counter for the provided name."""
+        """Create a new counter or up_down_counter for the provided name."""
         otel_safe_name = _get_otel_safe_name(name)
 
         if _is_up_down_counter(name):
@@ -303,7 +310,7 @@ class MetricsMap:
 
     def get_counter(self, name: str, attributes: Attributes = None):
         """
-        Returns the counter; creates a new one if it did not exist.
+        Return the counter; creates a new one if it did not exist.
 
         :param name: The name of the counter to fetch or create.
         :param attributes:  Counter attributes, used to generate a unique key to store the counter.
@@ -315,7 +322,7 @@ class MetricsMap:
 
     def del_counter(self, name: str, attributes: Attributes = None) -> None:
         """
-        Deletes a counter.
+        Delete a counter.
 
         :param name: The name of the counter to delete.
         :param attributes: Counter attributes which were used to generate a unique key to store the counter.
@@ -326,7 +333,7 @@ class MetricsMap:
 
     def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
         """
-        Overrides the last reading for a Gauge with a new value.
+        Override the last reading for a Gauge with a new value.
 
         :param name: The name of the gauge to record.
         :param value: The new reading to record.
@@ -344,7 +351,7 @@ class MetricsMap:
 
     def _create_gauge(self, name: str, attributes: Attributes = None):
         """
-        Creates a new Observable Gauge with the provided name and the default value.
+        Create a new Observable Gauge with the provided name and the default value.
 
         :param name: The name of the gauge to fetch or create.
         :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
@@ -361,12 +368,12 @@ class MetricsMap:
         return gauge
 
     def read_gauge(self, key: str, *args) -> Iterable[Observation]:
-        """Callback for the Observable Gauges, returns the Observation for the provided key."""
+        """Return the Observation for the provided key; callback for the Observable Gauges."""
         yield self.map[key]
 
     def poke_gauge(self, name: str, attributes: Attributes = None) -> GaugeValues:
         """
-        Returns the value of the gauge; creates a new one with the default value if it did not exist.
+        Return the value of the gauge; creates a new one with the default value if it did not exist.
 
         :param name: The name of the gauge to fetch or create.
         :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
@@ -387,9 +394,6 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
-
-    allow_list = conf.get("metrics", "metrics_allow_list", fallback=None)
-    allow_list_validator = AllowListValidator(allow_list)
 
     resource = Resource(attributes={SERVICE_NAME: "Airflow"})
 
@@ -419,4 +423,4 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         ),
     )
 
-    return SafeOtelLogger(metrics.get_meter_provider(), prefix, allow_list_validator)
+    return SafeOtelLogger(metrics.get_meter_provider(), prefix, get_validator())

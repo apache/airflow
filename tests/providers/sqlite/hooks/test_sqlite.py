@@ -26,6 +26,8 @@ import sqlalchemy
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSqliteHookConn:
     def setup_method(self):
@@ -63,7 +65,6 @@ class TestSqliteHookConn:
 
 class TestSqliteHook:
     def setup_method(self):
-
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
@@ -138,6 +139,7 @@ class TestSqliteHook:
 
         assert sql == expected_sql
 
+    @pytest.mark.db_test
     def test_sqlalchemy_engine(self):
         """Test that the sqlalchemy engine is initialized"""
         conn_id = "sqlite_default"

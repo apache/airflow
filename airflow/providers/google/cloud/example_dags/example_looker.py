@@ -23,11 +23,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
 from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSensor
 
-with models.DAG(
+with DAG(
     dag_id="example_gcp_looker",
     start_date=datetime(2021, 1, 1),
     catchup=False,

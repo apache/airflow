@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Iterable
 
 from google.api_core.exceptions import GoogleAPIError
 from google.cloud.storage_transfer_v1.types import TransferOperation
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
 )
@@ -67,11 +67,11 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                 jobs_pager = await async_hook.get_jobs(job_names=self.job_names)
                 jobs, awaitable_operations = [], []
                 async for job in jobs_pager:
-                    operation = async_hook.get_latest_operation(job)
+                    awaitable_operation = async_hook.get_latest_operation(job)
                     jobs.append(job)
-                    awaitable_operations.append(operation)
+                    awaitable_operations.append(awaitable_operation)
 
-                operations: list[TransferOperation] = await asyncio.gather(*awaitable_operations)
+                operations: Iterable[TransferOperation | None] = await asyncio.gather(*awaitable_operations)
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
@@ -97,7 +97,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                         )
                         return
             except (GoogleAPIError, AirflowException) as ex:
-                yield TriggerEvent(dict(status="error", message=str(ex)))
+                yield TriggerEvent({"status": "error", "message": str(ex)})
                 return
 
             jobs_total = len(self.job_names)

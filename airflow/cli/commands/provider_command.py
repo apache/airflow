@@ -58,7 +58,7 @@ def provider_get(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def providers_list(args):
-    """Lists all providers at the command line."""
+    """List all providers at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().providers.values()),
         output=args.output,
@@ -73,7 +73,7 @@ def providers_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def hooks_list(args):
-    """Lists all hooks at the command line."""
+    """List all hooks at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().hooks.items()),
         output=args.output,
@@ -116,7 +116,7 @@ def notifications_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connection_form_widget_list(args):
-    """Lists all custom connection form fields at the command line."""
+    """List all custom connection form fields at the command line."""
     AirflowConsole().print_as(
         data=sorted(ProvidersManager().connection_form_widgets.items()),
         output=args.output,
@@ -132,7 +132,7 @@ def connection_form_widget_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connection_field_behaviours(args):
-    """Lists field behaviours."""
+    """List field behaviours."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().field_behaviours),
         output=args.output,
@@ -145,7 +145,7 @@ def connection_field_behaviours(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def extra_links_list(args):
-    """Lists all extra links at the command line."""
+    """List all extra links at the command line."""
     AirflowConsole().print_as(
         data=ProvidersManager().extra_links_class_names,
         output=args.output,
@@ -158,7 +158,7 @@ def extra_links_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def logging_list(args):
-    """Lists all log task handlers at the command line."""
+    """List all log task handlers at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().logging_class_names),
         output=args.output,
@@ -171,7 +171,7 @@ def logging_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def secrets_backends_list(args):
-    """Lists all secrets backends at the command line."""
+    """List all secrets backends at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().secrets_backend_class_names),
         output=args.output,
@@ -184,12 +184,25 @@ def secrets_backends_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def auth_backend_list(args):
-    """Lists all API auth backend modules at the command line."""
+    """List all API auth backend modules at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().auth_backend_module_names),
         output=args.output,
         mapper=lambda x: {
-            "api_auth_backand_module": x,
+            "api_auth_backend_module": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
+def auth_managers_list(args):
+    """List all auth managers at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().auth_managers),
+        output=args.output,
+        mapper=lambda x: {
+            "auth_managers_module": x,
         },
     )
 
@@ -197,7 +210,7 @@ def auth_backend_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def executors_list(args):
-    """Lists all executors at the command line."""
+    """List all executors at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().executor_class_names),
         output=args.output,
@@ -210,7 +223,7 @@ def executors_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def config_list(args):
-    """Lists all configurations at the command line."""
+    """List all configurations at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().provider_configs),
         output=args.output,

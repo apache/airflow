@@ -61,7 +61,6 @@ class DruidHook(BaseHook):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
-
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
@@ -107,9 +106,10 @@ class DruidHook(BaseHook):
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
 
         code = req_index.status_code
-        if code != 200:
+        not_accepted = not (200 <= code < 300)
+        if not_accepted:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
+            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed
@@ -156,6 +156,10 @@ class DruidDbApiHook(DbApiHook):
 
     This hook is purely for users to query druid broker.
     For ingestion, please use druidHook.
+
+    :param context: Optional query context parameters to pass to the SQL endpoint.
+        Example: ``{"sqlFinalizeOuterSketches": True}``
+        See: https://druid.apache.org/docs/latest/querying/sql-query-context/
     """
 
     conn_name_attr = "druid_broker_conn_id"
@@ -163,6 +167,10 @@ class DruidDbApiHook(DbApiHook):
     conn_type = "druid"
     hook_name = "Druid"
     supports_autocommit = False
+
+    def __init__(self, context: dict | None = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.context = context or {}
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
@@ -174,6 +182,7 @@ class DruidDbApiHook(DbApiHook):
             scheme=conn.extra_dejson.get("schema", "http"),
             user=conn.login,
             password=conn.password,
+            context=self.context,
         )
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn
@@ -192,7 +201,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
         return f"{conn_type}://{host}/{endpoint}"
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> None:
         raise NotImplementedError()
 
     def insert_rows(
@@ -203,5 +212,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplementedError:
+    ) -> None:
         raise NotImplementedError()

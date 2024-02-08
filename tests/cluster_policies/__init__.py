@@ -19,12 +19,15 @@ from __future__ import annotations
 
 from abc import ABC
 from datetime import timedelta
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicyViolation
-from airflow.models import DAG, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
+    from airflow.models.taskinstance import TaskInstance
 
 
 # [START example_cluster_policy_rule]
@@ -70,6 +73,7 @@ def example_task_policy(task: BaseOperator):
 
 
 # [END example_list_of_cluster_policy_rules]
+
 
 # [START example_dag_cluster_policy]
 def dag_policy(dag: DAG):

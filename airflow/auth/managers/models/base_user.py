@@ -24,19 +24,13 @@ class BaseUser:
     """User model interface."""
 
     @property
-    def is_authenticated(self) -> bool:
-        return not self.is_anonymous
-
-    @property
-    @abstractmethod
     def is_active(self) -> bool:
-        ...
-
-    @property
-    @abstractmethod
-    def is_anonymous(self) -> bool:
-        ...
+        return True
 
     @abstractmethod
     def get_id(self) -> str:
+        ...
+
+    @abstractmethod
+    def get_name(self) -> str:
         ...

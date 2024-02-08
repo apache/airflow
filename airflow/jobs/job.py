@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from functools import cached_property
 from time import sleep
-from typing import Callable, NoReturn
+from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm.session import make_transient
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -38,9 +39,14 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
+
+if TYPE_CHECKING:
+    import datetime
+
+    from sqlalchemy.orm.session import Session
 
 
 def _resolve_dagrun_model():
@@ -99,6 +105,7 @@ class Job(Base, LoggingMixin):
 
     def __init__(self, executor=None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
+        self.heartbeat_failed = False
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
@@ -116,15 +123,10 @@ class Job(Base, LoggingMixin):
         return ExecutorLoader.get_default_executor()
 
     @cached_property
-    def heartrate(self):
-        if self.job_type == "TriggererJob":
-            return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
-        else:
-            # Heartrate used to be hardcoded to scheduler, so in all other
-            # cases continue to use that value for back compat
-            return conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
+    def heartrate(self) -> float:
+        return Job._heartrate(self.job_type)
 
-    def is_alive(self, grace_multiplier=2.1):
+    def is_alive(self, grace_multiplier=2.1) -> bool:
         """
         Is this job currently alive.
 
@@ -134,28 +136,23 @@ class Job(Base, LoggingMixin):
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
         """
-        if self.job_type == "SchedulerJob":
-            health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
-        elif self.job_type == "TriggererJob":
-            health_check_threshold: int = conf.getint("triggerer", "triggerer_health_check_threshold")
-        else:
-            health_check_threshold: int = self.heartrate * grace_multiplier
-        return (
-            self.state == JobState.RUNNING
-            and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
+        return Job._is_alive(
+            job_type=self.job_type,
+            heartrate=self.heartrate,
+            state=self.state,
+            latest_heartbeat=self.latest_heartbeat,
+            grace_multiplier=grace_multiplier,
         )
 
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
-        """Handles on_kill callback and updates state in database."""
-        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
-        job.end_date = timezone.utcnow()
+        """Handle on_kill callback and updates state in database."""
         try:
             self.on_kill()
         except Exception as e:
-            self.log.error("on_kill() method failed: %s", str(e))
-        session.merge(job)
-        session.commit()
+            self.log.error("on_kill() method failed: %s", e)
+
+        Job._kill(job_id=self.id, session=session)
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
@@ -187,11 +184,10 @@ class Job(Base, LoggingMixin):
 
         try:
             # This will cause it to load from the db
-            session.merge(self)
+            self._merge_from(Job._fetch_from_db(self, session))
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
-                # TODO: Make sure it is AIP-44 compliant
+            if self.state == JobState.RESTARTING:
                 self.kill()
 
             # Figure out how long to sleep for
@@ -203,49 +199,162 @@ class Job(Base, LoggingMixin):
                 sleep_for = max(0, seconds_remaining)
             sleep(sleep_for)
 
-            # Update last heartbeat time
-            with create_session() as session:
-                # Make the session aware of this object
-                session.merge(self)
-                self.latest_heartbeat = timezone.utcnow()
-                session.commit()
-                # At this point, the DB has updated.
-                previous_heartbeat = self.latest_heartbeat
+            job = Job._update_heartbeat(job=self, session=session)
+            self._merge_from(job)
 
-                heartbeat_callback(session)
-                self.log.debug("[heartbeat]")
+            # At this point, the DB has updated.
+            previous_heartbeat = self.latest_heartbeat
+
+            heartbeat_callback(session)
+            self.log.debug("[heartbeat]")
         except OperationalError:
             Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-            self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+            if not self.heartbeat_failed:
+                self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+                self.heartbeat_failed = True
+            if self.is_alive():
+                self.log.error(
+                    "%s heartbeat failed with error. Scheduler may go into unhealthy state",
+                    self.__class__.__name__,
+                )
+            else:
+                self.log.error(
+                    "%s heartbeat failed with error. Scheduler is in unhealthy state", self.__class__.__name__
+                )
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
-        """Prepares the job for execution."""
+        """Prepare the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
-        session.add(self)
-        session.commit()
+        self._merge_from(Job._add_to_db(job=self, session=session))
         make_transient(self)
 
     @provide_session
     def complete_execution(self, session: Session = NEW_SESSION):
         get_listener_manager().hook.before_stopping(component=self)
         self.end_date = timezone.utcnow()
-        session.merge(self)
-        session.commit()
+        Job._update_in_db(job=self, session=session)
         Stats.incr(self.__class__.__name__.lower() + "_end", 1, 1)
 
     @provide_session
-    def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
-        """Returns the most recent job of this type, if any, based on last heartbeat received."""
+    def most_recent_job(self, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
+        """Return the most recent job of this type, if any, based on last heartbeat received."""
         return most_recent_job(self.job_type, session=session)
 
+    def _merge_from(self, job: Job | JobPydantic | None):
+        if job is None:
+            self.log.error("Job is empty: %s", self.id)
+            return
+        self.id = job.id
+        self.dag_id = job.dag_id
+        self.state = job.state
+        self.job_type = job.job_type
+        self.start_date = job.start_date
+        self.end_date = job.end_date
+        self.latest_heartbeat = job.latest_heartbeat
+        self.executor_class = job.executor_class
+        self.hostname = job.hostname
+        self.unixname = job.unixname
 
+    @staticmethod
+    def _heartrate(job_type: str) -> float:
+        if job_type == "TriggererJob":
+            return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+        else:
+            # Heartrate used to be hardcoded to scheduler, so in all other
+            # cases continue to use that value for back compat
+            return conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
+
+    @staticmethod
+    def _is_alive(
+        job_type: str | None,
+        heartrate: float,
+        state: JobState | str | None,
+        latest_heartbeat: datetime.datetime,
+        grace_multiplier: float = 2.1,
+    ) -> bool:
+        health_check_threshold: float
+        if job_type == "SchedulerJob":
+            health_check_threshold = conf.getint("scheduler", "scheduler_health_check_threshold")
+        elif job_type == "TriggererJob":
+            health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+        else:
+            health_check_threshold = heartrate * grace_multiplier
+        return (
+            state == JobState.RUNNING
+            and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold
+        )
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _kill(job_id: str, session: Session = NEW_SESSION) -> Job | JobPydantic:
+        job = session.scalar(select(Job).where(Job.id == job_id).limit(1))
+        job.end_date = timezone.utcnow()
+        session.merge(job)
+        session.commit()
+        return job
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _fetch_from_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
+        if isinstance(job, Job):
+            # not Internal API
+            session.merge(job)
+            return job
+        # Internal API,
+        return session.scalar(select(Job).where(Job.id == job.id).limit(1))
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _add_to_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
+        if isinstance(job, JobPydantic):
+            orm_job = Job()
+            orm_job._merge_from(job)
+        else:
+            orm_job = job
+        session.add(orm_job)
+        session.commit()
+        return orm_job
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _update_in_db(job: Job | JobPydantic, session: Session = NEW_SESSION):
+        if isinstance(job, Job):
+            # not Internal API
+            session.merge(job)
+            session.commit()
+        # Internal API.
+        orm_job: Job | None = session.scalar(select(Job).where(Job.id == job.id).limit(1))
+        if orm_job is None:
+            return
+        orm_job._merge_from(job)
+        session.merge(orm_job)
+        session.commit()
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _update_heartbeat(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
+        orm_job: Job | None = session.scalar(select(Job).where(Job.id == job.id).limit(1))
+        if orm_job is None:
+            return job
+        orm_job.latest_heartbeat = timezone.utcnow()
+        session.merge(orm_job)
+        session.commit()
+        return orm_job
+
+
+@internal_api_call
 @provide_session
-def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None:
+def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
     """
     Return the most recent job of this type, if any, based on last heartbeat received.
 
@@ -269,21 +378,16 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
 
 @provide_session
 def run_job(
-    job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
+    job: Job, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job.
+    Run the job.
 
     The Job is always an ORM object and setting the state is happening within the
     same DB session and the session is kept open throughout the whole execution.
 
     :meta private:
-
-    TODO: Maybe we should not keep the session during job execution ?.
     """
-    # The below assert is a temporary one, to make MyPy happy with partial AIP-44 work - we will remove it
-    # once final AIP-44 changes are completed.
-    assert not isinstance(job, JobPydantic), "Job should be ORM object not Pydantic one here (AIP-44 WIP)"
     job.prepare_for_execution(session=session)
     try:
         return execute_job(job, execute_callable=execute_callable)
@@ -291,9 +395,9 @@ def run_job(
         job.complete_execution(session=session)
 
 
-def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | None]) -> int | None:
+def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | None:
     """
-    Executes the job.
+    Execute the job.
 
     Job execution requires no session as generally executing session does not require an
     active database connection. The session might be temporary acquired and used if the job
@@ -306,8 +410,8 @@ def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | Non
     database operations or over the Internal API call.
 
     :param job: Job to execute - it can be either DB job or it's Pydantic serialized version. It does
-       not really matter, because except of running the heartbeat and state setting,
-       the runner should not modify the job state.
+      not really matter, because except of running the heartbeat and state setting,
+      the runner should not modify the job state.
 
     :param execute_callable: callable to execute when running the job.
 
@@ -328,23 +432,19 @@ def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | Non
 
 
 def perform_heartbeat(
-    job: Job | JobPydantic, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
+    job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:
     """
-    Performs heartbeat for the Job passed to it,optionally checking if it is necessary.
+    Perform heartbeat for the Job passed to it,optionally checking if it is necessary.
 
     :param job: job to perform heartbeat for
     :param heartbeat_callback: callback to run by the heartbeat
     :param only_if_necessary: only heartbeat if it is necessary (i.e. if there are things to run for
         triggerer for example)
     """
-    # The below assert is a temporary one, to make MyPy happy with partial AIP-44 work - we will remove it
-    # once final AIP-44 changes are completed.
-    assert not isinstance(job, JobPydantic), "Job should be ORM object not Pydantic one here (AIP-44 WIP)"
     seconds_remaining: float = 0.0
     if job.latest_heartbeat and job.heartrate:
         seconds_remaining = job.heartrate - (timezone.utcnow() - job.latest_heartbeat).total_seconds()
     if seconds_remaining > 0 and only_if_necessary:
         return
-    with create_session() as session:
-        job.heartbeat(heartbeat_callback=heartbeat_callback, session=session)
+    job.heartbeat(heartbeat_callback=heartbeat_callback)

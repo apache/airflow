@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -33,7 +36,9 @@ class HttpSensor(BaseSensorOperator):
 
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
     would raise an exception and fail the sensor itself directly (no more poking).
-    To avoid failing the task for other codes than 404, the argument ``extra_option``
+    To avoid failing the task for other codes than 404, the argument ``response_error_codes_allowlist``
+    can be passed with the list containing all the allowed error status codes, like ``["404", "503"]``
+    To skip error status code check at all, the argument ``extra_option``
     can be passed with the value ``{'check_response': False}``. It will make the ``response_check``
     be execute for any http status code.
 
@@ -62,6 +67,9 @@ class HttpSensor(BaseSensorOperator):
     :param endpoint: The relative part of the full url
     :param request_params: The parameters to be added to the GET url
     :param headers: The HTTP headers to be added to the GET request
+    :param response_error_codes_allowlist: An allowlist to return False on poke(), not to raise exception.
+        If the ``None`` value comes in, it is assigned ["404"] by default, for backward compatibility.
+        When you also want ``404 Not Found`` to raise the error, explicitly deliver the blank list ``[]``.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -73,6 +81,8 @@ class HttpSensor(BaseSensorOperator):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param deferrable: If waiting for completion, whether to defer the task until done,
+        default is ``False``
     """
 
     template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
@@ -85,18 +95,23 @@ class HttpSensor(BaseSensorOperator):
         method: str = "GET",
         request_params: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
+        response_error_codes_allowlist: list[str] | None = None,
         response_check: Callable[..., bool] | None = None,
         extra_options: dict[str, Any] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.method = method
+        self.response_error_codes_allowlist = (
+            ("404",) if response_error_codes_allowlist is None else tuple(response_error_codes_allowlist)
+        )
         self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
@@ -105,6 +120,7 @@ class HttpSensor(BaseSensorOperator):
         self.tcp_keep_alive_idle = tcp_keep_alive_idle
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
@@ -126,13 +142,40 @@ class HttpSensor(BaseSensorOperator):
                 headers=self.headers,
                 extra_options=self.extra_options,
             )
+
             if self.response_check:
                 kwargs = determine_kwargs(self.response_check, [response], context)
+
                 return self.response_check(response, **kwargs)
+
         except AirflowException as exc:
-            if str(exc).startswith("404"):
+            if str(exc).startswith(self.response_error_codes_allowlist):
                 return False
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException from exc
 
             raise exc
 
         return True
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable or self.response_check:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=HttpSensorTrigger(
+                    endpoint=self.endpoint,
+                    http_conn_id=self.http_conn_id,
+                    data=self.request_params,
+                    headers=self.headers,
+                    method=self.method,
+                    extra_options=self.extra_options,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        self.log.info("%s completed successfully.", self.task_id)

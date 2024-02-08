@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
 if TYPE_CHECKING:
+    from slack_sdk.http_retry import RetryHandler
+
     from airflow.utils.context import Context
 
 
@@ -41,12 +41,6 @@ class SlackWebhookOperator(BaseOperator):
         It is possible to change this values only in `Legacy Slack Integration Incoming Webhook
         <https://api.slack.com/legacy/custom-integrations/messaging/webhooks#legacy-customizations>`_.
 
-    .. warning::
-        This operator could take Slack Webhook Token from ``webhook_token``
-        as well as from :ref:`Slack Incoming Webhook connection <howto/connection:slack-incoming-webhook>`.
-        However, provide ``webhook_token`` it is not secure and this attribute
-        will be removed in the future version of provider.
-
     :param slack_webhook_conn_id: :ref:`Slack Incoming Webhook <howto/connection:slack>`
         connection id that has Incoming Webhook token in the password field.
     :param message: The formatted text of the message to be published.
@@ -59,15 +53,13 @@ class SlackWebhookOperator(BaseOperator):
     :param username: The username to post to slack with
     :param icon_emoji: The emoji to use as icon for the user posting to Slack
     :param icon_url: The icon image URL string to use in place of the default icon.
-    :param link_names: Whether or not to find and link channel and usernames in your
-        message
-    :param proxy: Proxy to use to make the Slack webhook call
-    :param webhook_token: (deprecated) Slack Incoming Webhook token.
-        Please use ``slack_webhook_conn_id`` instead.
+    :param proxy: Proxy to make the Slack Incoming Webhook call. Optional
+    :param timeout: The maximum number of seconds the client will wait to connect
+        and receive a response from Slack. Optional
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``. Optional
     """
 
     template_fields: Sequence[str] = (
-        "webhook_token",
         "message",
         "attachments",
         "blocks",
@@ -79,8 +71,7 @@ class SlackWebhookOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_webhook_conn_id: str | None = None,
-        webhook_token: str | None = None,
+        slack_webhook_conn_id,
         message: str = "",
         attachments: list | None = None,
         blocks: list | None = None,
@@ -88,55 +79,13 @@ class SlackWebhookOperator(BaseOperator):
         username: str | None = None,
         icon_emoji: str | None = None,
         icon_url: str | None = None,
-        link_names: bool = False,
         proxy: str | None = None,
+        timeout: int | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
-        http_conn_id = kwargs.pop("http_conn_id", None)
-        if http_conn_id:
-            warnings.warn(
-                "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            if slack_webhook_conn_id:
-                raise AirflowException("You cannot provide both `slack_webhook_conn_id` and `http_conn_id`.")
-            slack_webhook_conn_id = http_conn_id
-
-        # Compatibility with previous version of operator which based on SimpleHttpOperator.
-        # Users might pass these arguments previously, however its never pass to SlackWebhookHook.
-        # We remove this arguments if found in ``kwargs`` and notify users if found any.
-        deprecated_class_attrs = []
-        for deprecated_attr in (
-            "endpoint",
-            "method",
-            "data",
-            "headers",
-            "response_check",
-            "response_filter",
-            "extra_options",
-            "log_response",
-            "auth_type",
-            "tcp_keep_alive",
-            "tcp_keep_alive_idle",
-            "tcp_keep_alive_count",
-            "tcp_keep_alive_interval",
-        ):
-            if deprecated_attr in kwargs:
-                deprecated_class_attrs.append(deprecated_attr)
-                kwargs.pop(deprecated_attr)
-        if deprecated_class_attrs:
-            warnings.warn(
-                f"Provide {','.join(repr(a) for a in deprecated_class_attrs)} is deprecated "
-                f"and as has no affect, please remove it from {self.__class__.__name__} "
-                "constructor attributes otherwise in future version of provider it might cause an issue.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         super().__init__(**kwargs)
         self.slack_webhook_conn_id = slack_webhook_conn_id
-        self.webhook_token = webhook_token
         self.proxy = proxy
         self.message = message
         self.attachments = attachments
@@ -145,7 +94,8 @@ class SlackWebhookOperator(BaseOperator):
         self.username = username
         self.icon_emoji = icon_emoji
         self.icon_url = icon_url
-        self.link_names = link_names
+        self.timeout = timeout
+        self.retry_handlers = retry_handlers
 
     @cached_property
     def hook(self) -> SlackWebhookHook:
@@ -153,8 +103,8 @@ class SlackWebhookOperator(BaseOperator):
         return SlackWebhookHook(
             slack_webhook_conn_id=self.slack_webhook_conn_id,
             proxy=self.proxy,
-            # Deprecated. SlackWebhookHook will notify user if user provide non-empty ``webhook_token``.
-            webhook_token=self.webhook_token,
+            timeout=self.timeout,
+            retry_handlers=self.retry_handlers,
         )
 
     def execute(self, context: Context) -> None:
@@ -169,6 +119,4 @@ class SlackWebhookOperator(BaseOperator):
             username=self.username,
             icon_emoji=self.icon_emoji,
             icon_url=self.icon_url,
-            # Unused Parameters, if not None than warn user
-            link_names=self.link_names,
         )

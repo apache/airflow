@@ -102,6 +102,43 @@ To create a Google AutoML model you can use
 The operator will wait for the operation to complete. Additionally the operator
 returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 
+This Operator is deprecated when running for text, video and vision prediction and will be removed soon.
+All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
+available on the Vertex AI platform. Please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
+
+You can find example on how to use VertexAI operators for AutoML Natural Language classification here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_nl_text_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_text_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_text_classification_training_job_operator]
+
+Additionally, you can find example on how to use VertexAI operators for AutoML Vision classification here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_vision_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_image_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_image_classification_training_job_operator]
+
+Example on how to use VertexAI operators for AutoML Video Intelligence classification you can find here:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_video_classification.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cloud_create_video_classification_training_job_operator]
+    :end-before: [END howto_cloud_create_video_classification_training_job_operator]
+
+When running Vertex AI Operator for training data, please ensure that your data is correctly stored in Vertex AI
+datasets. To create and import data to the dataset please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.CreateDatasetOperator`
+and
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
     :language: python
     :dedent: 4
@@ -164,7 +201,7 @@ the model must be deployed.
 Listing And Deleting Datasets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can get a list of AutoML models using
+You can get a list of AutoML datasets using
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLListDatasetOperator`. The operator returns list
 of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
 
@@ -174,7 +211,7 @@ of datasets ids in :ref:`XCom <concepts:xcom>` under ``dataset_id_list`` key.
     :start-after: [START howto_operator_list_dataset]
     :end-before: [END howto_operator_list_dataset]
 
-To delete a model you can use :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator`.
+To delete a dataset you can use :class:`~airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator`.
 The delete operator allows also to pass list or coma separated string of datasets ids to be deleted.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_dataset.py

@@ -23,12 +23,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
+
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:
@@ -58,6 +59,7 @@ class MySqlHook(DbApiHook):
     :param schema: The MySQL database schema to connect to.
     :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
     :param local_infile: Boolean flag determining if local_infile should be used
+    :param init_command: Initial command to issue to MySQL server upon connection
     """
 
     conn_name_attr = "mysql_conn_id"
@@ -71,6 +73,7 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
         self.local_infile = kwargs.pop("local_infile", False)
+        self.init_command = kwargs.pop("init_command", None)
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
@@ -144,6 +147,8 @@ class MySqlHook(DbApiHook):
             conn_config["unix_socket"] = conn.extra_dejson["unix_socket"]
         if self.local_infile:
             conn_config["local_infile"] = 1
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         return conn_config
 
     def _get_conn_config_mysql_connector_python(self, conn: Connection) -> dict:
@@ -157,6 +162,8 @@ class MySqlHook(DbApiHook):
 
         if self.local_infile:
             conn_config["allow_local_infile"] = True
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         # Ref: https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
         for key, value in conn.extra_dejson.items():
             if key.startswith("ssl_"):
@@ -207,10 +214,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            INTO TABLE {table}
-            """
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -220,10 +225,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            SELECT * INTO OUTFILE '{tmp_file}'
-            FROM {table}
-            """
+            f"SELECT * INTO OUTFILE %s FROM {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -287,12 +290,8 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            {duplicate_key_handling}
-            INTO TABLE {table}
-            {extra_options}
-            """
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            (tmp_file, duplicate_key_handling, extra_options),
         )
 
         cursor.close()

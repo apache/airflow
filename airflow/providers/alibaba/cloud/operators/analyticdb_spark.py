@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from deprecated.classic import deprecated
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.alibaba.cloud.hooks.analyticdb_spark import AnalyticDBSparkHook, AppState
 
@@ -48,16 +50,15 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
         self._adb_spark_conn_id = adb_spark_conn_id
         self._region = region
 
-        self._adb_spark_hook: AnalyticDBSparkHook | None = None
-
     @cached_property
+    def hook(self) -> AnalyticDBSparkHook:
+        """Get valid hook."""
+        return AnalyticDBSparkHook(adb_spark_conn_id=self._adb_spark_conn_id, region=self._region)
+
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> AnalyticDBSparkHook:
         """Get valid hook."""
-        if self._adb_spark_hook is None or not isinstance(self._adb_spark_hook, AnalyticDBSparkHook):
-            self._adb_spark_hook = AnalyticDBSparkHook(
-                adb_spark_conn_id=self._adb_spark_conn_id, region=self._region
-            )
-        return self._adb_spark_hook
+        return self.hook
 
     def execute(self, context: Context) -> Any:
         ...
@@ -74,17 +75,18 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
 
         :param app_id: id of the spark application to monitor
         """
-        hook = self.get_hook
-        state = hook.get_spark_state(app_id)
+        state = self.hook.get_spark_state(app_id)
         while AppState(state) not in AnalyticDBSparkHook.TERMINAL_STATES:
             self.log.debug("Application with id %s is in state: %s", app_id, state)
-            sleep(self.polling_interval)
-            state = hook.get_spark_state(app_id)
+            time.sleep(self.polling_interval)
+            state = self.hook.get_spark_state(app_id)
         self.log.info("Application with id %s terminated with state: %s", app_id, state)
         self.log.info(
-            "Web ui address is %s for application with id %s", hook.get_spark_web_ui_address(app_id), app_id
+            "Web ui address is %s for application with id %s",
+            self.hook.get_spark_web_ui_address(app_id),
+            app_id,
         )
-        self.log.info(hook.get_spark_log(app_id))
+        self.log.info(self.hook.get_spark_log(app_id))
         if AppState(state) != AppState.COMPLETED:
             raise AirflowException(f"Application {app_id} did not succeed")
 
@@ -94,7 +96,7 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
     def kill(self) -> None:
         """Delete the specified application."""
         if self.app_id is not None:
-            self.get_hook.kill_spark_app(self.app_id)
+            self.hook.kill_spark_app(self.app_id)
 
 
 class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
@@ -129,7 +131,7 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.spark_params = {
+        spark_params = {
             "sql": sql,
             "conf": conf,
             "driver_resource_spec": driver_resource_spec,
@@ -137,12 +139,12 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
             "num_executors": num_executors,
             "name": name,
         }
-
+        self.spark_params = spark_params
         self._cluster_id = cluster_id
         self._rg_name = rg_name
 
     def execute(self, context: Context) -> Any:
-        submit_response = self.get_hook.submit_spark_sql(
+        submit_response = self.hook.submit_spark_sql(
             cluster_id=self._cluster_id, rg_name=self._rg_name, **self.spark_params
         )
         self.app_id = submit_response.body.data.app_id
@@ -194,7 +196,7 @@ class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.spark_params = {
+        spark_params = {
             "file": file,
             "class_name": class_name,
             "args": args,
@@ -208,12 +210,12 @@ class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
             "archives": archives,
             "name": name,
         }
-
+        self.spark_params = spark_params
         self._cluster_id = cluster_id
         self._rg_name = rg_name
 
     def execute(self, context: Context) -> Any:
-        submit_response = self.get_hook.submit_spark_app(
+        submit_response = self.hook.submit_spark_app(
             cluster_id=self._cluster_id, rg_name=self._rg_name, **self.spark_params
         )
         self.app_id = submit_response.body.data.app_id

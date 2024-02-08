@@ -17,9 +17,12 @@
 
 from __future__ import annotations
 
+import asyncio
+from functools import cached_property
 from typing import Any, AsyncIterator
 
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -65,3 +68,83 @@ class GlueJobCompleteTrigger(BaseTrigger):
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id, job_poll_interval=self.job_poll_interval)
         await hook.async_job_completion(self.job_name, self.run_id, self.verbose)
         yield TriggerEvent({"status": "success", "message": "Job done", "value": self.run_id})
+
+
+class GlueCatalogPartitionTrigger(BaseTrigger):
+    """
+    Asynchronously waits for a partition to show up in AWS Glue Catalog.
+
+    :param database_name: The name of the catalog database where the partitions reside.
+    :param table_name: The name of the table to wait for, supports the dot
+        notation (my_database.my_table)
+    :param expression: The partition clause to wait for. This is passed as
+        is to the AWS Glue Catalog API's get_partitions function,
+        and supports SQL like notation as in ``ds='2015-01-01'
+        AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``.
+        See https://docs.aws.amazon.com/glue/latest/dg/aws-glue-api-catalog-partitions.html
+        #aws-glue-api-catalog-partitions-GetPartitions
+    :param aws_conn_id: ID of the Airflow connection where
+        credentials and extra configuration are stored
+    :param region_name: Optional aws region name (example: us-east-1). Uses region from connection
+        if not specified.
+    :param waiter_delay: Number of seconds to wait between two checks. Default is 60 seconds.
+    """
+
+    def __init__(
+        self,
+        database_name: str,
+        table_name: str,
+        expression: str = "",
+        aws_conn_id: str = "aws_default",
+        region_name: str | None = None,
+        waiter_delay: int = 60,
+    ):
+        self.database_name = database_name
+        self.table_name = table_name
+        self.expression = expression
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
+        self.waiter_delay = waiter_delay
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            # dynamically generate the fully qualified name of the class
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "database_name": self.database_name,
+                "table_name": self.table_name,
+                "expression": self.expression,
+                "aws_conn_id": self.aws_conn_id,
+                "region_name": self.region_name,
+                "waiter_delay": self.waiter_delay,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> GlueCatalogHook:
+        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    async def poke(self, client: Any) -> bool:
+        if "." in self.table_name:
+            self.database_name, self.table_name = self.table_name.split(".")
+        self.log.info(
+            "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
+        )
+        partitions = await self.hook.async_get_partitions(
+            client=client,
+            database_name=self.database_name,
+            table_name=self.table_name,
+            expression=self.expression,
+        )
+
+        return bool(partitions)
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        async with self.hook.async_conn as client:
+            while True:
+                result = await self.poke(client=client)
+                if result:
+                    yield TriggerEvent({"status": "success"})
+                    break
+                else:
+                    await asyncio.sleep(self.waiter_delay)

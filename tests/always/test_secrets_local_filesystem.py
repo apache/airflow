@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from contextlib import contextmanager
-from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
@@ -421,13 +421,12 @@ class TestLoadConnection:
 
 
 class TestLocalFileBackend:
-    def test_should_read_variable(self):
-        with NamedTemporaryFile(suffix="var.env") as tmp_file:
-            tmp_file.write(b"KEY_A=VAL_A")
-            tmp_file.flush()
-            backend = LocalFilesystemBackend(variables_file_path=tmp_file.name)
-            assert "VAL_A" == backend.get_variable("KEY_A")
-            assert backend.get_variable("KEY_B") is None
+    def test_should_read_variable(self, tmp_path):
+        path = tmp_path / "testfile.var.env"
+        path.write_text("KEY_A=VAL_A")
+        backend = LocalFilesystemBackend(variables_file_path=os.fspath(path))
+        assert "VAL_A" == backend.get_variable("KEY_A")
+        assert backend.get_variable("KEY_B") is None
 
     @conf_vars(
         {
@@ -446,13 +445,12 @@ class TestLocalFileBackend:
             assert "LocalFilesystemBackend" in backend_classes
             assert Variable.get("KEY_A") == "VAL_A"
 
-    def test_should_read_connection(self):
-        with NamedTemporaryFile(suffix=".env") as tmp_file:
-            tmp_file.write(b"CONN_A=mysql://host_a")
-            tmp_file.flush()
-            backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
-            assert "mysql://host_a" == backend.get_connection("CONN_A").get_uri()
-            assert backend.get_variable("CONN_B") is None
+    def test_should_read_connection(self, tmp_path):
+        path = tmp_path / "testfile.env"
+        path.write_text("CONN_A=mysql://host_a")
+        backend = LocalFilesystemBackend(connections_file_path=os.fspath(path))
+        assert "mysql://host_a" == backend.get_connection("CONN_A").get_uri()
+        assert backend.get_variable("CONN_B") is None
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()

@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
-from time import sleep
 from typing import Any
 
 from botocore.exceptions import ClientError
@@ -205,9 +205,9 @@ class EmrHook(AwsBaseHook):
         )
         return False, msg
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Amazon Elastic MapReduce Connection."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password"],
             "relabeling": {
@@ -291,7 +291,7 @@ class EmrServerlessHook(AwsBaseHook):
         for r in iterator:
             job_ids = [jr["id"] for jr in r["jobRuns"]]
             count += len(job_ids)
-            if len(job_ids) > 0:
+            if job_ids:
                 self.log.info(
                     "Cancelling %s pending job(s) for the application %s so that it can be stopped",
                     len(job_ids),
@@ -437,8 +437,6 @@ class EmrContainerHook(AwsBaseHook):
 
         :param job_id: The ID of the job run request.
         """
-        reason = None  # We absorb any errors if we can't retrieve the job status
-
         try:
             response = self.conn.describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,
@@ -446,13 +444,13 @@ class EmrContainerHook(AwsBaseHook):
             )
             failure_reason = response["jobRun"]["failureReason"]
             state_details = response["jobRun"]["stateDetails"]
-            reason = f"{failure_reason} - {state_details}"
+            return f"{failure_reason} - {state_details}"
         except KeyError:
             self.log.error("Could not get status of the EMR on EKS job")
         except ClientError as ex:
             self.log.error("AWS request failed, check logs for more info: %s", ex)
 
-        return reason
+        return None
 
     def check_query_status(self, job_id: str) -> str | None:
         """
@@ -491,26 +489,21 @@ class EmrContainerHook(AwsBaseHook):
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
-
         while True:
             query_state = self.check_query_status(job_id)
+            if query_state in self.TERMINAL_STATES:
+                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
+                return query_state
             if query_state is None:
                 self.log.info("Try %s: Invalid query state. Retrying again", try_number)
-            elif query_state in self.TERMINAL_STATES:
-                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
-                final_query_state = query_state
-                break
             else:
                 self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
             if (
                 max_polling_attempts and try_number >= max_polling_attempts
             ):  # Break loop if max_polling_attempts reached
-                final_query_state = query_state
-                break
+                return query_state
             try_number += 1
-            sleep(poll_interval)
-        return final_query_state
+            time.sleep(poll_interval)
 
     def stop_query(self, job_id: str) -> dict:
         """

@@ -28,9 +28,9 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
-from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator,
     CloudTasksQueueDeleteOperator,
@@ -61,7 +61,7 @@ TASK = {
     "schedule_time": timestamp,
 }
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

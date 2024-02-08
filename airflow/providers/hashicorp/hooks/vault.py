@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import hvac
 from hvac.exceptions import VaultError
-from requests import Response
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -33,6 +31,10 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     _VaultClient,
 )
 from airflow.utils.helpers import merge_dicts
+
+if TYPE_CHECKING:
+    import hvac
+    from requests import Response
 
 
 class VaultHook(BaseHook):
@@ -49,7 +51,7 @@ class VaultHook(BaseHook):
     The mount point should be placed as a path in the URL - similarly to Vault's URL schema:
     This indicates the "path" the secret engine is mounted on. Default id not specified is "secret".
     Note that this ``mount_point`` is not used for authentication if authentication is done via a
-    different engines. Each engine uses it's own engine-specific authentication mount_point.
+    different engines. Each engine uses its own engine-specific authentication mount_point.
 
     The extras in the connection are named the same as the parameters ('kv_engine_version', 'auth_type', ...).
 
@@ -401,8 +403,8 @@ class VaultHook(BaseHook):
             "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["extra"],

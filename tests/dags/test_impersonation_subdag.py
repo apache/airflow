@@ -18,14 +18,14 @@
 from __future__ import annotations
 
 import warnings
-from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
+from airflow.utils import timezone
 
-DEFAULT_DATE = datetime(2016, 1, 1)
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 default_args = {"owner": "airflow", "start_date": DEFAULT_DATE, "run_as_user": "airflow_test_user"}
 
@@ -33,7 +33,7 @@ dag = DAG(dag_id="impersonation_subdag", default_args=default_args)
 
 
 def print_today():
-    print(f"Today is {datetime.utcnow()}")
+    print(f"Today is {timezone.utcnow()}")
 
 
 subdag = DAG("impersonation_subdag.test_subdag_operation", default_args=default_args)

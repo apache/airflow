@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Iterator
+
 
 def _wrap(val):
     if isinstance(val, dict):
@@ -38,7 +40,7 @@ class AttributeList:
         return _wrap(val)
 
     def __iter__(self):
-        return map(lambda i: _wrap(i), self._l_)
+        return (_wrap(i) for i in self._l_)
 
     def __bool__(self):
         return bool(self._l_)
@@ -66,6 +68,7 @@ class AttributeDict:
 class Hit(AttributeDict):
     """
     The Hit class is used to manage and access elements in a document.
+
     It inherits from the AttributeDict class and provides
     attribute-like access to its elements, similar to a dictionary.
     """
@@ -116,7 +119,7 @@ class ElasticSearchResponse(AttributeDict):
         super().__setattr__("_doc_class", doc_class)
         super().__init__(response)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Hit]:
         return iter(self.hits)
 
     def __getitem__(self, key):
@@ -128,7 +131,7 @@ class ElasticSearchResponse(AttributeDict):
         return bool(self.hits)
 
     @property
-    def hits(self):
+    def hits(self) -> list[Hit]:
         """
         This property provides access to the hits (i.e., the results) of the Elasticsearch response.
 

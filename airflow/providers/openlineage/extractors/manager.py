@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 
 from airflow.configuration import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
@@ -42,15 +42,11 @@ def try_import_from_string(string):
         return import_string(string)
 
 
-_extractors: list[type[BaseExtractor]] = list(
-    filter(
-        lambda t: t is not None,
-        [
-            PythonExtractor,
-            BashExtractor,
-        ],
-    )
-)
+def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
+    if PythonExtractor is not None:
+        yield PythonExtractor
+    if BashExtractor is not None:
+        yield BashExtractor
 
 
 class ExtractorManager(LoggingMixin):
@@ -63,12 +59,13 @@ class ExtractorManager(LoggingMixin):
 
         # Comma-separated extractors in OPENLINEAGE_EXTRACTORS variable.
         # Extractors should implement BaseExtractor
-        for extractor in _extractors:
+        for extractor in _iter_extractor_types():
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
-        env_extractors = conf.get("openlinege", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
-        if env_extractors is not None:
+        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
+        # skip either when it's empty string or None
+        if env_extractors:
             for extractor in env_extractors.split(";"):
                 extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
                 for operator_class in extractor.get_operator_classnames():
@@ -105,7 +102,7 @@ class ExtractorManager(LoggingMixin):
                     return task_metadata
 
             except Exception as e:
-                self.log.exception(
+                self.log.warning(
                     "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
                 )
         else:
@@ -161,7 +158,8 @@ class ExtractorManager(LoggingMixin):
         inlets: list,
         outlets: list,
     ):
-        self.log.debug("Manually extracting lineage metadata from inlets and outlets")
+        if inlets or outlets:
+            self.log.debug("Manually extracting lineage metadata from inlets and outlets")
         for i in inlets:
             d = self.convert_to_ol_dataset(i)
             if d:
@@ -197,5 +195,5 @@ class ExtractorManager(LoggingMixin):
                 job_facets=task_metadata.job_facets,
             )
         except AttributeError:
-            self.log.error("Extractor returns non-valid metadata: %s", task_metadata)
+            self.log.warning("Extractor returns non-valid metadata: %s", task_metadata)
             return None

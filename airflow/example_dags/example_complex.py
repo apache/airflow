@@ -22,11 +22,11 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
-with models.DAG(
+with DAG(
     dag_id="example_complex",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),

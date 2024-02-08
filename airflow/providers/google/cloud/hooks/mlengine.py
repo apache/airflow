@@ -18,21 +18,24 @@
 """This module contains a Google ML Engine Hook."""
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from httplib2 import Response
-from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    from httplib2 import Response
+    from requests import Session
 
 log = logging.getLogger(__name__)
 
@@ -65,13 +68,13 @@ def _poll_with_exponential_delay(
                 log.info("Operation is done: %s", response)
                 return response
 
-            time.sleep((2**i) + (random.randint(0, 1000) / 1000))
+            time.sleep((2**i) + random.random())
         except HttpError as e:
             if e.resp.status != 429:
                 log.info("Something went wrong. Not retrying: %s", format(e))
                 raise
             else:
-                time.sleep((2**i) + (random.randint(0, 1000) / 1000))
+                time.sleep((2**i) + random.random())
 
     raise ValueError(f"Connection could not be established after {max_n} retries.")
 
@@ -559,10 +562,9 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
             headers = {
                 "Authorization": f"Bearer {await token.get()}",
             }
-            try:
+            with contextlib.suppress(AirflowException):
+                # suppress AirflowException because we don't want to raise exception
                 job = await session_aio.get(url=url, headers=headers)
-            except AirflowException:
-                pass  # Because the job may not be visible in system yet
 
         return job
 
@@ -588,7 +590,9 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         async with ClientSession() as session:
             try:
                 job = await self.get_job(
-                    project_id=project_id, job_id=job_id, session=session  #  type: ignore
+                    project_id=project_id,
+                    job_id=job_id,
+                    session=session,  #  type: ignore
                 )
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)

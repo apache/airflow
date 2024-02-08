@@ -19,25 +19,32 @@
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
 from __future__ import annotations
 
-from typing import Any
+import warnings
+from typing import TYPE_CHECKING, Any
 
-import graphviz
+try:
+    import graphviz
+except ImportError:
+    warnings.warn("Could not import graphviz. Rendering graph to the graphical format will not be possible.")
+    graphviz = None
 
-from airflow import AirflowException
-from airflow.models import TaskInstance
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskmixin import DependencyMixin
-from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.taskmixin import DependencyMixin
+    from airflow.serialization.serialized_objects import DagDependency
+
 
 def _refine_color(color: str):
     """
-    Converts color in #RGB (12 bits) format to #RRGGBB (32 bits), if it possible.
+    Convert color in #RGB (12 bits) format to #RRGGBB (32 bits), if it possible.
 
     Otherwise, it returns the original value. Graphviz does not support colors in #RGB format.
 
@@ -120,7 +127,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, BaseOperator) or isinstance(node, MappedOperator):
+    if isinstance(node, (BaseOperator, MappedOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):
@@ -144,11 +151,15 @@ def _draw_nodes(
 
 def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
     """
-    Renders the DAG dependency to the DOT object.
+    Render the DAG dependency to the DOT object.
 
     :param deps: List of DAG dependencies
     :return: Graphviz object
     """
+    if not graphviz:
+        raise AirflowException(
+            "Could not import graphviz. Install the graphviz python package to fix this error."
+        )
     dot = graphviz.Digraph(graph_attr={"rankdir": "LR"})
 
     for dag, dependencies in deps.items():
@@ -169,7 +180,7 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
 
 def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
-    Renders the DAG object to the DOT object.
+    Render the DAG object to the DOT object.
 
     If an task instance list is passed, the nodes will be painted according to task statuses.
 
@@ -177,6 +188,10 @@ def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digr
     :param tis: List of task instances
     :return: Graphviz object
     """
+    if not graphviz:
+        raise AirflowException(
+            "Could not import graphviz. Install the graphviz python package to fix this error."
+        )
     dot = graphviz.Digraph(
         dag.dag_id,
         graph_attr={

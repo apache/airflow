@@ -22,23 +22,20 @@ runs:
   using: "composite"
   steps:
     - name: "Upload airflow logs"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: airflow-logs-${{env.JOB_ID}}
         path: './files/airflow_logs*'
         retention-days: 7
     - name: "Upload container logs"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/container_logs*"
         retention-days: 7
     - name: "Upload other logs"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/other_logs*"
         retention-days: 7
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership

@@ -32,7 +32,7 @@ metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  name: {{ .Release.Name }}-scc-rolebinding
+  name: {{ include "airflow.fullname" . }}-scc-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}

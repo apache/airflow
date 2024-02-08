@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -31,7 +31,8 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-) as dag:
+):
+    # [START howto_operator_short_circuit]
     cond_true = ShortCircuitOperator(
         task_id="condition_is_True",
         python_callable=lambda: True,
@@ -42,12 +43,14 @@ with DAG(
         python_callable=lambda: False,
     )
 
-    ds_true = [EmptyOperator(task_id="true_" + str(i)) for i in [1, 2]]
-    ds_false = [EmptyOperator(task_id="false_" + str(i)) for i in [1, 2]]
+    ds_true = [EmptyOperator(task_id=f"true_{i}") for i in [1, 2]]
+    ds_false = [EmptyOperator(task_id=f"false_{i}") for i in [1, 2]]
 
     chain(cond_true, *ds_true)
     chain(cond_false, *ds_false)
+    # [END howto_operator_short_circuit]
 
+    # [START howto_operator_short_circuit_trigger_rules]
     [task_1, task_2, task_3, task_4, task_5, task_6] = [
         EmptyOperator(task_id=f"task_{i}") for i in range(1, 7)
     ]
@@ -59,3 +62,4 @@ with DAG(
     )
 
     chain(task_1, [task_2, short_circuit], [task_3, task_4], [task_5, task_6], task_7)
+    # [END howto_operator_short_circuit_trigger_rules]

@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import csv
-from collections import OrderedDict
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
@@ -114,7 +113,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
-        """Maps MySQL type to Hive type."""
+        """Map MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
             types.BIT: "INT",
@@ -137,21 +136,20 @@ class MySqlToHiveOperator(BaseOperator):
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         self.log.info("Dumping MySQL query results to local file")
         with NamedTemporaryFile(mode="w", encoding="utf-8") as f:
-            with closing(mysql.get_conn()) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(self.sql)
-                    csv_writer = csv.writer(
-                        f,
-                        delimiter=self.delimiter,
-                        quoting=self.quoting,
-                        quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
-                        escapechar=self.escapechar,
-                    )
-                    field_dict = OrderedDict()
-                    if cursor.description is not None:
-                        for field in cursor.description:
-                            field_dict[field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)  # type: ignore[arg-type]
+            with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
+                cursor.execute(self.sql)
+                csv_writer = csv.writer(
+                    f,
+                    delimiter=self.delimiter,
+                    quoting=self.quoting,
+                    quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
+                    escapechar=self.escapechar,
+                )
+                field_dict = {}
+                if cursor.description is not None:
+                    for field in cursor.description:
+                        field_dict[field[0]] = self.type_map(field[1])
+                csv_writer.writerows(cursor)  # type: ignore[arg-type]
             f.flush()
             self.log.info("Loading file into Hive")
             hive.load_file(

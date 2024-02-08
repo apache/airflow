@@ -20,12 +20,12 @@ from __future__ import annotations
 
 import datetime
 import os
-from textwrap import dedent
+import textwrap
 
 import pendulum
 
-from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 
@@ -67,7 +67,7 @@ with DAG(
 ) as dag:
     run_this = my_py_command(params={"miff": "agg"})
 
-    my_command = dedent(
+    my_command = textwrap.dedent(
         """
         echo "'foo' was passed in via Airflow CLI Test command with value '$FOO'"
         echo "'miff' was passed in via BashOperator with value '$MIFF'"

@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Hyperparameter Tuning Job operations.
@@ -29,7 +27,7 @@ from datetime import datetime
 
 from google.cloud import aiplatform
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
     CreateHyperparameterTuningJobOperator,
@@ -39,9 +37,9 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_hyperparameter_tuning_job_operations"
+DAG_ID = "example_vertex_ai_hyperparameter_tuning_job_operations"
 REGION = "us-central1"
 DISPLAY_NAME = f"hyperparameter-tuning-job-{ENV_ID}"
 
@@ -60,7 +58,7 @@ WORKER_POOL_SPECS = [
         },
         "replica_count": REPLICA_COUNT,
         "container_spec": {
-            "image_uri": f"gcr.io/{PROJECT_ID}/horse-human:hypertune",
+            "image_uri": "us-docker.pkg.dev/composer-256318/horse-human/horse-human-image:latest",
         },
     }
 ]
@@ -76,7 +74,7 @@ METRIC_SPEC = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -106,12 +104,30 @@ with models.DAG(
     )
     # [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+    create_hyperparameter_tuning_job_def = CreateHyperparameterTuningJobOperator(
+        task_id="create_hyperparameter_tuning_job_def",
+        staging_bucket=STAGING_BUCKET,
+        display_name=DISPLAY_NAME,
+        worker_pool_specs=WORKER_POOL_SPECS,
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+        parameter_spec=PARAM_SPECS,
+        metric_spec=METRIC_SPEC,
+        max_trial_count=15,
+        parallel_trial_count=3,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_hyperparameter_tuning_job_operator_deferrable]
+
     # [START how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
     get_hyperparameter_tuning_job = GetHyperparameterTuningJobOperator(
         task_id="get_hyperparameter_tuning_job",
         project_id=PROJECT_ID,
         region=REGION,
-        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job', key='hyperparameter_tuning_job_id') }}",
     )
     # [END how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
 
@@ -120,10 +136,21 @@ with models.DAG(
         task_id="delete_hyperparameter_tuning_job",
         project_id=PROJECT_ID,
         region=REGION,
-        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job', key='hyperparameter_tuning_job_id') }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
+
+    delete_hyperparameter_tuning_job_def = DeleteHyperparameterTuningJobOperator(
+        task_id="delete_hyperparameter_tuning_job_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job_def', "
+        "key='hyperparameter_tuning_job_id') }}",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START how_to_cloud_vertex_ai_list_hyperparameter_tuning_job_operator]
     list_hyperparameter_tuning_job = ListHyperparameterTuningJobOperator(
@@ -143,9 +170,9 @@ with models.DAG(
         # TEST SETUP
         create_bucket
         # TEST BODY
-        >> create_hyperparameter_tuning_job
+        >> [create_hyperparameter_tuning_job, create_hyperparameter_tuning_job_def]
         >> get_hyperparameter_tuning_job
-        >> delete_hyperparameter_tuning_job
+        >> [delete_hyperparameter_tuning_job, delete_hyperparameter_tuning_job_def]
         >> list_hyperparameter_tuning_job
         # TEST TEARDOWN
         >> delete_bucket

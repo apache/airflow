@@ -22,9 +22,9 @@ from __future__ import annotations
 import logging
 import re
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
@@ -78,9 +78,21 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
     return cleansed_job_id
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CreateBatchPredictionJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Start a Google Cloud ML Engine prediction job.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.batch_prediction.CreateBatchPredictionJobOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -278,12 +290,19 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
         if finished_prediction_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine batch prediction job failed: %s", str(finished_prediction_job))
+            self.log.error("MLEngine batch prediction job failed: %s", finished_prediction_job)
             raise RuntimeError(finished_prediction_job["errorMessage"])
 
         return finished_prediction_job["predictionOutput"]
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. Consider using operators for specific operations: "
+        "MLEngineCreateModelOperator, MLEngineGetModelOperator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineManageModelOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine model.
@@ -333,14 +352,6 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        warnings.warn(
-            "This operator is deprecated. Consider using operators for specific operations: "
-            "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         self._project_id = project_id
         self._model = model
         self._operation = operation
@@ -360,9 +371,20 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use appropriate VertexAI operator."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
     """
     Creates a new model.
+
+    This operator is deprecated. Please use appropriate VertexAI operator from
+    :class:`airflow.providers.google.cloud.operators.vertex_ai` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -425,9 +447,20 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
         return hook.create_model(project_id=self._project_id, model=self._model)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `GetModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineGetModelOperator(GoogleCloudBaseOperator):
     """
     Gets a particular model.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -489,9 +522,21 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
         return hook.get_model(project_id=self._project_id, model_name=self._model_name)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `DeleteModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Deletes a model.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator` instead.
+
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -560,6 +605,14 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. Consider using operators for specific operations: "
+        "MLEngineCreateVersion, MLEngineSetDefaultVersion, "
+        "MLEngineListVersions, MLEngineDeleteVersion."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
     """
     Operator for managing a Google Cloud ML Engine version.
@@ -642,13 +695,6 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         self._gcp_conn_id = gcp_conn_id
         self._impersonation_chain = impersonation_chain
 
-        warnings.warn(
-            "This operator is deprecated. Consider using operators for specific operations: "
-            "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def execute(self, context: Context):
         if "name" not in self._version:
             self._version["name"] = self._version_name
@@ -678,9 +724,19 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
             raise ValueError(f"Unknown operation: {self._operation}")
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use parent_model parameter for VertexAI operators instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     """
     Creates a new version in the model.
+
+    This operator is deprecated. Please use parent_model parameter of VertexAI operators instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -759,9 +815,21 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `SetDefaultVersionOnModelOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
     """
     Sets a version in the model.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -840,9 +908,21 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `ListModelVersionsOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     """
     Lists all available versions of the model.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -914,9 +994,21 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `DeleteModelVersionOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
     """
     Deletes the version from the model.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -994,9 +1086,21 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         )
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CreateCustomPythonPackageTrainingJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     """
     Operator for launching a MLEngine training job.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1153,7 +1257,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def _handle_job_error(self, finished_training_job) -> None:
         if finished_training_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            self.log.error("MLEngine training job failed: %s", finished_training_job)
             raise RuntimeError(finished_training_job["errorMessage"])
 
     def execute(self, context: Context):
@@ -1324,9 +1428,21 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
             self.log.info("Skipping to cancel job: %s:%s.%s", self._project_id, self.job_id)
 
 
+@deprecated(
+    reason=(
+        "This operator is deprecated. All the functionality of legacy "
+        "MLEngine and new features are available on the Vertex AI platform. "
+        "Please use `CancelCustomTrainingJobOperator`"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
     """
     Operator for cleaning up failed MLEngine training job.
+
+    This operator is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.custom_job.CancelCustomTrainingJobOperator`
+    instead.
 
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)

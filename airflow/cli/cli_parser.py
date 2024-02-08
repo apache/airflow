@@ -25,9 +25,11 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from argparse import Action
+from collections import Counter
 from functools import lru_cache
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
@@ -35,17 +37,23 @@ from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
-    Arg,
-    CLICommand,
     DefaultHelpParser,
     GroupCommand,
     core_commands,
 )
+from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
+from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
 
-airflow_commands = core_commands
+if TYPE_CHECKING:
+    from airflow.cli.cli_config import (
+        Arg,
+        CLICommand,
+    )
+
+airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
 log = logging.getLogger(__name__)
 try:
@@ -59,11 +67,32 @@ except Exception:
         "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
         "7.4.0+ version of the CNCF provider"
     )
-    # Do no re-raise the exception since we want the CLI to still function for
+    # Do not re-raise the exception since we want the CLI to still function for
     # other commands.
+
+try:
+    auth_mgr = get_auth_manager_cls()
+    airflow_commands.extend(auth_mgr.get_cli_commands())
+except Exception as e:
+    log.warning("cannot load CLI commands from auth manager: %s", e)
+    log.warning("Authentication manager is not configured and webserver will not be able to start.")
+    # do not re-raise for the same reason as above
+    if len(sys.argv) > 1 and sys.argv[1] == "webserver":
+        log.exception(e)
+        sys.exit(1)
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+
+
+# Check if sub-commands are defined twice, which could be an issue.
+if len(ALL_COMMANDS_DICT) < len(airflow_commands):
+    dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
+    raise CliConflictError(
+        f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
+        f"This can be due to the executor '{ExecutorLoader.get_default_executor_name()}' "
+        f"redefining core airflow CLI commands."
+    )
 
 
 class AirflowHelpFormatter(RichHelpFormatter):
@@ -75,18 +104,17 @@ class AirflowHelpFormatter(RichHelpFormatter):
 
     def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Groups", nargs=0)
             self._indent()
             yield from group_subcommands
             self._dedent()
 
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Commands:", nargs=0)
             self._indent()
             yield from action_subcommands
             self._dedent()
@@ -110,7 +138,7 @@ class LazyRichHelpFormatter(RawTextRichHelpFormatter):
 
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
-    """Creates and returns command line argument parser."""
+    """Create and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
     subparsers.required = True

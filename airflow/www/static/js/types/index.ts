@@ -18,7 +18,14 @@
  */
 
 import type { CamelCase } from "type-fest";
-import type { ElkShape } from "elkjs";
+import type {
+  ElkExtendedEdge,
+  ElkEdgeSection,
+  ElkLabel,
+  ElkPoint,
+  ElkShape,
+  LayoutOptions,
+} from "elkjs";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -27,7 +34,6 @@ type TaskState =
   | RunState
   | "removed"
   | "scheduled"
-  | "shutdown"
   | "restarting"
   | "up_for_retry"
   | "up_for_reschedule"
@@ -109,6 +115,20 @@ type RunOrdering = (
   | "dataIntervalEnd"
 )[];
 
+export interface MidEdge {
+  id: string;
+  sources: string[];
+  targets: string[];
+  isSetupTeardown: boolean | undefined;
+  parentNode: string | undefined;
+  labels: {
+    id: string;
+    text: string;
+    height: number;
+    width: number;
+  }[];
+}
+
 interface DepNode {
   id: string;
   value: {
@@ -125,6 +145,7 @@ interface DepNode {
     setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
+  edges?: MidEdge[];
 }
 
 interface DepEdge {
@@ -132,9 +153,26 @@ interface DepEdge {
   target: string;
 }
 
+export interface EdgeData {
+  rest: {
+    isSelected: boolean;
+    sources: string[];
+    targets: string[];
+    sections: ElkEdgeSection[];
+    junctionPoints?: ElkPoint[];
+    id: string;
+    labels?: ElkLabel[];
+    layoutOptions?: LayoutOptions;
+    isSetupTeardown?: boolean;
+    parentNode?: string;
+    isZoomedOut?: boolean;
+  };
+}
+
 export interface NodeType extends ElkShape {
   value: DepNode["value"];
   children?: NodeType[];
+  edges?: ElkExtendedEdge[];
 }
 
 export interface WebserverEdge {
@@ -142,6 +180,7 @@ export interface WebserverEdge {
   sourceId: string;
   targetId: string;
   isSetupTeardown?: boolean;
+  parentNode?: string;
 }
 
 interface DatasetListItem extends API.Dataset {

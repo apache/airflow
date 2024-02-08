@@ -17,16 +17,17 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, Any, Collection
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
-from pendulum import DateTime
-
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
+    from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
 
@@ -34,7 +35,7 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    run_ordering = ("execution_date",)
+    run_ordering: Sequence[str] = ("execution_date",)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -133,10 +134,12 @@ class ContinuousTimetable(_TrivialTimetable):
             return None
         if last_automated_data_interval is not None:  # has already run once
             start = last_automated_data_interval.end
-            end = DateTime.utcnow()
+            end = timezone.coerce_datetime(timezone.utcnow())
         else:  # first run
             start = restriction.earliest
-            end = max(restriction.earliest, DateTime.utcnow())  # won't run any earlier than start_date
+            end = max(
+                restriction.earliest, timezone.coerce_datetime(timezone.utcnow())
+            )  # won't run any earlier than start_date
 
         if restriction.latest is not None and end > restriction.latest:
             return None
@@ -177,7 +180,6 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         events: Collection[DatasetEvent],
     ) -> DataInterval:
-
         if not events:
             return DataInterval(logical_date, logical_date)
 

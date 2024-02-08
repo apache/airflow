@@ -20,8 +20,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session
 
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import exists_query
@@ -29,7 +29,8 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
+    from sqlalchemy.orm import Session
+
     from airflow.models.operator import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
@@ -139,9 +140,9 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task.
         catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
-            last_dagrun = dr.get_previous_scheduled_dagrun(session)
+            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session)
         else:
-            last_dagrun = dr.get_previous_dagrun(session=session)
+            last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
 
         # First ever run for this DAG.
         if not last_dagrun:

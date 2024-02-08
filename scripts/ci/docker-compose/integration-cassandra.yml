@@ -15,15 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   cassandra:
     image: cassandra:3.0
+    labels:
+      breeze.description: "Integration required for Cassandra hooks."
     environment:
       HEAP_NEWSIZE: 128M
       MAX_HEAP_SIZE: 256M
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - cassandra-db-volume:/var/lib/cassandra
     healthcheck:
       # We use IPv6 variant of the check to workaround the problem with 3.0.26 version

@@ -29,18 +29,18 @@ def check_test_file(file: str) -> int:
     classes = [c for c in node.body if isinstance(c, ast.ClassDef)]
     for c in classes:
         # Some classes are returned as an ast.Attribute, some as an ast.Name object. Not quite sure why
-        parent_classes = [base.attr for base in c.bases if isinstance(base, ast.Attribute)]
-        parent_classes.extend([base.id for base in c.bases if isinstance(base, ast.Name)])
-
-        if "TestCase" in parent_classes:
+        if any(
+            (isinstance(base, ast.Attribute) and base.attr == "TestCase")
+            or (isinstance(base, ast.Name) and base.id == "TestCase")
+            for base in c.bases
+        ):
             found += 1
             print(f"The class {c.name} inherits from TestCase, please use pytest instead")
-
     return found
 
 
 def main(*args: str) -> int:
-    return sum([check_test_file(file) for file in args[1:]])
+    return sum(check_test_file(file) for file in args[1:])
 
 
 if __name__ == "__main__":

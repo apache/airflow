@@ -10,13 +10,13 @@
                     "expected": "Successful",
                     "matcher": "path",
                     "state": "success",
-                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus"
+                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus | [0]"
                 },
                 {
                     "expected": "Error",
                     "matcher": "path",
                     "state": "failure",
-                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus"
+                    "argument": "flowExecutions[?executionId=='{{EXECUTION_ID}}'].executionStatus | [0]"
                 },
                 {
                     "expected": true,

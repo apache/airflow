@@ -20,6 +20,7 @@ import os
 
 from airflow.configuration import conf
 from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
 
 
@@ -46,7 +47,5 @@ class OpenLineageProviderPlugin(AirflowPlugin):
 
     name = "OpenLineageProviderPlugin"
     if not _is_disabled():
-        from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-
         macros = [lineage_run_id, lineage_parent_id]
-        listeners = [OpenLineageListener()]
+        listeners = [get_openlineage_listener()]

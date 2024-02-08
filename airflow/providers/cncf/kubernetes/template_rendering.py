@@ -17,17 +17,21 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from jinja2 import TemplateAssertionError, UndefinedError
 from kubernetes.client.api_client import ApiClient
 
-from airflow import AirflowException
-from airflow.models.taskinstance import TaskInstance
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     create_pod_id,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
 
 
 def render_k8s_pod_yaml(task_instance: TaskInstance) -> dict | None:

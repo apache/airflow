@@ -29,7 +29,7 @@ from typing import Callable
 
 
 def register_pre_exec_callback(action_logger):
-    """Registers more action_logger function callback for pre-execution.
+    """Register more action_logger function callback for pre-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -43,7 +43,7 @@ def register_pre_exec_callback(action_logger):
 
 
 def register_post_exec_callback(action_logger):
-    """Registers more action_logger function callback for post-execution.
+    """Register more action_logger function callback for post-execution.
 
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
@@ -57,7 +57,7 @@ def register_post_exec_callback(action_logger):
 
 
 def on_pre_execution(**kwargs):
-    """Calls callbacks before execution.
+    """Call callbacks before execution.
 
     Note that any exception from callback will be logged but won't be propagated.
 
@@ -73,7 +73,7 @@ def on_pre_execution(**kwargs):
 
 
 def on_post_execution(**kwargs):
-    """Calls callbacks after execution.
+    """Call callbacks after execution.
 
     As it's being called after execution, it can capture status of execution,
     duration, etc. Note that any exception from callback will be logged but
@@ -91,7 +91,8 @@ def on_post_execution(**kwargs):
 
 
 def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_name, full_command, **_):
-    """Default action logger callback that behaves similar to ``action_logging``.
+    """
+    Behave similar to ``action_logging``; default action logger callback.
 
     The difference is this function uses the global ORM session, and pushes a
     ``Log`` row into the database instead of actually logging.
@@ -127,7 +128,6 @@ def default_action_log(sub_command, user, task_id, dag_id, execution_date, host_
             '"log" does not exist',  # postgres
             "no such table",  # sqlite
             "log' doesn't exist",  # mysql
-            "Invalid object name 'log'",  # mssql
         ]
         error_is_ok = e.args and any(x in e.args[0] for x in expected)
         if not error_is_ok:

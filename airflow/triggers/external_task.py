@@ -18,17 +18,121 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from datetime import datetime
+from typing import Any
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
+
+if typing.TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.utils.state import DagRunState
+
+
+class WorkflowTrigger(BaseTrigger):
+    """
+    A trigger to monitor tasks, task group and dag execution in Apache Airflow.
+
+    :param external_dag_id: The ID of the external DAG.
+    :param execution_dates: A list of execution dates for the external DAG.
+    :param external_task_ids: A collection of external task IDs to wait for.
+    :param external_task_group_id: The ID of the external task group to wait for.
+    :param failed_states: States considered as failed for external tasks.
+    :param skipped_states: States considered as skipped for external tasks.
+    :param allowed_states: States considered as successful for external tasks.
+    :param poke_interval: The interval (in seconds) for poking the external tasks.
+    :param soft_fail: If True, the trigger will not fail the entire DAG on external task failure.
+    """
+
+    def __init__(
+        self,
+        external_dag_id: str,
+        execution_dates: list,
+        external_task_ids: typing.Collection[str] | None = None,
+        external_task_group_id: str | None = None,
+        failed_states: typing.Iterable[str] | None = None,
+        skipped_states: typing.Iterable[str] | None = None,
+        allowed_states: typing.Iterable[str] | None = None,
+        poke_interval: float = 2.0,
+        soft_fail: bool = False,
+        **kwargs,
+    ):
+        self.external_dag_id = external_dag_id
+        self.external_task_ids = external_task_ids
+        self.external_task_group_id = external_task_group_id
+        self.failed_states = failed_states
+        self.skipped_states = skipped_states
+        self.allowed_states = allowed_states
+        self.execution_dates = execution_dates
+        self.poke_interval = poke_interval
+        self.soft_fail = soft_fail
+        super().__init__(**kwargs)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the trigger param and module path."""
+        return (
+            "airflow.triggers.external_task.WorkflowTrigger",
+            {
+                "external_dag_id": self.external_dag_id,
+                "external_task_ids": self.external_task_ids,
+                "external_task_group_id": self.external_task_group_id,
+                "failed_states": self.failed_states,
+                "skipped_states": self.skipped_states,
+                "allowed_states": self.allowed_states,
+                "execution_dates": self.execution_dates,
+                "poke_interval": self.poke_interval,
+                "soft_fail": self.soft_fail,
+            },
+        )
+
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+        """Check periodically tasks, task group or dag status."""
+        while True:
+            if self.failed_states:
+                failed_count = _get_count(
+                    self.execution_dates,
+                    self.external_task_ids,
+                    self.external_task_group_id,
+                    self.external_dag_id,
+                    self.failed_states,
+                )
+                if failed_count > 0:
+                    yield TriggerEvent({"status": "failed"})
+                    return
+                else:
+                    yield TriggerEvent({"status": "success"})
+                    return
+            if self.skipped_states:
+                skipped_count = _get_count(
+                    self.execution_dates,
+                    self.external_task_ids,
+                    self.external_task_group_id,
+                    self.external_dag_id,
+                    self.skipped_states,
+                )
+                if skipped_count > 0:
+                    yield TriggerEvent({"status": "skipped"})
+            allowed_count = _get_count(
+                self.execution_dates,
+                self.external_task_ids,
+                self.external_task_group_id,
+                self.external_dag_id,
+                self.allowed_states,
+            )
+            if allowed_count == len(self.execution_dates):
+                yield TriggerEvent({"status": "success"})
+                return
+            self.log.info("Sleeping for %s seconds", self.poke_interval)
+            await asyncio.sleep(self.poke_interval)
 
 
 class TaskStateTrigger(BaseTrigger):
@@ -65,11 +169,11 @@ class TaskStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
-        self.states = states if states else [TaskInstanceState.SUCCESS.value]
+        self.states = states or [TaskInstanceState.SUCCESS.value]
         self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
-        """Serializes TaskStateTrigger arguments and classpath."""
+        """Serialize TaskStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.TaskStateTrigger",
             {
@@ -84,13 +188,14 @@ class TaskStateTrigger(BaseTrigger):
 
     async def run(self) -> TriggerEvent:
         """
-        Checks periodically in the database to see if the dag exists and is in the running state. If found,
-        wait until the task specified will reach one of the expected states. If dag with specified name was
-        not in the running state after _timeout_sec seconds after starting execution process of the trigger,
-        terminate with status 'timeout'.
+        Check periodically in the database to see if the dag exists and is in the running state.
+
+        If found, wait until the task specified will reach one of the expected states.
+        If dag with specified name was not in the running state after _timeout_sec seconds
+        after starting execution process of the trigger, terminate with status 'timeout'.
         """
-        while True:
-            try:
+        try:
+            while True:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
                     # mypy confuses typing here
@@ -104,8 +209,8 @@ class TaskStateTrigger(BaseTrigger):
                     return TriggerEvent({"status": "success"})
                 self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
-            except Exception:
-                return TriggerEvent({"status": "failed"})
+        except Exception:
+            return TriggerEvent({"status": "failed"})
 
     @sync_to_async
     @provide_session
@@ -164,7 +269,7 @@ class DagStateTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
-        """Serializes DagStateTrigger arguments and classpath."""
+        """Serialize DagStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.DagStateTrigger",
             {
@@ -176,10 +281,7 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> TriggerEvent:
-        """
-        Checks periodically in the database to see if the dag run exists, and has
-        hit one of the states yet, or not.
-        """
+        """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]

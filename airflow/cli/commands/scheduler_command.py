@@ -18,76 +18,63 @@
 from __future__ import annotations
 
 import logging
-import signal
-from contextlib import contextmanager
+from argparse import Namespace
+from contextlib import ExitStack, contextmanager
 from multiprocessing import Process
-
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.cli import process_subdir
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
 log = logging.getLogger(__name__)
 
 
-def _run_scheduler_job(job_runner: SchedulerJobRunner, *, skip_serve_logs: bool) -> None:
-    InternalApiConfig.force_database_direct_access()
-    enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
-    with _serve_logs(skip_serve_logs), _serve_health_check(enable_health_check):
-        try:
-            run_job(job=job_runner.job, execute_callable=job_runner._execute)
-        except Exception:
-            log.exception("Exception when running scheduler job")
-
-
-@cli_utils.action_cli
-@providers_configuration_loaded
-def scheduler(args):
-    """Starts Airflow Scheduler."""
-    print(settings.HEADER)
-
+def _run_scheduler_job(args) -> None:
     job_runner = SchedulerJobRunner(
         job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs, do_pickle=args.do_pickle
     )
     ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor)
+    InternalApiConfig.force_database_direct_access()
+    enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
+    with ExitStack() as stack:
+        stack.enter_context(_serve_logs(args.skip_serve_logs))
+        stack.enter_context(_serve_health_check(enable_health_check))
 
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations(
-            "scheduler", args.pid, args.stdout, args.stderr, args.log_file
-        )
-        handle = setup_logging(log_file)
-        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
-            stdout_handle.truncate(0)
-            stderr_handle.truncate(0)
+        try:
+            run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        except Exception:
+            log.exception("Exception when running scheduler job")
+            raise
+        finally:
+            # Ensure that the contexts are closed
+            stack.close()
 
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(pid, -1),
-                files_preserve=[handle],
-                stdout=stdout_handle,
-                stderr=stderr_handle,
-                umask=int(settings.DAEMON_UMASK, 8),
-            )
-            with ctx:
-                _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
-    else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
-        signal.signal(signal.SIGQUIT, sigquit_handler)
-        _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def scheduler(args: Namespace):
+    """Start Airflow Scheduler."""
+    print(settings.HEADER)
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name="scheduler",
+        callback=lambda: _run_scheduler_job(args),
+        should_setup_logging=True,
+    )
 
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
@@ -103,7 +90,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 @contextmanager
 def _serve_health_check(enable_health_check: bool = False):
-    """Starts serve_health_check sub-process."""
+    """Start serve_health_check sub-process."""
     sub_proc = None
     if enable_health_check:
         sub_proc = Process(target=serve_health_check)

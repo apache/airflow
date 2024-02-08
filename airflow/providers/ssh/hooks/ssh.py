@@ -27,6 +27,7 @@ from select import select
 from typing import Any, Sequence
 
 import paramiko
+from deprecated import deprecated
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
@@ -93,8 +94,8 @@ class SSHHook(BaseHook):
     conn_type = "ssh"
     hook_name = "SSH"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
@@ -173,7 +174,7 @@ class SSHHook(BaseHook):
                         "Extra option `timeout` is deprecated."
                         "Please use `conn_timeout` instead."
                         "The old option `timeout` will be removed in a future version.",
-                        AirflowProviderDeprecationWarning,
+                        category=AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     self.timeout = int(extra_options["timeout"])
@@ -233,8 +234,8 @@ class SSHHook(BaseHook):
                 "Parameter `timeout` is deprecated."
                 "Please use `conn_timeout` instead."
                 "The old option `timeout` will be removed in a future version.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=1,
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
         if self.conn_timeout is None:
@@ -298,7 +299,7 @@ class SSHHook(BaseHook):
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # nosec B507
             # to avoid BadHostKeyException, skip loading and saving host keys
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
@@ -314,16 +315,16 @@ class SSHHook(BaseHook):
                     f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
                 )
 
-        connect_kwargs: dict[str, Any] = dict(
-            hostname=self.remote_host,
-            username=self.username,
-            timeout=self.conn_timeout,
-            compress=self.compress,
-            port=self.port,
-            sock=self.host_proxy,
-            look_for_keys=self.look_for_keys,
-            banner_timeout=self.banner_timeout,
-        )
+        connect_kwargs: dict[str, Any] = {
+            "hostname": self.remote_host,
+            "username": self.username,
+            "timeout": self.conn_timeout,
+            "compress": self.compress,
+            "port": self.port,
+            "sock": self.host_proxy,
+            "look_for_keys": self.look_for_keys,
+            "banner_timeout": self.banner_timeout,
+        }
 
         if self.password:
             password = self.password.strip()
@@ -338,9 +339,10 @@ class SSHHook(BaseHook):
         if self.disabled_algorithms:
             connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
 
-        log_before_sleep = lambda retry_state: self.log.info(
-            "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
-        )
+        def log_before_sleep(retry_state):
+            return self.log.info(
+                "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+            )
 
         for attempt in Retrying(
             reraise=True,
@@ -364,13 +366,15 @@ class SSHHook(BaseHook):
         self.client = client
         return client
 
-    def __enter__(self) -> SSHHook:
-        warnings.warn(
+    @deprecated(
+        reason=(
             "The contextmanager of SSHHook is deprecated."
             "Please use get_conn() as a contextmanager instead."
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-        )
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def __enter__(self) -> SSHHook:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -396,15 +400,15 @@ class SSHHook(BaseHook):
         else:
             local_bind_address = ("localhost",)
 
-        tunnel_kwargs = dict(
-            ssh_port=self.port,
-            ssh_username=self.username,
-            ssh_pkey=self.key_file or self.pkey,
-            ssh_proxy=self.host_proxy,
-            local_bind_address=local_bind_address,
-            remote_bind_address=(remote_host, remote_port),
-            logger=self.log,
-        )
+        tunnel_kwargs = {
+            "ssh_port": self.port,
+            "ssh_username": self.username,
+            "ssh_pkey": self.key_file or self.pkey,
+            "ssh_proxy": self.host_proxy,
+            "local_bind_address": local_bind_address,
+            "remote_bind_address": (remote_host, remote_port),
+            "logger": self.log,
+        }
 
         if self.password:
             password = self.password.strip()
@@ -420,6 +424,15 @@ class SSHHook(BaseHook):
 
         return client
 
+    @deprecated(
+        reason=(
+            "SSHHook.create_tunnel is deprecated, Please "
+            "use get_tunnel() instead. But please note that the "
+            "order of the parameters have changed. "
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
@@ -429,14 +442,6 @@ class SSHHook(BaseHook):
         :param remote_port: remote port number
         :param remote_host: remote host
         """
-        warnings.warn(
-            "SSHHook.create_tunnel is deprecated, Please"
-            "use get_tunnel() instead. But please note that the"
-            "order of the parameters have changed"
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-        )
-
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
@@ -446,7 +451,7 @@ class SSHHook(BaseHook):
         :return: ``paramiko.PKey`` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
-        if len(private_key.split("\n", 2)) < 2:
+        if len(private_key.splitlines()) < 2:
             raise AirflowException("Key must have BEGIN and END header/footer on separate lines.")
 
         for pkey_class in self._pkey_loaders:
@@ -512,7 +517,7 @@ class SSHHook(BaseHook):
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
             readq, _, _ = select([channel], [], [], cmd_timeout)
             if cmd_timeout is not None:
-                timedout = len(readq) == 0
+                timedout = not readq
             for recv in readq:
                 if recv.recv_ready():
                     output = stdout.channel.recv(len(recv.in_buffer))

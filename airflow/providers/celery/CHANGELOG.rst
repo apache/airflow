@@ -27,6 +27,124 @@
 Changelog
 ---------
 
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'sentinel_kwargs' load from ENV (#36318)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Update information about links into the provider.yaml files (#35837)``
+   * ``Prepare docs 2nd wave of Providers November 2023 (#35836)``
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+3.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix _SECRET and _CMD broker configuration (#34782)``
+* ``Remove sensitive information from Celery executor warning (#34954)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``respect soft_fail argument when exception is raised for celery sensors (#34474)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+3.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix condition of update_task_state in celery executor (#34192)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+3.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+
+Misc
+~~~~~
+
+* ``Make auth managers provide their own airflow CLI commands (#33481)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
 3.3.1
 .....
 

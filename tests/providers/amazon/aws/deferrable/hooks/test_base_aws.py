@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 from unittest import mock
 from unittest.mock import ANY
 
@@ -26,16 +27,14 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook
 
 pytest.importorskip("aiobotocore")
 
-try:
+with contextlib.suppress(ImportError):
     from aiobotocore.credentials import AioCredentials
-except ImportError:
-    pass
 
 
 class TestAwsBaseAsyncHook:
     @staticmethod
     def compare_aio_cred(first, second):
-        if not type(first) == type(second):
+        if type(first) != type(second):
             return False
         if first.access_key != second.access_key:
             return False

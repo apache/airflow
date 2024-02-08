@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
-import datetime
 import inspect
 import itertools
 import json
@@ -30,7 +29,7 @@ from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
-import pendulum
+from deprecated import deprecated
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
@@ -43,14 +42,14 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, reconstructor, relationship
+from sqlalchemy.orm import Query, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one, is_container
 from airflow.utils.json import XComDecoder, XComEncoder
@@ -68,10 +67,15 @@ from airflow.utils.xcom import (
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    import datetime
+
+    import pendulum
+    from sqlalchemy.orm import Session
+
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class BaseXCom(Base, LoggingMixin):
+class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     """Base class for XCom objects."""
 
     __tablename__ = "xcom"
@@ -94,9 +98,7 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint(
-            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
-        ),
+        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -122,7 +124,7 @@ class BaseXCom(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """
-        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted.
+        Execute after the instance has been loaded from the DB or otherwise reconstituted; called by the ORM.
 
         i.e automatically deserialize Xcom value when loading from DB.
         """
@@ -367,6 +369,7 @@ class BaseXCom(Base, LoggingMixin):
     @staticmethod
     @provide_session
     @internal_api_call
+    @deprecated
     def get_one(
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
@@ -417,7 +420,7 @@ class BaseXCom(Base, LoggingMixin):
 
         result = query.with_entities(BaseXCom.value).first()
         if result:
-            return BaseXCom.deserialize_value(result)
+            return XCom.deserialize_value(result)
         return None
 
     @overload
@@ -555,8 +558,14 @@ class BaseXCom(Base, LoggingMixin):
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
                 raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
+            XCom.purge(xcom, session)
             session.delete(xcom)
         session.commit()
+
+    @staticmethod
+    def purge(xcom: XCom, session: Session) -> None:
+        """Purge an XCom entry from underlying storage implementations."""
+        pass
 
     @overload
     @staticmethod
@@ -640,7 +649,13 @@ class BaseXCom(Base, LoggingMixin):
         query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
-        query.delete()
+
+        for xcom in query:
+            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
+            XCom.purge(xcom, session)
+            session.delete(xcom)
+
+        session.commit()
 
     @staticmethod
     def serialize_value(
@@ -682,10 +697,8 @@ class BaseXCom(Base, LoggingMixin):
             except pickle.UnpicklingError:
                 return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
         else:
-            try:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                return pickle.loads(result.value)
+            # Since xcom_pickling is disabled, we should only try to deserialize with JSON
+            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:
@@ -838,7 +851,7 @@ def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> 
 
 def _get_function_params(function) -> list[str]:
     """
-    Returns the list of variables names of a function.
+    Return the list of variables names of a function.
 
     :param function: The function to inspect
     """
@@ -850,10 +863,10 @@ def _get_function_params(function) -> list[str]:
 
 
 def resolve_xcom_backend() -> type[BaseXCom]:
-    """Resolves custom XCom class.
+    """Resolve custom XCom class.
 
-    Confirms that custom XCom class extends the BaseXCom.
-    Compares the function signature of the custom XCom serialize_value to the base XCom serialize_value.
+    Confirm that custom XCom class extends the BaseXCom.
+    Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.
     """
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if not clazz:
@@ -864,7 +877,7 @@ def resolve_xcom_backend() -> type[BaseXCom]:
         )
     base_xcom_params = _get_function_params(BaseXCom.serialize_value)
     xcom_params = _get_function_params(clazz.serialize_value)
-    if not set(base_xcom_params) == set(xcom_params):
+    if set(base_xcom_params) != set(xcom_params):
         _patch_outdated_serializer(clazz=clazz, params=xcom_params)
     return clazz
 

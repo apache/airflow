@@ -18,17 +18,19 @@
 """This module contains sensors for AWS CloudFormation."""
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
+
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
-from airflow.sensors.base import BaseSensorOperator
 
 
-class CloudFormationCreateStackSensor(BaseSensorOperator):
+class CloudFormationCreateStackSensor(AwsBaseSensor[CloudFormationHook]):
     """
     Waits for a stack to be created successfully on AWS CloudFormation.
 
@@ -37,19 +39,25 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
         :ref:`howto/sensor:CloudFormationCreateStackSensor`
 
     :param stack_name: The name of the stack to wait for (templated)
-    :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
-        stored
-    :param poke_interval: Time in seconds that the job should wait between each try
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("stack_name",)
+    aws_hook_class = CloudFormationHook
+    template_fields: Sequence[str] = aws_template_fields("stack_name")
     ui_color = "#C5CAE9"
 
-    def __init__(self, *, stack_name, aws_conn_id="aws_default", region_name=None, **kwargs):
+    def __init__(self, *, stack_name, **kwargs):
         super().__init__(**kwargs)
         self.stack_name = stack_name
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
 
     def poke(self, context: Context):
         stack_status = self.hook.get_stack_status(self.stack_name)
@@ -57,15 +65,15 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
             return True
         if stack_status in ("CREATE_IN_PROGRESS", None):
             return False
-        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")
 
-    @cached_property
-    def hook(self) -> CloudFormationHook:
-        """Create and return a CloudFormationHook."""
-        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = f"Stack {self.stack_name} in bad state: {stack_status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise ValueError(message)
 
 
-class CloudFormationDeleteStackSensor(BaseSensorOperator):
+class CloudFormationDeleteStackSensor(AwsBaseSensor[CloudFormationHook]):
     """
     Waits for a stack to be deleted successfully on AWS CloudFormation.
 
@@ -74,12 +82,20 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
         :ref:`howto/sensor:CloudFormationDeleteStackSensor`
 
     :param stack_name: The name of the stack to wait for (templated)
-    :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are
-        stored
-    :param poke_interval: Time in seconds that the job should wait between each try
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("stack_name",)
+    aws_hook_class = CloudFormationHook
+    template_fields: Sequence[str] = aws_template_fields("stack_name")
     ui_color = "#C5CAE9"
 
     def __init__(
@@ -101,9 +117,9 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
             return True
         if stack_status == "DELETE_IN_PROGRESS":
             return False
-        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")
 
-    @cached_property
-    def hook(self) -> CloudFormationHook:
-        """Create and return a CloudFormationHook."""
-        return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = f"Stack {self.stack_name} in bad state: {stack_status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise ValueError(message)

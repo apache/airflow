@@ -28,12 +28,7 @@ from shlex import quote
 
 import click
 
-from airflow_breeze.commands.production_image_commands import run_build_production_image
-from airflow_breeze.global_constants import ALLOWED_EXECUTORS, ALLOWED_KUBERNETES_VERSIONS
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_debug_resources,
     option_dry_run,
     option_include_success_outputs,
@@ -44,6 +39,11 @@ from airflow_breeze.utils.common_options import (
     option_skip_cleanup,
     option_verbose,
 )
+from airflow_breeze.commands.production_image_commands import run_build_production_image
+from airflow_breeze.global_constants import ALLOWED_EXECUTORS, ALLOWED_KUBERNETES_VERSIONS
+from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
 from airflow_breeze.utils.kubernetes_utils import (
@@ -111,16 +111,18 @@ option_executor = click.option(
     default=CacheableDefault(ALLOWED_EXECUTORS[0]),
     envvar="EXECUTOR",
 )
-
-option_kubernetes_version = click.option(
-    "--kubernetes-version",
-    help="Kubernetes version used to create the KinD cluster of.",
-    type=CacheableChoice(ALLOWED_KUBERNETES_VERSIONS),
-    show_default=True,
-    default=CacheableDefault(ALLOWED_KUBERNETES_VERSIONS[0]),
-    envvar="KUBERNETES_VERSION",
+option_force_recreate_cluster = click.option(
+    "--force-recreate-cluster",
+    help="Force recreation of the cluster even if it is already created.",
+    is_flag=True,
+    envvar="FORCE_RECREATE_CLUSTER",
 )
-
+option_force_venv_setup = click.option(
+    "--force-venv-setup",
+    help="Force recreation of the virtualenv.",
+    is_flag=True,
+    envvar="FORCE_VENV_SETUP",
+)
 option_image_tag = click.option(
     "-t",
     "--image-tag",
@@ -129,44 +131,14 @@ option_image_tag = click.option(
     show_default=True,
     envvar="IMAGE_TAG",
 )
-
-option_wait_time_in_seconds = click.option(
-    "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
-    type=click.IntRange(0),
-    default=120,
-    envvar="WAIT_TIME_IN_SECONDS",
+option_kubernetes_version = click.option(
+    "--kubernetes-version",
+    help="Kubernetes version used to create the KinD cluster of.",
+    type=CacheableChoice(ALLOWED_KUBERNETES_VERSIONS),
+    show_default=True,
+    default=CacheableDefault(ALLOWED_KUBERNETES_VERSIONS[0]),
+    envvar="KUBERNETES_VERSION",
 )
-
-option_wait_time_in_seconds_0_default = click.option(
-    "--wait-time-in-seconds",
-    help="Wait for Airflow webserver for specified number of seconds.",
-    type=click.IntRange(0),
-    default=0,
-    envvar="WAIT_TIME_IN_SECONDS",
-)
-
-option_force_recreate_cluster = click.option(
-    "--force-recreate-cluster",
-    help="Force recreation of the cluster even if it is already created.",
-    is_flag=True,
-    envvar="FORCE_RECREATE_CLUSTER",
-)
-
-option_force_venv_setup = click.option(
-    "--force-venv-setup",
-    help="Force recreation of the virtualenv.",
-    is_flag=True,
-    envvar="FORCE_VENV_SETUP",
-)
-
-option_rebuild_base_image = click.option(
-    "--rebuild-base-image",
-    help="Rebuilds base Airflow image before building K8S image.",
-    is_flag=True,
-    envvar="REBUILD_BASE_IMAGE",
-)
-
 option_kubernetes_versions = click.option(
     "--kubernetes-versions",
     help="Kubernetes versions used to run in parallel (space separated).",
@@ -175,14 +147,44 @@ option_kubernetes_versions = click.option(
     default=" ".join(ALLOWED_KUBERNETES_VERSIONS),
     envvar="KUBERNETES_VERSIONS",
 )
-
+option_multi_namespace_mode = click.option(
+    "--multi-namespace-mode",
+    help="Use multi namespace mode.",
+    is_flag=True,
+    envvar="MULTI_NAMESPACE_MODE",
+)
+option_rebuild_base_image = click.option(
+    "--rebuild-base-image",
+    help="Rebuilds base Airflow image before building K8S image.",
+    is_flag=True,
+    envvar="REBUILD_BASE_IMAGE",
+)
 option_upgrade = click.option(
     "--upgrade",
     help="Upgrade Helm Chart rather than installing it.",
     is_flag=True,
     envvar="UPGRADE",
 )
-
+option_use_standard_naming = click.option(
+    "--use-standard-naming",
+    help="Use standard naming.",
+    is_flag=True,
+    envvar="USE_STANDARD_NAMING",
+)
+option_wait_time_in_seconds = click.option(
+    "--wait-time-in-seconds",
+    help="Wait for Airflow webserver for specified number of seconds.",
+    type=click.IntRange(0),
+    default=120,
+    envvar="WAIT_TIME_IN_SECONDS",
+)
+option_wait_time_in_seconds_0_default = click.option(
+    "--wait-time-in-seconds",
+    help="Wait for Airflow webserver for specified number of seconds.",
+    type=click.IntRange(0),
+    default=0,
+    envvar="WAIT_TIME_IN_SECONDS",
+)
 option_parallelism_cluster = click.option(
     "--parallelism",
     help="Maximum number of processes to use while running the operation in parallel for cluster operations.",
@@ -385,9 +387,7 @@ def _delete_cluster(python: str, kubernetes_version: str, output: Output | None)
 
 def _delete_all_clusters():
     clusters = list(K8S_CLUSTERS_PATH.iterdir())
-    if len(clusters) == 0:
-        get_console().print("\n[warning]No clusters.\n")
-    else:
+    if clusters:
         get_console().print("\n[info]Deleting clusters")
         for cluster_name in clusters:
             resolved_path = cluster_name.resolve()
@@ -407,6 +407,8 @@ def _delete_all_clusters():
                     shutil.rmtree(cluster_name.resolve(), ignore_errors=True)
                 else:
                     resolved_path.unlink()
+    else:
+        get_console().print("\n[warning]No clusters.\n")
 
 
 @kubernetes_group.command(
@@ -508,10 +510,7 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
     make_sure_kubernetes_tools_are_installed()
     if all:
         clusters = list(K8S_CLUSTERS_PATH.iterdir())
-        if len(clusters) == 0:
-            get_console().print("\n[warning]No clusters.\n")
-            sys.exit(1)
-        else:
+        if clusters:
             failed = False
             get_console().print("[info]\nCluster status:\n")
             for cluster_name in clusters:
@@ -519,8 +518,7 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
                 found_python, found_kubernetes_version = _get_python_kubernetes_version_from_name(name)
                 if not found_python or not found_kubernetes_version:
                     get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
-                    continue
-                if not _status(
+                elif not _status(
                     python=found_python,
                     kubernetes_version=found_kubernetes_version,
                     wait_time_in_seconds=wait_time_in_seconds,
@@ -529,6 +527,9 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
             if failed:
                 get_console().print("\n[error]Some clusters are not healthy!\n")
                 sys.exit(1)
+        else:
+            get_console().print("\n[warning]No clusters.\n")
+            sys.exit(1)
     else:
         if not _status(
             python=python,
@@ -946,7 +947,9 @@ def _deploy_helm_chart(
     kubernetes_version: str,
     output: Output | None,
     executor: str,
+    use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
+    multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
@@ -988,9 +991,13 @@ def _deploy_helm_chart(
             "--set",
             f"executor={executor}",
         ]
+        if multi_namespace_mode:
+            helm_command.extend(["--set", "multiNamespaceMode=true"])
         if upgrade:
             # force upgrade
             helm_command.append("--force")
+        if use_standard_naming:
+            helm_command.extend(["--set", "useStandardNaming=true"])
         if extra_options:
             helm_command.extend(extra_options)
         get_console(output=output).print(f"[info]Deploying Airflow from {tmp_chart_path}")
@@ -1013,7 +1020,9 @@ def _deploy_airflow(
     executor: str,
     upgrade: bool,
     wait_time_in_seconds: int,
+    use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
+    multi_namespace_mode: bool = False,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
@@ -1024,9 +1033,49 @@ def _deploy_airflow(
         output=output,
         upgrade=upgrade,
         executor=executor,
+        use_standard_naming=use_standard_naming,
         extra_options=extra_options,
+        multi_namespace_mode=multi_namespace_mode,
     )
     if result.returncode == 0:
+        if multi_namespace_mode:
+            # duplicate Airflow configmaps, secrets and service accounts to test namespace
+            run_command_with_k8s_env(
+                f"kubectl get secret -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector type!=helm.sh/release.v1 -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+                shell=True,
+            )
+
+            run_command_with_k8s_env(
+                f"kubectl get configmap -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector  metadata.name!=kube-root-ca.crt -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+                shell=True,
+            )
+
+            run_command_with_k8s_env(
+                f"kubectl get serviceaccount -n {HELM_AIRFLOW_NAMESPACE} "
+                "--field-selector  metadata.name!=default -o yaml "
+                f"| sed 's/namespace: {HELM_AIRFLOW_NAMESPACE}/namespace: {TEST_NAMESPACE}/' "
+                f"| kubectl apply -n {TEST_NAMESPACE} -f -",
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=output,
+                check=False,
+                shell=True,
+            )
+
         get_console(output=output).print(
             f"\n[success]Airflow for Python {python} and "
             f"K8S version {kubernetes_version} has been successfully deployed."
@@ -1061,6 +1110,8 @@ def _deploy_airflow(
 @option_skip_cleanup
 @option_debug_resources
 @option_include_success_outputs
+@option_use_standard_naming
+@option_multi_namespace_mode
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1077,9 +1128,11 @@ def deploy_airflow(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
+    use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
     extra_options: tuple[str, ...],
+    multi_namespace_mode: bool = False,
 ):
     if run_in_parallel:
         python_version_array: list[str] = python_versions.split(" ")
@@ -1104,9 +1157,11 @@ def deploy_airflow(
                             "kubernetes_version": combo.kubernetes_version,
                             "executor": executor,
                             "upgrade": upgrade,
+                            "use_standard_naming": use_standard_naming,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "extra_options": extra_options,
                             "output": outputs[index],
+                            "multi_namespace_mode": multi_namespace_mode,
                         },
                     )
                     for index, combo in enumerate(combos)
@@ -1125,8 +1180,10 @@ def deploy_airflow(
             output=None,
             executor=executor,
             upgrade=upgrade,
+            use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
+            multi_namespace_mode=multi_namespace_mode,
         )
         if return_code == 0:
             get_console().print(
@@ -1217,10 +1274,7 @@ def _logs(python: str, kubernetes_version: str):
 def logs(python: str, kubernetes_version: str, all: bool):
     if all:
         clusters = list(K8S_CLUSTERS_PATH.iterdir())
-        if len(clusters) == 0:
-            get_console().print("\n[warning]No clusters.\n")
-            sys.exit(1)
-        else:
+        if clusters:
             get_console().print("[info]\nDumping cluster logs:\n")
             for cluster_name in clusters:
                 name = cluster_name.name
@@ -1229,6 +1283,9 @@ def logs(python: str, kubernetes_version: str, all: bool):
                     get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
                     continue
                 _logs(python=found_python, kubernetes_version=found_kubernetes_version)
+        else:
+            get_console().print("\n[warning]No clusters.\n")
+            sys.exit(1)
     else:
         _logs(python=python, kubernetes_version=kubernetes_version)
 
@@ -1261,7 +1318,7 @@ def shell(
     make_sure_kubernetes_tools_are_installed()
     env = get_k8s_env(python=python, kubernetes_version=kubernetes_version, executor=executor)
     get_console().print("\n[info]Entering interactive k8s shell.\n")
-    shell_binary = env["SHELL"]
+    shell_binary = env.get("SHELL", "bash")
     extra_args: list[str] = []
     if shell_binary.endswith("zsh"):
         extra_args.append("--no-rcs")
@@ -1410,6 +1467,7 @@ def _run_complete_tests(
     upgrade: bool,
     wait_time_in_seconds: int,
     force_recreate_cluster: bool,
+    use_standard_naming: bool,
     num_tries: int,
     extra_options: tuple[str, ...] | None,
     test_args: tuple[str, ...],
@@ -1467,8 +1525,10 @@ def _run_complete_tests(
             output=output,
             executor=executor,
             upgrade=False,
+            use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
+            multi_namespace_mode=True,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1496,8 +1556,10 @@ def _run_complete_tests(
                 output=output,
                 executor=executor,
                 upgrade=True,
+                use_standard_naming=use_standard_naming,
                 wait_time_in_seconds=wait_time_in_seconds,
                 extra_options=extra_options,
+                multi_namespace_mode=True,
             )
             if returncode != 0:
                 _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1543,6 +1605,7 @@ def _run_complete_tests(
 @option_skip_cleanup
 @option_debug_resources
 @option_include_success_outputs
+@option_use_standard_naming
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1563,6 +1626,7 @@ def run_complete_tests(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
+    use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
     test_args: tuple[str, ...],
@@ -1598,6 +1662,7 @@ def run_complete_tests(
                             "upgrade": upgrade,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "force_recreate_cluster": force_recreate_cluster,
+                            "use_standard_naming": use_standard_naming,
                             "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
                             "extra_options": None,
                             "test_args": pytest_args,
@@ -1623,6 +1688,7 @@ def run_complete_tests(
             upgrade=upgrade,
             wait_time_in_seconds=wait_time_in_seconds,
             force_recreate_cluster=force_recreate_cluster,
+            use_standard_naming=use_standard_naming,
             num_tries=1,
             extra_options=None,
             test_args=test_args,

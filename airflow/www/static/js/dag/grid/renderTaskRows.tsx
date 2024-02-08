@@ -122,20 +122,20 @@ const Row = (props: RowProps) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const isOpen = openGroupIds.some((g) => g === task.label);
+  const isOpen = openGroupIds.some((g) => g === task.id);
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(() => {
-    if (isGroup && task.label) {
+    if (isGroup && task.id) {
       let newGroupIds = [];
       if (!isOpen) {
-        newGroupIds = [...openGroupIds, task.label];
+        newGroupIds = [...openGroupIds, task.id];
       } else {
-        newGroupIds = openGroupIds.filter((g) => g !== task.label);
+        newGroupIds = openGroupIds.filter((g) => g !== task.id);
       }
       onToggleGroups(newGroupIds);
     }
-  }, [isGroup, isOpen, task.label, openGroupIds, onToggleGroups]);
+  }, [isGroup, isOpen, task.id, openGroupIds, onToggleGroups]);
 
   // check if the group's parents are all open, if not, return null
   if (level !== openParentCount) return null;
@@ -146,6 +146,8 @@ const Row = (props: RowProps) => {
         bg={isSelected ? "blue.100" : "inherit"}
         borderBottomWidth={1}
         borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
+        borderRightWidth="16px"
+        borderRightColor={isSelected ? "blue.100" : "transparent"}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"
@@ -168,6 +170,7 @@ const Row = (props: RowProps) => {
               isGroup={isGroup}
               isMapped={task.isMapped && !isParentMapped}
               label={task.label || task.id || ""}
+              id={task.id || ""}
               isOpen={isOpen}
               level={level}
             />

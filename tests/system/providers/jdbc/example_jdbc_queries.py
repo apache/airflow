@@ -41,7 +41,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     run_this_last = EmptyOperator(task_id="run_this_last")
 
     # [START howto_operator_jdbc_template]

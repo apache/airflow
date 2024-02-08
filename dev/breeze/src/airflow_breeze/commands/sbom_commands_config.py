@@ -20,7 +20,8 @@ SBOM_COMMANDS: dict[str, str | list[str]] = {
     "name": "SBOM commands",
     "commands": [
         "update-sbom-information",
-        "generate-provider-requirements",
+        "build-all-airflow-images",
+        "generate-providers-requirements",
     ],
 }
 
@@ -29,10 +30,11 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Update SBOM information flags",
             "options": [
-                "--airflow-site-dir",
+                "--airflow-site-directory",
                 "--airflow-version",
                 "--python",
                 "--include-provider-dependencies",
+                "--package-filter",
                 "--force",
             ],
         },
@@ -47,14 +49,42 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze sbom generate-provider-requirements": [
+    "breeze sbom build-all-airflow-images": [
+        {
+            "name": "Generate all airflow images flags",
+            "options": [
+                "--python",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+    ],
+    "breeze sbom generate-providers-requirements": [
         {
             "name": "Generate provider requirements flags",
             "options": [
-                "--airflow-version",
                 "--python",
                 "--provider-id",
                 "--provider-version",
+                "--force",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
     ],

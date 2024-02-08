@@ -49,7 +49,7 @@ class DateTimeTrigger(BaseTrigger):
 
     async def run(self) -> TriggerEvent:
         """
-        Simple time delay loop until the relevant time is met.
+        Loop until the relevant time is met.
 
         We do have a two-phase delay to save some cycles, but sleeping is so
         cheap anyway that it's pretty loose. We also don't just sleep for

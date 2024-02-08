@@ -23,6 +23,199 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.12.0 (2024-02-11)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The helm chart is now using a newer version of ``bitnami/postgresql`` dependency (#34817)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The version of ``bitnami/postgresql`` subchart upgraded from ``12.10.0`` to ``13.2.24``.
+The version of ``PostgreSQL`` binaries upgraded from ``11`` to ``16.1.0``.
+
+The change requires existing ``bitnami/postgresql`` subchart users to perform manual major version upgrade using ``pg_dumpall`` or ``pg_upgrade``.
+
+As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
+
+Default Airflow image is updated to ``2.8.1`` (#36907)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.8.1``, previously it was ``2.7.1``.
+
+Default PgBouncer and PgBouncer Exporter images have been updated (#36898)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The PgBouncer and PgBouncer Exporter images are based on newer software/os.
+
+  * ``pgbouncer``: 1.21.0 based on alpine 3.14 (``airflow-pgbouncer-2024.01.19-1.21.0``)
+  * ``pgbouncer-exporter``: 0.16.0 based on alpine 3.19 (``apache/airflow:airflow-pgbouncer-exporter-2024.01.19-0.16.0``)
+
+Default StatsD image is updated to ``v0.26.0`` (#37187)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default StatsD image that is used with the Chart is now ``v0.26.0``, previously it was ``v0.22.8``.
+
+Default Redis image is updated to ``7-bookworm`` (#37187)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Redis image that is used with the Chart is now ``7-bookworm``, previously it was ``7-bullseye``.
+
+New Features
+^^^^^^^^^^^^
+
+- Enable native HPA for Airflow Workers (#36174)
+- Add init container + sidecar support for Airflow Kerberos (#35548)
+- Support MySQL backend as KEDA trigger (#36167)
+
+Improvements
+^^^^^^^^^^^^
+
+- Improve PriorityClass to improve debuggability (#36365)
+- Add ``securityContexts`` in dag processors log groomer sidecar (#34499)
+- Add support for ``securityContexts`` in dag processors wait-for-migrations container (#35593)
+- Add templating for PVC ``storageClassName`` (#35581)
+- Add ``volumeClaimTemplate`` for worker (#34986)
+- Add support for ``priorityClassName`` on Redis pods (#34879)
+- Configurable mount path for DAGs volume (#35083)
+- Add support for custom ``emptyDir`` config (#34837)
+- Added ability to enable/disable scheduler and webserver  (#36991)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix StatsD host in Airflow config (#35679)
+- Set ``AIRFLOW_HOME`` env var with ``airflowHome`` value (#34839)
+- Safer worker pod annotations (#35309)
+- Set worker ``safeToEvict`` properly (#35130)
+- Fix Redis broker URL with ``useStandardNaming`` (#34825)
+- Fix metadata DB & port in KEDA connection when ``usePgbouncer`` is false (#34741)
+- Fix PgBouncer connection with ``useStandardNaming`` (#34787)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Add docs about extending the Airflow Helm chart (#36331)
+- Add comment for Elasticsearch connection scheme (#35588)
+- Add notes about Virtualenvs preventing the need for custom images (#35306)
+
+Misc
+^^^^
+
+- Default Airflow version to 2.8.1 (#36907)
+- Support git-sync v4 (#34731)
+- Upgrade ``bitnami/postgresql`` subchart to ``13.2.24`` (#36156)
+- Change git sync container indent to 4 (#35824)
+- Remove K8S 1.24 support (#35214)
+- Rebuild ``pgbouncer`` and ``pgbouncer-exporter`` images with newer versions (#36898)
+- Update ``statsd`` and ``redis`` chart images (#37187)
+
+Airflow Helm Chart 1.11.0 (2023-10-02)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Support naming customization on helm chart resources, some resources may be renamed during upgrade (#31066)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+This is a new opt-in switch ``useStandardNaming``, for backwards compatibility, to leverage the standard naming convention, which allows full use of ``fullnameOverride`` and ``nameOverride`` in all resources.
+
+The following resources will be renamed using default of ``useStandardNaming=false`` when upgrading to 1.11.0 or a higher version.
+
+- ConfigMap ``{release}-airflow-config`` to ``{release}-config``
+- Secret ``{release}-airflow-metadata`` to ``{release}-metadata``
+- Secret ``{release}-airflow-result-backend`` to ``{release}-result-backend``
+- Ingress ``{release}-airflow-ingress`` to ``{release}-ingress``
+
+For existing installations, all your resources will be recreated with a new name and Helm will delete the previous resources.
+
+This won't delete existing PVCs for logs used by StatefulSet/Deployments, but it will recreate them with brand new PVCs.
+If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
+deployment. Depending on what storage backend/class you're using this procedure may vary. If you don't mind starting
+with fresh logs/redis volumes, you can just delete the old PVCs that will be names, for example:
+
+.. code-block:: bash
+
+    kubectl delete pvc -n airflow logs-gta-triggerer-0
+    kubectl delete pvc -n airflow logs-gta-worker-0
+    kubectl delete pvc -n airflow redis-db-gta-redis-0
+
+If you do not change ``useStandardNaming`` or ``fullnameOverride`` after upgrade, you can proceed as usual and no unexpected behaviours will be presented.
+
+``bitnami/postgresql`` subchart updated to ``12.10.0`` (#33747)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The PostgreSQL subchart that is used with the Chart is now ``12.10.0``, previously it was ``12.1.9``.
+
+Default git-sync image is updated to ``3.6.9`` (#33748)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default git-sync image that is used with the Chart is now ``3.6.9``, previously it was ``3.6.3``.
+
+Default Airflow image is updated to ``2.7.1`` (#34186)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.7.1``, previously it was ``2.6.2``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add support for scheduler name to PODs templates (#33843)
+- Support KEDA scaling for triggerer (#32302)
+- Add support for container lifecycle hooks (#32349, #34677)
+- Support naming customization on helm chart resources (#31066)
+- Adding ``startupProbe`` to scheduler and webserver (#33107)
+- Allow disabling token mounts using ``automountServiceAccountToken`` (#32808)
+- Add support for defining custom priority classes (#31615)
+- Add support for ``runtimeClassName`` (#31868)
+- Add support for custom query in workers KEDA trigger (#32308)
+
+Improvements
+^^^^^^^^^^^^
+
+- Add ``containerSecurityContext`` for cleanup job (#34351)
+- Add existing secret support for PGBouncer metrics exporter (#32724)
+- Allow templating in webserver ingress hostnames (#33142)
+- Allow templating in flower ingress hostnames (#33363)
+- Add configmap annotations to StatsD and webserver (#33340)
+- Add pod security context to PgBouncer (#32662)
+- Add an option to use a direct DB connection in KEDA when PgBouncer is enabled (#32608)
+- Allow templating in cleanup.schedule (#32570)
+- Template dag processor ``waitformigration`` containers ``extraVolumeMounts`` (#32100)
+- Ability to inject extra containers into PgBouncer (#33686)
+- Allowing ability to add custom env into PgBouncer container (#33438)
+- Add support for env variables in the StatsD container (#33175)
+
+Bug Fixes
+^^^^^^^^^
+
+- Add ``airflow db migrate`` command to database migration job (#34178)
+- Pass ``workers.terminationGracePeriodSeconds`` into KubeExecutor pod template (#33514)
+- CeleryExecutor namespace depends on Airflow version (#32753)
+- Fix dag processor not including webserver config volume (#32644)
+- Dag processor liveness probe include ``--local`` and ``--job-type`` args (#32426)
+- Revising flower_url_prefix considering default value (#33134)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Add more explicit "embedded postgres" exclusion for production (#33034)
+- Update git-sync description (#32181)
+
+Misc
+^^^^
+
+- Default Airflow version to 2.7.1 (#34186)
+- Update PostgreSQL subchart to 12.10.0 (#33747)
+- Update git-sync to 3.6.9 (#33748)
+- Remove unnecessary loops to load env from helm values (#33506)
+- Replace ``common.tplvalues.render`` with ``tpl`` in ingress template files (#33384)
+- Remove K8S 1.23 support (#32899)
+- Fix chart named template comments (#32681)
+- Remove outdated comment from chart values in the workers KEDA conf section (#32300)
+- Remove unnecessary ``or`` function in template files (#34415)
 
 Airflow Helm Chart 1.10.0 (2023-06-26)
 --------------------------------------
@@ -325,7 +518,7 @@ Flower disabled by default
 """"""""""""""""""""""""""
 
 Flower is no longer enabled by default when using CeleryExecutor. If you'd like to deploy it, set
-``flower.enabed`` to true in your values file.
+``flower.enabled`` to true in your values file.
 
 New Features
 ^^^^^^^^^^^^

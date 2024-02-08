@@ -24,7 +24,9 @@ import pytest
 
 import airflow
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
@@ -32,6 +34,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

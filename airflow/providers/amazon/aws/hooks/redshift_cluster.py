@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, Sequence
 
 import botocore.exceptions
-from botocore.exceptions import ClientError
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook, AwsBaseHook
@@ -70,17 +69,14 @@ class RedshiftHook(AwsBaseHook):
             for the cluster that is being created.
         :param params: Remaining AWS Create cluster API params.
         """
-        try:
-            response = self.get_conn().create_cluster(
-                ClusterIdentifier=cluster_identifier,
-                NodeType=node_type,
-                MasterUsername=master_username,
-                MasterUserPassword=master_user_password,
-                **params,
-            )
-            return response
-        except ClientError as e:
-            raise e
+        response = self.get_conn().create_cluster(
+            ClusterIdentifier=cluster_identifier,
+            NodeType=node_type,
+            MasterUsername=master_username,
+            MasterUserPassword=master_user_password,
+            **params,
+        )
+        return response
 
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier: str) -> str:
@@ -199,16 +195,17 @@ class RedshiftHook(AwsBaseHook):
             return None
 
 
+@deprecated(
+    reason=(
+        "airflow.providers.amazon.aws.hook.base_aws.RedshiftAsyncHook "
+        "has been deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class RedshiftAsyncHook(AwsBaseAsyncHook):
     """Interact with AWS Redshift using aiobotocore library."""
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "airflow.providers.amazon.aws.hook.base_aws.RedshiftAsyncHook has been deprecated and "
-            "will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
 

@@ -24,7 +24,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Release.Name }}-cleanup-rolebinding
+  name: {{ include "airflow.fullname" . }}-cleanup-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}
@@ -36,7 +36,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ .Release.Name }}-cleanup-role
+  name: {{ include "airflow.fullname" . }}-cleanup-role
 subjects:
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}

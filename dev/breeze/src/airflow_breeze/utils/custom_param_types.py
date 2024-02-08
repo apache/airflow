@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import re
 from dataclasses import dataclass
-from re import match
 from typing import Any, Sequence
 
 import click
@@ -154,7 +155,8 @@ class CacheableChoice(click.Choice):
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:
                 new_value = value
-                write_to_cache_file(param_name, new_value, check_allowed_values=False)
+                if not os.environ.get("SKIP_SAVING_CHOICES"):
+                    write_to_cache_file(param_name, new_value, check_allowed_values=False)
             else:
                 new_value = allowed_values[0]
                 get_console().print(
@@ -191,6 +193,31 @@ class CacheableChoice(click.Choice):
         super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
+class MySQLBackendVersionType(CacheableChoice):
+    def convert(self, value, param, ctx):
+        if isinstance(value, CacheableDefault):
+            param_name = param.envvar if param.envvar else param.name.upper()
+            mysql_version = read_from_cache_file(param_name)
+            if mysql_version == "8":
+                value = "8.0"
+                get_console().print(
+                    f"\n[warning]Found outdated cached value {mysql_version} for parameter {param.name}. "
+                    f"Replaced by {value}"
+                )
+                write_to_cache_file(param_name, "8.0", check_allowed_values=False)
+        else:
+            if value == "8":
+                value = "8.0"
+                get_console().print(
+                    f"\n[warning]Provided outdated value {8} for parameter {param.name}. "
+                    f"Will use {value} instead"
+                )
+        return super().convert(value, param, ctx)
+
+
+ALLOWED_VCS_PROTOCOLS = ("git+file://", "git+https://", "git+ssh://", "git+http://", "git+git://", "git://")
+
+
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 
@@ -199,6 +226,8 @@ class UseAirflowVersionType(BetterChoice):
         self.all_choices = [*self.choices, "<airflow_version>"]
 
     def convert(self, value, param, ctx):
-        if match(r"^\d*\.\d*\.\d*\S*$", value):
+        if re.match(r"^\d*\.\d*\.\d*\S*$", value):
+            return value
+        if value.startswith(ALLOWED_VCS_PROTOCOLS):
             return value
         return super().convert(value, param, ctx)
