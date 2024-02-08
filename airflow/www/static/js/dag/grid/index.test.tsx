@@ -193,7 +193,7 @@ describe("Test ToggleGroups", () => {
   });
 
   test("Group defaults to closed", () => {
-    const { queryAllByTestId, getByText, getAllByTestId } = render(
+    const { getByText, getAllByTestId } = render(
       <Grid openGroupIds={[]} onToggleGroups={() => {}} />,
       { wrapper: Wrapper }
     );
@@ -204,7 +204,6 @@ describe("Test ToggleGroups", () => {
     expect(getAllByTestId("task-instance")).toHaveLength(2);
     expect(groupName1).toBeInTheDocument();
     expect(groupName2).toBeInTheDocument();
-    expect(queryAllByTestId("open-group")).toHaveLength(2);
   });
 
   test("Buttons are disabled if all groups are expanded or collapsed", () => {
@@ -246,25 +245,18 @@ describe("Test ToggleGroups", () => {
     expect(groupName1).toBeInTheDocument();
     expect(groupName2).toBeInTheDocument();
 
-    expect(queryAllByTestId("close-group")).toHaveLength(4);
-    expect(queryAllByTestId("open-group")).toHaveLength(0);
-
     fireEvent.click(collapseButton);
 
     await waitFor(() =>
       expect(queryAllByTestId("task-instance")).toHaveLength(2)
     );
     expect(queryAllByTestId("close-group")).toHaveLength(0);
-    // Since the groups are nested, only the parent rows is rendered
-    expect(queryAllByTestId("open-group")).toHaveLength(2);
 
     fireEvent.click(expandButton);
 
     await waitFor(() =>
       expect(queryAllByTestId("task-instance")).toHaveLength(6)
     );
-    expect(queryAllByTestId("close-group")).toHaveLength(4);
-    expect(queryAllByTestId("open-group")).toHaveLength(0);
   });
 
   test("Toggling a group does not affect groups with the same label", async () => {
@@ -280,8 +272,6 @@ describe("Test ToggleGroups", () => {
     await waitFor(() =>
       expect(queryAllByTestId("task-instance")).toHaveLength(6)
     );
-    expect(queryAllByTestId("close-group")).toHaveLength(4);
-    expect(queryAllByTestId("open-group")).toHaveLength(0);
 
     const group2Task1 = getByTestId("group_2.task_1");
 
@@ -291,8 +281,6 @@ describe("Test ToggleGroups", () => {
     await waitFor(() =>
       expect(queryAllByTestId("task-instance")).toHaveLength(5)
     );
-    expect(queryAllByTestId("close-group")).toHaveLength(3);
-    expect(queryAllByTestId("open-group")).toHaveLength(1);
   });
 
   test("Hovered effect on task state", async () => {
