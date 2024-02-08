@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 
 from airflow.jobs.job import Job
 from airflow.models import (
@@ -173,9 +173,9 @@ def clear_db_callbacks(*, synchronize_session: SyncSessionTypeDef = False):
 
 
 def set_default_pool_slots(slots):
-    with _create_session() as session:
+    with create_session() as session:
         default_pool = Pool.get_default_pool(session)
-        default_pool.slots = slots
+        session.execute(update(Pool).where(Pool.id == default_pool.id).values(slots=slots))
 
 
 def clear_rendered_ti_fields(*, synchronize_session: SyncSessionTypeDef = False):

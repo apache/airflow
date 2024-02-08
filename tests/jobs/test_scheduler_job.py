@@ -30,7 +30,7 @@ from unittest.mock import MagicMock, patch
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 import airflow.example_dags
 from airflow import settings
@@ -199,6 +199,16 @@ class TestSchedulerJob:
 
         self.null_exec = None
         del self.dagbag
+
+    @staticmethod
+    def _clear_serialized_dag(dag_id: str):
+        stmt = (
+            delete(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == dag_id)
+            .execution_options(synchronize_session=False)
+        )
+        with create_session() as s:
+            s.execute(stmt)
 
     @pytest.mark.parametrize(
         "configs",
@@ -2810,7 +2820,7 @@ class TestSchedulerJob:
         )
 
     def test_verify_integrity_if_dag_not_changed(self, dag_maker):
-        clear_db_serialized_dags()  # cleanup serialized dags
+        self._clear_serialized_dag("test_verify_integrity_if_dag_not_changed")
         with dag_maker(dag_id="test_verify_integrity_if_dag_not_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
@@ -2854,7 +2864,7 @@ class TestSchedulerJob:
         session.close()
 
     def test_verify_integrity_if_dag_changed(self, dag_maker):
-        clear_db_serialized_dags()  # cleanup serialized dags
+        self._clear_serialized_dag("test_verify_integrity_if_dag_not_changed")
         with dag_maker(dag_id="test_verify_integrity_if_dag_changed") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
@@ -2910,7 +2920,7 @@ class TestSchedulerJob:
         session.close()
 
     def test_verify_integrity_if_dag_disappeared(self, dag_maker, caplog):
-        clear_db_serialized_dags()  # cleanup serialized dags
+        self._clear_serialized_dag("test_verify_integrity_if_dag_disappeared")
         with dag_maker(dag_id="test_verify_integrity_if_dag_disappeared") as dag:
             BashOperator(task_id="dummy", bash_command="echo hi")
 
