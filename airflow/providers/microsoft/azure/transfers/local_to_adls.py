@@ -108,8 +108,8 @@ class DataToADLSOperator(BaseOperator):
 
     :param file_system_name: Name of the file system or instance of FileSystemProperties.
     :param file_name: Name of the file which needs to be created in the file system.
-    :param data: Number of threads to use. If None, uses the number of cores.
-    :param length: Number of threads to use. If None, uses the number of cores.
+    :param data: The data that will be uploaded
+    :param length: Size of the data in bytes (optional).
     :param overwrite: Whether to forcibly overwrite existing files/directories.
             If False and remote path is a directory, will quit regardless if any files
             would be overwritten or not. If True, only matching filenames are actually
