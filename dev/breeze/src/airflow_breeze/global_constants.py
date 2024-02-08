@@ -50,7 +50,7 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
+TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka", "qdrant"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
@@ -365,15 +365,7 @@ def get_airflow_extras():
 
 
 # Initialize integrations
-AVAILABLE_INTEGRATIONS = [
-    "cassandra",
-    "kerberos",
-    "mongo",
-    "pinot",
-    "celery",
-    "statsd",
-    "trino",
-]
+AVAILABLE_INTEGRATIONS = ["cassandra", "kerberos", "mongo", "pinot", "celery", "statsd", "trino", "qdrant"]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
@@ -468,12 +460,12 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.6.0",
-        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab"]),
+        "remove-providers": _exclusion(["openlineage", "common.io", "cohere", "fab", "qdrant"]),
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.6.0",
-        "remove-providers": _exclusion(["openlineage", "common.io", "fab"]),
+        "remove-providers": _exclusion(["openlineage", "common.io", "fab", "qdrant"]),
     },
     {
         "python-version": "3.8",
