@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, Iterable, overload
 from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
@@ -247,7 +247,7 @@ class MongoHook(BaseHook):
         return collection.insert_one(doc, **kwargs)
 
     def insert_many(
-        self, mongo_collection: str, docs: dict, mongo_db: str | None = None, **kwargs
+        self, mongo_collection: str, docs: Iterable[dict], mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.InsertManyResult:
         """
         Inserts many docs into a mongo collection.
