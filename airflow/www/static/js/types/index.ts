@@ -165,6 +165,7 @@ export interface EdgeData {
     layoutOptions?: LayoutOptions;
     isSetupTeardown?: boolean;
     parentNode?: string;
+    isZoomedOut?: boolean;
   };
 }
 

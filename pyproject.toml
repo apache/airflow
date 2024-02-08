@@ -295,7 +295,7 @@ devel-mypy = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.2.0",
+    "mypy==1.8.0",
     "types-Deprecated",
     "types-Markdown",
     "types-PyMySQL",
@@ -678,7 +678,7 @@ exasol = [ # source: airflow/providers/exasol/provider.yaml
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.10",
+  "flask-appbuilder==4.3.11",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
@@ -1250,11 +1250,13 @@ artifacts = [
     "/airflow/git_version"
 ]
 
-
+## black settings ##
 [tool.black]
 line-length = 110
 target-version = ['py38', 'py39', 'py310', 'py311']
 
+
+## ruff settings ##
 [tool.ruff]
 target-version = "py38"
 line-length = 110
@@ -1304,42 +1306,8 @@ ignore = [
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
 ]
 
-
 [tool.ruff.format]
 docstring-code-format = true
-
-[tool.pytest.ini_options]
-# * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
-# * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
-# * And we focus on use native pytest capabilities rather than adopt another frameworks.
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
-norecursedirs = [
-    ".eggs",
-    "airflow",
-    "tests/dags_with_system_exit",
-    "tests/test_utils",
-    "tests/dags_corrupted",
-    "tests/dags",
-    "tests/system/providers/google/cloud/dataproc/resources",
-    "tests/system/providers/google/cloud/gcs/resources",
-]
-log_level = "INFO"
-filterwarnings = [
-    "error::pytest.PytestCollectionWarning",
-    "ignore::DeprecationWarning:flask_appbuilder.filemanager",
-    "ignore::DeprecationWarning:flask_appbuilder.widgets",
-    # https://github.com/dpgaspar/Flask-AppBuilder/pull/1940
-    "ignore::DeprecationWarning:flask_sqlalchemy",
-    # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
-    "ignore::DeprecationWarning:apispec.utils",
-]
-python_files = [
-    "test_*.py",
-    "example_*.py",
-]
-testpaths = [
-    "tests",
-]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
@@ -1380,6 +1348,11 @@ combine-as-imports = true
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 
+[tool.ruff.lint.flake8-tidy-imports]
+# Ban certain modules from being imported at module level, instead requiring
+# that they're imported lazily (e.g., within a function definition).
+banned-module-level-imports = ["numpy", "pandas"]
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
@@ -1387,14 +1360,45 @@ combine-as-imports = true
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
-[tool.ruff.flake8-tidy-imports]
-# Ban certain modules from being imported at module level, instead requiring
-# that they're imported lazily (e.g., within a function definition).
-banned-module-level-imports = ["numpy", "pandas"]
-
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
 
+## pytest settings ##
+[tool.pytest.ini_options]
+# * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
+# * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
+# * And we focus on use native pytest capabilities rather than adopt another frameworks.
+addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
+norecursedirs = [
+    ".eggs",
+    "airflow",
+    "tests/dags_with_system_exit",
+    "tests/test_utils",
+    "tests/dags_corrupted",
+    "tests/dags",
+    "tests/system/providers/google/cloud/dataproc/resources",
+    "tests/system/providers/google/cloud/gcs/resources",
+]
+log_level = "INFO"
+filterwarnings = [
+    "error::pytest.PytestCollectionWarning",
+    "ignore::DeprecationWarning:flask_appbuilder.filemanager",
+    "ignore::DeprecationWarning:flask_appbuilder.widgets",
+    # https://github.com/dpgaspar/Flask-AppBuilder/pull/1940
+    "ignore::DeprecationWarning:flask_sqlalchemy",
+    # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
+    "ignore::DeprecationWarning:apispec.utils",
+]
+python_files = [
+    "test_*.py",
+    "example_*.py",
+]
+testpaths = [
+    "tests",
+]
+
+
+## coverage.py settings ##
 [tool.coverage.run]
 branch = true
 relative_files = true
@@ -1421,6 +1425,8 @@ exclude_also = [
     "if (typing(_extensions)?\\.)?TYPE_CHECKING:"
 ]
 
+
+## mypy settings ##
 [tool.mypy]
 ignore_missing_imports = true
 no_implicit_optional = true

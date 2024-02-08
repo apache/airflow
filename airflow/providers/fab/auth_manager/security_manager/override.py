@@ -1845,6 +1845,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
 
+    def get_oid_identity_url(self, provider_name: str) -> str | None:
+        """Returns the OIDC identity provider URL."""
+        for provider in self.openid_providers:
+            if provider.get("name") == provider_name:
+                return provider.get("url")
+        return None
+
     @staticmethod
     def get_user_roles(user=None):
         """
@@ -2169,10 +2176,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             data = me.json()
             log.debug("User info from Okta: %s", data)
             return {
-                "username": "okta_" + data.get("sub", ""),
+                "username": f"{provider}_{data['sub']}",
                 "first_name": data.get("given_name", ""),
                 "last_name": data.get("family_name", ""),
-                "email": data.get("email", ""),
+                "email": data["email"],
+                "role_keys": data.get("groups", []),
+            }
+        # for Auth0
+        if provider == "auth0":
+            data = self.appbuilder.sm.oauth_remotes[provider].userinfo()
+            log.debug("User info from Auth0: %s", data)
+            return {
+                "username": f"{provider}_{data['sub']}",
+                "first_name": data.get("given_name", ""),
+                "last_name": data.get("family_name", ""),
+                "email": data["email"],
                 "role_keys": data.get("groups", []),
             }
         # for Keycloak

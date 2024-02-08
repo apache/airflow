@@ -38,7 +38,7 @@ runs:
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
     - name: "Upload constraint artifacts"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: source-constraints
         path: ./files/constraints-*/constraints-*.txt
