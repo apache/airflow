@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
+from sqlalchemy.engine import Engine, Dialect
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -38,22 +40,36 @@ class NonDbApiHook(BaseHook):
 class TestDbApiHook:
     def setup_method(self):
         self.cur = mock.MagicMock(
-            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+            rowcount=0, spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"]
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
+        self.conn.schema.return_value = "test_schema"
         conn = self.conn
 
-        class UnitTestDbApiHook(DbApiHook):
+        class DbApiHookMock(DbApiHook):
             conn_name_attr = "test_conn_id"
             log = mock.MagicMock()
+
+            @classmethod
+            def get_connection(cls, conn_id: str) -> Connection:
+                return conn
 
             def get_conn(self):
                 return conn
 
-        self.db_hook = UnitTestDbApiHook()
-        self.db_hook_no_log_sql = UnitTestDbApiHook(log_sql=False)
-        self.db_hook_schema_override = UnitTestDbApiHook(schema="schema-override")
+        self.db_hook = DbApiHookMock()
+        self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
+        self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
+
+    @staticmethod
+    def create_engine(dialect_name: str = "sqlite") -> mock.MagicMock:
+        # Mocking create_engine to return a mock engine
+        mock_dialect = mock.MagicMock(spec=Dialect)
+        mock_dialect.name = dialect_name
+        mock_engine = mock.MagicMock(spec=Engine)
+        mock_engine.dialect = mock_dialect
+        return mock.MagicMock(return_value=mock_engine)
 
     def test_get_records(self):
         statement = "SQL"
@@ -108,20 +124,22 @@ class TestDbApiHook:
             self.cur.execute.assert_any_call(sql, row)
 
     def test_insert_rows_replace(self):
-        table = "table"
-        rows = [("hello",), ("world",)]
+        # Patching create_engine in the module where it is used
+        with patch(f"{DbApiHook.__module__}.create_engine", self.create_engine()):
+            table = "table"
+            rows = [("hello",), ("world",)]
 
-        self.db_hook.insert_rows(table, rows, replace=True)
+            self.db_hook.insert_rows(table, rows, replace=True)
 
-        assert self.conn.close.call_count == 1
-        assert self.cur.close.call_count == 1
+            assert self.conn.close.call_count == 1
+            assert self.cur.close.call_count == 1
 
-        commit_count = 2  # The first and last commit
-        assert commit_count == self.conn.commit.call_count
+            commit_count = 2  # The first and last commit
+            assert commit_count == self.conn.commit.call_count
 
-        sql = f"REPLACE INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+            sql = f"REPLACE INTO {table}  VALUES (%s)"
+            for row in rows:
+                self.cur.execute.assert_any_call(sql, row)
 
     def test_insert_rows_target_fields(self):
         table = "table"
@@ -156,6 +174,34 @@ class TestDbApiHook:
         sql = f"INSERT INTO {table}  VALUES (%s)"
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
+
+    def test_insert_rows_executemany(self):
+        table = "table"
+        rows = [("hello",), ("world",)]
+
+        self.db_hook.insert_rows(table, rows, executemany=True)
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+        self.cur.executemany.assert_any_call(sql, rows)
+
+    def test_insert_rows_replace_executemany_hana_dialect(self):
+        # Patching create_engine in the module where it is used
+        with patch(f"{DbApiHook.__module__}.create_engine", self.create_engine(dialect_name="hana")):
+            table = "table"
+            rows = [("hello",), ("world",)]
+
+            self.db_hook.insert_rows(table, rows, replace=True, executemany=True)
+
+            assert self.conn.close.call_count == 1
+            assert self.cur.close.call_count == 1
+            assert self.conn.commit.call_count == 2
+
+            sql = f"UPSERT {table}  VALUES (%s) WITH PRIMARY KEY"
+            self.cur.executemany.assert_any_call(sql, rows)
 
     def test_get_uri_schema_not_none(self):
         self.db_hook.get_connection = mock.MagicMock(

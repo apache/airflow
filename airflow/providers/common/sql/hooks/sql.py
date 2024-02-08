@@ -37,6 +37,7 @@ from urllib.parse import urlparse
 
 import sqlparse
 from deprecated import deprecated
+from more_itertools import chunked
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -47,7 +48,6 @@ if TYPE_CHECKING:
 
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
 
 T = TypeVar("T")
 
@@ -486,17 +486,17 @@ class DbApiHook(BaseHook):
         """
         Generate the INSERT SQL statement.
 
-        The REPLACE variant is specific to MySQL syntax.
+        The REPLACE variant is specific to MySQL syntax, the UPSERT variant is specific to SAP Hana syntax
 
         :param table: Name of the target table
         :param values: The row to insert into the table
         :param target_fields: The names of the columns to fill in the table
-        :param replace: Whether to replace instead of insert
-        :return: The generated INSERT or REPLACE SQL statement
+        :param replace: Whether to replace/upsert instead of insert
+        :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
         placeholders = [
-            self.placeholder,
-        ] * len(values)
+                           self.placeholder,
+                       ] * len(values)
 
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -504,14 +504,18 @@ class DbApiHook(BaseHook):
         else:
             target_fields = ""
 
-        if not replace:
-            sql = "INSERT INTO "
-        else:
-            sql = "REPLACE INTO "
-        sql += f"{table} {target_fields} VALUES ({','.join(placeholders)})"
-        return sql
+        sql = f"{table} {target_fields} VALUES ({','.join(placeholders)})"
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
+        if not replace:
+            return f"INSERT INTO {sql}"
+
+        if self.get_sqlalchemy_engine().dialect.name == "hana":
+            return f"UPSERT {sql} WITH PRIMARY KEY"
+
+        return f"REPLACE INTO {sql}"
+
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False,
+                    executemany=False, **kwargs):
         """Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
@@ -523,6 +527,8 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :param replace: Whether to replace instead of insert
+        :param executemany: Insert all rows at once in chunks defined by the commit_every parameter, only
+            works if all rows have same number of column names but leads to better performance
         """
         i = 0
         with closing(self.get_conn()) as conn:
@@ -532,19 +538,30 @@ class DbApiHook(BaseHook):
             conn.commit()
 
             with closing(conn.cursor()) as cur:
-                for i, row in enumerate(rows, 1):
-                    lst = []
-                    for cell in row:
-                        lst.append(self._serialize_cell(cell, conn))
-                    values = tuple(lst)
-                    sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
-                    self.log.debug("Generated sql: %s", sql)
-                    cur.execute(sql, values)
-                    if commit_every and i % commit_every == 0:
+                if executemany:
+                    for chunked_rows in chunked(rows, commit_every):
+                        values = list(map(lambda row: tuple(map(lambda cell: self._serialize_cell(cell, conn), row)), chunked_rows))
+                        sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                        self.log.debug("Generated sql: %s", sql)
+                        cur.fast_executemany = True
+                        cur.executemany(sql, values)
                         conn.commit()
-                        self.log.info("Loaded %s rows into %s so far", i, table)
+                        self.log.info("Loaded %s rows into %s so far", len(chunked_rows), table)
+                else:
+                    for i, row in enumerate(rows, 1):
+                        lst = []
+                        for cell in row:
+                            lst.append(self._serialize_cell(cell, conn))
+                        values = tuple(lst)
+                        sql = self._generate_insert_sql(table, values, target_fields, replace, **kwargs)
+                        self.log.debug("Generated sql: %s", sql)
+                        cur.execute(sql, values)
+                        if commit_every and i % commit_every == 0:
+                            conn.commit()
+                            self.log.info("Loaded %s rows into %s so far", i, table)
 
-            conn.commit()
+            if not executemany:
+                conn.commit()
         self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
 
     @staticmethod
