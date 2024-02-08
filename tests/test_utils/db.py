@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
+
 from sqlalchemy import delete, select
 
 from airflow.jobs.job import Job
@@ -85,8 +87,15 @@ DELETE_VARIABLE_STMT = delete(Variable)
 DELETE_XCOM_STMT = delete(XCom)
 
 
-def _run_statements(*statements, synchronize_session: SyncSessionTypeDef):
+@contextmanager
+def _create_session():
     with create_session() as session:
+        session.rollback()  # To isolate problems here with problems from elsewhere on the session object
+        yield session
+
+
+def _run_statements(*statements, synchronize_session: SyncSessionTypeDef):
+    with _create_session() as session:
         for stmt in statements:
             session.execute(stmt.execution_options(synchronize_session=synchronize_session))
 
@@ -122,7 +131,7 @@ def clear_db_dags(*, synchronize_session: SyncSessionTypeDef = False):
 
 
 def drop_tables_with_prefix(prefix):
-    with create_session() as session:
+    with _create_session() as session:
         metadata = reflect_tables(None, session)
         for table_name, table in metadata.tables.items():
             if table_name.startswith(prefix):
@@ -138,14 +147,14 @@ def clear_db_sla_miss(*, synchronize_session: SyncSessionTypeDef = False):
 
 
 def clear_db_pools(*, add_default_poll=True, synchronize_session: SyncSessionTypeDef = False):
-    with create_session() as session:
+    with _create_session() as session:
         session.execute(DELETE_POOL_STMT.execution_options(synchronize_session=synchronize_session))
         if add_default_poll:
             add_default_pool_if_not_exists(session)
 
 
 def clear_db_connections(add_default_connections_back=True, synchronize_session: SyncSessionTypeDef = False):
-    with create_session() as session:
+    with _create_session() as session:
         session.execute(DELETE_CONNECTION_STMT.execution_options(synchronize_session=synchronize_session))
         if add_default_connections_back:
             create_default_connections(session)
@@ -164,7 +173,7 @@ def clear_db_callbacks(*, synchronize_session: SyncSessionTypeDef = False):
 
 
 def set_default_pool_slots(slots):
-    with create_session() as session:
+    with _create_session() as session:
         default_pool = Pool.get_default_pool(session)
         default_pool.slots = slots
 
@@ -202,7 +211,7 @@ def clear_db_task_reschedule(*, synchronize_session: SyncSessionTypeDef = False)
 
 
 def clear_dag_specific_permissions(*, synchronize_session: SyncSessionTypeDef = False):
-    with create_session() as session:
+    with _create_session() as session:
         dag_resource_ids = tuple(
             session.scalars(select(Resource.id).where(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")))
         )
