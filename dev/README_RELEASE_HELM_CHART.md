@@ -208,7 +208,9 @@ https://helm.sh/docs/topics/provenance/. It can be used to verify integrity of t
 - Generate SHA512/ASC
 
 ```shell
-${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
+pushd ${AIRFLOW_REPO_ROOT}/dist
+${AIRFLOW_REPO_ROOT}/dev/sign.sh airflow-*.tgz airflow-*-source.tar.gz
+popd
 ```
 
 - Move the artifacts to ASF dev dist repo, Generate convenience `index.yaml` & Publish them
