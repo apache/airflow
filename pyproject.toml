@@ -873,6 +873,9 @@ presto = [ # source: airflow/providers/presto/provider.yaml
   "pandas>=1.2.5",
   "presto-python-client>=0.8.4",
 ]
+qdrant = [ # source: airflow/providers/qdrant/provider.yaml
+  "qdrant_client>=1.7.0",
+]
 redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",
 ]
@@ -1036,6 +1039,7 @@ all = [
     "apache-airflow[pinecone]",
     "apache-airflow[postgres]",
     "apache-airflow[presto]",
+    "apache-airflow[qdrant]",
     "apache-airflow[redis]",
     "apache-airflow[salesforce]",
     "apache-airflow[samba]",
@@ -1135,6 +1139,7 @@ devel-all = [
     "apache-airflow[pinecone]",
     "apache-airflow[postgres]",
     "apache-airflow[presto]",
+    "apache-airflow[qdrant]",
     "apache-airflow[redis]",
     "apache-airflow[salesforce]",
     "apache-airflow[samba]",
