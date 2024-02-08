@@ -211,7 +211,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.2"
+AIRFLOW_PIP_VERSION = "24.0"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -1238,12 +1238,12 @@ def run_publish_docs_in_parallel(
                 else:
                     skipped_entries.append(message)
 
-    if include_success_outputs:
-        get_console().print("[success]Packages published:")
-        for entry in success_entries:
-            get_console().print(f"[success]{entry}")
-        get_console().rule()
-    get_console().print("\n[warning]Packages skippeds:")
+    get_console().print("[blue]Summary:\n")
+    get_console().print("[success]Packages published:")
+    for entry in success_entries:
+        get_console().print(f"[success]{entry}")
+    get_console().rule()
+    get_console().print("\n[warning]Packages skipped:")
     for entry in skipped_entries:
         get_console().print(f"[warning]{entry}")
 
@@ -1325,11 +1325,11 @@ def publish_docs(
                 success_entries.append(message)
             else:
                 skipped_entries.append(message)
-        if include_success_outputs:
-            get_console().print("[success]Packages published:")
-            for entry in success_entries:
-                get_console().print(f"[success]{entry}")
-            get_console().rule()
+        get_console().print("[blue]Summary:\n")
+        get_console().print("[success]Packages published:")
+        for entry in success_entries:
+            get_console().print(f"[success]{entry}")
+        get_console().rule()
         get_console().print("\n[warning]Packages skipped:")
         for entry in skipped_entries:
             get_console().print(f"[warning]{entry}")
