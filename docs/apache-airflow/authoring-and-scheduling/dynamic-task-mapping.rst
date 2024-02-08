@@ -184,6 +184,7 @@ Consider the following example:
         context = get_current_context()
         context.update({"my_template": my_template})
 
+
     my_task.expand(my_template=["abc", "def"])
 
 In this example, the the tasks will be named "abc" and "def" in the Airflow UI instead of 0 and 1, respectively.
