@@ -48,7 +48,7 @@ ARG AIRFLOW_VERSION="2.8.1"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -502,7 +502,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3.2"
+            export AIRFLOW_PIP_VERSION="24.0"
         fi
     fi
 }
@@ -1184,7 +1184,7 @@ while true; do
   find "${DIRECTORY}"/logs \
     -type d -name 'lost+found' -prune -o \
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
-    xargs -0 rm -f
+    xargs -0 rm -f || true
 
   find "${DIRECTORY}"/logs -type d -empty -delete || true
 
@@ -1499,7 +1499,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 

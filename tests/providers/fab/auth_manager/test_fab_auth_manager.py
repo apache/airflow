@@ -400,7 +400,7 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_login(next_url="next_url")
-        mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
+        mock_url_for.assert_called_once_with("test_endpoint.login", next_url="next_url")
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
