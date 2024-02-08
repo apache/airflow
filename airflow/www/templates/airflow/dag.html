@@ -56,6 +56,7 @@
   <meta name="confirm_url" content="{{ url_for('Airflow.confirm') }}">
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="graph_data_url" content="{{ url_for('Airflow.graph_data') }}">
+  <meta name="task_instance_attributes_url" content="{{ url_for('Airflow.task_instance_attributes') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
@@ -79,6 +80,7 @@
   <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
   <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
   <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
+  <meta name="renderedTemplatesUrl" content="{{ url_for_asset('renderedTemplates.css') }}">
 
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">

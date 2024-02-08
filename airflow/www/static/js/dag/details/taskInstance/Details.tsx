@@ -18,7 +18,16 @@
  */
 
 import React from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Divider } from "@chakra-ui/react";
+import {
+  Text,
+  Flex,
+  Table,
+  Tbody,
+  Tr,
+  Td,
+  AccordionItem,
+  AccordionPanel,
+} from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
@@ -27,31 +36,21 @@ import { SimpleStatus } from "src/dag/StatusBox";
 import Time from "src/components/Time";
 import { ClipboardText } from "src/components/Clipboard";
 import type { Task, TaskInstance, TaskState } from "src/types";
-import useTaskInstance from "src/api/useTaskInstance";
-import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import AccordionHeader from "src/components/AccordionHeader";
 
 interface Props {
   instance: TaskInstance;
   group: Task;
-  dagId: string;
 }
 
-const Details = ({ instance, group, dagId }: Props) => {
+const Details = ({ instance, group }: Props) => {
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];
 
   const { taskId, runId, startDate, endDate, state, mappedStates, mapIndex } =
     instance;
 
-  const { isMapped, tooltip, operator, hasOutletDatasets, triggerRule } = group;
-
-  const { data: apiTI } = useTaskInstance({
-    dagId,
-    dagRunId: runId,
-    taskId,
-    mapIndex,
-    enabled: !isGroup && !isMapped,
-  });
+  const { isMapped, tooltip, operator, triggerRule } = group;
 
   const { totalTasks, childTaskMap } = getGroupAndMapSummary({
     group,
@@ -83,139 +82,111 @@ const Details = ({ instance, group, dagId }: Props) => {
     state &&
     ["success", "failed", "upstream_failed", "skipped"].includes(state);
   const isOverall = (isMapped || isGroup) && "Overall ";
-  return (
-    <Flex flexWrap="wrap" justifyContent="space-between">
-      {state === "deferred" && (
-        <>
-          <Text as="strong">Triggerer info</Text>
-          <Divider my={2} />
-          <Table variant="striped" mb={3}>
-            <Tbody>
-              <Tr>
-                <Td>Trigger class</Td>
-                <Td>{`${apiTI?.trigger?.classpath}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Trigger creation time</Td>
-                <Td>{`${apiTI?.trigger?.createdDate}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Assigned triggerer</Td>
-                <Td>{`${apiTI?.triggererJob?.hostname}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Latest triggerer heartbeat</Td>
-                <Td>{`${apiTI?.triggererJob?.latestHeartbeat}`}</Td>
-              </Tr>
-            </Tbody>
-          </Table>
-        </>
-      )}
 
-      <Text as="strong">Task Instance Details</Text>
-      <Divider my={2} />
-      <Table variant="striped">
-        <Tbody>
-          {tooltip && (
-            <Tr>
-              <Td colSpan={2}>{tooltip}</Td>
-            </Tr>
-          )}
-          <Tr>
-            <Td>
-              {isOverall}
-              Status
-            </Td>
-            <Td>
-              <Flex>
-                <SimpleStatus state={state} mx={2} />
-                {state || "no status"}
-              </Flex>
-            </Td>
-          </Tr>
-          {!!group.setupTeardownType && (
-            <Tr>
-              <Td>Type</Td>
-              <Td>
-                <Text textTransform="capitalize">
-                  {group.setupTeardownType}
-                </Text>
-              </Td>
-            </Tr>
-          )}
-          {mappedStates && totalTasks > 0 && (
-            <Tr>
-              <Td colSpan={2}>
-                {totalTasks} {isGroup ? "Task Group" : "Task"}
-                {totalTasks === 1 ? " " : "s "}
-                Mapped
-              </Td>
-            </Tr>
-          )}
-          {summary.length > 0 && summary}
-          <Tr>
-            <Td>{taskIdTitle}</Td>
-            <Td>
-              <ClipboardText value={taskId} />
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run ID</Td>
-            <Td>
-              <Text whiteSpace="nowrap">
-                <ClipboardText value={runId} />
-              </Text>
-            </Td>
-          </Tr>
-          {mapIndex !== undefined && (
-            <Tr>
-              <Td>Map Index</Td>
-              <Td>{mapIndex}</Td>
-            </Tr>
-          )}
-          {operator && (
-            <Tr>
-              <Td>Operator</Td>
-              <Td>{operator}</Td>
-            </Tr>
-          )}
-          {triggerRule && (
-            <Tr>
-              <Td>Trigger Rule</Td>
-              <Td>{triggerRule}</Td>
-            </Tr>
-          )}
-          {startDate && (
+  return (
+    <AccordionItem>
+      <AccordionHeader>Task Instance Details</AccordionHeader>
+      <AccordionPanel>
+        <Table variant="striped">
+          <Tbody>
+            {tooltip && (
+              <Tr>
+                <Td colSpan={2}>{tooltip}</Td>
+              </Tr>
+            )}
             <Tr>
               <Td>
                 {isOverall}
-                Duration
+                Status
               </Td>
-              <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
-            </Tr>
-          )}
-          {startDate && (
-            <Tr>
-              <Td>Started</Td>
               <Td>
-                <Time dateTime={startDate} />
+                <Flex>
+                  <SimpleStatus state={state} mx={2} />
+                  {state || "no status"}
+                </Flex>
               </Td>
             </Tr>
-          )}
-          {endDate && isStateFinal && (
+            {!!group.setupTeardownType && (
+              <Tr>
+                <Td>Type</Td>
+                <Td>
+                  <Text textTransform="capitalize">
+                    {group.setupTeardownType}
+                  </Text>
+                </Td>
+              </Tr>
+            )}
+            {mappedStates && totalTasks > 0 && (
+              <Tr>
+                <Td colSpan={2}>
+                  {totalTasks} {isGroup ? "Task Group" : "Task"}
+                  {totalTasks === 1 ? " " : "s "}
+                  Mapped
+                </Td>
+              </Tr>
+            )}
+            {summary.length > 0 && summary}
             <Tr>
-              <Td>Ended</Td>
+              <Td>{taskIdTitle}</Td>
               <Td>
-                <Time dateTime={endDate} />
+                <ClipboardText value={taskId} />
               </Td>
             </Tr>
-          )}
-        </Tbody>
-      </Table>
-      {hasOutletDatasets && (
-        <DatasetUpdateEvents taskId={taskId} runId={runId} />
-      )}
-    </Flex>
+            <Tr>
+              <Td>Run ID</Td>
+              <Td>
+                <Text whiteSpace="nowrap">
+                  <ClipboardText value={runId} />
+                </Text>
+              </Td>
+            </Tr>
+            {mapIndex !== undefined && (
+              <Tr>
+                <Td>Map Index</Td>
+                <Td>{mapIndex}</Td>
+              </Tr>
+            )}
+            {operator && (
+              <Tr>
+                <Td>Operator</Td>
+                <Td>{operator}</Td>
+              </Tr>
+            )}
+            {triggerRule && (
+              <Tr>
+                <Td>Trigger Rule</Td>
+                <Td>{triggerRule}</Td>
+              </Tr>
+            )}
+            {startDate && (
+              <Tr>
+                <Td>
+                  {isOverall}
+                  Duration
+                </Td>
+                <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
+              </Tr>
+            )}
+            {startDate && (
+              <Tr>
+                <Td>Started</Td>
+                <Td>
+                  <Time dateTime={startDate} />
+                </Td>
+              </Tr>
+            )}
+            {endDate && isStateFinal && (
+              <Tr>
+                <Td>Ended</Td>
+                <Td>
+                  <Time dateTime={endDate} />
+                </Td>
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
+      </AccordionPanel>
+    </AccordionItem>
   );
 };
 

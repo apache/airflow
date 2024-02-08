@@ -1,0 +1,278 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+.c {
+  color: #408080;
+  font-style: italic;
+} /* Comment */
+
+.err {
+  border: 1px solid #f00;
+} /* Error */
+
+.k {
+  color: #008000;
+  font-weight: bold;
+} /* Keyword */
+
+.o {
+  color: #666;
+} /* Operator */
+
+.cm {
+  color: #408080;
+  font-style: italic;
+} /* Comment.Multiline */
+
+.cp {
+  color: #bc7a00;
+} /* Comment.Preproc */
+
+.c1 {
+  color: #408080;
+  font-style: italic;
+} /* Comment.Single */
+
+.cs {
+  color: #408080;
+  font-style: italic;
+} /* Comment.Special */
+
+.gd {
+  color: #a00000;
+} /* Generic.Deleted */
+.ge {
+  font-style: italic;
+} /* Generic.Emph */
+
+.gr {
+  color: #f00;
+} /* Generic.Error */
+
+.gh {
+  color: #000080;
+  font-weight: bold;
+} /* Generic.Heading */
+
+.gi {
+  color: #00a000;
+} /* Generic.Inserted */
+
+.go {
+  color: #888;
+} /* Generic.Output */
+
+.gp {
+  color: #000080;
+  font-weight: bold;
+} /* Generic.Prompt */
+
+.gs {
+  font-weight: bold;
+} /* Generic.Strong */
+
+.gu {
+  color: #800080;
+  font-weight: bold;
+} /* Generic.Subheading */
+
+.gt {
+  color: #04d;
+} /* Generic.Traceback */
+
+.kc {
+  color: #008000;
+  font-weight: bold;
+} /* Keyword.Constant */
+
+.kd {
+  color: #008000;
+  font-weight: bold;
+} /* Keyword.Declaration */
+
+.kn {
+  color: #008000;
+  font-weight: bold;
+} /* Keyword.Namespace */
+
+.kp {
+  color: #008000;
+} /* Keyword.Pseudo */
+
+.kr {
+  color: #008000;
+  font-weight: bold;
+} /* Keyword.Reserved */
+
+.kt {
+  color: #b00040;
+} /* Keyword.Type */
+
+.m {
+  color: #666;
+} /* Literal.Number */
+
+.s {
+  color: #ba2121;
+} /* Literal.String */
+
+.na {
+  color: #7d9029;
+} /* Name.Attribute */
+
+.nb {
+  color: #008000;
+} /* Name.Builtin */
+
+.nc {
+  color: #00f;
+  font-weight: bold;
+} /* Name.Class */
+
+.no {
+  color: #800;
+} /* Name.Constant */
+
+.nd {
+  color: #a2f;
+} /* Name.Decorator */
+
+.ni {
+  color: #999;
+  font-weight: bold;
+} /* Name.Entity */
+
+.ne {
+  color: #d2413a;
+  font-weight: bold;
+} /* Name.Exception */
+
+.nf {
+  color: #00f;
+} /* Name.Function */
+
+.nl {
+  color: #a0a000;
+} /* Name.Label */
+
+.nn {
+  color: #00f;
+  font-weight: bold;
+} /* Name.Namespace */
+
+.nt {
+  color: #008000;
+  font-weight: bold;
+} /* Name.Tag */
+
+.nv {
+  color: #19177c;
+} /* Name.Variable */
+
+.ow {
+  color: #a2f;
+  font-weight: bold;
+} /* Operator.Word */
+
+.w {
+  color: #bbb;
+} /* Text.Whitespace */
+
+.mb {
+  color: #666;
+} /* Literal.Number.Bin */
+
+.mf {
+  color: #666;
+} /* Literal.Number.Float */
+
+.mh {
+  color: #666;
+} /* Literal.Number.Hex */
+
+.mi {
+  color: #666;
+} /* Literal.Number.Integer */
+
+.mo {
+  color: #666;
+} /* Literal.Number.Oct */
+
+.sb {
+  color: #ba2121;
+} /* Literal.String.Backtick */
+
+.sc {
+  color: #ba2121;
+} /* Literal.String.Char */
+
+.sd {
+  color: #ba2121;
+  font-style: italic;
+} /* Literal.String.Doc */
+
+.s2 {
+  color: #ba2121;
+} /* Literal.String.Double */
+
+.s1 {
+  color: #ba2121;
+} /* Literal.String.Single */
+
+div.linenodiv {
+  padding-right: 1px !important;
+}
+
+.linenos {
+  width: 50px;
+  border: 0;
+}
+
+div.linenodiv pre {
+  padding-left: 0;
+  padding-right: 4px;
+  color: #8e8e8d;
+  background-color: transparent;
+  text-align: right;
+}
+
+.wrap {
+  white-space: pre-wrap;
+}
+
+.code {
+  font-family: monospace;
+}
+
+#sql {
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.ace_editor div {
+  font: inherit !important;
+}
+
+#ace_container {
+  margin: 10px 0;
+}
+
+#sql_ace {
+  visibility: hidden;
+}

@@ -18,9 +18,9 @@
  */
 
 import React, { useRef } from "react";
-import { Box } from "@chakra-ui/react";
+import { Accordion, Box } from "@chakra-ui/react";
 
-import { useGridData, useTaskInstance } from "src/api";
+import { useGridData, useTaskInstance, useTIAttrs } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
@@ -28,6 +28,11 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
+import Attributes from "./Attributes";
+import FailedDepReasons from "./FailedDepReasons";
+import RenderedTemplates from "./RenderedTemplates";
+import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import TriggererInfo from "./TriggererInfo";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -64,6 +69,8 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     enabled: isMapIndexDefined,
   });
 
+  const { data: attributes } = useTIAttrs({ dagId, runId, taskId });
+
   const instance = isMapIndexDefined
     ? mappedTaskInstance
     : group?.instances.find((ti) => ti.runId === runId);
@@ -89,36 +96,40 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           operator={operator}
         />
       )}
-      {!isGroupOrMappedTaskSummary && (
-        <NotesAccordion
-          dagId={dagId}
-          runId={runId}
-          taskId={taskId}
-          mapIndex={instance.mapIndex}
-          initialValue={instance.note}
-          key={dagId + runId + taskId + instance.mapIndex}
+      <Accordion defaultIndex={[2]} allowMultiple>
+        {!isGroupOrMappedTaskSummary && (
+          <NotesAccordion
+            dagId={dagId}
+            runId={runId}
+            taskId={taskId}
+            mapIndex={instance.mapIndex}
+            initialValue={instance.note}
+            key={dagId + runId + taskId + instance.mapIndex}
+          />
+        )}
+        {group.extraLinks && (
+          <ExtraLinks
+            taskId={taskId}
+            dagId={dagId}
+            mapIndex={mapIndex}
+            executionDate={executionDate}
+            extraLinks={group?.extraLinks}
+            tryNumber={instance.tryNumber}
+          />
+        )}
+        <Details instance={instance} group={group} />
+        {instance.state === "deferred" && (
+          <TriggererInfo instance={instance} group={group} dagId={dagId} />
+        )}
+        {group.hasOutletDatasets && (
+          <DatasetUpdateEvents taskId={taskId} runId={runId} />
+        )}
+        <RenderedTemplates
+          specialAttrsRendered={attributes?.specialAttrsRendered}
         />
-      )}
-      {isMapped && group.extraLinks && isMapIndexDefined && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          mapIndex={mapIndex}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-          tryNumber={instance.tryNumber}
-        />
-      )}
-      {!isMapped && group.extraLinks && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-          tryNumber={instance.tryNumber}
-        />
-      )}
-      <Details instance={instance} group={group} dagId={dagId} />
+        <FailedDepReasons failedDepReasons={attributes?.failedDepReasons} />
+        <Attributes tiAttrs={attributes?.tiAttrs} />
+      </Accordion>
     </Box>
   );
 };

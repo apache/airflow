@@ -214,6 +214,12 @@ interface HistoricalMetricsData {
   };
 }
 
+interface TaskInstanceAttributes {
+  failedDepReasons?: [][];
+  specialAttrsRendered?: Record<string, string>;
+  tiAttrs: Record<string, any>;
+}
+
 export type {
   API,
   Dag,
@@ -227,6 +233,7 @@ export type {
   RunState,
   Task,
   TaskInstance,
+  TaskInstanceAttributes,
   TaskState,
   KeyboardShortcutKeys,
   KeyboardShortcutIdentifier,

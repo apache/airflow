@@ -1256,7 +1256,8 @@ class Airflow(AirflowBaseView):
                 sqla.func.max(DagRun.execution_date).label("max_execution_date"),
             )
             .group_by(DagRun.dag_id)
-            .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
+            # Only include accessible/selected DAGs.
+            .where(DagRun.dag_id.in_(filter_dag_ids))
             .subquery("last_runs")
         )
 
@@ -2892,7 +2893,8 @@ class Airflow(AirflowBaseView):
                     if curr_info is None:
                         break  # Reached the end.
                     if curr_info.logical_date <= prev_logical_date:
-                        break  # We're not progressing. Maybe a malformed timetable? Give up.
+                        # We're not progressing. Maybe a malformed timetable? Give up.
+                        break
                     if curr_info.logical_date.year != year:
                         break  # Crossed the year boundary.
                     last_automated_data_interval = curr_info.data_interval
@@ -2916,7 +2918,8 @@ class Airflow(AirflowBaseView):
             dag=dag,
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             doc_md=wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
-            data=htmlsafe_json_dumps(data, separators=(",", ":")),  # Avoid spaces to reduce payload size.
+            # Avoid spaces to reduce payload size.
+            data=htmlsafe_json_dumps(data, separators=(",", ":")),
             root=root,
             dag_model=dag_model,
         )
@@ -3396,6 +3399,123 @@ class Airflow(AirflowBaseView):
             "arrange": dag.orientation,
             "nodes": nodes,
             "edges": edges,
+        }
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
+    @expose("/object/task_instance_attributes")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @gzipped
+    @action_logging
+    @provide_session
+    def task_instance_attributes(self, session: Session = NEW_SESSION):
+        """Retrieve task instance attributes."""
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        run_id = request.args.get("run_id")
+        dag = get_airflow_app().dag_bag.get_dag(dag_id, session)
+
+        if not dag or task_id not in dag.task_ids:
+            # flash(
+            #     f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
+            return {}
+        task = copy.copy(dag.get_task(task_id))
+        task.resolve_template_files()
+
+        ti: TaskInstance | None = session.scalar(
+            select(TaskInstance)
+            .options(
+                # HACK: Eager-load relationships. This is needed because
+                # multiple properties mis-use provide_session() that destroys
+                # the session object ti is bounded to.
+                joinedload(TaskInstance.queued_by_job, innerjoin=False),
+                joinedload(TaskInstance.trigger, innerjoin=False),
+            )
+            .filter_by(run_id=run_id, dag_id=dag_id, task_id=task_id)
+        )
+        if ti is None:
+            ti_attrs: list[tuple[str, Any]] | None = None
+        else:
+            ti.refresh_from_task(task)
+            ti_attrs_to_skip = [
+                "dag_id",
+                "dag_model",
+                "dag_run",
+                "run_id",
+                "task_id",
+                "task_instance_notedag_run",
+                "duration",
+                "start_date",
+                "state",
+                "end_date",
+                "map_index",
+                "execution_date",
+                "operator",
+                "operator_name",
+                "key",
+                "mark_success_url",
+                "log",
+                "log_url",
+                "task",
+                "trigger",
+                "triggerer_job",
+                "try_number",
+                "previous_ti",
+                "previous_ti_success",
+                "previous_start_date_success",
+                "queued_dttm",
+            ]
+            # Some fields on TI are deprecated, but we don't want those warnings here.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+                all_ti_attrs = (
+                    # fetching the value of _try_number to be shown under name try_number in UI
+                    (name, getattr(ti, "_try_number" if name == "try_number" else name))
+                    for name in dir(ti)
+                    if not name.startswith("_") and name not in ti_attrs_to_skip
+                )
+            ti_attrs = sorted((name, attr) for name, attr in all_ti_attrs if not callable(attr))
+
+        attr_renderers = wwwutils.get_attr_renderer()
+
+        # Color coding the special attributes that are code
+        special_attrs_rendered = {
+            attr_name: renderer(getattr(task, attr_name))
+            for attr_name, renderer in attr_renderers.items()
+            if hasattr(task, attr_name)
+        }
+
+        no_failed_deps_result = [
+            (
+                "Unknown",
+                "All dependencies are met but the task instance is not running. In most "
+                "cases this just means that the task will probably be scheduled soon "
+                "unless:<br>\n- The scheduler is down or under heavy load<br>\n{}\n"
+                "<br>\nIf this task instance does not start soon please contact your "
+                "Airflow administrator for assistance.".format(
+                    "- This task instance already ran and had it's state changed manually "
+                    "(e.g. cleared in the UI)<br>"
+                    if ti and ti.state is None
+                    else ""
+                ),
+            )
+        ]
+
+        # Use the scheduler's context to figure out which dependencies are not met
+        if ti is None:
+            failed_dep_reasons: list[tuple[str, str]] = []
+        else:
+            dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
+            failed_dep_reasons = [
+                (dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses(dep_context=dep_context)
+            ]
+
+        data = {
+            "tiAttrs": {attr_name: value for attr_name, value in ti_attrs or []},
+            "failedDepReasons": failed_dep_reasons or no_failed_deps_result,
+            "specialAttrsRendered": special_attrs_rendered,
         }
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),

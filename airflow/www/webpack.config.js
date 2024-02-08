@@ -69,6 +69,7 @@ const config = {
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
     moment: "moment-timezone",
+    renderedTemplates: `${CSS_DIR}/rendered-templates.css`,
     switch: `${CSS_DIR}/switch.css`,
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,

@@ -18,9 +18,16 @@
  */
 
 import React from "react";
-import { Button, Flex, Link, Box, Text, Divider } from "@chakra-ui/react";
+import {
+  Button,
+  Flex,
+  Link,
+  AccordionPanel,
+  AccordionItem,
+} from "@chakra-ui/react";
 
 import { useExtraLinks } from "src/api";
+import AccordionHeader from "src/components/AccordionHeader";
 
 interface Props {
   dagId: string;
@@ -54,26 +61,26 @@ const ExtraLinks = ({
     url && /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
-    <Box mb={3}>
-      <Text as="strong">Extra Links</Text>
-      <Divider my={2} />
-      <Flex flexWrap="wrap">
-        {links.map(({ name, url }) => (
-          <Button
-            key={name}
-            as={Link}
-            colorScheme="blue"
-            href={url}
-            isDisabled={!url}
-            target={isExternal(url) ? "_blank" : undefined}
-            mr={2}
-          >
-            {name}
-          </Button>
-        ))}
-      </Flex>
-      <Divider my={2} />
-    </Box>
+    <AccordionItem border="0">
+      <AccordionHeader>Extra Links</AccordionHeader>
+      <AccordionPanel>
+        <Flex flexWrap="wrap">
+          {links.map(({ name, url }) => (
+            <Button
+              key={name}
+              as={Link}
+              colorScheme="blue"
+              href={url}
+              isDisabled={!url}
+              target={isExternal(url) ? "_blank" : undefined}
+              mr={2}
+            >
+              {name}
+            </Button>
+          ))}
+        </Flex>
+      </AccordionPanel>
+    </AccordionItem>
   );
 };
 

@@ -19,17 +19,12 @@
 
 import React, { useState, useRef } from "react";
 import {
-  Accordion,
   AccordionItem,
-  AccordionButton,
   AccordionPanel,
-  AccordionIcon,
   Box,
   Button,
   Flex,
-  Text,
   Textarea,
-  Divider,
 } from "@chakra-ui/react";
 import ResizeTextarea from "react-textarea-autosize";
 
@@ -39,6 +34,7 @@ import { MdEdit } from "react-icons/md";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { useKeysPress, isInputInFocus } from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
+import AccordionHeader from "src/components/AccordionHeader";
 
 interface Props {
   dagId: string;
@@ -108,97 +104,77 @@ const NotesAccordion = ({
   useKeysPress(keyboardShortcutIdentifier.viewNotes, toggleNotesPanel);
 
   return (
-    <>
-      <Accordion
-        defaultIndex={canEdit ? [0] : []}
-        index={accordionIndexes}
-        allowToggle
-      >
-        <AccordionItem border="0">
-          <AccordionButton p={0} pb={2} fontSize="inherit">
-            <Box flex="1" textAlign="left" onClick={toggleNotesPanel}>
-              <Text as="strong" size="lg">
-                {objectIdentifier} Notes:
-              </Text>
+    <AccordionItem border="0">
+      <AccordionHeader>{objectIdentifier} Notes</AccordionHeader>
+      <AccordionPanel pl={3}>
+        {editMode ? (
+          <form onSubmit={handleSubmit}>
+            <Box>
+              <Textarea
+                autoFocus
+                ref={textAreaRef}
+                minH="unset"
+                overflow="hidden"
+                width="100%"
+                resize="none"
+                minRows={3}
+                maxRows={10}
+                as={ResizeTextarea}
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                }}
+                data-testid="notes-input"
+                onFocus={() => {
+                  localStorage.setItem(isInputInFocus, "true");
+                }}
+                onBlur={() => {
+                  localStorage.setItem(isInputInFocus, "false");
+                }}
+              />
             </Box>
-            <AccordionIcon />
-          </AccordionButton>
-          <AccordionPanel pl={3}>
-            {editMode ? (
-              <form onSubmit={handleSubmit}>
-                <Box>
-                  <Textarea
-                    autoFocus
-                    ref={textAreaRef}
-                    minH="unset"
-                    overflow="hidden"
-                    width="100%"
-                    resize="none"
-                    minRows={3}
-                    maxRows={10}
-                    as={ResizeTextarea}
-                    value={note}
-                    onChange={(e) => {
-                      setNote(e.target.value);
-                    }}
-                    data-testid="notes-input"
-                    onFocus={() => {
-                      localStorage.setItem(isInputInFocus, "true");
-                    }}
-                    onBlur={() => {
-                      localStorage.setItem(isInputInFocus, "false");
-                    }}
-                  />
-                </Box>
-                <Flex mt={3} justify="right">
-                  <Button
-                    type="submit"
-                    isLoading={isLoading}
-                    colorScheme="blue"
-                  >
-                    Save Note
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setNote(initialValue ?? "");
-                      setEditMode(false);
-                    }}
-                    isLoading={isLoading}
-                    ml={3}
-                  >
-                    Cancel
-                  </Button>
-                </Flex>
-              </form>
-            ) : (
-              <Flex direction="column">
-                <Flex direction="column" style={{ fontSize: "12px" }}>
-                  <ReactMarkdown>{note}</ReactMarkdown>
-                </Flex>
-                <Flex justify="right">
-                  <Button
-                    onClick={() => setEditMode(true)}
-                    isDisabled={!canEdit}
-                    isLoading={isLoading}
-                    title={`${
-                      !note ? "Add" : "Edit"
-                    } a note to this ${objectIdentifier}`}
-                    aria-label={`${
-                      !note ? "Add" : "Edit"
-                    } a note to this ${objectIdentifier}`}
-                    mt={2}
-                    leftIcon={<MdEdit />}
-                  >
-                    {!note ? "Add Note" : "Edit Note"}
-                  </Button>
-                </Flex>
-              </Flex>
-            )}
-          </AccordionPanel>
-        </AccordionItem>
-      </Accordion>
-      <Divider my={0} />
-    </>
+            <Flex mt={3} justify="right">
+              <Button type="submit" isLoading={isLoading} colorScheme="blue">
+                Save Note
+              </Button>
+              <Button
+                onClick={() => {
+                  setNote(initialValue ?? "");
+                  setEditMode(false);
+                }}
+                isLoading={isLoading}
+                ml={3}
+              >
+                Cancel
+              </Button>
+            </Flex>
+          </form>
+        ) : (
+          <Flex direction="column">
+            <Flex direction="column" style={{ fontSize: "12px" }}>
+              <ReactMarkdown>{note}</ReactMarkdown>
+            </Flex>
+            <Flex justify="right">
+              <Button
+                onClick={() => setEditMode(true)}
+                isDisabled={!canEdit}
+                isLoading={isLoading}
+                title={`${
+                  !note ? "Add" : "Edit"
+                } a note to this ${objectIdentifier}`}
+                aria-label={`${
+                  !note ? "Add" : "Edit"
+                } a note to this ${objectIdentifier}`}
+                mt={2}
+                leftIcon={<MdEdit />}
+              >
+                {!note ? "Add Note" : "Edit Note"}
+              </Button>
+            </Flex>
+          </Flex>
+        )}
+      </AccordionPanel>
+    </AccordionItem>
   );
 };
 

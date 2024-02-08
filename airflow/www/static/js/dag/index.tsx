@@ -25,6 +25,7 @@ import createCache from "@emotion/cache";
 import reactFlowStyle from "reactflow/dist/style.css";
 
 import App from "src/App";
+import { getMetaValue } from "src/utils";
 
 import Main from "./Main";
 
@@ -40,9 +41,13 @@ const mainElement = document.getElementById("react-container");
 
 if (mainElement) {
   const styleTag = document.createElement("style");
+  const renderedTemplatesTag = document.createElement("link");
+  renderedTemplatesTag.rel = "stylesheet";
+  renderedTemplatesTag.href = getMetaValue("renderedTemplatesUrl");
   const style = reactFlowStyle.toString();
   styleTag.innerHTML = style;
   shadowRoot?.appendChild(styleTag);
+  shadowRoot?.appendChild(renderedTemplatesTag);
   shadowRoot?.appendChild(mainElement);
 
   const reactRoot = createRoot(mainElement);
