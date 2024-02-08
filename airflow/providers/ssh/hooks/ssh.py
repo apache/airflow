@@ -96,7 +96,7 @@ class SSHHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for SSH connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -283,7 +283,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens an SSH connection to the remote host."""
+        """Establish an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
