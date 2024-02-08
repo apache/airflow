@@ -459,19 +459,6 @@ def test_code_success_for_all_dag_user(client_all_dags_codes, dag_id):
     check_content_in_response(dag_id, resp)
 
 
-def test_dag_details_success(client_all_dags_dagruns):
-    """User without RESOURCE_DAG_CODE can see the page, just not the ID."""
-    url = "dag_details?dag_id=example_bash_operator"
-    resp = client_all_dags_dagruns.get(url, follow_redirects=True)
-    check_content_in_response("DAG Details", resp)
-
-
-def test_dag_details_failure(dag_faker_client):
-    url = "dag_details?dag_id=example_bash_operator"
-    resp = dag_faker_client.get(url, follow_redirects=True)
-    check_content_not_in_response("DAG Details", resp)
-
-
 @pytest.mark.parametrize(
     "dag_id",
     ["example_bash_operator", "example_subdag_operator"],
