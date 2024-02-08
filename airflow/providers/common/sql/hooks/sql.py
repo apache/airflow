@@ -495,8 +495,8 @@ class DbApiHook(BaseHook):
         :return: The generated INSERT or REPLACE/UPSERT SQL statement
         """
         placeholders = [
-                           self.placeholder,
-                       ] * len(values)
+            self.placeholder,
+        ] * len(values)
 
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -514,8 +514,9 @@ class DbApiHook(BaseHook):
 
         return f"REPLACE INTO {sql}"
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False,
-                    executemany=False, **kwargs):
+    def insert_rows(
+        self, table, rows, target_fields=None, commit_every=1000, replace=False,executemany=False, **kwargs
+    ):
         """Insert a collection of tuples into a table.
 
         Rows are inserted in chunks, each chunk (of size ``commit_every``) is
@@ -540,7 +541,12 @@ class DbApiHook(BaseHook):
             with closing(conn.cursor()) as cur:
                 if executemany:
                     for chunked_rows in chunked(rows, commit_every):
-                        values = list(map(lambda row: tuple(map(lambda cell: self._serialize_cell(cell, conn), row)), chunked_rows))
+                        values = list(
+                            map(
+                                lambda row: tuple(map(lambda cell: self._serialize_cell(cell, conn), row)),
+                                chunked_rows,
+                            )
+                        )
                         sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
                         self.log.debug("Generated sql: %s", sql)
                         cur.fast_executemany = True

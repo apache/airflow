@@ -22,7 +22,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy.engine import Engine, Dialect
+from sqlalchemy.engine import Dialect, Engine
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -40,7 +40,8 @@ class NonDbApiHook(BaseHook):
 class TestDbApiHook:
     def setup_method(self):
         self.cur = mock.MagicMock(
-            rowcount=0, spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"]
+            rowcount=0,
+            spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"],
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
