@@ -211,7 +211,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.2"
+AIRFLOW_PIP_VERSION = "24.0"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
