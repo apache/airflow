@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+3.7.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Introduced the allow_insecure flag in the extras field of for the MongoDB connection. This flag allows users to control
+whether insecure connections are permitted when using SSL encryption. By default, the allow_insecure flag is
+set to False. This means that when SSL encryption is enabled (ssl=True), insecure connections are not allowed unless
+explicitly specified by the user.
+
 3.6.0
 .....
 

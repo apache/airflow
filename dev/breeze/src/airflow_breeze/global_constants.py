@@ -118,7 +118,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "23.3.2"
+PIP_VERSION = "24.0"
 
 # packages that  providers docs
 REGULAR_DOC_PACKAGES = [

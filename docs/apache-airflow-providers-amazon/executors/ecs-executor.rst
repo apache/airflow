@@ -205,13 +205,6 @@ Replace ``YOUR_ACCESS_KEY``, ``YOUR_SECRET_KEY``,
 ``YOUR_SESSION_TOKEN``, and ``YOUR_DEFAULT_REGION`` with valid AWS
 credentials.
 
-Alternatively, you can authenticate to AWS using the ``~/.aws`` folder.
-See instructions on how to generate this folder
-`here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html>`__.
-Uncomment the line in the Dockerfile to copy the ``./.aws`` folder from
-your host machine to the container's ``/home/airflow/.aws`` directory.
-Keep in mind the Docker build context when copying the ``.aws`` folder
-to the container.
 
 Base Image
 ~~~~~~~~~~
