@@ -250,6 +250,8 @@ you update the ``provider.yaml`` file with the new (breaking) version of the pro
 If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
 breaking changes in the providers.
 
+It's important to note that the marking release as breaking / major is subject to the judgment of release manager upon preparing the release. 
+
 Bumping minimum version of dependencies in providers
 ----------------------------------------------------
 
