@@ -212,9 +212,29 @@ Here's an example of a DAG using ``DatasetTimetable``:
 
 In this example, the DAG is scheduled to run every Wednesday at 01:00 UTC based on the ``CronTriggerTimetable``, and it is also triggered by updates to ``dag1_dataset``.
 
-Future Enhancements
-~~~~~~~~~~~~~~~~~~~
-Future iterations may introduce more complex combinations for scheduling (e.g., dataset1 OR dataset2 OR timetable), further enhancing the flexibility for scheduling DAGs in various scenarios.
+Integrate conditional dataset with Time-Based Scheduling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
+
+.. code-block:: python
+
+    from airflow.timetables import DatasetOrTimeSchedule
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+    with DAG(
+        dag_id="conditional_dataset_and_time_based_timetable",
+        catchup=False,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule=DatasetOrTimeSchedule(
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
+        ),
+        tags=["dataset-time-based-timetable"],
+    ) as dag:
+        BashOperator(
+            task_id="conditional_dataset_and_time_based_timetable",
+            bash_command="sleep 5",
+            outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
+        )
 
 
 Timetables comparisons
