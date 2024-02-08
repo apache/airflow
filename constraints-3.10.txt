@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-07T22:34:49.227694
+# This constraints file was automatically generated on 2024-02-08T05:21:04.495571
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -250,7 +250,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.45
+cohere==4.46
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -397,7 +397,7 @@ ipykernel==6.29.2
 ipython==8.21.0
 isodate==0.6.1
 itsdangerous==2.1.2
-jaraco.classes==3.3.0
+jaraco.classes==3.3.1
 jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
@@ -452,7 +452,7 @@ mypy-boto3-rds==1.34.30
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
-mypy==1.2.0
+mypy==1.8.0
 mysql-connector-python==8.3.0
 mysqlclient==2.2.3
 nbclient==0.9.0
