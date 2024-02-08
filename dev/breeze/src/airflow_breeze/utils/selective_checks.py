@@ -854,6 +854,7 @@ class SelectiveChecks:
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
                     "lint-helm-chart",
+                    "validate-operators-init",
                 )
             )
 
