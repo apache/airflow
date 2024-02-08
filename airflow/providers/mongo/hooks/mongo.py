@@ -74,8 +74,21 @@ class MongoHook(BaseHook):
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
 
-        self.allow_insecure = True
-        if self.extras.get("ssl", False):
+        self.allow_insecure = self.extras.pop("allow_insecure", "false").lower() == "true"
+        self.ssl_enabled = self.extras.get("ssl", "false").lower() == "true"
+
+        if self.ssl_enabled and not self.allow_insecure:
+            # Case: HTTPS
+            self.allow_insecure = False
+        elif self.ssl_enabled and self.allow_insecure:
+            # Case: HTTPS + allow_insecure
+            self.allow_insecure = True
+            self.extras.pop("ssl", None)
+        elif not self.ssl_enabled and "allow_insecure" in self.extras:
+            # Case: HTTP (ssl=False) with allow_insecure specified
+            self.extras.pop("allow_insecure", None)
+        elif not self.ssl_enabled:
+            # Case: HTTP (ssl=False) with allow_insecure not specified
             self.allow_insecure = False
 
     def __enter__(self):
@@ -99,8 +112,9 @@ class MongoHook(BaseHook):
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
 
-        # set the tlsAllowInvalidCertificates based on allow_insecure
-        options["tlsAllowInvalidCertificates"] = self.allow_insecure
+        # Set tlsAllowInvalidCertificates based on allow_insecure
+        if self.allow_insecure:
+            options["tlsAllowInvalidCertificates"] = True
 
         self.client = MongoClient(self.uri, **options)
         return self.client
