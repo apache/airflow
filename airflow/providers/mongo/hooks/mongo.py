@@ -55,15 +55,15 @@ class MongoHook(BaseHook):
     The `allow_insecure` only makes sense in ssl context and is configurable and can be used in one of
     the following scenarios:
 
-    * HTTP (ssl = False)
+    HTTP (ssl = False)
     Here, `ssl` is disabled and using `allow_insecure` doesn't make sense.
     Example connection extra: {"ssl": false}
 
-    * HTTPS, but insecure (ssl = True, allow_insecure = True)
+    HTTPS, but insecure (ssl = True, allow_insecure = True)
     Here, `ssl` is enabled, and the connection allows insecure connections.
     Example connection extra: {"ssl": true, "allow_insecure": true}
 
-    * HTTPS, but secure (ssl = True, allow_insecure = False - default when SSL enabled):
+    HTTPS, but secure (ssl = True, allow_insecure = False - default when SSL enabled):
     Here, `ssl` is enabled, and the connection does not allow insecure connections (default behavior when
     SSL is enabled). Example connection extra: {"ssl": true} or {"ssl": true, "allow_insecure": false}
 
