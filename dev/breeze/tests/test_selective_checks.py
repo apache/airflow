@@ -698,7 +698,7 @@ def test_expected_output_pull_request_main(
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers",
+                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always BranchExternalPython "
@@ -744,9 +744,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,"
-                "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-                "mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
@@ -773,9 +770,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,"
-                "check-provider-yaml-valid,identity,lint-helm-chart,"
-                "mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -806,7 +800,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -835,7 +828,6 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
                 "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
                 "needs-mypy": "true",
@@ -1066,7 +1058,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers",
+                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
