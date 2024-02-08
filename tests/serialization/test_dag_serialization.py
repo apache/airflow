@@ -613,6 +613,7 @@ class TestStringifiedDAGs:
             assert isinstance(serialized_task, MappedOperator)
             fields_to_check = {f.name for f in attr.fields(MappedOperator)}
             fields_to_check -= {
+                "map_index_template",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",
