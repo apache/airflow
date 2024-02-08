@@ -41,7 +41,7 @@ class TestAirbyteHook:
     get_job_endpoint = f"http://test-airbyte:8001/v1/jobs/{job_id}"
     cancel_job_endpoint = f"http://test-airbyte:8001/v1/jobs/{job_id}"
 
-    health_endpoint = "http://test-airbyte:8001/v1/health"
+    health_endpoint = "http://test-airbyte:8001/health"
     _mock_sync_conn_success_response_body = {"jobId": 1, "status":"pending"}
     _mock_job_status_success_response_body = {"status": "succeeded"}
     _mock_job_cancel_status = {"status":"cancelled"}

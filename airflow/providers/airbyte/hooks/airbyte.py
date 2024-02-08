@@ -182,7 +182,7 @@ class AirbyteHook(HttpHook):
         self.method = "GET"
         try:
             res = self.run(
-                endpoint=f"{self.api_version}/health",
+                endpoint=f"health",
                 headers={"accept": "application/json"},
                 extra_options={"check_response": False},
             )
