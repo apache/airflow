@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T18:59:56.292500
+# This constraints file was automatically generated on 2024-02-08T20:38:23.681451
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -338,7 +338,7 @@ google-cloud-memcache==1.9.1
 google-cloud-monitoring==2.19.1
 google-cloud-orchestration-airflow==1.11.1
 google-cloud-os-login==2.14.1
-google-cloud-pubsub==2.19.1
+google-cloud-pubsub==2.19.2
 google-cloud-redis==2.15.1
 google-cloud-resource-manager==1.12.1
 google-cloud-run==0.10.3

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T18:53:21.259362
+# This constraints file was automatically generated on 2024-02-08T20:32:05.709907
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -235,7 +235,7 @@ google-cloud-memcache==1.9.1
 google-cloud-monitoring==2.19.1
 google-cloud-orchestration-airflow==1.11.1
 google-cloud-os-login==2.14.1
-google-cloud-pubsub==2.19.1
+google-cloud-pubsub==2.19.2
 google-cloud-redis==2.15.1
 google-cloud-resource-manager==1.12.1
 google-cloud-run==0.10.3
@@ -472,7 +472,7 @@ python-jenkins==1.8.2
 python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
-python-slugify==8.0.3
+python-slugify==8.0.4
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2024.1
