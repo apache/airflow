@@ -877,6 +877,7 @@ class SelectiveChecks:
                     "check-provider-yaml-valid",
                     "validate-operators-init",
                     "lint-helm-chart",
+                    "validate-operators-init",
                 )
             )
 
