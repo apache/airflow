@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T17:00:40.511655
+# This constraints file was automatically generated on 2024-02-08T18:59:56.292500
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -573,13 +573,13 @@ python-jenkins==1.8.2
 python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
-python-slugify==8.0.3
+python-slugify==8.0.4
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
 pyzmq==25.1.2
-qdrant-client==1.7.2
+qdrant-client==1.7.3
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
