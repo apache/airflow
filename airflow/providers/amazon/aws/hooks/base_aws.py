@@ -314,7 +314,7 @@ class BaseSessionFactory(LoggingMixin):
             idp_request_retry_kwargs = saml_config["idp_request_retry_kwargs"]
             self.log.info("idp_request_retry_kwargs= %s", idp_request_retry_kwargs)
             from requests.adapters import HTTPAdapter
-            from requests.packages.urllib3.util.retry import Retry
+            from urllib3.util.retry import Retry
 
             retry_strategy = Retry(**idp_request_retry_kwargs)
             adapter = HTTPAdapter(max_retries=retry_strategy)
