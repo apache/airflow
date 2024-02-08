@@ -501,9 +501,21 @@ class BaseSerialization:
         elif isinstance(var, Dataset):
             return cls._encode({"uri": var.uri, "extra": var.extra}, type_=DAT.DATASET)
         elif isinstance(var, DatasetAll):
-            return cls._encode([cls.serialize(x) for x in var.objects], type_=DAT.DATASET_ALL)
+            return cls._encode(
+                [
+                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
+                    for x in var.objects
+                ],
+                type_=DAT.DATASET_ALL,
+            )
         elif isinstance(var, DatasetAny):
-            return cls._encode([cls.serialize(x) for x in var.objects], type_=DAT.DATASET_ANY)
+            return cls._encode(
+                [
+                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
+                    for x in var.objects
+                ],
+                type_=DAT.DATASET_ANY,
+            )
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
