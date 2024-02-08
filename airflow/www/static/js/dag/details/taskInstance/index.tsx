@@ -30,7 +30,6 @@ import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
 import Attributes from "./Attributes";
 import FailedDepReasons from "./FailedDepReasons";
-import RenderedTemplates from "./RenderedTemplates";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
 
@@ -124,11 +123,11 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
         {group.hasOutletDatasets && (
           <DatasetUpdateEvents taskId={taskId} runId={runId} />
         )}
-        <RenderedTemplates
+        <FailedDepReasons failedDepReasons={attributes?.failedDepReasons} />
+        <Attributes
+          tiAttrs={attributes?.tiAttrs}
           specialAttrsRendered={attributes?.specialAttrsRendered}
         />
-        <FailedDepReasons failedDepReasons={attributes?.failedDepReasons} />
-        <Attributes tiAttrs={attributes?.tiAttrs} />
       </Accordion>
     </Box>
   );

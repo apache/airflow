@@ -25,17 +25,20 @@ import {
   Td,
   AccordionItem,
   AccordionPanel,
+  Code,
 } from "@chakra-ui/react";
 
 import type { TaskInstanceAttributes } from "src/types";
 
 import AccordionHeader from "src/components/AccordionHeader";
+import sanitizeHtml from "sanitize-html";
 
 interface Props {
   tiAttrs?: TaskInstanceAttributes["tiAttrs"];
+  specialAttrsRendered?: TaskInstanceAttributes["specialAttrsRendered"];
 }
 
-const Attributes = ({ tiAttrs }: Props) => {
+const Attributes = ({ tiAttrs, specialAttrsRendered }: Props) => {
   if (!tiAttrs) return null;
   return (
     <AccordionItem>
@@ -43,6 +46,29 @@ const Attributes = ({ tiAttrs }: Props) => {
       <AccordionPanel>
         <Table variant="striped">
           <Tbody>
+            {!!specialAttrsRendered &&
+              Object.keys(specialAttrsRendered).map((key) => {
+                if (!specialAttrsRendered[key]) return null;
+                const renderedField = sanitizeHtml(specialAttrsRendered[key], {
+                  allowedAttributes: {
+                    "*": ["class"],
+                  },
+                });
+
+                return (
+                  <Tr key={key} mt={3}>
+                    <Td>{key}</Td>
+                    <Td>
+                      <Code
+                        fontSize="md"
+                        dangerouslySetInnerHTML={{
+                          __html: renderedField,
+                        }}
+                      />
+                    </Td>
+                  </Tr>
+                );
+              })}
             {Object.keys(tiAttrs).map((key) => {
               let value = tiAttrs[key] || "";
               if (typeof value === "object")
