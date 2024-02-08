@@ -295,7 +295,7 @@ devel-mypy = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.2.0",
+    "mypy==1.8.0",
     "types-Deprecated",
     "types-Markdown",
     "types-PyMySQL",
@@ -678,7 +678,7 @@ exasol = [ # source: airflow/providers/exasol/provider.yaml
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.10",
+  "flask-appbuilder==4.3.11",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
