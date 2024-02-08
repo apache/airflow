@@ -255,7 +255,7 @@ def test_muldelete_dag_runs_action(session, admin_client, running_dag_run):
     )
     assert resp.status_code == 200
     assert session.scalar(select(func.count()).select_from(TaskInstance)) == 0  # associated TIs are deleted
-    assert session.scalar(_dag_run_count_stmt(dag_run_id)) == 0
+    assert session.scalar(_dag_run_count_stmt(str(dag_run_id))) == 0
 
 
 @pytest.mark.parametrize(
