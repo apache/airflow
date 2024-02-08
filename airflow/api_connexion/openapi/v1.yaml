@@ -1008,7 +1008,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetDagRunQueue"
+                $ref: "#/components/schemas/QueueEvent"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1060,7 +1060,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetDagRunQueueCollection"
+                $ref: "#/components/schemas/QueueEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1112,7 +1112,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetDagRunQueueCollection"
+                $ref: "#/components/schemas/QueueEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -3171,7 +3171,7 @@ components:
           description: Custom notes left by users for this Dag Run.
           type: string
 
-    DeleteDatasetDagRunQueue:
+    DeleteQueueEvent:
       type: object
       properties:
         cutoff_time:
@@ -4267,21 +4267,21 @@ components:
           description: The dataset event creation time
           nullable: false
 
-    DatasetDagRunQueue:
+    QueueEvent:
       type: object
       properties:
-        dataset_id:
-          type: integer
-          description: The dataset id
-        target_dag_id:
+        uri:
+          type: string
+          description: The datata uri.
+        dag_id:
           type: string
           description: The DAG ID.
         created_at:
           type: string
           format: date-time
-          description: The creation time of DatasetDagRunQueue
+          description: The creation time of QueueEvent
 
-    DatasetDagRunQueueCollection:
+    QueueEventCollection:
       description: |
         A collection of Dataset Dag Run Queues.
 
@@ -4293,7 +4293,7 @@ components:
             datasets:
               type: array
               items:
-                $ref: "#/components/schemas/DatasetDagRunQueue"
+                $ref: "#/components/schemas/QueueEvent"
         - $ref: "#/components/schemas/CollectionInfo"
 
     BasicDAGRun:

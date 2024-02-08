@@ -647,8 +647,8 @@ class TestGetDagDatasetQueueEvent(TestQueueEventEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "created_at": self.default_time,
-            "dataset_id": 1,
-            "target_dag_id": "dag",
+            "uri": "s3://bucket/key",
+            "dag_id": "dag",
         }
 
     def test_should_respond_404(self):
@@ -758,11 +758,11 @@ class TestGetDagDatasetQueueEvents(TestQueueEventEndpoint):
 
         assert response.status_code == 200
         assert response.json == {
-            "dataset_dag_run_queues": [
+            "queue_events": [
                 {
                     "created_at": self.default_time,
-                    "dataset_id": 1,
-                    "target_dag_id": "dag",
+                    "uri": "s3://bucket/key",
+                    "dag_id": "dag",
                 }
             ],
             "total_entries": 1,
@@ -853,11 +853,11 @@ class TestGetDatasetQueueEvents(TestQueueEventEndpoint):
 
         assert response.status_code == 200
         assert response.json == {
-            "dataset_dag_run_queues": [
+            "queue_events": [
                 {
                     "created_at": self.default_time,
-                    "dataset_id": 1,
-                    "target_dag_id": "dag",
+                    "uri": "s3://bucket/key",
+                    "dag_id": "dag",
                 }
             ],
             "total_entries": 1,

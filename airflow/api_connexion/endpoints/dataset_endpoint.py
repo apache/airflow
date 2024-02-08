@@ -28,13 +28,14 @@ from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
-    DatasetDagRunQueueCollection,
     DatasetEventCollection,
+    QueueEvent,
+    QueueEventCollection,
     dataset_collection_schema,
-    dataset_dag_run_queue_collection_schema,
-    dataset_dag_run_queue_schema,
     dataset_event_collection_schema,
     dataset_schema,
+    queue_event_collection_schema,
+    queue_event_schema,
 )
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils.db import get_query_count
@@ -168,7 +169,8 @@ def get_dag_dataset_queue_event(
             "Queue event not found",
             detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
         )
-    return dataset_dag_run_queue_schema.dump(ddrq)
+    queue_event = {"created_at": ddrq.created_at, "dag_id": dag_id, "uri": uri}
+    return queue_event_schema.dump(queue_event)
 
 
 @security.requires_access_dataset("DELETE")
@@ -196,16 +198,23 @@ def get_dag_dataset_queue_events(
 ) -> APIResponse:
     """Get queued Dataset events for a DAG."""
     where_clause = _generate_queue_event_where_clause(dag_id=dag_id, before=before)
-    query = select(DatasetDagRunQueue).where(*where_clause)
+    query = (
+        select(DatasetDagRunQueue, DatasetModel.uri)
+        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+        .where(*where_clause)
+    )
+    result = session.execute(query).all()
     total_entries = get_query_count(query, session=session)
-    ddrqs = session.scalars(query).all()
-    if not ddrqs:
+    if not result:
         raise NotFound(
             "Queue event not found",
             detail=f"Queue event with dag_id: `{dag_id}` was not found",
         )
-    return dataset_dag_run_queue_collection_schema.dump(
-        DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
+    queue_events = [
+        QueueEvent(created_at=ddrq.created_at, dag_id=ddrq.target_dag_id, uri=uri) for ddrq, uri in result
+    ]
+    return queue_event_collection_schema.dump(
+        QueueEventCollection(queue_events=queue_events, total_entries=total_entries)
     )
 
 
@@ -235,15 +244,18 @@ def get_dataset_queue_events(
     """Get queued Dataset events for a Dataset."""
     where_clause = _generate_queue_event_where_clause(uri=uri, before=before)
     query = (
-        select(DatasetDagRunQueue)
+        select(DatasetDagRunQueue, DatasetModel.uri)
         .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
         .where(*where_clause)
     )
     total_entries = get_query_count(query, session=session)
-    ddrqs = session.scalars(query).all()
+    result = session.execute(query).all()
     if total_entries > 0:
-        return dataset_dag_run_queue_collection_schema.dump(
-            DatasetDagRunQueueCollection(dataset_dag_run_queues=ddrqs, total_entries=total_entries)
+        queue_events = [
+            QueueEvent(created_at=ddrq.created_at, dag_id=ddrq.target_dag_id, uri=uri) for ddrq, uri in result
+        ]
+        return queue_event_collection_schema.dump(
+            QueueEventCollection(queue_events=queue_events, total_entries=total_entries)
         )
     raise NotFound(
         "Queue event not found",

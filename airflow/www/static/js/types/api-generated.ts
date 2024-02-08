@@ -1210,7 +1210,7 @@ export interface components {
       /** @description Custom notes left by users for this Dag Run. */
       note?: string;
     };
-    DeleteDatasetDagRunQueue: {
+    DeleteQueueEvent: {
       /**
        * Format: date-time
        * @description The cutoff time of DatasetDagQueue.
@@ -1826,14 +1826,14 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
-    DatasetDagRunQueue: {
-      /** @description The dataset id */
-      dataset_id?: number;
+    QueueEvent: {
+      /** @description The datata uri. */
+      uri?: string;
       /** @description The DAG ID. */
-      target_dag_id?: string;
+      dag_id?: string;
       /**
        * Format: date-time
-       * @description The creation time of DatasetDagRunQueue
+       * @description The creation time of QueueEvent
        */
       created_at?: string;
     };
@@ -1842,8 +1842,8 @@ export interface components {
      *
      * *New in version 2.9.0*
      */
-    DatasetDagRunQueueCollection: {
-      datasets?: components["schemas"]["DatasetDagRunQueue"][];
+    QueueEventCollection: {
+      datasets?: components["schemas"]["QueueEvent"][];
     } & components["schemas"]["CollectionInfo"];
     BasicDAGRun: {
       /** @description Run ID. */
@@ -3349,7 +3349,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetDagRunQueue"];
+          "application/json": components["schemas"]["QueueEvent"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3404,7 +3404,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetDagRunQueueCollection"];
+          "application/json": components["schemas"]["QueueEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3457,7 +3457,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetDagRunQueueCollection"];
+          "application/json": components["schemas"]["QueueEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -5032,8 +5032,8 @@ export type DagWarningCollection = CamelCasedPropertiesDeep<
 export type SetDagRunNote = CamelCasedPropertiesDeep<
   components["schemas"]["SetDagRunNote"]
 >;
-export type DeleteDatasetDagRunQueue = CamelCasedPropertiesDeep<
-  components["schemas"]["DeleteDatasetDagRunQueue"]
+export type DeleteQueueEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["DeleteQueueEvent"]
 >;
 export type EventLog = CamelCasedPropertiesDeep<
   components["schemas"]["EventLog"]
@@ -5155,11 +5155,11 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
-export type DatasetDagRunQueue = CamelCasedPropertiesDeep<
-  components["schemas"]["DatasetDagRunQueue"]
+export type QueueEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["QueueEvent"]
 >;
-export type DatasetDagRunQueueCollection = CamelCasedPropertiesDeep<
-  components["schemas"]["DatasetDagRunQueueCollection"]
+export type QueueEventCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["QueueEventCollection"]
 >;
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]

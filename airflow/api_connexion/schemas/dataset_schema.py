@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import NamedTuple
 
 from marshmallow import Schema, fields
@@ -25,7 +26,6 @@ from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
-    DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
@@ -151,32 +151,35 @@ dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()
 
 
-class DatasetDagRunQueueSchema(SQLAlchemySchema):
-    """DatasetDagRunQueue DB schema."""
+class QueueEvent(NamedTuple):
+    """QueueEvent."""
 
-    class Meta:
-        """Meta."""
-
-        model = DatasetDagRunQueue
-
-    dataset_id = auto_field()
-    target_dag_id = auto_field()
-    created_at = auto_field()
+    uri: str
+    dag_id: str
+    created_at: datetime
 
 
-class DatasetDagRunQueueCollection(NamedTuple):
-    """List of DatasetDagRunQueue with meta."""
+class QueueEventSchema(Schema):
+    """QueueEvent schema."""
 
-    dataset_dag_run_queues: list[DatasetDagRunQueue]
+    uri = fields.String()
+    dag_id = fields.String()
+    created_at = fields.DateTime()
+
+
+class QueueEventCollection(NamedTuple):
+    """List of QueueEvent with meta."""
+
+    queue_events: list[QueueEvent]
     total_entries: int
 
 
-class DatasetDagRunQueueCollectionSchema(Schema):
-    """DatasetDagRunQueue Collection Schema."""
+class QueueEventCollectionSchema(Schema):
+    """QueueEvent Collection Schema."""
 
-    dataset_dag_run_queues = fields.List(fields.Nested(DatasetDagRunQueueSchema))
+    queue_events = fields.List(fields.Nested(QueueEventSchema))
     total_entries = fields.Int()
 
 
-dataset_dag_run_queue_schema = DatasetDagRunQueueSchema()
-dataset_dag_run_queue_collection_schema = DatasetDagRunQueueCollectionSchema()
+queue_event_schema = QueueEventSchema()
+queue_event_collection_schema = QueueEventCollectionSchema()
