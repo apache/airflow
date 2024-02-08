@@ -43,7 +43,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3.2"
+            export AIRFLOW_PIP_VERSION="24.0"
         fi
     fi
 }
