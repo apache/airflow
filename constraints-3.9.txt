@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T05:21:04.240436
+# This constraints file was automatically generated on 2024-02-08T17:00:40.871260
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -308,12 +308,12 @@ gevent==23.9.1
 gitdb==4.0.11
 google-ads==23.0.0
 google-analytics-admin==0.22.5
-google-api-core==2.16.2
+google-api-core==2.17.0
 google-api-python-client==2.116.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.27.0
-google-cloud-aiplatform==1.40.0
+google-cloud-aiplatform==1.41.0
 google-cloud-appengine-logging==1.4.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.1
@@ -366,19 +366,23 @@ grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
 grpcio-status==1.60.1
+grpcio-tools==1.60.1
 grpcio==1.60.1
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
+h2==4.1.0
 hatch==1.9.3
 hatchling==1.21.1
 hdfs==2.7.3
 hmsclient==0.1.1
+hpack==4.0.0
 httpcore==0.16.3
 httplib2==0.22.0
 httpx==0.23.3
 humanize==4.9.0
 hvac==2.1.0
+hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
 identify==2.5.33
@@ -454,7 +458,7 @@ mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
 mypy==1.8.0
 mysql-connector-python==8.3.0
-mysqlclient==2.2.3
+mysqlclient==2.2.4
 nbclient==0.9.0
 nbformat==5.9.2
 neo4j==5.17.0
@@ -577,6 +581,7 @@ python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.4.3
 pyzmq==25.1.2
+qdrant-client==1.7.2
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
