@@ -382,7 +382,7 @@ class HttpAsyncHook(BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,
