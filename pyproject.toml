@@ -1373,7 +1373,6 @@ combine-as-imports = true
 "airflow/providers/common/io/xcom/backend.py" = ["D401"]
 "airflow/providers/databricks/hooks/databricks.py" = ["D401"]
 "airflow/providers/databricks/operators/databricks.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/datapipeline.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/dataplex.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/dataprep.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/dataproc_metastore.py" = ["D401"]
