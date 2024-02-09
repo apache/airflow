@@ -136,6 +136,10 @@ class TestKubernetesPodOperator:
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
                 limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
             ),
+            on_retry_container_resources=k8s.V1ResourceRequirements(
+                requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
+                limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
+            ),
             volume_mounts=[
                 k8s.V1VolumeMount(
                     name="{{ dag.dag_id }}",
@@ -168,6 +172,10 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.limits["cpu"]
         assert dag_id == rendered.container_resources.requests["memory"]
         assert dag_id == rendered.container_resources.requests["cpu"]
+        assert dag_id == rendered.on_retry_container_resources.limits["memory"]
+        assert dag_id == rendered.on_retry_container_resources.limits["cpu"]
+        assert dag_id == rendered.on_retry_container_resources.requests["memory"]
+        assert dag_id == rendered.on_retry_container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
         assert dag_id == ti.task.image
@@ -202,6 +210,29 @@ class TestKubernetesPodOperator:
 
     def sanitize_for_serialization(self, obj):
         return ApiClient().sanitize_for_serialization(obj)
+
+    @pytest.mark.parametrize("try_number", [0, 1, 2])
+    def test_on_retry_container_resources(self, try_number):
+        container_resources = k8s.V1ResourceRequirements(
+            requests={"memory": "256Mi", "cpu": "250m"},
+            limits={"memory": "256Mi", "cpu": "250m"},
+        )
+        on_retry_container_resources = k8s.V1ResourceRequirements(
+            requests={"memory": "512Mi", "cpu": "500m"},
+            limits={"memory": "512Mi", "cpu": "500m"},
+        )
+        k = KubernetesPodOperator(
+            container_resources=container_resources,
+            on_retry_container_resources=on_retry_container_resources,
+            task_id="task",
+        )
+        context = create_context(k)
+        context["ti"].try_number = try_number
+        pod = k.build_pod_request_obj(context)
+        if context["ti"].try_number > 1:
+            assert pod.spec.containers[0].resources == on_retry_container_resources
+        else:
+            assert pod.spec.containers[0].resources == container_resources
 
     @patch(HOOK_CLASS)
     def test_config_path(self, hook_mock):
