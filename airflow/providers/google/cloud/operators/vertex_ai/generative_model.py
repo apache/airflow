@@ -106,10 +106,10 @@ class LanguageModelGenerateTextOperator(GoogleCloudBaseOperator):
 
 class MultimodalModelChatOperator(GoogleCloudBaseOperator):
     """
-    Uses the Vertex AI Gemini Pro foundation model to generate natural language text.
+    Uses a Vertex AI Multimodal model to generate natural language text.
 
     :param prompt: Required. Inputs or queries that a user or a program gives
-        to the Vertex AI PaLM API, in order to elicit a specific response.
+        to the Multimodal model, in order to elicit a specific response.
     :param pretrained_model: By default uses the pretrained_model gemini-pro,
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
