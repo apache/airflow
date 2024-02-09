@@ -567,6 +567,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
         "-e",
         f"VERBOSE_COMMANDS={str(not quiet).lower()}",
+        "--rm",
         "-t",
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",
