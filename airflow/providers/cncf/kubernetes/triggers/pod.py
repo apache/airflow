@@ -76,6 +76,9 @@ class KubernetesPodTrigger(BaseTrigger):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
         Deprecated - use `on_finish_action` instead.
+    :param logging_interval: number of seconds to wait before kicking it back to
+        the operator to print latest logs. If ``None`` will wait until container done.
+    :param last_log_time: where to resume logs from
     """
 
     def __init__(

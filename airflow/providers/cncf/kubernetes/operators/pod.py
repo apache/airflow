@@ -211,6 +211,9 @@ class KubernetesPodOperator(BaseOperator):
         of KubernetesPodOperator.
     :param progress_callback: Callback function for receiving k8s container logs.
         `progress_callback` is deprecated, please use :param `callbacks` instead.
+    :param logging_interval: max time in seconds that task should be in deferred state before
+        resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
+        is done, and no logs will be visible until that time.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -306,7 +309,6 @@ class KubernetesPodOperator(BaseOperator):
         callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
-        last_log_time: DateTime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -398,7 +400,6 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
-        self.last_log_time = last_log_time
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
