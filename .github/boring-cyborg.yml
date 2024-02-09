@@ -403,6 +403,12 @@ labelPRBasedOnFilePath:
     - tests/providers/presto/**/*
     - tests/system/providers/presto/**/*
 
+  provider:qdrant:
+    - airflow/providers/qdrant/**/*
+    - docs/apache-airflow-providers-qdrant/**/*
+    - tests/providers/qdrant/**/*
+    - tests/system/providers/qdrant/**/*
+
   provider:redis:
     - airflow/providers/redis/**/*
     - docs/apache-airflow-providers-redis/**/*

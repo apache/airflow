@@ -90,6 +90,7 @@ body:
         - pinecone
         - postgres
         - presto
+        - qdrant
         - redis
         - salesforce
         - samba

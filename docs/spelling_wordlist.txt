@@ -634,6 +634,7 @@ fn
 fo
 followsa
 forecasted
+forkserver
 formatter
 formatters
 Formaturas
@@ -1269,6 +1270,8 @@ pythonic
 PythonOperator
 pythonpath
 pywinrm
+Qdrant
+qdrant
 qds
 Qingping
 Qplum
