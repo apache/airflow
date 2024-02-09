@@ -38,13 +38,7 @@ describe("Test TaskName", () => {
 
   test("Displays a mapped task name", () => {
     const { getByText } = render(
-      <TaskName
-        level={0}
-        label="test"
-        id="test"
-        isMapped
-        onToggle={() => {}}
-      />,
+      <TaskName label="test" id="test" isMapped onToggle={() => {}} />,
       { wrapper: ChakraWrapper }
     );
 
@@ -52,12 +46,11 @@ describe("Test TaskName", () => {
   });
 
   test("Displays a group task name", () => {
-    const { getByText, getByTestId } = render(
-      <TaskName level={0} label="test" id="test" isGroup onToggle={() => {}} />,
+    const { getByText } = render(
+      <TaskName label="test" id="test" isGroup onToggle={() => {}} />,
       { wrapper: ChakraWrapper }
     );
 
     expect(getByText("test")).toBeDefined();
-    expect(getByTestId("open-group")).toBeDefined();
   });
 });
