@@ -165,10 +165,12 @@ class DbApiHook(BaseHook):
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
         self._placeholder: str = "%s"
-        self._insert_statement_format: str = kwargs.get("insert_statement_format",
-                                                        "INSERT INTO {} {} VALUES ({})")
-        self._replace_statement_format: str = kwargs.get("replace_statement_format",
-                                                         "REPLACE INTO {} {} VALUES ({})")
+        self._insert_statement_format: str = kwargs.get(
+            "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
+        )
+        self._replace_statement_format: str = kwargs.get(
+            "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
+        )
 
     @property
     def placeholder(self) -> str:
@@ -514,7 +516,7 @@ class DbApiHook(BaseHook):
         return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
     def insert_rows(
-        self, table, rows, target_fields=None, commit_every=1000, replace=False,executemany=False, **kwargs
+        self, table, rows, target_fields=None, commit_every=1000, replace=False, executemany=False, **kwargs
     ):
         """Insert a collection of tuples into a table.
 
