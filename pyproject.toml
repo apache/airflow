@@ -1562,7 +1562,6 @@ combine-as-imports = true
 "airflow/providers/pagerduty/hooks/pagerduty.py" = ["D401"]
 "airflow/providers/pagerduty/hooks/pagerduty_events.py" = ["D401"]
 "airflow/providers/papermill/hooks/kernel.py" = ["D401"]
-"airflow/providers/pinecone/hooks/pinecone.py" = ["D401"]
 "airflow/providers/postgres/hooks/postgres.py" = ["D401"]
 "airflow/providers/presto/hooks/presto.py" = ["D401"]
 "airflow/providers/qdrant/hooks/qdrant.py" = ["D401"]
