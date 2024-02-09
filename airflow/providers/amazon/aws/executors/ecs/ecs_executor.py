@@ -123,6 +123,13 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
             raise
 
+    def get_health(self):
+        try:
+            self.check_health()
+        except AirflowException:
+            pass
+        return self.is_healthy
+
     def check_health(self, verbose: bool = True):
         """
         Make a test API call to check the health of the ECS Executor.

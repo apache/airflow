@@ -693,8 +693,6 @@ class AirflowBaseView(BaseView):
         extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
-        if executor.is_healthy is False:
-            extra_args["unhealthy_executor"] = executor.__name__ or "Executor"
         extra_args["otel_on"] = conf.getboolean("metrics", "otel_on")
 
     line_chart_attr = {
@@ -705,6 +703,12 @@ class AirflowBaseView(BaseView):
         # Add triggerer_job only if we need it
         if TriggererJobRunner.is_needed():
             kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJobRunner.most_recent_job)
+
+        executor, _ = ExecutorLoader.import_default_executor_cls()
+        try:
+            executor().check_health()
+        except AirflowException:
+            kwargs["unhealthy_executor"] = executor.__name__
 
         if "dag" in kwargs:
             kwargs["can_edit_dag"] = get_auth_manager().is_authorized_dag(

@@ -135,6 +135,10 @@ class BaseExecutor(LoggingMixin):
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
 
+    @classmethod
+    def get_health(cls):
+        return cls.is_healthy
+
     def check_health(self, verbose: bool = True):
         """Update the state of is_healthy."""
 
