@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T23:28:03.601573
+# This constraints file was automatically generated on 2024-02-09T06:37:18.459310
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -360,7 +360,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.11.1
+openai==1.12.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.8.0
@@ -607,7 +607,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.34.0
-yandexcloud==0.257.0
+yandexcloud==0.258.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.46
