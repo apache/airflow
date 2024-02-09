@@ -21,8 +21,8 @@ import random
 import string
 
 import pytest
+from sqlalchemy import func, select
 
-from airflow import models
 from airflow.api.common.experimental import pool as pool_api
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
@@ -42,7 +42,7 @@ class TestPool:
         self.pools = [Pool.get_default_pool()]
         for i in range(self.USER_POOL_COUNT):
             name = f"experimental_{i + 1}"
-            pool = models.Pool(
+            pool = Pool(
                 pool=name,
                 slots=i,
                 description=name,
@@ -76,7 +76,7 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         with create_session() as session:
-            assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT + 1
+            assert session.scalar(select(func.count(Pool.id))) == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self):
         pool = pool_api.create_pool(name=self.pools[1].pool, slots=5, description="")
@@ -86,7 +86,7 @@ class TestPool:
         # do not change include_deferred on an existing pool
         assert pool.include_deferred is True
         with create_session() as session:
-            assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT
+            assert session.scalar(select(func.count(Pool.id))) == self.TOTAL_POOL_COUNT
 
     def test_create_pool_bad_name(self):
         for name in ("", "    "):
@@ -99,7 +99,7 @@ class TestPool:
 
     def test_create_pool_name_too_long(self):
         long_name = "".join(random.choices(string.ascii_lowercase, k=300))
-        column_length = models.Pool.pool.property.columns[0].type.length
+        column_length = Pool.pool.property.columns[0].type.length
         with pytest.raises(
             AirflowBadRequest, match=f"^Pool name can't be more than {column_length} characters$"
         ):
@@ -121,7 +121,7 @@ class TestPool:
         pool = pool_api.delete_pool(name=self.pools[-1].pool)
         assert pool.pool == self.pools[-1].pool
         with create_session() as session:
-            assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT - 1
+            assert session.scalar(select(func.count(Pool.id))) == self.TOTAL_POOL_COUNT - 1
 
     def test_delete_pool_non_existing(self):
         with pytest.raises(pool_api.PoolNotFound, match="^Pool 'test' doesn't exist$"):

@@ -408,7 +408,9 @@ class TestPatchConnection(TestConnectionEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        connection = session.execute(select(Connection).where(conn_id=test_connection)).scalar_one()
+        connection = session.execute(
+            select(Connection).where(Connection.conn_id == test_connection)
+        ).scalar_one()
         assert connection.password is None
         assert response.json == {
             "connection_id": test_connection,  # not updated

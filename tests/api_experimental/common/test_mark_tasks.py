@@ -21,9 +21,9 @@ import datetime
 from typing import Callable
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import eagerload
 
-from airflow import models
 from airflow.api.common.mark_tasks import (
     _create_dagruns,
     _DagRunInfo,
@@ -33,7 +33,9 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.models import DagRun
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
@@ -48,8 +50,6 @@ pytestmark = pytest.mark.db_test
 
 @pytest.fixture(scope="module")
 def dagbag():
-    from airflow.models.dagbag import DagBag
-
     # Ensure the DAGs we are looking at from the DB are up-to-date
     non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=True)
     non_serialized_dagbag.sync_to_db()
@@ -128,28 +128,21 @@ class TestMarkTasks:
 
     @staticmethod
     def snapshot_state(dag, execution_dates):
-        TI = models.TaskInstance
-        DR = models.DagRun
         with create_session() as session:
-            return (
-                session.query(TI)
-                .join(TI.dag_run)
-                .options(eagerload(TI.dag_run))
-                .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
-                .all()
-            )
+            return session.scalars(
+                select(TaskInstance)
+                .join(TaskInstance.dag_run)
+                .options(eagerload(TaskInstance.dag_run))
+                .where(TaskInstance.dag_id == dag.dag_id, DagRun.execution_date.in_(execution_dates))
+            ).all()
 
     @provide_session
     def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None, map_task_pairs=None):
-        TI = models.TaskInstance
-        DR = models.DagRun
-
-        tis = (
-            session.query(TI)
-            .join(TI.dag_run)
-            .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
-            .all()
-        )
+        tis = session.scalars(
+            select(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .filter(TaskInstance.dag_id == dag.dag_id, DagRun.execution_date.in_(execution_dates))
+        ).all()
         assert len(tis) > 0
 
         unexpected_tis = []
@@ -478,7 +471,7 @@ class TestMarkDAGRun:
 
     @classmethod
     def setup_class(cls):
-        dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
+        dagbag = DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags["miscellaneous_test_dag"]
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags["example_subdag_operator"]
@@ -534,9 +527,10 @@ class TestMarkDAGRun:
 
     @provide_session
     def _verify_task_instance_states(self, dag, date, state, session=None):
-        TI = models.TaskInstance
-        tis = session.query(TI).filter(TI.dag_id == dag.dag_id, TI.execution_date == date)
-        for ti in tis:
+        stmt = select(TaskInstance).where(
+            TaskInstance.dag_id == dag.dag_id, TaskInstance.execution_date == date
+        )
+        for ti in session.scalars(stmt):
             assert ti.state == state
 
     def _create_test_dag_run(self, state, date):
@@ -549,7 +543,7 @@ class TestMarkDAGRun:
         )
 
     def _verify_dag_run_state(self, dag, date, state):
-        drs = models.DagRun.find(dag_id=dag.dag_id, execution_date=date)
+        drs = DagRun.find(dag_id=dag.dag_id, execution_date=date)
         dr = drs[0]
 
         assert dr.get_state() == state
@@ -558,8 +552,9 @@ class TestMarkDAGRun:
     def _verify_dag_run_dates(self, dag, date, state, middle_time, session=None):
         # When target state is RUNNING, we should set start_date,
         # otherwise we should set end_date.
-        DR = DagRun
-        dr = session.query(DR).filter(DR.dag_id == dag.dag_id, DR.execution_date == date).one()
+        dr = session.execute(
+            select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == date)
+        ).scalar_one()
         if state == State.RUNNING:
             # Since the DAG is running, the start_date must be updated after creation
             assert dr.start_date > middle_time
@@ -756,9 +751,9 @@ class TestMarkDAGRun:
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed
-        models.DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[0])
+        DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[0])
         self._verify_dag_run_state(self.dag2, self.execution_dates[0], State.FAILED)
-        models.DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[2])
+        DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[2])
         self._verify_dag_run_state(self.dag2, self.execution_dates[2], State.RUNNING)
 
     def test_set_dag_run_state_edge_cases(self):
