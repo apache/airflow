@@ -2640,7 +2640,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_load(self, *args, **kwargs) -> str:
-        """Do Nothing.
+        """Run load. DEPRECATED.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`
         instead.
@@ -2676,7 +2676,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_query(self, *args, **kwargs) -> str:
-        """Do Nothing. This method is deprecated.
+        """Run query.  DEPRECATED.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`
         instead.
@@ -2863,7 +2863,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         """Do nothing by default."""
 
     def setoutputsize(self, size: Any, column: Any = None) -> None:
-        """Do Nothing by default."""
+        """Do nothing by default."""
 
     def _get_query_result(self) -> dict:
         """Get job query results; data, schema, job type, etc."""
