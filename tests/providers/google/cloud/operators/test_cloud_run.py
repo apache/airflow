@@ -105,7 +105,7 @@ class TestCloudRunExecuteJobOperator:
         hook_mock.return_value.get_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
         )
-        
+
         hook_mock.return_value.execute_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
         )
@@ -218,7 +218,7 @@ class TestCloudRunExecuteJobOperator:
         event = {"status": RunJobStatus.SUCCESS.value, "job_name": JOB_NAME}
 
         result = operator.execute_complete(mock.MagicMock(), event)
-        
+
         hook_mock.return_value.get_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
         )
@@ -244,7 +244,7 @@ class TestCloudRunExecuteJobOperator:
         hook_mock.return_value.get_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
         )
-        
+
         hook_mock.return_value.execute_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=overrides
         )
