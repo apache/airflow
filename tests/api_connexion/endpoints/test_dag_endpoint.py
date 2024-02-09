@@ -22,6 +22,7 @@ from datetime import datetime
 
 import pendulum
 import pytest
+from sqlalchemy import func, select
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
@@ -100,6 +101,15 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
     delete_user(app, username="test_granular_permissions")  # type: ignore
+
+
+def _dag_count_stmt(is_subdag: bool | None = None, is_paused: bool | None = None):
+    stmt = select(func.count()).select_from(DagModel)
+    if is_subdag is not None:
+        stmt = stmt.where(DagModel.is_subdag if is_subdag else ~DagModel.is_subdag)
+    if is_paused is not None:
+        stmt = stmt.where(DagModel.is_paused if is_paused else ~DagModel.is_paused)
+    return stmt
 
 
 class TestDagEndpoint:
@@ -632,8 +642,7 @@ class TestGetDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-        assert len(dags_query.all()) == 3
+        assert session.scalar(_dag_count_stmt(is_subdag=False)) == 3
 
         response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
@@ -1366,9 +1375,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-        assert len(dags_query.all()) == 3
-
+        assert session.scalar(_dag_count_stmt(is_subdag=False)) == 3
         response = self.client.patch(
             "/api/v1/dags?dag_id_pattern=~",
             json={
@@ -1452,8 +1459,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-        assert len(dags_query.all()) == 3
+        assert session.scalar(_dag_count_stmt(is_subdag=False)) == 3
 
         response = self.client.patch(
             "/api/v1/dags?dag_id_pattern=~&update_mask=is_paused",
@@ -1536,8 +1542,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-        assert len(dags_query.all()) == 3
+        assert session.scalar(_dag_count_stmt(is_subdag=False)) == 3
 
         response = self.client.patch(
             "/api/v1/dags?dag_id_pattern=~&update_mask=ispaused",
@@ -1559,8 +1564,7 @@ class TestPatchDags(TestDagEndpoint):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-        assert len(dags_query.all()) == 3
+        assert session.scalar(_dag_count_stmt(is_subdag=False)) == 3
 
         response = self.client.patch(
             "/api/v1/dags?dag_id_pattern=~&update_mask=is_paused",
@@ -2037,10 +2041,8 @@ class TestPatchDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-        dags_not_updated = session.query(DagModel).filter(~DagModel.is_paused)
-        assert len(dags_not_updated.all()) == 8
-        dags_updated = session.query(DagModel).filter(DagModel.is_paused)
-        assert len(dags_updated.all()) == 2
+        assert session.scalar(_dag_count_stmt(is_paused=False)) == 8
+        assert session.scalar(_dag_count_stmt(is_paused=True)) == 2
 
     @provide_session
     def test_should_respond_200_and_reverse_ordering(self, session, url_safe_serializer):

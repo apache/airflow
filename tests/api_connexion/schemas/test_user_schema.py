@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.api_connexion.schemas.user_schema import user_collection_item_schema, user_schema
 from airflow.providers.fab.auth_manager.models import User
 from airflow.utils import timezone
-from tests.test_utils.api_connexion_utils import create_role, delete_role
+from tests.test_utils.api_connexion_utils import create_role, delete_role, delete_user
 
 TEST_EMAIL = "test@example.org"
 
@@ -40,20 +41,21 @@ def configured_app(minimal_app_for_api):
     )
     yield app
 
-    delete_role(app, "TestRole")  # type:ignore
+    delete_role(app, "TestRole")
+    delete_user(app, "test")
 
 
 class TestUserBase:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app):
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         self.role = self.app.appbuilder.sm.find_role("TestRole")
         self.session = self.app.appbuilder.get_session
 
     def teardown_method(self):
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
-        if user:
+        self.session.rollback()
+        if user := self.session.scalar(select(User).where(User.email == TEST_EMAIL)):
             self.session.delete(user)
             self.session.commit()
 
@@ -72,7 +74,7 @@ class TestUserCollectionItemSchema(TestUserBase):
         )
         self.session.add(user_model)
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalar(select(User).where(User.email == TEST_EMAIL))
         deserialized_user = user_collection_item_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {
@@ -103,7 +105,7 @@ class TestUserSchema(TestUserBase):
         )
         self.session.add(user_model)
         self.session.commit()
-        user = self.session.query(User).filter(User.email == TEST_EMAIL).first()
+        user = self.session.scalar(select(User).where(User.email == TEST_EMAIL))
         deserialized_user = user_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
@@ -62,7 +63,9 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         ):
             EmptyOperator(task_id="task2")
 
-        dataset_model = session.query(DatasetModel).filter_by(uri=dataset.uri).one()
+        dataset_model = session.execute(
+            select(DatasetModel).where(DatasetModel.uri == dataset.uri)
+        ).scalar_one()
 
         serialized_data = dataset_schema.dump(dataset_model)
         serialized_data["id"] = 1

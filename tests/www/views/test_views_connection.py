@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 from typing import Any
 from unittest import mock
@@ -28,8 +29,11 @@ from sqlalchemy import func, select
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.db import clear_db_connections
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
+from tests.test_utils.db import clear_db_connections, clear_db_logs
+from tests.test_utils.www import (
+    check_content_in_response,
+    get_last_logs,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -51,13 +55,18 @@ def conn_with_extra() -> dict[str, Any]:
 @pytest.fixture(autouse=True)
 def clear_connections():
     clear_db_connections(add_default_connections_back=False)
+    clear_db_logs()
+    yield
+    clear_db_logs()
+    clear_db_connections()
 
 
 @pytest.mark.execution_timeout(150)
 def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
-    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="connection.create", execution_date=None)
+    assert logs and logs[0].extra
 
 
 def test_connection_id_trailing_blanks(admin_client, session):
@@ -101,7 +110,18 @@ def test_all_fields_with_blanks(admin_client, session):
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="connection.create", execution_date=None)
+    assert logs and logs[0].extra
+    assert ast.literal_eval(logs[0].extra) == [
+        ("conn_id", "test_conn"),
+        ("conn_type", "http"),
+        ("description", "description"),
+        ("host", "localhost"),
+        ("port", "8080"),
+        ("username", "root"),
+        ("password", "***"),
+        ("extra", '{"x_secret": "***", "y_secret": "***"}'),
+    ]
 
 
 def test_prefill_form_null_extra():

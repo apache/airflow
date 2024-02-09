@@ -20,6 +20,7 @@ import re
 
 import marshmallow
 import pytest
+from sqlalchemy import select
 
 from airflow.api_connexion.schemas.connection_schema import (
     ConnectionCollection,
@@ -29,21 +30,19 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_test_schema,
 )
 from airflow.models import Connection
-from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
 pytestmark = pytest.mark.db_test
 
 
+@pytest.fixture(autouse=True)
+def _clear_db():
+    clear_db_connections(add_default_connections_back=False)
+    yield
+    clear_db_connections()
+
+
 class TestConnectionCollectionItemSchema:
-    def setup_method(self) -> None:
-        with create_session() as session:
-            session.query(Connection).delete()
-
-    def teardown_method(self) -> None:
-        clear_db_connections()
-
-    @provide_session
     def test_serialize(self, session):
         connection_model = Connection(
             conn_id="mysql_default",
@@ -55,7 +54,7 @@ class TestConnectionCollectionItemSchema:
         )
         session.add(connection_model)
         session.commit()
-        connection_model = session.query(Connection).first()
+        connection_model = session.scalar(select(Connection))
         deserialized_connection = connection_collection_item_schema.dump(connection_model)
         assert deserialized_connection == {
             "connection_id": "mysql_default",
@@ -108,14 +107,6 @@ class TestConnectionCollectionItemSchema:
 
 
 class TestConnectionCollectionSchema:
-    def setup_method(self) -> None:
-        with create_session() as session:
-            session.query(Connection).delete()
-
-    def teardown_method(self) -> None:
-        clear_db_connections()
-
-    @provide_session
     def test_serialize(self, session):
         connection_model_1 = Connection(conn_id="mysql_default_1", conn_type="test-type")
         connection_model_2 = Connection(conn_id="mysql_default_2", conn_type="test-type2")
@@ -150,14 +141,6 @@ class TestConnectionCollectionSchema:
 
 
 class TestConnectionSchema:
-    def setup_method(self) -> None:
-        with create_session() as session:
-            session.query(Connection).delete()
-
-    def teardown_method(self) -> None:
-        clear_db_connections()
-
-    @provide_session
     def test_serialize(self, session):
         connection_model = Connection(
             conn_id="mysql_default",
@@ -171,7 +154,7 @@ class TestConnectionSchema:
         )
         session.add(connection_model)
         session.commit()
-        connection_model = session.query(Connection).first()
+        connection_model = session.scalar(select(Connection))
         deserialized_connection = connection_schema.dump(connection_model)
         assert deserialized_connection == {
             "connection_id": "mysql_default",

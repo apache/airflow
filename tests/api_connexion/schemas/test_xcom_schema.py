@@ -29,8 +29,8 @@ from airflow.api_connexion.schemas.xcom_schema import (
 )
 from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
-from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_xcom
 
 pytestmark = pytest.mark.db_test
 
@@ -38,8 +38,7 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(scope="module", autouse=True)
 def clean_xcom():
     """Ensure there's no XCom littered by other modules."""
-    with create_session() as session:
-        session.query(XCom).delete()
+    clear_db_xcom()
 
 
 def _compare_xcom_collections(collection1: dict, collection_2: dict):
@@ -98,7 +97,7 @@ class TestXComCollectionItemSchema:
             execution_date=self.default_time_parsed,
             key="test_key",
         )
-        xcom_model = session.query(XCom).first()
+        xcom_model = session.scalar(select(XCom))
         deserialized_xcom = xcom_collection_item_schema.dump(xcom_model)
         assert deserialized_xcom == {
             "key": "test_key",
@@ -198,7 +197,7 @@ class TestXComSchema:
             key="test_key",
             value=pickle.dumps(b"test_binary"),
         )
-        xcom_model = session.query(XCom).first()
+        xcom_model = session.scalar(select(XCom))
         deserialized_xcom = xcom_schema.dump(xcom_model)
         assert deserialized_xcom == {
             "key": "test_key",

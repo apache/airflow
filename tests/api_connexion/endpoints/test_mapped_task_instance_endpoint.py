@@ -22,6 +22,7 @@ import os
 import urllib
 
 import pytest
+from sqlalchemy import delete
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import TaskInstance
@@ -115,11 +116,13 @@ class TestMappedTaskInstanceEndpoint:
 
             if count:
                 # Remove the map_index=-1 TI when we're creating other TIs
-                session.query(TaskInstance).filter(
-                    TaskInstance.dag_id == mapped.dag_id,
-                    TaskInstance.task_id == mapped.task_id,
-                    TaskInstance.run_id == dr.run_id,
-                ).delete()
+                session.execute(
+                    delete(TaskInstance).where(
+                        TaskInstance.dag_id == mapped.dag_id,
+                        TaskInstance.task_id == mapped.task_id,
+                        TaskInstance.run_id == dr.run_id,
+                    )
+                )
 
             for index, state in enumerate(
                 itertools.chain(

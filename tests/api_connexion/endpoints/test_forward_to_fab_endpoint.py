@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.providers.fab.auth_manager.models import Role, User
@@ -28,22 +29,24 @@ from airflow.utils.session import create_session
 from airflow.www.security import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import create_role, create_user, delete_role, delete_user
 
-pytestmark = pytest.mark.db_test
-
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
-
 EXAMPLE_USER_NAME = "example_user"
-
 EXAMPLE_USER_EMAIL = "example_user@example.com"
+
+pytestmark = pytest.mark.db_test
 
 
 def _delete_user(**filters):
+    stmt = select(User)
+    if username := filters.get("username"):
+        stmt = stmt.where(User.username == username)
+    if email := filters.get("email"):
+        stmt = stmt.where(User.email == email)
+
     with create_session() as session:
-        user = session.query(User).filter_by(**filters).first()
-        if user is None:
-            return
-        user.roles = []
-        session.delete(user)
+        if user := session.scalar(stmt):
+            user.roles = []
+            session.delete(user)
 
 
 @pytest.fixture()
@@ -119,11 +122,10 @@ class TestFABforwarding:
         session = self.app.appbuilder.get_session
         existing_roles = set(EXISTING_ROLES)
         existing_roles.update(["Test", "TestNoPermissions"])
-        roles = session.query(Role).filter(~Role.name.in_(existing_roles)).all()
-        for role in roles:
+        for role in session.scalars(select(Role).where(~Role.name.in_(existing_roles))).unique():
             delete_role(self.app, role.name)
-        users = session.query(User).filter(User.changed_on == timezone.parse(DEFAULT_TIME))
-        users.delete(synchronize_session=False)
+        for user in session.scalars(select(User).where(User.changed_on == timezone.parse(DEFAULT_TIME))):
+            session.delete(user)
         session.commit()
 
 

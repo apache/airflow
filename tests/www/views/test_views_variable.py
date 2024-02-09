@@ -26,12 +26,12 @@ from sqlalchemy import func, select, update
 from airflow.models import Variable
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user
-from tests.test_utils.db import clear_db_variables
+from tests.test_utils.db import clear_db_logs, clear_db_variables
 from tests.test_utils.www import (
-    _check_last_log,
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
+    get_last_logs,
 )
 
 pytestmark = pytest.mark.db_test
@@ -47,7 +47,9 @@ VARIABLES_COUNT_STMT = select(func.count()).select_from(Variable)
 @pytest.fixture(autouse=True)
 def clear_variables():
     clear_db_variables()
+    clear_db_logs()
     yield
+    clear_db_logs()
     clear_db_variables()
 
 
@@ -133,7 +135,8 @@ def test_import_variables_success(session, admin_client):
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="variables.varimport", execution_date=None)
+    assert logs and logs[0].extra
 
 
 def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
@@ -148,7 +151,8 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
         follow_redirects=True,
     )
     check_content_in_response("2 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="variables.varimport", execution_date=None)
+    assert logs and logs[0].extra
 
 
 def test_import_variables_skips_update_if_set(session, admin_client, caplog):
@@ -167,7 +171,8 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
     check_content_in_response(
         "The variables with these keys: &#39;str_key&#39; were skipped because they already exists", resp
     )
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="variables.varimport", execution_date=None)
+    assert logs and logs[0].extra
     assert "Variable: str_key already exists, skipping." in caplog.text
 
 

@@ -25,8 +25,12 @@ from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_runs, clear_db_variables
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+from tests.test_utils.db import clear_db_logs, clear_db_runs, clear_db_variables
+from tests.test_utils.www import (
+    _check_last_log_masked_variable,
+    check_content_in_response,
+    get_last_logs,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -88,7 +92,9 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
 @pytest.fixture(autouse=True)
 def clean_db():
     clear_db_variables()
+    clear_db_logs()
     yield
+    clear_db_logs()
     clear_db_variables()
 
 
@@ -102,12 +108,13 @@ def test_action_logging_get(session, admin_client):
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
+    logs = get_last_logs(
         session,
         dag_id="example_bash_operator",
         event="grid",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert logs and logs[0].extra
 
 
 def test_action_logging_get_legacy_view(session, admin_client):
@@ -120,12 +127,13 @@ def test_action_logging_get_legacy_view(session, admin_client):
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
+    logs = get_last_logs(
         session,
         dag_id="example_bash_operator",
         event="legacy_tree",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert logs and logs[0].extra
 
 
 def test_action_logging_post(session, admin_client):
@@ -143,12 +151,13 @@ def test_action_logging_post(session, admin_client):
     check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
-    _check_last_log(
+    logs = get_last_logs(
         session,
         dag_id="example_bash_operator",
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+    assert logs and logs[0].extra
 
 
 def delete_variable(session, key):
@@ -160,7 +169,8 @@ def test_action_logging_variables_post(session, admin_client):
     form = dict(key="random", val="random")
     admin_client.post("/variable/add", data=form)
     session.commit()
-    _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="variable.create", execution_date=None)
+    assert logs and logs[0].extra
 
 
 def test_action_logging_variables_masked_secrets(session, admin_client):

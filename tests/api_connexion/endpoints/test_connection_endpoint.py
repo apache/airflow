@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import os
-from unittest import mock
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
@@ -28,10 +28,12 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_connections
-from tests.test_utils.www import _check_last_log
+from tests.test_utils.db import clear_db_connections, clear_db_logs
+from tests.test_utils.www import get_last_logs
 
 pytestmark = pytest.mark.db_test
+
+CONN_COUNT_STMT = select(func.count()).select_from(Connection)
 
 
 @pytest.fixture(scope="module")
@@ -50,21 +52,37 @@ def configured_app(minimal_app_for_api):
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
-    yield app
+    with pytest.MonkeyPatch.context() as mp:
+        # For avoid side effects if contributor defines connection variables somewhere, e.g. in Breeze.
+        for env in filter(lambda k: k.startswith(CONN_ENV_PREFIX), os.environ.keys()):
+            mp.delenv(env)
+        mp.delenv("AIRFLOW__CORE__TEST_CONNECTION", raising=False)
+        yield app
 
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
+@pytest.fixture
+def clear_logs():
+    clear_db_logs()
+    yield
+    clear_db_logs()
+
+
+@pytest.fixture
+def enable_test_conn(monkeypatch):
+    monkeypatch.setenv("AIRFLOW__CORE__TEST_CONNECTION", "Enabled")
+
+
 class TestConnectionEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app):
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         # we want only the connection created here for this test
         clear_db_connections(False)
-
-    def teardown_method(self) -> None:
+        yield
         clear_db_connections()
 
     def _create_connection(self, session):
@@ -74,20 +92,19 @@ class TestConnectionEndpoint:
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
-    def test_delete_should_respond_204(self, session):
+    def test_delete_should_respond_204(self, session, clear_logs):
         connection_model = Connection(conn_id="test-connection", conn_type="test_type")
-
         session.add(connection_model)
         session.commit()
-        conn = session.query(Connection).all()
-        assert len(conn) == 1
+
+        assert session.scalar(CONN_COUNT_STMT) == 1
         response = self.client.delete(
             "/api/v1/connections/test-connection", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 204
-        connection = session.query(Connection).all()
-        assert len(connection) == 0
-        _check_last_log(session, dag_id=None, event="connection.delete", execution_date=None)
+        assert session.scalar(CONN_COUNT_STMT) == 0
+        logs = get_last_logs(session, dag_id=None, event="connection.delete", execution_date=None)
+        assert logs and logs[0].extra
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -127,8 +144,7 @@ class TestGetConnection(TestConnectionEndpoint):
         )
         session.add(connection_model)
         session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 1
+        assert session.scalar(CONN_COUNT_STMT) == 1
         response = self.client.get(
             "/api/v1/connections/test-connection-id", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -185,8 +201,7 @@ class TestGetConnections(TestConnectionEndpoint):
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 2
+        assert session.scalar(CONN_COUNT_STMT) == 2
         response = self.client.get("/api/v1/connections", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
@@ -219,8 +234,7 @@ class TestGetConnections(TestConnectionEndpoint):
         connections = [connection_model_1, connection_model_2]
         session.add_all(connections)
         session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 2
+        assert session.scalar(CONN_COUNT_STMT) == 2
         response = self.client.get(
             "/api/v1/connections?order_by=-connection_id", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -368,14 +382,15 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     @provide_session
-    def test_patch_should_respond_200(self, payload, session):
+    def test_patch_should_respond_200(self, payload, session, clear_logs):
         self._create_connection(session)
 
         response = self.client.patch(
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="connection.edit", execution_date=None)
+        logs = get_last_logs(session, dag_id=None, event="connection.edit", execution_date=None)
+        assert logs and logs[0].extra
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -393,7 +408,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        connection = session.query(Connection).filter_by(conn_id=test_connection).first()
+        connection = session.execute(select(Connection).where(conn_id=test_connection)).scalar_one()
         assert connection.password is None
         assert response.json == {
             "connection_id": test_connection,  # not updated
@@ -530,16 +545,16 @@ class TestPatchConnection(TestConnectionEndpoint):
 
 
 class TestPostConnection(TestConnectionEndpoint):
-    def test_post_should_respond_200(self, session):
+    def test_post_should_respond_200(self, session, clear_logs):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type"}
         response = self.client.post(
             "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        connection = session.query(Connection).all()
-        assert len(connection) == 1
-        assert connection[0].conn_id == "test-connection-id"
-        _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+        connection = session.execute(select(Connection)).scalar_one()
+        assert connection.conn_id == "test-connection-id"
+        logs = get_last_logs(session, dag_id=None, event="connection.create", execution_date=None)
+        assert logs and logs[0].extra
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}
@@ -548,10 +563,9 @@ class TestPostConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 200
         assert response.json["extra"] is None
-        connection = session.query(Connection).all()
-        assert len(connection) == 1
-        assert connection[0].conn_id == "test-connection-id"
-        assert connection[0].extra is None
+        connection = session.execute(select(Connection)).scalar_one()
+        assert connection.conn_id == "test-connection-id"
+        assert connection.extra is None
 
     def test_post_should_respond_400_for_invalid_payload(self):
         payload = {
@@ -609,8 +623,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
 
 class TestConnection(TestConnectionEndpoint):
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_respond_200(self):
+    def test_should_respond_200(self, enable_test_conn):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
         response = self.client.post(
             "/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"}
@@ -621,14 +634,12 @@ class TestConnection(TestConnectionEndpoint):
             "message": "Connection successfully tested",
         }
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_connection_env_is_cleaned_after_run(self):
+    def test_connection_env_is_cleaned_after_run(self, enable_test_conn):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
         self.client.post("/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"})
         assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_post_should_respond_400_for_invalid_payload(self):
+    def test_post_should_respond_400_for_invalid_payload(self, enable_test_conn):
         payload = {
             "connection_id": "test-connection-id",
         }  # conn_type missing

@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import func, select
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
@@ -36,8 +37,8 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.www import _check_last_log
+from tests.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.www import get_last_logs
 
 pytestmark = pytest.mark.db_test
 
@@ -104,20 +105,26 @@ def configured_app(minimal_app_for_api):
     delete_roles(app)
 
 
+@pytest.fixture
+def clear_logs():
+    clear_db_logs()
+    yield
+    clear_db_logs()
+
+
 class TestDagRunEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
     default_time_2 = "2020-06-12T18:00:00+00:00"
     default_time_3 = "2020-06-13T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app):
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         clear_db_runs()
         clear_db_serialized_dags()
         clear_db_dags()
-
-    def teardown_method(self) -> None:
+        yield
         clear_db_runs()
         clear_db_dags()
         clear_db_serialized_dags()
@@ -228,8 +235,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         )
         session.add(dagrun_model)
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -299,8 +305,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         )
         session.add(dagrun_model)
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
             environ_overrides={"REMOTE_USER": "test"},
@@ -324,8 +329,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         )
         session.add(dagrun_model)
         session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         fields = ["#caw&c"]
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID?fields={','.join(fields)}",
@@ -337,8 +341,7 @@ class TestGetDagRun(TestDagRunEndpoint):
 class TestGetDagRuns(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
         self._create_test_dag_run()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 2
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -384,7 +387,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
     def test_filter_by_state(self, session):
         self._create_test_dag_run()
         self._create_test_dag_run(state="queued", idx_start=3)
-        assert session.query(DagRun).count() == 4
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 4
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns?state=running,queued", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -405,8 +408,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     def test_return_correct_results_with_order_by(self, session):
         self._create_test_dag_run()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 2
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns?order_by=-execution_date",
             environ_overrides={"REMOTE_USER": "test"},
@@ -487,8 +489,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
     )
     def test_should_return_specified_fields(self, session, fields):
         self._create_test_dag_run()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 2
         response = self.client.get(
             f"api/v1/dags/TEST_DAG_ID/dagRuns?fields={','.join(fields)}",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1185,14 +1186,13 @@ class TestPostDagRun(TestDagRunEndpoint):
         note,
         data_interval_start,
         data_interval_end,
+        clear_logs,
     ):
         self._create_dag("TEST_DAG_ID")
 
         # We'll patch airflow.utils.timezone.utcnow to always return this so we
         # can check the returned dates.
         fixed_now = timezone.utcnow()
-
-        # raise NotImplementedError("TODO: Add tests for data_interval_start and data_interval_end")
 
         request_json = {}
         if logical_date is not None:
@@ -1245,7 +1245,8 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": note,
         }
-        _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
+        logs = get_last_logs(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
+        assert logs and logs[0].extra
 
     def test_raises_validation_error_for_invalid_request(self):
         self._create_dag("TEST_DAG_ID")
@@ -1594,7 +1595,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             ti.refresh_from_db()
             assert ti.state == state
 
-        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        dr = session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
         assert response.status_code == 200
         assert response.json == {
             "conf": {},
@@ -1711,7 +1712,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
+        dr = session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
         assert response.status_code == 200
         assert response.json == {
             "conf": {},
@@ -1789,9 +1790,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
-
-        dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
-        assert dr.state == "running"
+        assert session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id)).state == "running"
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.post(
@@ -1834,7 +1833,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        ds1_id = session.scalar(select(DatasetModel.id).where(DatasetModel.uri == dataset1.uri))
         event = DatasetEvent(
             dataset_id=ds1_id,
             source_task_id=ti.task_id,
@@ -1931,7 +1930,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
+        dr = session.scalar(select(DagRun).where(DagRun.run_id == created_dr.run_id))
         assert response.status_code == 200, response.text
         assert dr.note == new_note_value
         assert response.json == {
