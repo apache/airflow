@@ -15,17 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from requests.packages.urllib3.util.retry import Retry
 
+from datetime import timedelta, datetime
+from enum import Enum
 import logging
+import requests
+import time
+import jwt
 
 # These two lines enable debugging at httplib level (requests->urllib3->http.client)
 # You will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
 # The only thing missing will be the response.body which is not logged.
-try:
-    import http.client as http_client
-except ImportError:
-    # Python 2
-    import httplib as http_client
+
+import http.client as http_client
 http_client.HTTPConnection.debuglevel = 1
 
 # You must initialize logging, otherwise you'll not see debug output.
@@ -38,12 +41,6 @@ requests_log.propagate = True
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.exceptions import AirflowException
 
-import requests
-from requests.packages.urllib3.util.retry import Retry
-from enum import Enum
-import time
-from datetime import timedelta, datetime
-import aiohttp
 
 class QueryType(Enum):
     ANALYTICS = 1
@@ -84,7 +81,7 @@ class YQHook(YandexCloudBaseHook):
     def wait_for_query_to_complete(self, execution_timeout: timedelta):
         try:
             return self.wait_results(self.query_id, execution_timeout)
-        except TimeoutError as err:
+        except TimeoutError:
             self.stop_query(self.query_id)
             raise
 
@@ -143,7 +140,6 @@ class YQHook(YandexCloudBaseHook):
         with YQHook.create_session(iam_token) as session:
             response = session.get(f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}?project={self.default_folder_id}')
             response.raise_for_status()
-            print(response.json())
 
             return response.json()
 
@@ -159,21 +155,6 @@ class YQHook(YandexCloudBaseHook):
             response.raise_for_status()
             status = response.json()["status"]
             return status
-
-    async def get_query_status_async(self, query_id:str)->str:
-        iam_token = self.get_iam_token()
-
-        headers = YQHook.get_request_url_header_params(iam_token)
-        url = f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}/status?project={self.default_folder_id}'
-
-        self.log.info(f"Retrieving status for query id {query_id}, url {url}")
-
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(url) as response:
-                status_code = response.status
-                assert status_code == 200
-                resp = await response.json()
-                return resp["status"]
 
     @staticmethod
     def get_request_url_header_params(iam_token: str|None=None)->dict[str,str]:
@@ -197,8 +178,40 @@ class YQHook(YandexCloudBaseHook):
 
             time.sleep(2)
 
+    def get_iam_token(self) -> str:
+        if "oauth" in self.credentials:
+            return self.credentials["oauth"]
+        if "service_account_key" in self.credentials:
+            return YQHook._resolve_service_account_key(self.credentials["service_account_key"])
+        raise AirflowException(f"Unknown credentials type {self.credentials.keys()}")
+
     @staticmethod
-    def create_session(iamtoken: str | None = None) -> requests.Session:
+    def _resolve_service_account_key(sa_info) -> str:
+        session = YQHook.create_session()
+
+        api = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
+        now = int(time.time())
+        payload = {
+            'aud': api,
+            'iss': sa_info["service_account_id"],
+            'iat': now,
+            'exp': now + 360
+        }
+
+        encoded_token = jwt.encode(
+            payload,
+            sa_info["private_key"],
+            algorithm='PS256',
+            headers={'kid': sa_info["id"]})
+
+        data = {"jwt": encoded_token}
+        iam_response = session.post(api, json=data)
+        iam_response.raise_for_status()
+
+        return iam_response.json()["iamToken"]
+
+    @staticmethod
+    def create_session(iam_token: str | None = None) -> requests.Session:
         session = requests.Session()
         session.verify = False
         session.timeout = 20
@@ -215,10 +228,9 @@ class YQHook(YandexCloudBaseHook):
             requests.adapters.HTTPAdapter(max_retries=retry)
         )
 
-        headers = YQHook.get_request_url_header_params(iamtoken)
+        headers = YQHook.get_request_url_header_params(iam_token)
         for k, v in headers.items():
             session.headers[k] = v
 
         return session
-
-
+    

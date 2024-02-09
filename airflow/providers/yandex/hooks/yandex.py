@@ -16,17 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import warnings
-import requests
-import time
-import jwt
-from requests.packages.urllib3.util.retry import Retry
 from typing import Any
 
 import yandexcloud
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.yandex.utils.credentials import (
     get_credentials,
@@ -163,57 +158,3 @@ class YandexCloudBaseHook(BaseHook):
         if not hasattr(self, "extras"):
             return default
         return get_field_from_extras(self.extras, field_name, default)
-
-    def get_iam_token(self) -> str:
-        if "oauth" in self.credentials:
-            return YandexCloudBaseHook._resolve_oauth(self.credentials["oauth"])
-        if "service_account_key" in self.credentials:
-            return YandexCloudBaseHook._resolve_service_account_key(self.credentials["service_account_key"])
-        raise AirflowException(f"Unknown credentials type {self.credentials.keys()}")
-
-    @staticmethod
-    def _resolve_oauth(self, token: str) -> str:
-        pass
-
-    @staticmethod
-    def _resolve_service_account_key(sa_info) -> str:
-        session = YandexCloudBaseHook.create_session()
-
-        api = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
-        now = int(time.time())
-        payload = {
-                'aud': api,
-                'iss': sa_info["service_account_id"],
-                'iat': now,
-                'exp': now + 360}
-
-        encoded_token = jwt.encode(
-            payload,
-            sa_info["private_key"],
-            algorithm='PS256',
-            headers={'kid': sa_info["id"]})
-
-        data = {"jwt": encoded_token}
-        iam_response = session.post(api, json=data)
-        iam_response.raise_for_status()
-
-        return iam_response.json()["iamToken"]
-
-    @staticmethod
-    def create_session() -> requests.Session:
-        session = requests.Session()
-        session.verify = False
-        retry = Retry(
-            backoff_factor=0.3,
-            total=10
-        )
-        session.mount(
-            'http://',
-            requests.adapters.HTTPAdapter(max_retries=retry)
-        )
-        session.mount(
-            'https://',
-            requests.adapters.HTTPAdapter(max_retries=retry)
-        )
-
-        return session
