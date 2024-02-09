@@ -82,8 +82,8 @@ class KubernetesPodTrigger(BaseTrigger):
         self,
         pod_name: str,
         pod_namespace: str,
-        trigger_start_time: datetime.datetime,
         base_container_name: str,
+        trigger_start_time: datetime.datetime | None = None,
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 2,
         cluster_context: str | None = None,
@@ -194,6 +194,7 @@ class KubernetesPodTrigger(BaseTrigger):
             pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
             if not pod.status.phase == "Pending":
                 return pod.status.phase
+            self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
             await asyncio.sleep(self.poll_interval)
         raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
 
