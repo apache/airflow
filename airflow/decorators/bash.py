@@ -84,7 +84,7 @@ def bash_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a function into a BashOperator.
+    """Wrap a function into a BashOperator.
 
     Accepts kwargs for operator kwargs. Can be reused in a single DAG. This function is only used only used
     during type checking or auto-completion.
