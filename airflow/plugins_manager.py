@@ -171,14 +171,14 @@ class AirflowPlugin:
 
     @classmethod
     def validate(cls):
-        """Validates that plugin has a name."""
+        """Validate if plugin has a name."""
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
 
     @classmethod
     def on_load(cls, *args, **kwargs):
         """
-        Executed when the plugin is loaded; This method is only called once during runtime.
+        Execute when the plugin is loaded; This method is only called once during runtime.
 
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
@@ -296,7 +296,7 @@ def load_providers_plugins():
 
 
 def make_module(name: str, objects: list[Any]):
-    """Creates new module."""
+    """Create new module."""
     if not objects:
         return None
     log.debug("Creating module %s", name)
