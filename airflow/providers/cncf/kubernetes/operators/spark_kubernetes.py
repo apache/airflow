@@ -107,7 +107,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
-        self.template_body = self.manage_template_specs()
 
     def _render_nested_template_fields(
         self,
@@ -192,6 +191,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels["try_number"] == context["ti"].try_number
+
+    @property
+    def template_body(self):
+        """Templated body for CustomObjectLauncher."""
+        return self.manage_template_specs()
 
     def find_spark_job(self, context):
         labels = self.create_labels_for_pod(context, include_try_number=False)
