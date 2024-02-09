@@ -17,17 +17,21 @@
 
 """AWS Batch Executor. Each Airflow task gets delegated out to an AWS Batch Job."""
 from __future__ import annotations
-from collections import deque
 
 import time
+from collections import deque
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List
 
-import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 from marshmallow import ValidationError
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import exponential_backoff_retry
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -36,6 +40,9 @@ from airflow.providers.amazon.aws.executors.batch.boto_schema import (
     BatchSubmitJobResponseSchema,
 )
 from airflow.providers.amazon.aws.executors.batch.utils import (
+    CONFIG_DEFAULTS,
+    CONFIG_GROUP_NAME,
+    AllBatchConfigKeys,
     BatchExecutorException,
     BatchJob,
     BatchJobCollection,
@@ -45,6 +52,12 @@ from airflow.utils.state import State
 
 CommandType = List[str]
 ExecutorConfigType = Dict[str, Any]
+
+INVALID_CREDENTIALS_EXCEPTIONS = [
+    "ExpiredTokenException",
+    "InvalidClientTokenId",
+    "UnrecognizedClientException",
+]
 
 
 class AwsBatchExecutor(BaseExecutor):
@@ -74,17 +87,92 @@ class AwsBatchExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        region = conf.get("batch", "region", fallback="us-west-2")
         self.active_workers = BatchJobCollection()
         self.pending_jobs: deque = deque()
-        self.batch = boto3.client("batch", region_name=region)
+        self.attempts_since_last_successful_connection = 0
+        self.load_batch_connection(check_connection=False)
+        self.IS_BOTO_CONNECTION_HEALTHY = False
         self.submit_job_kwargs = self._load_submit_kwargs()
 
+    def check_health(self):
+        """Make a test API call to check the health of the Batch Executor."""
+        success_status = "succeeded."
+        status = success_status
+
+        try:
+            invalid_job_id = "a" * 32
+            self.batch.describe_jobs(jobs=[invalid_job_id])
+            # If an empty response was received, then that is considered to be the success case.
+        except ClientError as ex:
+            error_code = ex.response["Error"]["Code"]
+            error_message = ex.response["Error"]["Message"]
+            status = f"failed because: {error_code}: {error_message}. "
+        except Exception as e:
+            # Any non-ClientError exceptions. This can include Botocore exceptions for example
+            status = f"failed because: {e}. "
+        finally:
+            msg_prefix = "Batch Executor health check has %s"
+            if status == success_status:
+                self.IS_BOTO_CONNECTION_HEALTHY = True
+                self.log.info(msg_prefix, status)
+            else:
+                msg_error_suffix = (
+                    "The Batch executor will not be able to run Airflow tasks until the issue is addressed."
+                )
+                raise AirflowException(msg_prefix % status + msg_error_suffix)
+
+    def start(self):
+        """Call this when the Executor is run for the first time by the scheduler."""
+        check_health = conf.getboolean(
+            CONFIG_GROUP_NAME, AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
+        )
+
+        if not check_health:
+            return
+
+        self.log.info("Starting Batch Executor and determining health...")
+        try:
+            self.check_health()
+        except AirflowException:
+            self.log.error("Stopping the Airflow Scheduler from starting until the issue is resolved.")
+            raise
+
+    def load_batch_connection(self, check_connection: bool = True):
+        self.log.info("Loading Connection information")
+        aws_conn_id = conf.get(
+            CONFIG_GROUP_NAME,
+            AllBatchConfigKeys.AWS_CONN_ID,
+            fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.AWS_CONN_ID],
+        )
+        region_name = conf.get(CONFIG_GROUP_NAME, AllBatchConfigKeys.REGION_NAME)
+        self.batch = BatchClientHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        self.attempts_since_last_successful_connection += 1
+        self.last_connection_reload = timezone.utcnow()
+
+        if check_connection:
+            self.check_health()
+            self.attempts_since_last_successful_connection = 0
+
     def sync(self):
-        """Checks and update state on all running tasks."""
+        """Sync will get called periodically by the heartbeat method in the scheduler."""
+        if not self.IS_BOTO_CONNECTION_HEALTHY:
+            exponential_backoff_retry(
+                self.last_connection_reload,
+                self.attempts_since_last_successful_connection,
+                self.load_batch_connection,
+            )
+            if not self.IS_BOTO_CONNECTION_HEALTHY:
+                return
         try:
             self.sync_running_jobs()
             self.attempt_submit_jobs()
+        except (ClientError, NoCredentialsError) as error:
+            error_code = error.response["Error"]["Code"]
+            if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
+                self.IS_BOTO_CONNECTION_HEALTHY = False
+                self.log.warning(
+                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                )
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process
@@ -96,7 +184,7 @@ class AwsBatchExecutor(BaseExecutor):
             self.log.debug("No active Airflow tasks, skipping sync")
             return
         describe_job_response = self._describe_jobs(all_job_ids)
-        
+
         self.log.debug("Active Workers: %s", describe_job_response)
 
         for job in describe_job_response:
@@ -141,7 +229,7 @@ class AwsBatchExecutor(BaseExecutor):
         """Save the task to be executed in the next sync using Boto3's RunTask API."""
         if executor_config and "command" in executor_config:
             raise ValueError('Executor Config should never override "command"')
-        
+
         self.pending_jobs.append(
             BatchQueuedJob(key=key, command=command, queue=queue, executor_config=executor_config)
         )
@@ -150,7 +238,7 @@ class AwsBatchExecutor(BaseExecutor):
         self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> str:
         """
-        Overrides the submit_job_kwargs, and calls the boto3 API submit_job endpoint.
+        Override the submit_job_kwargs, and calls the boto3 API submit_job endpoint.
 
         The command and executor config will be placed in the container-override section of the JSON request,
         before calling Boto3's "submit_job" function.
@@ -166,7 +254,7 @@ class AwsBatchExecutor(BaseExecutor):
         self, key: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> dict:
         """
-        Overrides the Airflow command to update the container overrides so kwargs are specific to this task.
+        Override the Airflow command to update the container overrides so kwargs are specific to this task.
 
         One last chance to modify Boto3's "submit_job" kwarg params before it gets passed into the Boto3
         client. For the latest kwarg parameters:
@@ -178,7 +266,7 @@ class AwsBatchExecutor(BaseExecutor):
         return submit_job_api
 
     def end(self, heartbeat_interval=10):
-        """Waits for all currently running tasks to end, and doesn't launch any tasks."""
+        """Wait for all currently running tasks to end and prevent any new jobs from running."""
         try:
             while True:
                 self.sync()

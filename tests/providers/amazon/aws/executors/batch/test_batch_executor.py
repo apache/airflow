@@ -18,12 +18,15 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 from unittest import mock
 
 import pytest
 import yaml
+from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.batch import batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
@@ -56,6 +59,7 @@ def set_env_vars():
 def mock_executor(set_env_vars) -> AwsBatchExecutor:
     """Mock Batch Executor to a repeatable starting state."""
     executor = AwsBatchExecutor()
+    executor.IS_BOTO_CONNECTION_HEALTHY = True
 
     # Replace boto3 Batch client with mock.
     batch_mock = mock.Mock(spec=executor.batch)
@@ -162,7 +166,8 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.return_value = {"jobId": MOCK_JOB_ID, "jobName": "some-job-name"}
 
         mock_executor.execute_async(airflow_key, airflow_cmd)
-
+        assert len(mock_executor.pending_jobs) == 1
+        mock_executor.attempt_submit_jobs()
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
 
@@ -196,6 +201,57 @@ class TestAwsBatchExecutor:
         # Task is immediately failed
         fail_mock.assert_called_once()
         assert success_mock.call_count == 0
+
+    def test_start_failure_with_invalid_permissions(self, set_env_vars):
+        executor = AwsBatchExecutor()
+
+        # Replace boto3 Batch client with mock.
+        batch_mock = mock.Mock(spec=executor.batch)
+        batch_mock.describe_jobs.return_value = {}
+        executor.batch = batch_mock
+
+        mock_resp = {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "is not authorized to perform: batch:DescribeJobs on resource:",
+            }
+        }
+        batch_mock.describe_jobs.side_effect = ClientError(mock_resp, "DescribeJobs")
+
+        executor.batch = batch_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+    def test_start_success(self, set_env_vars, caplog):
+        executor = AwsBatchExecutor()
+
+        # Replace boto3 Batch client with mock.
+        batch_mock = mock.Mock(spec=executor.batch)
+        batch_mock.describe_jobs.return_value = {}
+        executor.batch = batch_mock
+
+        caplog.set_level(logging.DEBUG)
+
+        executor.start()
+
+        assert "succeeded" in caplog.text
+
+    def test_start_health_check_config(self, set_env_vars):
+        executor = AwsBatchExecutor()
+
+        # Replace boto3 Batch client with mock.
+        batch_mock = mock.Mock(spec=executor.batch)
+        batch_mock.describe_jobs.side_effect = {}
+        executor.batch = batch_mock
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        ] = "False"
+
+        executor.start()
+
+        batch_mock.describe_jobs.assert_not_called()
 
     def test_terminate(self, mock_airflow_key, mock_executor):
         """Test that executor can shut everything down; forcing all tasks to unnaturally exit"""

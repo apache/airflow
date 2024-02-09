@@ -15,15 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from dataclasses import dataclass
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
-
 
 CommandType = List[str]
 ExecutorConfigType = Dict[str, Any]
@@ -36,12 +35,16 @@ CONFIG_DEFAULTS = {
     "check_health_on_startup": "True",
 }
 
+
 @dataclass
 class BatchQueuedJob:
+    """Represents a Batch job that is queued. The job will be run in the next heartbeat."""
+
     key: TaskInstanceKey
     command: CommandType
     queue: str
     executor_config: ExecutorConfigType
+
 
 class BatchJob:
     """Data Transfer Object for an AWS Batch Job."""
@@ -62,7 +65,7 @@ class BatchJob:
         self.status_reason = status_reason
 
     def get_job_state(self) -> str:
-        """This is the primary logic that handles state in an AWS Batch Job."""
+        """Return the state of the job."""
         return self.STATE_MAPPINGS.get(self.status, State.QUEUED)
 
     def __repr__(self):
@@ -77,12 +80,12 @@ class BatchJobCollection:
         self.id_to_key: dict[str, TaskInstanceKey] = {}
 
     def add_job(self, job_id: str, airflow_task_key: TaskInstanceKey):
-        """Adds a task to the collection."""
+        """Add a task to the collection."""
         self.key_to_id[airflow_task_key] = job_id
         self.id_to_key[job_id] = airflow_task_key
 
     def pop_by_id(self, job_id: str) -> TaskInstanceKey:
-        """Deletes task from collection based off of Batch Job ID."""
+        """Delete task from collection based off of Batch Job ID."""
         task_key = self.id_to_key[job_id]
         del self.key_to_id[task_key]
         del self.id_to_key[job_id]
@@ -93,7 +96,7 @@ class BatchJobCollection:
         return list(self.id_to_key.keys())
 
     def __len__(self):
-        """Determines the number of jobs in collection."""
+        """Return the number of jobs in collection."""
         return len(self.key_to_id)
 
 

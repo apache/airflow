@@ -63,13 +63,9 @@ def build_submit_kwargs() -> dict:
     job_kwargs["containerOverrides"]["command"] = []  # type: ignore
 
     if "nodeOverrides" in job_kwargs:
-        raise KeyError(
-            "Multi-node jobs are not currently supported."
-        )
+        raise KeyError("Multi-node jobs are not currently supported.")
     if "eksPropertiesOverride" in job_kwargs:
-        raise KeyError(
-            "Eks jobs are not currently supported."
-        )
+        raise KeyError("Eks jobs are not currently supported.")
 
     # some checks with some helpful errors
     assert isinstance(job_kwargs, dict)
