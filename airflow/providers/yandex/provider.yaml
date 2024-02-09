@@ -19,9 +19,8 @@
 package-name: apache-airflow-providers-yandex
 name: Yandex
 description: |
-    This package is for Yandex, including:
+    Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
-        - `Yandex.Cloud <https://cloud.yandex.com/>`__
 state: ready
 source-date-epoch: 1707636562
 # note that those versions are maintained by release manager - do not update them manually
@@ -63,10 +62,21 @@ integrations:
     logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
+  - integration-name: Yandex.Cloud YQ
+    external-doc-url: https://cloud.yandex.com/dataproc
+    how-to-guide:
+      - /docs/apache-airflow-providers-yandex/operators.rst
+    logo: /integration-logos/yandex/Yandex-Cloud.png
+    tags: [service]
+
 operators:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.operators.yandexcloud_dataproc
+
+  - integration-name: Yandex.Cloud YQ
+    python-modules:
+      - airflow.providers.yandex.operators.yandexcloud_yq
 
 hooks:
   - integration-name: Yandex.Cloud
@@ -75,13 +85,16 @@ hooks:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
+  - integration-name: Yandex.Cloud YQ
+    python-modules:
+      - airflow.providers.yandex.hooks.yandexcloud_yq
 
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud
 
-secrets-backends:
-  - airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
+extra-links:
+  - airflow.providers.yandex.operators.yandexcloud_yq.YQLink
 
 config:
   yandex:

@@ -40,6 +40,7 @@ with DAG(
     catchup=False,
     dagrun_timeout=datetime.timedelta(minutes=60)
 ) as dag:
+    folder_id = "b1gaud5b392mmmeolb0k"
     run_this_last = EmptyOperator(
         task_id="run_this_last",
     )
@@ -141,7 +142,7 @@ limit 1000;
 
 """
 
-    yq_operator2 = YQExecuteQueryOperator(task_id="samplequery2", sql=query, connection_id="yandexcloud_default")
+    yq_operator2 = YQExecuteQueryOperator(task_id="samplequery2", sql=query, connection_id="yandexcloud_default", folder_id=folder_id)
     yq_operator2 >> run_this_last
 
     query_count_queries = """
@@ -183,7 +184,7 @@ limit 1000;
                                                 python_callable=process_query_count_result,
                                                 provide_context=True)
 
-    yq_operator_queries_count = YQExecuteQueryOperator(task_id="get_queries_count", sql=query_count_queries, connection_id="yandexcloud_default")
+    yq_operator_queries_count = YQExecuteQueryOperator(task_id="get_queries_count", sql=query_count_queries, connection_id="yandexcloud_default", folder_id=folder_id)
     yq_operator_queries_count >> process_query_count_task
 
     # yq_operator3 = YQExecuteQueryOperator(task_id="samplequery3", sql="select 33 as d, 44 as t")

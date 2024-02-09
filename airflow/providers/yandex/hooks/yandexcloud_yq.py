@@ -37,6 +37,7 @@ requests_log.propagate = True
 
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.exceptions import AirflowException
+
 import requests
 from requests.packages.urllib3.util.retry import Retry
 from enum import Enum
@@ -62,18 +63,18 @@ class YQHook(YandexCloudBaseHook):
 
 
     def start_execute_query(self, query_type: QueryType, query_text: str|None,  name: str|None=None, description: str | None = None) -> str:
-        # self.default_folder_id
         type = "ANALYTICS" if query_type == QueryType.ANALYTICS else "STREAMING"
 
         with YQHook.create_session(self.get_iam_token()) as session:
+            data = {
+                "name": name,
+                "type": type,
+                "text": query_text,
+                "description": description
+            }
 
-            data = {"name": name,
-                    "type": type,
-                    "text": query_text,
-                    "description": description}
             self.log.info(f"folder={self.default_folder_id}")
-            response = session.post(f"https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries?project={self.default_folder_id}",
-                        json=data)
+            response = session.post(f"https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries?project={self.default_folder_id}", json=data)
             response.raise_for_status()
 
             self.query_id = response.json()["id"]
@@ -81,9 +82,8 @@ class YQHook(YandexCloudBaseHook):
         return self.query_id
 
     def wait_for_query_to_complete(self, execution_timeout: timedelta):
-        status = None
         try:
-            status = self.wait_results(self.query_id, execution_timeout)
+            return self.wait_results(self.query_id, execution_timeout)
         except TimeoutError as err:
             self.stop_query(self.query_id)
             raise
@@ -101,9 +101,6 @@ class YQHook(YandexCloudBaseHook):
         query_results = self.query_results(query_id, result_set_count)
         self.log.debug(query_results)
         return query_results
-
-    def get_pandas_df(self)-> pd.DataFrame:
-        return pd.DataFrame()
 
     def query_results(self, query_id:str, result_set_count:int)->object:
         results = list()
@@ -180,10 +177,9 @@ class YQHook(YandexCloudBaseHook):
 
     @staticmethod
     def get_request_url_header_params(iam_token: str|None=None)->dict[str,str]:
-        print(f"get_request_url_header_params iam_token={iam_token}")
         headers = {}
         if iam_token is not None:
-            headers['Authorization'] = f"{iam_token}"
+            headers['Authorization'] = f"Bearer {iam_token}"
 
         return headers
 
