@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import urllib.parse
 
 import pytest
@@ -26,11 +27,7 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_logs, clear_db_runs, clear_db_variables
-from tests.test_utils.www import (
-    _check_last_log_masked_variable,
-    check_content_in_response,
-    get_last_logs,
-)
+from tests.test_utils.www import check_content_in_response, get_last_logs
 
 pytestmark = pytest.mark.db_test
 
@@ -177,7 +174,10 @@ def test_action_logging_variables_masked_secrets(session, admin_client):
     form = dict(key="x_secret", val="randomval")
     admin_client.post("/variable/add", data=form)
     session.commit()
-    _check_last_log_masked_variable(session, dag_id=None, event="variable.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="variable.create", execution_date=None)
+    assert logs and logs[0].extra
+    extra_dict = ast.literal_eval(logs[0].extra)
+    assert extra_dict == [("key", "x_secret"), ("val", "***")]
 
 
 def test_calendar(admin_client, dagruns):
