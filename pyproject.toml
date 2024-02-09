@@ -1350,7 +1350,6 @@ combine-as-imports = true
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 
 # All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
-"airflow/models/taskinstance.py" = ["D401"]
 "airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
 "airflow/providers/airbyte/operators/airbyte.py" = ["D401"]
 "airflow/providers/airbyte/sensors/airbyte.py" = ["D401"]
