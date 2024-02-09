@@ -568,7 +568,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
@@ -611,7 +611,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param dag_id: the DAG id
         :param dag_run_id: the DAG run id

@@ -640,7 +640,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         )
 
     def _calculate_cache_hash(self) -> tuple[str, str]:
-        """Helper to generate the hash of the cache folder to use.
+        """Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
         - (sorted) list of requirements
@@ -666,7 +666,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         return requirements_hash[:8], hash_text
 
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
-        """Helper to ensure a valid virtual environment is set up and will create inplace."""
+        """Ensure a valid virtual environment is set up and will create inplace."""
         cache_hash, hash_data = self._calculate_cache_hash()
         venv_path = venv_cache_path / f"venv-{cache_hash}"
         self.log.info("Python virtual environment will be cached in %s", venv_path)

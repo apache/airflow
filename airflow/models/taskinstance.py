@@ -461,7 +461,7 @@ def _refresh_from_db(
     *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
-    Refreshes the task instance from the database based on the primary key.
+    Refresh the task instance from the database based on the primary key.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -531,7 +531,7 @@ def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None
 
 def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
-    Returns task instance tags.
+    Return task instance tags.
 
     :param task_instance: the task instance
 
@@ -943,7 +943,7 @@ def _get_previous_dagrun(
     session: Session | None = None,
 ) -> DagRun | None:
     """
-    The DagRun that ran before this task instance's DagRun.
+    Return the DagRun that ran prior to this task instance's DagRun.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -983,7 +983,7 @@ def _get_previous_execution_date(
     session: Session,
 ) -> pendulum.DateTime | None:
     """
-    The execution date from property previous_ti_success.
+    Get execution date from property previous_ti_success.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -1178,7 +1178,7 @@ def _get_previous_ti(
     state: DagRunState | None = None,
 ) -> TaskInstance | TaskInstancePydantic | None:
     """
-    The task instance for the task that ran before this task instance.
+    Get task instance for the task that ran before this task instance.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -1436,7 +1436,7 @@ class TaskInstance(Base, LoggingMixin):
     @try_number.expression
     def try_number(cls):
         """
-        This is what will be used by SQLAlchemy when filtering on try_number.
+        Return the expression to be used by SQLAlchemy when filtering on try_number.
 
         This is required because the override in the get_try_number function causes
         try_number values to be off by one when listing tasks in the UI.
