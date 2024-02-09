@@ -3994,7 +3994,7 @@ class AirflowModelView(ModelView):
     @expose("/action_post", methods=["POST"])
     def action_post(self):
         """
-        Action method to handle multiple records selected from a list view.
+        Handle multiple records selected from a list view.
 
         Same implementation as
         https://github.com/dpgaspar/Flask-AppBuilder/blob/2c5763371b81cd679d88b9971ba5d1fc4d71d54b/flask_appbuilder/views.py#L677
