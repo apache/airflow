@@ -315,8 +315,7 @@ class TestDependencyMixin:
         assert [] == op_b_1.upstream_list
         assert [] == op_b_2.upstream_list
         assert [] == op_d.upstream_list
-        assert op_b_1 in op_c.upstream_list
-        assert op_b_2 in op_c.upstream_list
+        assert {op_b_1, op_b_2} == set(op_c.upstream_list)
 
     def test_set_downstream_list_subarray(self, dag_maker):
         with dag_maker("test_set_downstream_list"):
@@ -331,6 +330,4 @@ class TestDependencyMixin:
         assert [] == op_b_1.upstream_list
         assert [] == op_b_2.upstream_list
         assert [op_a] == op_d.upstream_list
-        assert op_a in op_c.upstream_list
-        assert op_b_1 in op_c.upstream_list
-        assert op_b_2 in op_c.upstream_list
+        assert {op_a, op_b_1, op_b_2} == set(op_c.upstream_list)
