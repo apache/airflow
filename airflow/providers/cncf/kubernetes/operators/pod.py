@@ -143,6 +143,7 @@ class KubernetesPodOperator(BaseOperator):
         Can be a large range of data, and can include characters
         that are not permitted by labels. (templated)
     :param container_resources: resources for the launched pod. (templated)
+    :param on_retry_container_resources: resources for the launched pod if task failed and retry. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -227,6 +228,7 @@ class KubernetesPodOperator(BaseOperator):
         "pod_template_dict",
         "namespace",
         "container_resources",
+        "on_retry_container_resources",
         "volumes",
         "volume_mounts",
         "cluster_context",
@@ -261,6 +263,7 @@ class KubernetesPodOperator(BaseOperator):
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,
+        on_retry_container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
         node_selector: dict | None = None,
@@ -334,6 +337,7 @@ class KubernetesPodOperator(BaseOperator):
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
         self.container_resources = container_resources
+        self.on_retry_container_resources = on_retry_container_resources
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
@@ -915,6 +919,11 @@ class KubernetesPodOperator(BaseOperator):
             pod_template = self.full_pod_spec
         else:
             pod_template = k8s.V1Pod(metadata=k8s.V1ObjectMeta())
+
+        # use on_retry_container_resources for pod resource in case the task failed
+        if context:
+            if context["ti"].try_number > 1 and self.on_retry_container_resources:
+                self.container_resources = self.on_retry_container_resources
 
         pod = k8s.V1Pod(
             api_version="v1",
