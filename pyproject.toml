@@ -1392,7 +1392,6 @@ combine-as-imports = true
 "airflow/providers/fab/auth_manager/decorators/auth.py" = ["D401"]
 "airflow/providers/fab/auth_manager/fab_auth_manager.py" = ["D401"]
 "airflow/providers/fab/auth_manager/security_manager/override.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_composer.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/cloud_run.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/cloud_sql.py" = ["D401"]
 "airflow/providers/google/cloud/hooks/cloud_storage_transfer_service.py" = ["D401"]
