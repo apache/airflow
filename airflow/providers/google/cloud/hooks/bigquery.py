@@ -2348,17 +2348,17 @@ class BigQueryConnection:
         self._kwargs = kwargs
 
     def close(self) -> None:
-        """The BigQueryConnection does not have anything to close."""
+        """Do nothing. Not needed for BigQueryConnection."""
 
     def commit(self) -> None:
-        """The BigQueryConnection does not support transactions."""
+        """Do nothing. BigQueryConnection does not support transactions."""
 
     def cursor(self) -> BigQueryCursor:
         """Return a new :py:class:`Cursor` object using the connection."""
         return BigQueryCursor(*self._args, **self._kwargs)
 
     def rollback(self) -> NoReturn:
-        """The BigQueryConnection does not have transactions."""
+        """Do nothing. BigQueryConnection does not support transactions."""
         raise NotImplementedError("BigQueryConnection does not have transactions")
 
 
@@ -2399,7 +2399,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def create_empty_table(self, *args, **kwargs):
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`
         instead.
@@ -2411,7 +2411,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def create_empty_dataset(self, *args, **kwargs) -> dict[str, Any]:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`
         instead.
@@ -2423,7 +2423,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset_tables(self, *args, **kwargs) -> list[dict[str, Any]]:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`
         instead.
@@ -2435,7 +2435,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def delete_dataset(self, *args, **kwargs) -> None:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset`
         instead.
@@ -2447,7 +2447,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def create_external_table(self, *args, **kwargs):
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`
         instead.
@@ -2459,7 +2459,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def patch_table(self, *args, **kwargs) -> None:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table`
         instead.
@@ -2471,7 +2471,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def insert_all(self, *args, **kwargs) -> None:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all`
         instead.
@@ -2483,7 +2483,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def update_dataset(self, *args, **kwargs) -> dict:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`
         instead.
@@ -2495,7 +2495,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def patch_dataset(self, *args, **kwargs) -> dict:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset`
         instead.
@@ -2507,7 +2507,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset_tables_list(self, *args, **kwargs) -> list[dict[str, Any]]:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`
         instead.
@@ -2519,7 +2519,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_datasets_list(self, *args, **kwargs) -> list | HTTPIterator:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`
         instead.
@@ -2531,7 +2531,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset(self, *args, **kwargs) -> Dataset:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`
         instead.
@@ -2543,7 +2543,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_grant_dataset_view_access(self, *args, **kwargs) -> dict:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use
         :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`
@@ -2556,7 +2556,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_table_upsert(self, *args, **kwargs) -> dict:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`
         instead.
@@ -2568,7 +2568,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_table_delete(self, *args, **kwargs) -> None:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete`
         instead.
@@ -2580,7 +2580,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_tabledata(self, *args, **kwargs) -> list[dict]:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`
         instead.
@@ -2592,7 +2592,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def get_schema(self, *args, **kwargs) -> dict:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`
         instead.
@@ -2604,7 +2604,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def poll_job_complete(self, *args, **kwargs) -> bool:
-        """This method is deprecated.
+        """Deprecate this method. This method is deprecated.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete`
         instead.
@@ -2616,7 +2616,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def cancel_query(self, *args, **kwargs) -> None:
-        """This method is deprecated.
+        """Deprecate this method. This method is deprecated.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`
         instead.
@@ -2628,7 +2628,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_with_configuration(self, *args, **kwargs) -> str:
-        """This method is deprecated.
+        """Deprecate this method. This method is deprecated.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration`
         instead.
@@ -2640,7 +2640,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_load(self, *args, **kwargs) -> str:
-        """This method is deprecated.
+        """Do Nothing.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`
         instead.
@@ -2652,7 +2652,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_copy(self, *args, **kwargs) -> str:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy`
         instead.
@@ -2664,7 +2664,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_extract(self, *args, **kwargs) -> str | BigQueryJob:
-        """This method is deprecated.
+        """Deprecate this method.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`
         instead.
@@ -2676,7 +2676,7 @@ class BigQueryBaseCursor(LoggingMixin):
         category=AirflowProviderDeprecationWarning,
     )
     def run_query(self, *args, **kwargs) -> str:
-        """This method is deprecated.
+        """Do Nothing. This method is deprecated.
 
         Please use :func:`~airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`
         instead.
@@ -2844,7 +2844,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         return result
 
     def get_arraysize(self) -> int:
-        """Number of rows to fetch at a time.
+        """Get number of rows to fetch at a time.
 
         .. seealso:: :func:`.fetchmany()`
         """
@@ -2860,10 +2860,10 @@ class BigQueryCursor(BigQueryBaseCursor):
     arraysize = property(get_arraysize, set_arraysize)
 
     def setinputsizes(self, sizes: Any) -> None:
-        """Does nothing by default."""
+        """Do nothing by default."""
 
     def setoutputsize(self, size: Any, column: Any = None) -> None:
-        """Does nothing by default."""
+        """Do Nothing by default."""
 
     def _get_query_result(self) -> dict:
         """Get job query results; data, schema, job type, etc."""
@@ -2915,7 +2915,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         cluster_fields: list[str] | None = None,
         encryption_configuration: dict | None = None,
     ):
-        """Helper method that prepare configuration for query."""
+        """Prepare configuration for query."""
         labels = labels or self.hook.labels
         schema_update_options = list(schema_update_options or [])
 
@@ -3047,7 +3047,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
 
 def _bind_parameters(operation: str, parameters: dict) -> str:
-    """Helper method that binds parameters to a SQL query."""
+    """Bind parameters to a SQL query."""
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}  # type dict[str, str]
     for name, value in parameters.items():
@@ -3061,7 +3061,7 @@ def _bind_parameters(operation: str, parameters: dict) -> str:
 
 
 def _escape(s: str) -> str:
-    """Helper method that escapes parameters to a SQL query."""
+    """Escape special characters in the input string for a SQL query."""
     e = s
     e = e.replace("\\", "\\\\")
     e = e.replace("\n", "\\n")
