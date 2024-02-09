@@ -1698,6 +1698,65 @@ class TestTaskInstance:
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
 
+    def test_xcom_without_multiple_outputs(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs without multiple outputs
+        """
+        value = {"key1": "value1", "key2": "value2"}
+        task_id = "test_xcom_push_without_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        ti.run()
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
+
+    def test_xcom_with_multiple_outputs(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs with multiple outputs
+        """
+        value = {"key1": "value1", "key2": "value2"}
+        task_id = "test_xcom_push_with_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+                multiple_outputs=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        ti.run()
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key="key1") == "value1"
+        assert ti.xcom_pull(task_ids=task_id, key="key2") == "value2"
+
+    def test_xcom_with_multiple_outputs_and_no_mapping_result(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs with multiple outputs and no mapping result
+        """
+        value = "value"
+        task_id = "test_xcom_push_with_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+                multiple_outputs=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with pytest.raises(AirflowException) as ctx:
+            ti.run()
+        assert "The returned value from the task is not a Mapping." in str(ctx.value)
+
     def test_post_execute_hook(self, dag_maker):
         """
         Test that post_execute hook is called with the Operator's result.

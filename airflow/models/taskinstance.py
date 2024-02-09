@@ -30,7 +30,7 @@ import warnings
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
 import dill
@@ -450,7 +450,16 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         else:
             xcom_value = None
         if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
-            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+            if task_to_execute.multiple_outputs:
+                if not isinstance(xcom_value, Mapping):
+                    raise AirflowException(
+                        "The returned value from the task is not a Mapping. The `multiple_outputs`"
+                        "parameter is set to True, so the result has to be a Mapping."
+                    )
+                for key, value in xcom_value.items():
+                    task_instance.xcom_push(key=key, value=value, session=session)
+            else:
+                task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session
         )
