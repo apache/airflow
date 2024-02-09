@@ -35,7 +35,12 @@ from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
@@ -63,7 +68,9 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
+    PodLaunchTimeoutException,
     PodManager,
+    PodNotFoundException,
     PodOperatorHookProtocol,
     PodPhase,
     container_is_succeeded,
@@ -77,6 +84,7 @@ from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+    from pendulum import DateTime
     from typing_extensions import Literal
 
     from airflow.providers.cncf.kubernetes.secret import Secret
@@ -297,6 +305,8 @@ class KubernetesPodOperator(BaseOperator):
         active_deadline_seconds: int | None = None,
         callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
+        last_log_time: DateTime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -387,6 +397,8 @@ class KubernetesPodOperator(BaseOperator):
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
+        self.logging_interval = logging_interval
+        self.last_log_time = last_log_time
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
@@ -641,13 +653,13 @@ class KubernetesPodOperator(BaseOperator):
 
         self.invoke_defer_method()
 
-    def invoke_defer_method(self):
+    def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=KubernetesPodTrigger(
-                pod_name=self.pod.metadata.name,
-                pod_namespace=self.pod.metadata.namespace,
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
@@ -659,9 +671,78 @@ class KubernetesPodOperator(BaseOperator):
                 startup_check_interval=self.startup_check_interval_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
+                last_log_time=last_log_time,
+                logging_interval=self.logging_interval,
             ),
-            method_name="execute_complete",
+            method_name="trigger_reentry",
         )
+
+    @staticmethod
+    def raise_for_trigger_status(event: dict[str, Any]) -> None:
+        """Raise exception if pod is not in expected state."""
+        if event["status"] == "error":
+            error_type = event["error_type"]
+            description = event["description"]
+            if error_type == "PodLaunchTimeoutException":
+                raise PodLaunchTimeoutException(description)
+            else:
+                raise AirflowException(description)
+
+    def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Point of re-entry from trigger.
+
+        If ``logging_interval`` is None, then at this point the pod should be done and we'll just fetch
+        the logs and exit.
+
+        If ``logging_interval`` is not None, it could be that the pod is still running and we'll just
+        grab the latest logs and defer back to the trigger again.
+        """
+        remote_pod = None
+        try:
+            self.pod_request_obj = self.build_pod_request_obj(context)
+            self.pod = self.find_pod(
+                namespace=self.namespace or self.pod_request_obj.metadata.namespace,
+                context=context,
+            )
+
+            # we try to find pod before possibly raising so that on_kill will have `pod` attr
+            self.raise_for_trigger_status(event)
+
+            if not self.pod:
+                raise PodNotFoundException("Could not find pod after resuming from deferral")
+
+            if self.get_logs:
+                last_log_time = event and event.get("last_log_time")
+                if last_log_time:
+                    self.log.info("Resuming logs read from time %r", last_log_time)
+                pod_log_status = self.pod_manager.fetch_container_logs(
+                    pod=self.pod,
+                    container_name=self.BASE_CONTAINER_NAME,
+                    follow=self.logging_interval is None,
+                    since_time=last_log_time,
+                )
+                if pod_log_status.running:
+                    self.log.info("Container still running; deferring again.")
+                    self.invoke_defer_method(pod_log_status.last_log_time)
+
+            if self.do_xcom_push:
+                result = self.extract_xcom(pod=self.pod)
+            remote_pod = self.pod_manager.await_pod_completion(self.pod)
+        except TaskDeferred:
+            raise
+        except Exception:
+            self.cleanup(
+                pod=self.pod or self.pod_request_obj,
+                remote_pod=remote_pod,
+            )
+            raise
+        self.cleanup(
+            pod=self.pod or self.pod_request_obj,
+            remote_pod=remote_pod,
+        )
+        if self.do_xcom_push:
+            return result
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
         self.log.debug("Triggered with event: %s", event)
