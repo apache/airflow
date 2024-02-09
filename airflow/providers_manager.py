@@ -146,7 +146,7 @@ def _read_schema_from_resources_or_local_file(filename: str) -> dict:
 
 
 def _create_provider_info_schema_validator():
-    """Creates JSON schema validator from the provider_info.schema.json."""
+    """Create JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
     schema = _read_schema_from_resources_or_local_file("provider_info.schema.json")
@@ -156,7 +156,7 @@ def _create_provider_info_schema_validator():
 
 
 def _create_customized_form_field_behaviours_schema_validator():
-    """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
+    """Create JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
     schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
@@ -305,7 +305,7 @@ def _correctness_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
 ) -> type[BaseHook] | None:
     """
-    Performs coherence check on provider classes.
+    Perform coherence check on provider classes.
 
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
@@ -408,7 +408,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
-        """Initializes the manager."""
+        """Initialize the manager."""
         super().__init__()
         ProvidersManager._initialized = True
         ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
@@ -445,7 +445,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._init_airflow_core_hooks()
 
     def _init_airflow_core_hooks(self):
-        """Initializes the hooks dict with default hooks from Airflow core."""
+        """Initialize the hooks dict with default hooks from Airflow core."""
         core_dummy_hooks = {
             "generic": "Generic",
             "email": "Email",
@@ -563,7 +563,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _initialize_providers_configuration(self):
         """
-        Internal method to initialize providers configuration information.
+        Initialize providers configuration information.
 
         Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
         In some cases we might want to make sure that the configuration is initialized, but we do not want
@@ -626,7 +626,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_all_airflow_builtin_providers_from_local_sources(self) -> None:
         """
-        Finds all built-in airflow providers if airflow is run from the local sources.
+        Find all built-in airflow providers if airflow is run from the local sources.
 
         It finds `provider.yaml` files for all such providers and registers the providers using those.
 
@@ -654,7 +654,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
-        Finds all the provider.yaml files in the directory specified.
+        Find all the provider.yaml files in the directory specified.
 
         :param path: path where to look for provider.yaml files
         """
@@ -672,7 +672,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """
-        Parses found provider.yaml file and adds found provider to the dictionary.
+        Parse found provider.yaml file and adds found provider to the dictionary.
 
         :param path: full file path of the provider.yaml file
         :param package_name: name of the package
@@ -1069,7 +1069,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             )
 
     def _discover_auth_managers(self) -> None:
-        """Retrieves all auth managers defined in the providers."""
+        """Retrieve all auth managers defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-managers"):
                 for auth_manager_class_name in provider.data["auth-managers"]:
@@ -1077,7 +1077,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                         self._auth_manager_class_name_set.add(auth_manager_class_name)
 
     def _discover_notifications(self) -> None:
-        """Retrieves all notifications defined in the providers."""
+        """Retrieve all notifications defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("notifications"):
                 for notification_class_name in provider.data["notifications"]:
@@ -1085,7 +1085,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                         self._notification_info_set.add(notification_class_name)
 
     def _discover_extra_links(self) -> None:
-        """Retrieves all extra links defined in the providers."""
+        """Retrieve all extra links defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("extra-links"):
                 for extra_link_class_name in provider.data["extra-links"]:
@@ -1149,7 +1149,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
-        """Initialization of providers triggers."""
+        """Initialize providers triggers."""
         self.initialize_providers_list()
         for provider_package, provider in self._provider_dict.items():
             for trigger in provider.data.get("triggers", []):
