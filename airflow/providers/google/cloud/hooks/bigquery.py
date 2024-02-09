@@ -3061,7 +3061,7 @@ def _bind_parameters(operation: str, parameters: dict) -> str:
 
 
 def _escape(s: str) -> str:
-    """Escape special characters in the input string for a SQL query."""
+    """Escape special characters in a SQL query string."""
     e = s
     e = e.replace("\\", "\\\\")
     e = e.replace("\n", "\\n")
