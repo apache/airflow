@@ -446,7 +446,7 @@ class FabAuthManager(BaseAuthManager):
 
     def _resource_name_for_dag(self, dag_id: str) -> str:
         """
-        Returns the FAB resource name for a DAG id.
+        Return the FAB resource name for a DAG id.
 
         :param dag_id: the DAG id
 

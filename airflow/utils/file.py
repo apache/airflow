@@ -385,7 +385,7 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
 
 
 def get_unique_dag_module_name(file_path: str) -> str:
-    """Returns a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
+    """Return a unique module name in the format unusual_prefix_{sha1 of module's file path}_{original module name}."""
     if isinstance(file_path, str):
         path_hash = hashlib.sha1(file_path.encode("utf-8")).hexdigest()
         org_mod_name = Path(file_path).stem

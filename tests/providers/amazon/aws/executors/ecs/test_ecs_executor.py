@@ -34,6 +34,7 @@ from inflection import camelize
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs import ecs_executor, ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
@@ -1156,3 +1157,220 @@ class TestEcsExecutorConfig:
 
         task_kwargs = ecs_executor_config.build_task_kwargs()
         assert task_kwargs["launchType"] == "FARGATE"
+
+    @pytest.mark.parametrize(
+        "run_task_kwargs, exec_config, expected_result",
+        [
+            # No input run_task_kwargs or executor overrides
+            (
+                {},
+                {},
+                {
+                    "taskDefinition": "some-task-def",
+                    "launchType": "FARGATE",
+                    "cluster": "some-cluster",
+                    "platformVersion": "LATEST",
+                    "count": 1,
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "command": ["command"],
+                                "name": "container-name",
+                                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                            }
+                        ]
+                    },
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": ["sub1", "sub2"],
+                            "securityGroups": ["sg1", "sg2"],
+                            "assignPublicIp": "DISABLED",
+                        }
+                    },
+                },
+            ),
+            # run_task_kwargs provided, not exec_config
+            (
+                {
+                    "startedBy": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "name": "container-name",
+                                "memory": 500,
+                                "cpu": 10,
+                                "environment": [{"name": "X", "value": "Y"}],
+                            }
+                        ]
+                    },
+                },
+                {},
+                {
+                    "startedBy": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "taskDefinition": "some-task-def",
+                    "launchType": "FARGATE",
+                    "cluster": "some-cluster",
+                    "platformVersion": "LATEST",
+                    "count": 1,
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "memory": 500,
+                                "cpu": 10,
+                                "command": ["command"],
+                                "name": "container-name",
+                                "environment": [
+                                    {"name": "X", "value": "Y"},
+                                    # Added by the ecs executor
+                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                ],
+                            }
+                        ]
+                    },
+                    # Added by the ecs executor
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": ["sub1", "sub2"],
+                            "securityGroups": ["sg1", "sg2"],
+                            "assignPublicIp": "DISABLED",
+                        }
+                    },
+                },
+            ),
+            # exec_config provided, no run_task_kwargs
+            (
+                {},
+                {
+                    "startedBy": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "name": "container-name",
+                                "memory": 500,
+                                "cpu": 10,
+                                "environment": [{"name": "X", "value": "Y"}],
+                            }
+                        ]
+                    },
+                },
+                {
+                    "startedBy": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "taskDefinition": "some-task-def",
+                    "launchType": "FARGATE",
+                    "cluster": "some-cluster",
+                    "platformVersion": "LATEST",
+                    "count": 1,
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "memory": 500,
+                                "cpu": 10,
+                                "command": ["command"],
+                                "name": "container-name",
+                                "environment": [
+                                    {"name": "X", "value": "Y"},
+                                    # Added by the ecs executor
+                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                ],
+                            }
+                        ]
+                    },
+                    # Added by the ecs executor
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": ["sub1", "sub2"],
+                            "securityGroups": ["sg1", "sg2"],
+                            "assignPublicIp": "DISABLED",
+                        }
+                    },
+                },
+            ),
+            # Both run_task_kwargs and executor_config provided. The latter should override the former,
+            # following a recursive python dict update strategy
+            (
+                {
+                    "startedBy": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "taskDefinition": "foobar",
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "name": "container-name",
+                                "memory": 500,
+                                "cpu": 10,
+                                "environment": [{"name": "X", "value": "Y"}],
+                            }
+                        ]
+                    },
+                },
+                {
+                    "startedBy": "Fish",
+                    "tags": [{"key": "X", "value": "Y"}, {"key": "W", "value": "Z"}],
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "name": "container-name",
+                                "memory": 300,
+                                "environment": [{"name": "W", "value": "Z"}],
+                            }
+                        ]
+                    },
+                },
+                {
+                    # tags and startedBy are overridden by exec_config
+                    "startedBy": "Fish",
+                    # List types overwrite entirely, as python dict update would do
+                    "tags": [{"key": "X", "value": "Y"}, {"key": "W", "value": "Z"}],
+                    # taskDefinition remains since it is not a list type and not overridden by exec config
+                    "taskDefinition": "foobar",
+                    "launchType": "FARGATE",
+                    "cluster": "some-cluster",
+                    "platformVersion": "LATEST",
+                    "count": 1,
+                    "overrides": {
+                        "containerOverrides": [
+                            {
+                                "memory": 300,
+                                # cpu is not present because it was missing from the container overrides in
+                                # the exec_config
+                                "command": ["command"],
+                                "name": "container-name",
+                                "environment": [
+                                    # Overridden list type
+                                    {"name": "W", "value": "Z"},  # Only new env vars present, overwritten
+                                    # Added by the ecs executor
+                                    {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                                ],
+                            }
+                        ]
+                    },
+                    # Added by the ecs executor
+                    "networkConfiguration": {
+                        "awsvpcConfiguration": {
+                            "subnets": ["sub1", "sub2"],
+                            "securityGroups": ["sg1", "sg2"],
+                            "assignPublicIp": "DISABLED",
+                        }
+                    },
+                },
+            ),
+        ],
+    )
+    def test_run_task_kwargs_exec_config_overrides(
+        self, set_env_vars, run_task_kwargs, exec_config, expected_result
+    ):
+        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        os.environ[run_task_kwargs_env_key] = json.dumps(run_task_kwargs)
+
+        mock_ti_key = mock.Mock(spec=TaskInstanceKey)
+        command = ["command"]
+
+        executor = AwsEcsExecutor()
+
+        final_run_task_kwargs = executor._run_task_kwargs(mock_ti_key, command, "queue", exec_config)
+
+        assert final_run_task_kwargs == expected_result

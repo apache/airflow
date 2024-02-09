@@ -79,7 +79,7 @@ class TeradataHook(DbApiHook):
         super().__init__(*args, schema=database, **kwargs)
 
     def get_conn(self) -> TeradataConnection:
-        """Creates and returns a Teradata Connection object using teradatasql client.
+        """Create and return a Teradata Connection object using teradatasql client.
 
         Establishes connection to a Teradata SQL database using config corresponding to teradata_conn_id.
 
@@ -96,7 +96,7 @@ class TeradataHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """A bulk insert of records for Teradata SQL Database.
+        """Insert bulk of records into Teradata SQL Database.
 
         This uses prepared statements via `executemany()`. For best performance,
         pass in `rows` as an iterator.
@@ -142,7 +142,7 @@ class TeradataHook(DbApiHook):
         conn.close()  # type: ignore[attr-defined]
 
     def _get_conn_config_teradatasql(self) -> dict[str, Any]:
-        """Returns set of config params required for connecting to Teradata DB using teradatasql client."""
+        """Return set of config params required for connecting to Teradata DB using teradatasql client."""
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
         conn_config = {
             "host": conn.host or "localhost",
@@ -174,7 +174,7 @@ class TeradataHook(DbApiHook):
         return conn_config
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """Returns a connection object using sqlalchemy."""
+        """Return a connection object using sqlalchemy."""
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
         link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}"
         connection = sqlalchemy.create_engine(link)
@@ -182,7 +182,7 @@ class TeradataHook(DbApiHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         import json
 
         return {
