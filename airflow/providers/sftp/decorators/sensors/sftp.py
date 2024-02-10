@@ -52,7 +52,6 @@ class _DecoratedSFTPSensor(SFTPSensor):
         task_id: str,
         **kwargs,
     ) -> None:
-        kwargs.pop("multiple_outputs")
         kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
 

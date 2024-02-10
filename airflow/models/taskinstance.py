@@ -453,13 +453,18 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if task_to_execute.multiple_outputs:
                 if not isinstance(xcom_value, Mapping):
                     raise AirflowException(
-                        "The returned value from the task is not a Mapping. The `multiple_outputs`"
-                        "parameter is set to True, so the result has to be a Mapping."
+                        f"Returned output was type {type(xcom_value)} "
+                        "expected dictionary for multiple_outputs"
                     )
+                for key in xcom_value.keys():
+                    if not isinstance(key, str):
+                        raise AirflowException(
+                            "Returned dictionary keys must be strings when using "
+                            f"multiple_outputs, found {key} ({type(key)}) instead"
+                        )
                 for key, value in xcom_value.items():
                     task_instance.xcom_push(key=key, value=value, session=session)
-            else:
-                task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
+            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session
         )

@@ -1733,7 +1733,7 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
-        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
         assert ti.xcom_pull(task_ids=task_id, key="key1") == "value1"
         assert ti.xcom_pull(task_ids=task_id, key="key2") == "value2"
 
@@ -1755,7 +1755,9 @@ class TestTaskInstance:
         ti.task = task
         with pytest.raises(AirflowException) as ctx:
             ti.run()
-        assert "The returned value from the task is not a Mapping." in str(ctx.value)
+        assert f"Returned output was type {type(value)} expected dictionary for multiple_outputs" in str(
+            ctx.value
+        )
 
     def test_post_execute_hook(self, dag_maker):
         """
