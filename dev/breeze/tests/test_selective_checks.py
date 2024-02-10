@@ -643,6 +643,57 @@ def test_full_test_needed_when_pyproject_toml_changes(
 
 
 @pytest.mark.parametrize(
+    "files, expected_outputs",
+    [
+        (
+            pytest.param(
+                ("scripts/ci/pre_commit/file.sh",),
+                {
+                    "full-tests-needed": "false",
+                },
+                id="No full tests needed when pre-commit scripts change",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/docker-compose/test.yml",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when docker-compose changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/ci/kubernetes/some_file.txt",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when ci/kubernetes changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/in_container/script.sh",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when in_container script changes",
+            )
+        ),
+    ],
+)
+def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref="HEAD",
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     "files, pr_labels, default_branch, expected_outputs,",
     [
         (
