@@ -62,7 +62,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
         self.oracle_conn_id = oracle_conn_id
 
     def query(self):
-        """Queries Oracle and returns a cursor to the results."""
+        """Query Oracle and returns a cursor to the results."""
         oracle = OracleHook(oracle_conn_id=self.oracle_conn_id)
         conn = oracle.get_conn()
         cursor = conn.cursor()

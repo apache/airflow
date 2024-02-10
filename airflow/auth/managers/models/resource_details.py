@@ -68,6 +68,7 @@ class AccessView(Enum):
 
     CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
     DOCS = "DOCS"
+    IMPORT_ERRORS = "IMPORT_ERRORS"
     JOBS = "JOBS"
     PLUGINS = "PLUGINS"
     PROVIDERS = "PROVIDERS"
@@ -81,7 +82,6 @@ class DagAccessEntity(Enum):
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
-    IMPORT_ERRORS = "IMPORT_ERRORS"
     RUN = "RUN"
     SLA_MISS = "SLA_MISS"
     TASK = "TASK"

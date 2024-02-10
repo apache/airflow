@@ -218,7 +218,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
+        Take a cursor, and writes the BigQuery schema for the results to a local file system.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
@@ -253,7 +253,7 @@ class CassandraToGCSOperator(BaseOperator):
         )
 
     def generate_data_dict(self, names: Iterable[str], values: Any) -> dict[str, Any]:
-        """Generates data structure that will be stored as file in GCS."""
+        """Generate data structure that will be stored as file in GCS."""
         return {n: self.convert_value(v) for n, v in zip(names, values)}
 
     def convert_value(self, value: Any | None) -> Any | None:
@@ -285,12 +285,12 @@ class CassandraToGCSOperator(BaseOperator):
             raise AirflowException(f"Unexpected value: {value}")
 
     def convert_array_types(self, value: list[Any] | SortedSet) -> list[Any]:
-        """Maps convert_value over array."""
+        """Map convert_value over array."""
         return [self.convert_value(nested_value) for nested_value in value]
 
     def convert_user_type(self, value: Any) -> dict[str, Any]:
         """
-        Converts a user type to RECORD that contains n fields, where n is the number of attributes.
+        Convert a user type to RECORD that contains n fields, where n is the number of attributes.
 
         Each element in the user type class will be converted to its corresponding data type in BQ.
         """
