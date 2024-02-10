@@ -16,16 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import typing
 
 from jupyter_client import AsyncKernelManager
 from papermill.clientwrap import PapermillNotebookClient
 from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
 from traitlets import Unicode
-
-if TYPE_CHECKING:
-    from pydantic import typing
 
 from airflow.hooks.base import BaseHook
 

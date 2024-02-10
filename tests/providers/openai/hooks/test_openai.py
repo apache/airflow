@@ -20,6 +20,9 @@ import os
 from unittest.mock import patch
 
 import pytest
+
+openai = pytest.importorskip("openai")
+
 from openai.types import CreateEmbeddingResponse, Embedding
 
 from airflow.models import Connection

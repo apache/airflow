@@ -70,8 +70,6 @@ from airflow.utils.types import NOTSET, ArgNotSet
 if TYPE_CHECKING:
     from inspect import Parameter
 
-    from pydantic import BaseModel
-
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
@@ -79,6 +77,7 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
+    from airflow.utils.pydantic import BaseModel
 
     HAS_KUBERNETES: bool
     try:

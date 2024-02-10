@@ -122,7 +122,6 @@ dependencies = [
     "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
-    "pydantic>=2.3.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -222,6 +221,9 @@ password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
 ]
+pydantic = [
+    "pydantic>=2.3.0",
+]
 rabbitmq = [
     "amqp",
 ]
@@ -270,6 +272,7 @@ all-core = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -973,6 +976,7 @@ all = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -1360,6 +1364,10 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/openai/hooks/test_openai.py" = ["E402"]
+"tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
+"tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
 "airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
