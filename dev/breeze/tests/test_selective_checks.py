@@ -426,7 +426,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("pyproject.toml",),
+                ("generated/provider_dependencies.json",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
@@ -590,6 +590,53 @@ def test_expected_output_pull_request_main(
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, commit_ref, expected_outputs",
+    [
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
+                {
+                    "full-tests-needed": "false",
+                },
+                id="No full tests needed when pyproject.toml changes in insignificant way",
+            )
+        ),
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when only dependencies change in pyproject.toml",
+            )
+        ),
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "c381fdaff42bbda480eee70fb15c5b26a2a3a77d",
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when build-system changes in pyproject.toml",
+            )
+        ),
+    ],
+)
+def test_full_test_needed_when_pyproject_toml_changes(
+    files: tuple[str, ...], commit_ref: str, expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=commit_ref,
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -1149,7 +1196,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels",
+    "files, expected_outputs, pr_labels, commit_ref",
     [
         pytest.param(
             ("airflow/models/dag.py",),
@@ -1157,7 +1204,18 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "false",
             },
             (),
+            None,
             id="Regular source changed",
+        ),
+        pytest.param(
+            ("pyproject.toml",),
+            {
+                "upgrade-to-newer-dependencies": "false",
+            },
+            (),
+            # In this commit only ruff configuration changed
+            "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
+            id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
             ("pyproject.toml",),
@@ -1165,7 +1223,17 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             (),
-            id="pyproject.toml changed",
+            "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
+            id="pyproject.toml changed with optional dependencies changed",
+        ),
+        pytest.param(
+            ("pyproject.toml",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            (),
+            "74baebe5e774ac575fe3a49291996473b1daa789",
+            id="pyproject.toml changed with core dependencies changed",
         ),
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
@@ -1173,6 +1241,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "false",
             },
             (),
+            None,
             id="Provider.yaml changed",
         ),
         pytest.param(
@@ -1181,6 +1250,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             (),
+            "None",
             id="Generated provider_dependencies changed",
         ),
         pytest.param(
@@ -1189,16 +1259,20 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             ("upgrade to newer dependencies",),
+            None,
             id="Regular source changed",
         ),
     ],
 )
 def test_upgrade_to_newer_dependencies(
-    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str, ...]
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
+    pr_labels: tuple[str, ...],
+    commit_ref: str | None,
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=commit_ref,
         github_event=GithubEvents.PULL_REQUEST,
         default_branch="main",
         pr_labels=pr_labels,
