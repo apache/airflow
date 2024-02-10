@@ -862,7 +862,7 @@ pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "pgvector>=0.2.3",
 ]
 pinecone = [ # source: airflow/providers/pinecone/provider.yaml
-  "pinecone-client>=2.2.4,<3.0",
+  "pinecone-client~=3.0.0",
 ]
 postgres = [ # source: airflow/providers/postgres/provider.yaml
   "apache-airflow[common_sql]",

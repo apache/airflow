@@ -22,6 +22,7 @@ import itertools
 from typing import TYPE_CHECKING, Any
 
 import pinecone
+from pinecone import Pinecone
 
 from airflow.hooks.base import BaseHook
 
@@ -63,24 +64,22 @@ class PineconeHook(BaseHook):
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
-            "relabeling": {"login": "Pinecone Environment", "password": "Pinecone API key"},
+            "relabeling": {"password": "Pinecone API key"},
         }
 
     def __init__(self, conn_id: str = default_conn_name) -> None:
         self.conn_id = conn_id
-        self.get_conn()
+        self.conn = self.get_conn()
 
-    def get_conn(self) -> None:
+    def get_conn(self) -> Pinecone:
         pinecone_connection = self.get_connection(self.conn_id)
         api_key = pinecone_connection.password
-        pinecone_environment = pinecone_connection.login
         pinecone_host = pinecone_connection.host
         extras = pinecone_connection.extra_dejson
         pinecone_project_id = extras.get("project_id")
         log_level = extras.get("log_level", None)
-        pinecone.init(
+        return Pinecone(
             api_key=api_key,
-            environment=pinecone_environment,
             host=pinecone_host,
             project_name=pinecone_project_id,
             log_level=log_level,
@@ -88,18 +87,17 @@ class PineconeHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            self.list_indexes()
+            self.conn.list_indexes()
             return True, "Connection established"
         except Exception as e:
             return False, str(e)
 
-    @staticmethod
-    def list_indexes() -> Any:
+    def list_indexes(self) -> Any:
         """Retrieve a list of all indexes in your project."""
-        return pinecone.list_indexes()
+        return self.conn.list_indexes()
 
-    @staticmethod
     def upsert(
+        self,
         index_name: str,
         vectors: list[Any],
         namespace: str = "",
@@ -125,7 +123,7 @@ class PineconeHook(BaseHook):
         :param show_progress: Whether to show a progress bar using tqdm. Applied only
             if batch_size is provided.
         """
-        index = pinecone.Index(index_name)
+        index = self.conn.Index(index_name)
         return index.upsert(
             vectors=vectors,
             namespace=namespace,
@@ -134,8 +132,8 @@ class PineconeHook(BaseHook):
             **kwargs,
         )
 
-    @staticmethod
     def create_index(
+        self,
         index_name: str,
         dimension: int,
         index_type: str | None = "approximated",

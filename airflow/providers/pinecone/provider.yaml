@@ -44,7 +44,7 @@ dependencies:
   # Pinecone Python SDK v3.0.0 was released at 2024-01-16 and introduce some breaking changes.
   # It's crucial to adhere to the v3.0.0 Migration Guide before the upper-bound limitation can be removed.
   # https://canyon-quilt-082.notion.site/Pinecone-Python-SDK-v3-0-0-Migration-Guide-056d3897d7634bf7be399676a4757c7b
-  - pinecone-client>=2.2.4,<3.0
+  - pinecone-client~=3.0.0
 
 hooks:
   - integration-name: Pinecone
