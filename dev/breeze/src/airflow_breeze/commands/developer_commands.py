@@ -656,7 +656,11 @@ def build_docs(
     fix_ownership_using_docker()
     if result.returncode == 0:
         get_console().print(
-            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+            "[info]To view the built documentation, you have two options:\n\n"
+            "1. Start the webserver in breeze and access the built docs at "
+            "http://localhost:28080/docs/\n"
+            "2. Alternatively, you can run ./docs/start_docs_server.sh for a lighter resource option and view"
+            "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
 

@@ -366,11 +366,6 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
     ).scalar_one()
     dag_run.state = state
-    if state == DagRunState.RUNNING:
-        dag_run.start_date = timezone.utcnow()
-        dag_run.end_date = None
-    else:
-        dag_run.end_date = timezone.utcnow()
     session.merge(dag_run)
 
 

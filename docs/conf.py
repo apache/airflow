@@ -47,7 +47,7 @@ from airflow.configuration import AirflowConfigParser, retrieve_configuration_de
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
-from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
+from docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
@@ -344,6 +344,7 @@ if PACKAGE_NAME == "apache-airflow":
         "installation/installing-from-pypi.html",
         "installation/installing-from-sources.html",
         "administration-and-deployment/logging-monitoring/advanced-logging-configuration.html",
+        "howto/docker-compose/index.html",
     ]
 if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]

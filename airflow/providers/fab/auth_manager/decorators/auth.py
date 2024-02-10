@@ -67,7 +67,7 @@ def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -
 
 def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """
-    Factory for decorator that checks current user's permissions against required permissions.
+    Check current user's permissions against required permissions.
 
     This decorator is only kept for backward compatible reasons. The decorator
     ``airflow.www.auth.has_access``, which redirects to this decorator, is widely used in user plugins.

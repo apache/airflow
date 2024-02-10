@@ -718,7 +718,7 @@ Contribution guide
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/contributing-docs/04_how_to_contribute.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/04_how_to_contribute.rst" target="_blank">
    Types of contributions</a>
 
   - |Roles of contributor|

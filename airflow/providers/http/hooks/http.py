@@ -258,7 +258,8 @@ class HttpHook(BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        return self._retry_obj(self.run, *args, **kwargs)
+        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
+        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""

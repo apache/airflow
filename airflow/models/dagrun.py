@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-    TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -270,11 +269,75 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState) -> None:
+        """Change the state of the DagRan.
+
+        Changes to attributes are implemented in accordance with the following table
+        (rows represent old states, columns represent new states):
+
+        .. list-table:: State transition matrix
+           :header-rows: 1
+           :stub-columns: 1
+
+           * -
+             - QUEUED
+             - RUNNING
+             - SUCCESS
+             - FAILED
+           * - None
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - QUEUED
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - RUNNING
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             -
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - SUCCESS
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+           * - FAILED
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+
+        """
         if state not in State.dag_states:
             raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
+            if state == DagRunState.QUEUED:
+                self.queued_at = timezone.utcnow()
+                self.start_date = None
+                self.end_date = None
+            if state == DagRunState.RUNNING:
+                if self._state in State.finished_dr_states:
+                    self.start_date = timezone.utcnow()
+                else:
+                    self.start_date = self.start_date or timezone.utcnow()
+                self.end_date = None
+            if self._state in State.unfinished_dr_states or self._state is None:
+                if state in State.finished_dr_states:
+                    self.end_date = timezone.utcnow()
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished_dr_states else None
+        else:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
@@ -505,7 +568,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
@@ -548,7 +611,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param dag_id: the DAG id
         :param dag_run_id: the DAG run id
@@ -1217,7 +1280,7 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: TaskCreator,
+        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
         *,
         session: Session,
     ) -> CreatedTasks:

@@ -507,3 +507,43 @@ class TestComputeEngineHookWithPassedProjectId:
         assert isinstance(hook.use_oslogin, bool)
         assert 300 == hook.expire_time
         assert isinstance(hook.expire_time, int)
+
+    @pytest.mark.parametrize(
+        "metadata, expected_metadata",
+        [
+            ({"items": []}, {"items": [{"key": "ssh-keys", "value": "user:pubkey\n"}]}),
+            (
+                {"items": [{"key": "test", "value": "test"}]},
+                {"items": [{"key": "ssh-keys", "value": "user:pubkey\n"}, {"key": "test", "value": "test"}]},
+            ),
+            (
+                {"items": [{"key": "ssh-keys", "value": "test"}, {"key": "test", "value": "test"}]},
+                {
+                    "items": [
+                        {"key": "ssh-keys", "value": "user:pubkey\ntest"},
+                        {"key": "test", "value": "test"},
+                    ]
+                },
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.set_instance_metadata")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook.get_instance_info")
+    def test__authorize_compute_engine_instance_metadata(
+        self, mock_get_instance_info, mock_set_instance_metadata, metadata, expected_metadata
+    ):
+        """Test to ensure the addition metadata is retained"""
+        mock_get_instance_info.return_value = {"metadata": metadata}
+        conn = Connection(
+            conn_type="gcpssh",
+            extra=json.dumps({}),
+        )
+        conn_uri = conn.get_uri()
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):
+            hook = ComputeEngineSSHHook(gcp_conn_id="gcpssh")
+            hook.user = "user"
+            pubkey = "pubkey"
+            hook._authorize_compute_engine_instance_metadata(pubkey=pubkey)
+            mock_set_instance_metadata.call_args.kwargs["metadata"]["items"].sort(key=lambda x: x["key"])
+            expected_metadata["items"].sort(key=lambda x: x["key"])
+            assert mock_set_instance_metadata.call_args.kwargs["metadata"] == expected_metadata

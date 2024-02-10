@@ -88,9 +88,9 @@ class SlackAPIOperator(BaseOperator):
         )
 
     def construct_api_call_params(self) -> Any:
-        """API call parameters used by the execute function.
+        """Construct API call parameters used by the execute function.
 
-        Allows templating on the source fields of the ``api_call_params`` dict
+        Allow templating on the source fields of the ``api_call_params`` dict
         before construction.
 
         Child classes should override this. Each SlackAPIOperator child class is

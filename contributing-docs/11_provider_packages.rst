@@ -228,6 +228,42 @@ providers.
 * System Tests which provide end-to-end testing, usually testing together several operators, sensors,
   transfers connecting to a real external system
 
+Breaking changes in the community managed providers
+---------------------------------------------------
+
+Sometimes we have to introduce breaking changes in the providers. We have to be very careful with that
+and we have to make sure that we communicate those changes properly.
+
+Generally speaking breaking change in provider is not a huge problem for our users. They can individually
+downgrade the providers to lower version if they are not ready to upgrade to the new version and then
+incrementally upgrade to the new versions of providers. This is because providers are installed as
+separate packages and they are not tightly coupled with the core of Airflow and because we have a very
+generous policy of supporting multiple versions of providers at the same time. All providers are in theory
+backward compatible with future versions of Airflow, so you can upgrade Airflow and keep the providers
+at the same version.
+
+When you introduce a breaking change in the provider, you have to make sure that you communicate it
+properly. You have to update ``CHANGELOG.rst`` file in the provider package and you have to make sure that
+you update the ``provider.yaml`` file with the new (breaking) version of the provider. Ideally in the
+``CHANGELOG.rst`` you should also provide a migration path for the users to follow.
+
+If in doubt, you can always look at ``CHANGELOG.rst``  in other providers to see how we communicate
+breaking changes in the providers.
+
+It's important to note that the marking release as breaking / major is subject to the
+judgment of release manager upon preparing the release.
+
+Bumping minimum version of dependencies in providers
+----------------------------------------------------
+
+Generally speaking we are rather relaxed when it comes to bumping minimum versions of dependencies in the
+providers. If there is a good reason to bump the minimum version of the dependency, you should simply do it.
+This is because user might always install previous version of the provider if they are not ready to upgrade
+the dependency (because for example another library of theirs is not compatible with the new version of the
+dependency). In most case this will be actually transparent for the user because ``pip`` in most cases will
+find and install a previous version of the provider that is compatible with your dependencies that conflict
+with latest version of the provider.
+
 ------
 
 You can read about airflow `dependencies and extras <12_airflow_dependencies_and_extras.rst>`_ .

@@ -20,6 +20,7 @@
 ################################
 ## Airflow Webserver NetworkPolicy
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if .Values.networkPolicies.enabled }}
 {{- $from := or .Values.webserver.networkPolicy.ingress.from .Values.webserver.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
@@ -54,4 +55,5 @@ spec:
           {{- end }}
       {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}

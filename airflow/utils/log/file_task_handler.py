@@ -159,6 +159,31 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
+def _change_directory_permissions_up(directory: Path, folder_permissions: int):
+    """
+    Change permissions of the given directory and its parents.
+
+    Only attempt to change permissions for directories owned by the current user.
+
+    :param directory: directory to change permissions of (including parents)
+    :param folder_permissions: permissions to set
+    """
+    if directory.stat().st_uid == os.getuid():
+        if directory.stat().st_mode % 0o1000 != folder_permissions % 0o1000:
+            print(f"Changing {directory} permission to {folder_permissions}")
+            try:
+                directory.chmod(folder_permissions)
+            except PermissionError as e:
+                # In some circumstances (depends on user and filesystem) we might not be able to
+                # change the permission for the folder (when the folder was created by another user
+                # before or when the filesystem does not allow to change permission). We should not
+                # fail in this case but rather ignore it.
+                print(f"Failed to change {directory} permission to {folder_permissions}: {e}")
+                return
+        if directory.parent != directory:
+            _change_directory_permissions_up(directory.parent, folder_permissions)
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -484,17 +509,7 @@ class FileTaskHandler(logging.Handler):
             conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
         )
         directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-        if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
-            print(f"Changing {directory} permission to {new_folder_permissions}")
-            try:
-                directory.chmod(new_folder_permissions)
-            except PermissionError as e:
-                # In some circumstances (depends on user and filesystem) we might not be able to
-                # change the permission for the folder (when the folder was created by another user
-                # before or when the filesystem does not allow to change permission). We should not
-                # fail in this case but rather ignore it.
-                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
-                pass
+        _change_directory_permissions_up(directory, new_folder_permissions)
 
     def _init_file(self, ti, *, identifier: str | None = None):
         """

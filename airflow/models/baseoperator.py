@@ -124,7 +124,7 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or isinstance(retries, int):
+    if retries is None or type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -1602,7 +1602,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """This method is called when a deferred task is resumed."""
+        """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == "__fail__":

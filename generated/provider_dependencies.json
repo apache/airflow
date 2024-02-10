@@ -463,7 +463,7 @@
   "fab": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.3.10",
+      "flask-appbuilder==4.3.11",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0"
@@ -936,6 +936,16 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "qdrant": {
+    "deps": [
+      "apache-airflow>=2.7.0",
+      "qdrant_client>=1.7.0"
+    ],
+    "devel-deps": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "redis": {
     "deps": [
       "apache-airflow>=2.6.0",
@@ -993,6 +1003,7 @@
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
       "apache-airflow>=2.6.0",
+      "asyncssh>=2.12.0",
       "paramiko>=2.8.0"
     ],
     "devel-deps": [],

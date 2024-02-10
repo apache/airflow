@@ -92,10 +92,12 @@ class DocsPublisher:
                         f"Delete it manually if you want to regenerate it!"
                     )
                     get_console(output=self.output).print()
-                    return
+                    return 1, f"Skipping {self.package_name}: Previously existing directory"
+            # If output directory exists and is not versioned, delete it
             shutil.rmtree(output_dir)
         shutil.copytree(self._build_dir, output_dir)
         if self.is_versioned:
             with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
                 stable_file.write(self._current_version)
         get_console(output=self.output).print()
+        return 0, f"Docs published: {self.package_name}"

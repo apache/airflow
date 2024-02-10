@@ -462,7 +462,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3.2"
+            export AIRFLOW_PIP_VERSION="24.0"
         fi
     fi
 }
@@ -1009,7 +1009,7 @@ RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1072,7 +1072,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="6"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"

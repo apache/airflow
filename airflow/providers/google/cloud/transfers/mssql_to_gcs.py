@@ -76,7 +76,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     def query(self):
         """
-        Queries MSSQL and returns a cursor of results.
+        Query MSSQL and returns a cursor of results.
 
         :return: mssql cursor
         """
