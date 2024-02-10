@@ -79,7 +79,7 @@ class PubsubPullTrigger(BaseTrigger):
         self.hook = PubSubAsyncHook()
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes PubsubPullTrigger arguments and classpath."""
+        """Serialize PubsubPullTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.pubsub.PubsubPullTrigger",
             {
