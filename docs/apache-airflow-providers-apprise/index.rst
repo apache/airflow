@@ -36,15 +36,6 @@
 
     Connection types <connections>
 
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -55,32 +46,6 @@
     Installing from sources <installing-providers-from-sources>
     Apprise Notifications <notifications/apprise_notifier_howto_guide>
 
-
-Package apache-airflow-providers-apprise
------------------------------------------
-
-`Apprise <https://github.com/caronc/apprise>`__
-
-
-Release: 1.0.0
-
-Provider package
-----------------
-
-This is a provider package for ``apprise`` notification library. All classes for this provider package
-are in ``airflow.providers.apprise`` python module.
-
-
-Requirements
-------------
-
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
-
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.4.0``
-==================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
