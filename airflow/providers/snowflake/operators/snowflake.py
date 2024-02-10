@@ -573,7 +573,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute callback when the trigger fires; returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
