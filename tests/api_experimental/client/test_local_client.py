@@ -135,13 +135,11 @@ class TestLocalClient:
 
             # test output
             queued_at = pendulum.now()
-            started_at = pendulum.now()
             mock.return_value = DagRun(
                 dag_id=test_dag_id,
                 run_id=run_id,
                 queued_at=queued_at,
                 execution_date=EXECDATE,
-                start_date=started_at,
                 external_trigger=True,
                 state=DagRunState.QUEUED,
                 conf={},
@@ -159,7 +157,7 @@ class TestLocalClient:
                 "last_scheduling_decision": None,
                 "logical_date": EXECDATE,
                 "run_type": DagRunType.MANUAL,
-                "start_date": started_at,
+                "start_date": None,
                 "state": DagRunState.QUEUED,
             }
             dag_run = self.client.trigger_dag(dag_id=test_dag_id)

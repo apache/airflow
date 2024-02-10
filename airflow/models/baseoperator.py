@@ -1602,7 +1602,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """This method is called when a deferred task is resumed."""
+        """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == "__fail__":
