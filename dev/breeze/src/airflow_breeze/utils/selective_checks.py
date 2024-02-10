@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import difflib
 import json
 import os
 import re
@@ -59,6 +60,7 @@ from airflow_breeze.utils.path_utils import (
     TESTS_PROVIDERS_ROOT,
 )
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
+from airflow_breeze.utils.run_utils import run_command
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
@@ -82,7 +84,7 @@ class FileGroupForCi(Enum):
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
-    SETUP_FILES = "setup_files"
+    DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
     WWW_FILES = "www_files"
     SYSTEM_TEST_FILES = "system_tests"
@@ -112,7 +114,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^dev/.*\.py$",
             r"^Dockerfile",
             r"^scripts",
-            r"^pyproject.toml",
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
@@ -137,8 +138,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^tests/kubernetes",
             r"^helm_tests",
         ],
-        FileGroupForCi.SETUP_FILES: [
-            r"^pyproject.toml",
+        FileGroupForCi.DEPENDENCY_FILES: [
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.DOC_FILES: [
@@ -370,6 +370,8 @@ class SelectiveChecks:
         self._github_repository = github_repository
         self._github_actor = github_actor
         self._github_context_dict = github_context_dict or {}
+        self._new_toml: dict[str, Any] = {}
+        self._old_toml: dict[str, Any] = {}
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -422,6 +424,13 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Running everything because env files changed[/]")
             return True
+        if self.pyproject_toml_changed:
+            if self.build_system_changed_in_pyproject_toml:
+                get_console().print("[warning]Running everything: build-system changed in pyproject.toml[/]")
+                return True
+            if self.dependencies_changed_in_pyproject_toml:
+                get_console().print("[warning]Running everything: dependencies changed in pyproject.toml[/]")
+                return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
                 "[warning]Full tests needed because "
@@ -786,18 +795,123 @@ class SelectiveChecks:
     def basic_checks_only(self) -> bool:
         return not self.ci_image_build
 
+    @staticmethod
+    def _print_diff(old_lines: list[str], new_lines: list[str]):
+        diff = "\n".join([line for line in difflib.ndiff(old_lines, new_lines) if line and line[0] in "+-?"])
+        get_console().print(diff)
+
+    @cached_property
+    def pyproject_toml_changed(self) -> bool:
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
+            return False
+        new_result = run_command(
+            ["git", "show", f"{self._commit_ref}:pyproject.toml"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+        )
+        if new_result.returncode != 0:
+            get_console().print(
+                f"[warning]Cannot determine pyproject.toml changes. "
+                f"Could not get pyproject.toml from {self._commit_ref}[/]"
+            )
+            return False
+        old_result = run_command(
+            ["git", "show", f"{self._commit_ref}^:pyproject.toml"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+        )
+        if old_result.returncode != 0:
+            get_console().print(
+                f"[warning]Cannot determine pyproject.toml changes. "
+                f"Could not get pyproject.toml from {self._commit_ref}^[/]"
+            )
+            return False
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
+
+        self._new_toml = tomllib.loads(new_result.stdout)
+        self._old_toml = tomllib.loads(old_result.stdout)
+        return True
+
+    @cached_property
+    def build_system_changed_in_pyproject_toml(self) -> bool:
+        if not self.pyproject_toml_changed:
+            return False
+        new_build_backend = self._new_toml["build-system"]["build-backend"]
+        old_build_backend = self._old_toml["build-system"]["build-backend"]
+        if new_build_backend != old_build_backend:
+            get_console().print("[warning]Build backend changed in pyproject.toml [/]")
+            self._print_diff([old_build_backend], [new_build_backend])
+            return True
+        new_requires = self._new_toml["build-system"]["requires"]
+        old_requires = self._old_toml["build-system"]["requires"]
+        if new_requires != old_requires:
+            get_console().print("[warning]Build system changed in pyproject.toml [/]")
+            self._print_diff(old_requires, new_requires)
+            return True
+        return False
+
+    @cached_property
+    def dependencies_changed_in_pyproject_toml(self) -> bool:
+        if not self.pyproject_toml_changed:
+            return False
+        new_deps = self._new_toml["project"]["dependencies"]
+        old_deps = self._old_toml["project"]["dependencies"]
+        if new_deps != old_deps:
+            get_console().print("[warning]Project dependencies changed [/]")
+            self._print_diff(old_deps, new_deps)
+            return True
+        new_optional_deps = self._new_toml["project"].get("optional-dependencies", {})
+        old_optional_deps = self._old_toml["project"].get("optional-dependencies", {})
+        if new_optional_deps != old_optional_deps:
+            get_console().print("[warning]Optional dependencies changed [/]")
+            all_dep_keys = set(new_optional_deps.keys()).union(old_optional_deps.keys())
+            for dep in all_dep_keys:
+                if new_optional_deps.get(dep) != old_optional_deps.get(dep):
+                    get_console().print(f"[warning]Optional dependency {dep} changed[/]")
+                    self._print_diff(old_optional_deps.get(dep, []), new_optional_deps.get(dep, []))
+            return True
+        return False
+
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        return (
+        if (
             len(
                 self._matching_files(
-                    FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                    FileGroupForCi.DEPENDENCY_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
                 )
             )
             > 0
-            or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
-            or UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels
-        )
+        ):
+            get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
+            return True
+        if self.dependencies_changed_in_pyproject_toml:
+            get_console().print(
+                "[warning]Upgrade to newer dependencies: Dependencies changed in pyproject.toml[/]"
+            )
+            return True
+        if self.build_system_changed_in_pyproject_toml:
+            get_console().print(
+                "[warning]Upgrade to newer dependencies: Build system changed in pyproject.toml[/]"
+            )
+            return True
+        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
+            get_console().print("[warning]Upgrade to newer dependencies: Push or Schedule event[/]")
+            return True
+        if UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels:
+            get_console().print(
+                f"[warning]Upgrade to newer dependencies: Label '{UPGRADE_TO_NEWER_DEPENDENCIES_LABEL}' "
+                f"in {self._pr_labels}[/]"
+            )
+            return True
+        return False
 
     @cached_property
     def docs_list_as_string(self) -> str | None:
