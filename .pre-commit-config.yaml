@@ -268,7 +268,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.33.0
+    rev: v1.34.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
