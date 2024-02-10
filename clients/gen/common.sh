@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPENAPI_GENERATOR_CLI_VER=7.1.0
+OPENAPI_GENERATOR_CLI_VER=7.3.0
 readonly OPENAPI_GENERATOR_CLI_VER
 
 GIT_USER=${GIT_USER:-apache}
