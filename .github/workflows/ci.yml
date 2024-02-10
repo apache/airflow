@@ -312,6 +312,8 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v4
         with:
+          # Need to fetch all history for selective checks tests
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
