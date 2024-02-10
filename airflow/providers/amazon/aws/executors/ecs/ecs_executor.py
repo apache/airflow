@@ -112,7 +112,7 @@ class AwsEcsExecutor(BaseExecutor):
         self.run_task_kwargs = self._load_run_kwargs()
 
     def start(self):
-        """This is called by the scheduler when the Executor is being run for the first time."""
+        """Call this when the Executor is run for the first time by the scheduler."""
         check_health = conf.getboolean(
             CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
         )
@@ -217,7 +217,7 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
     def sync_running_tasks(self):
-        """Checks and update state on all running tasks."""
+        """Check and update state on all running tasks."""
         all_task_arns = self.active_workers.get_all_arns()
         if not all_task_arns:
             self.log.debug("No active Airflow tasks, skipping sync.")
@@ -324,7 +324,7 @@ class AwsEcsExecutor(BaseExecutor):
 
     def attempt_task_runs(self):
         """
-        Takes tasks from the pending_tasks queue, and attempts to find an instance to run it on.
+        Take tasks from the pending_tasks queue, and attempts to find an instance to run it on.
 
         If the launch type is EC2, this will attempt to place tasks on empty EC2 instances.  If
             there are no EC2 instances available, no task is placed and this function will be
@@ -418,7 +418,7 @@ class AwsEcsExecutor(BaseExecutor):
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> dict:
         """
-        Overrides the Airflow command to update the container overrides so kwargs are specific to this task.
+        Update the Airflow command by modifying container overrides for task-specific kwargs.
 
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
@@ -443,7 +443,7 @@ class AwsEcsExecutor(BaseExecutor):
         )
 
     def end(self, heartbeat_interval=10):
-        """Waits for all currently running tasks to end, and doesn't launch any tasks."""
+        """Wait for all currently running tasks to end, and don't launch any tasks."""
         try:
             while True:
                 self.sync()
@@ -483,7 +483,7 @@ class AwsEcsExecutor(BaseExecutor):
         return ecs_executor_run_task_kwargs
 
     def get_container(self, container_list):
-        """Searches task list for core Airflow container."""
+        """Search task list for core Airflow container."""
         for container in container_list:
             try:
                 if container["name"] == self.container_name:

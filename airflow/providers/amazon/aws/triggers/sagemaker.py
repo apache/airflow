@@ -220,7 +220,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SageMakerTrainingPrintLogTrigger arguments and classpath."""
+        """Serialize SageMakerTrainingPrintLogTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger",
             {
@@ -235,7 +235,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Makes async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
+        """Make async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
         stream_names: list[str] = []  # The list of log streams
         positions: dict[str, Any] = {}  # The current position in each stream, map of stream name -> position
 
