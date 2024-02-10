@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-10T17:22:32.422154
+# This constraints file was automatically generated on 2024-02-10T20:15:19.471989
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -568,7 +568,7 @@ tomli_w==1.0.0
 tomlkit==0.12.3
 tornado==6.4
 towncrier==23.11.0
-tqdm==4.66.1
+tqdm==4.66.2
 traitlets==5.14.1
 trino==0.327.0
 trove-classifiers==2024.1.31
