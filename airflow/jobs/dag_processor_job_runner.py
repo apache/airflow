@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.dag_processing.manager import DagFileProcessorManager
 
 
 def empty_callback(_: Any) -> None:
@@ -46,13 +48,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         *args,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
-        self.job = job
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
+        super().__init__(job)
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,

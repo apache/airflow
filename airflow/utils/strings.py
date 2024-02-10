@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Common utility functions with strings"""
+"""Common utility functions with strings."""
 from __future__ import annotations
 
+import random
 import string
-from random import choice
 
 
 def get_random_string(length=8, choices=string.ascii_letters + string.digits):
-    """Generate random string"""
-    return "".join(choice(choices) for _ in range(length))
+    """Generate random string."""
+    return "".join(random.choices(choices, k=length))
 
 
 TRUE_LIKE_VALUES = {"on", "t", "true", "y", "yes", "1"}

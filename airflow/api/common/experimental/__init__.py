@@ -18,10 +18,15 @@
 """Experimental APIs."""
 from __future__ import annotations
 
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagBag, DagModel
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from airflow.models import DagRun
 
 
 def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:

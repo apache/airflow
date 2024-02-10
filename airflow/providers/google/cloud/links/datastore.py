@@ -30,7 +30,7 @@ DATASTORE_ENTITIES_LINK = DATASTORE_BASE_LINK + "/entities/query/kind?project={p
 
 
 class CloudDatastoreImportExportLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Datastore Import/Export Link"""
+    """Helper class for constructing Cloud Datastore Import/Export Link."""
 
     name = "Import/Export Page"
     key = "import_export_conf"
@@ -51,7 +51,7 @@ class CloudDatastoreImportExportLink(BaseGoogleLink):
 
 
 class CloudDatastoreEntitiesLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Datastore Entities Link"""
+    """Helper class for constructing Cloud Datastore Entities Link."""
 
     name = "Entities"
     key = "entities_conf"

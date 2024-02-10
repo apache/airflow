@@ -80,8 +80,8 @@ class TestCompression:
         fn_txt = self._get_fn(".txt")
         fn_gz = self._get_fn(".gz")
         txt_gz = compression.uncompress_file(fn_gz, ".gz", self.tmp_dir)
-        assert filecmp.cmp(txt_gz, fn_txt, shallow=False), "Uncompressed file doest match original"
+        assert filecmp.cmp(txt_gz, fn_txt, shallow=False), "Uncompressed file does not match original"
         # Testing bz2 file type
         fn_bz2 = self._get_fn(".bz2")
         txt_bz2 = compression.uncompress_file(fn_bz2, ".bz2", self.tmp_dir)
-        assert filecmp.cmp(txt_bz2, fn_txt, shallow=False), "Uncompressed file doest match original"
+        assert filecmp.cmp(txt_bz2, fn_txt, shallow=False), "Uncompressed file does not match original"

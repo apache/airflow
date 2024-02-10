@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
+from datetime import timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jwt
 import pytest
 import time_machine
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.utils import timezone
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.serve_logs import create_app
 from tests.test_utils.config import conf_vars
@@ -34,18 +37,46 @@ LOG_DATA = "Airflow log data" * 20
 
 
 @pytest.fixture
-def client(tmpdir):
-    with conf_vars({("logging", "base_log_folder"): str(tmpdir)}):
+def client_without_config(tmp_path):
+    with conf_vars({("logging", "base_log_folder"): tmp_path.as_posix()}):
         app = create_app()
 
         yield app.test_client()
 
 
 @pytest.fixture
-def sample_log(tmpdir):
-    f = tmpdir / "sample.log"
-    f.write(LOG_DATA.encode())
+def client_with_config():
+    with conf_vars(
+        {
+            (
+                "logging",
+                "logging_config_class",
+            ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+        }
+    ):
+        app = create_app()
 
+        yield app.test_client()
+
+
+@pytest.fixture(params=["client_without_config", "client_with_config"])
+def client(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def sample_log(request, tmp_path):
+    client = request.getfixturevalue("client")
+
+    if client == request.getfixturevalue("client_without_config"):
+        base_log_dir = tmp_path
+    elif client == request.getfixturevalue("client_with_config"):
+        base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
+    else:
+        raise ValueError(f"Unknown client fixture: {client}")
+
+    f = base_log_dir.joinpath("sample.log")
+    f.write_text(LOG_DATA)
     return f
 
 
@@ -105,7 +136,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_future(self, client: FlaskClient, signer):
-        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=3600)):
+        with time_machine.travel(timezone.utcnow() + timedelta(seconds=3600)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -118,7 +149,7 @@ class TestServeLogs:
         )
 
     def test_ok_with_short_future_skew(self, client: FlaskClient, signer):
-        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=1)):
+        with time_machine.travel(timezone.utcnow() + timedelta(seconds=1)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -131,7 +162,7 @@ class TestServeLogs:
         )
 
     def test_ok_with_short_past_skew(self, client: FlaskClient, signer):
-        with time_machine.travel(datetime.datetime.utcnow() - datetime.timedelta(seconds=31)):
+        with time_machine.travel(timezone.utcnow() - timedelta(seconds=31)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -144,7 +175,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_with_long_future_skew(self, client: FlaskClient, signer):
-        with time_machine.travel(datetime.datetime.utcnow() + datetime.timedelta(seconds=10)):
+        with time_machine.travel(timezone.utcnow() + timedelta(seconds=10)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -157,7 +188,7 @@ class TestServeLogs:
         )
 
     def test_forbidden_with_long_past_skew(self, client: FlaskClient, signer):
-        with time_machine.travel(datetime.datetime.utcnow() - datetime.timedelta(seconds=40)):
+        with time_machine.travel(timezone.utcnow() - timedelta(seconds=40)):
             token = signer.generate_signed_token({"filename": "sample.log"})
         assert (
             client.get(
@@ -184,9 +215,9 @@ class TestServeLogs:
     def test_missing_claims(self, claim_to_remove: str, client: FlaskClient, secret_key):
         jwt_dict = {
             "aud": "task-instance-logs",
-            "iat": datetime.datetime.utcnow(),
-            "nbf": datetime.datetime.utcnow(),
-            "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=30),
+            "iat": timezone.utcnow(),
+            "nbf": timezone.utcnow(),
+            "exp": timezone.utcnow() + timedelta(seconds=30),
         }
         del jwt_dict[claim_to_remove]
         jwt_dict.update({"filename": "sample.log"})

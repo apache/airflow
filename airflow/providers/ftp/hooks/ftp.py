@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import ftplib
-import os.path
+import ftplib  # nosec: B402
 from typing import Any, Callable
 
 from airflow.hooks.base import BaseHook
@@ -55,51 +54,42 @@ class FTPHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTP connection object"""
+        """Return an FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn = ftplib.FTP(params.host, params.login, params.password)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn
 
     def close_conn(self):
-        """
-        Closes the connection. An error will occur if the
-        connection was not ever opened.
-        """
+        """Close the connection; an error will occur if the connection was never opened."""
         conn = self.conn
         conn.quit()
         self.conn = None
 
     def describe_directory(self, path: str) -> dict:
         """
-        Returns a dictionary of {filename: {attributes}} for all files
-        on the remote system (where the MLSD command is supported).
+        Return a dictionary of {filename: {attributes}} for all files on a remote system which supports MLSD.
 
         :param path: full path to the remote directory
         """
         conn = self.get_conn()
-        conn.cwd(path)
-        files = dict(conn.mlsd())
-        return files
+        return dict(conn.mlsd(path))
 
     def list_directory(self, path: str) -> list[str]:
         """
-        Returns a list of files on the remote system.
+        Return a list of files on the remote system.
 
         :param path: full path to the remote directory to list
         """
         conn = self.get_conn()
-        conn.cwd(path)
-
-        files = conn.nlst()
-        return files
+        return conn.nlst(path)
 
     def create_directory(self, path: str) -> None:
         """
-        Creates a directory on the remote system.
+        Create a directory on the remote system.
 
         :param path: full path to the remote directory to create
         """
@@ -108,7 +98,7 @@ class FTPHook(BaseHook):
 
     def delete_directory(self, path: str) -> None:
         """
-        Deletes a directory on the remote system.
+        Delete a directory on the remote system.
 
         :param path: full path to the remote directory to delete
         """
@@ -123,7 +113,7 @@ class FTPHook(BaseHook):
         block_size: int = 8192,
     ) -> None:
         """
-        Transfers the remote file to a local location.
+        Transfer the remote file to a local location.
 
         If local_full_path_or_buffer is a string path, the file will be put
         at that location; if it is a file-like buffer, the file will
@@ -147,6 +137,7 @@ class FTPHook(BaseHook):
 
             remote_path = "/path/to/remote/file"
             local_path = "/path/to/local/file"
+
 
             # with a custom callback (in this case displaying progress on each read)
             def print_progress(percent_progress):
@@ -184,10 +175,8 @@ class FTPHook(BaseHook):
 
             callback = output_handle.write
 
-        remote_path, remote_file_name = os.path.split(remote_full_path)
-        conn.cwd(remote_path)
         self.log.info("Retrieving file from FTP: %s", remote_full_path)
-        conn.retrbinary(f"RETR {remote_file_name}", callback, block_size)
+        conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
         self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
 
         if is_path and output_handle:
@@ -216,16 +205,15 @@ class FTPHook(BaseHook):
             input_handle = open(local_full_path_or_buffer, "rb")
         else:
             input_handle = local_full_path_or_buffer
-        remote_path, remote_file_name = os.path.split(remote_full_path)
-        conn.cwd(remote_path)
-        conn.storbinary(f"STOR {remote_file_name}", input_handle, block_size)
+
+        conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
 
         if is_path:
             input_handle.close()
 
     def delete_file(self, path: str) -> None:
         """
-        Removes a file on the FTP Server.
+        Remove a file on the FTP Server.
 
         :param path: full path to the remote file
         """
@@ -244,7 +232,7 @@ class FTPHook(BaseHook):
 
     def get_mod_time(self, path: str) -> datetime.datetime:
         """
-        Returns a datetime object representing the last time the file was modified
+        Return a datetime object representing the last time the file was modified.
 
         :param path: remote file path
         """
@@ -259,7 +247,7 @@ class FTPHook(BaseHook):
 
     def get_size(self, path: str) -> int | None:
         """
-        Returns the size of a file (in bytes)
+        Return the size of a file (in bytes).
 
         :param path: remote file path
         """
@@ -268,7 +256,7 @@ class FTPHook(BaseHook):
         return int(size) if size else None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory"""
+        """Test the FTP connection by calling path with directory."""
         try:
             conn = self.get_conn()
             conn.pwd
@@ -281,7 +269,7 @@ class FTPSHook(FTPHook):
     """Interact with FTPS."""
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTPS connection object."""
+        """Return an FTPS connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -289,7 +277,7 @@ class FTPSHook(FTPHook):
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)
+            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn

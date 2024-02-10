@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from tempfile import NamedTemporaryFile
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.calendar import GoogleCalendarHook
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class GoogleCalendarToGCSOperator(BaseOperator):

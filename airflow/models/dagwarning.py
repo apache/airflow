@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
@@ -28,6 +28,9 @@ from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class DagWarning(Base):
@@ -83,11 +86,12 @@ class DagWarning(Base):
         from airflow.models.dag import DagModel
 
         if session.get_bind().dialect.name == "sqlite":
-            dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
-            query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
+            dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_active == false())
+            query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
         else:
-            query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
-        query.delete(synchronize_session=False)
+            query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
+
+        session.execute(query.execution_options(synchronize_session=False))
         session.commit()
 
 

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from datadog import api
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -31,11 +31,9 @@ if TYPE_CHECKING:
 
 class DatadogSensor(BaseSensorOperator):
     """
-    A sensor to listen, with a filter, to datadog event streams and determine
-    if some event was emitted.
+    A sensor to listen, with a filter, to datadog event streams and determine if some event was emitted.
 
-    Depends on the datadog API, which has to be deployed on the same server where
-    Airflow runs.
+    Depends on the datadog API, which has to be deployed on the same server where Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     :param from_seconds_ago: POSIX timestamp start (default 3600).
@@ -91,11 +89,15 @@ class DatadogSensor(BaseSensorOperator):
 
         if isinstance(response, dict) and response.get("status", "ok") != "ok":
             self.log.error("Unexpected Datadog result: %s", response)
-            raise AirflowException("Datadog returned unexpected result")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = "Datadog returned unexpected result"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if self.response_check:
             # run content check on response
             return self.response_check(response)
 
         # If no check was inserted, assume any event that matched yields true.
-        return len(response) > 0
+        return bool(response)

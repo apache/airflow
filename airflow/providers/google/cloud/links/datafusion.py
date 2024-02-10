@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Compute Engine links."""
+"""This module contains Google Data Fusion links."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
@@ -24,20 +24,21 @@ from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
 DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
-DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/default/pipelines"
-DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
+DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/{namespace}/pipelines"
+DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/{namespace}/view/{pipeline_name}"
 
 
 class BaseGoogleLink(BaseOperatorLink):
-    """
-    Override the base logic to prevent adding 'https://console.cloud.google.com'
-    in front of every link where uri is used
+    """Link for Google operators.
+
+    Prevent adding ``https://console.cloud.google.com`` in front of every link
+    where URI is used.
     """
 
     name: ClassVar[str]
@@ -51,15 +52,18 @@ class BaseGoogleLink(BaseOperatorLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
+
         if not conf:
             return ""
-        if self.format_str.startswith("http"):
-            return self.format_str.format(**conf)
+
+        # Add a default value for the 'namespace' parameter for backward compatibility.
+        conf.setdefault("namespace", "default")
+
         return self.format_str.format(**conf)
 
 
 class DataFusionInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Instance link"""
+    """Helper class for constructing Data Fusion Instance link."""
 
     name = "Data Fusion Instance"
     key = "instance_conf"
@@ -85,7 +89,7 @@ class DataFusionInstanceLink(BaseGoogleLink):
 
 
 class DataFusionPipelineLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Pipeline link"""
+    """Helper class for constructing Data Fusion Pipeline link."""
 
     name = "Data Fusion Pipeline"
     key = "pipeline_conf"
@@ -97,6 +101,7 @@ class DataFusionPipelineLink(BaseGoogleLink):
         task_instance: BaseOperator,
         uri: str,
         pipeline_name: str,
+        namespace: str,
     ):
         task_instance.xcom_push(
             context=context,
@@ -104,12 +109,13 @@ class DataFusionPipelineLink(BaseGoogleLink):
             value={
                 "uri": uri,
                 "pipeline_name": pipeline_name,
+                "namespace": namespace,
             },
         )
 
 
 class DataFusionPipelinesLink(BaseGoogleLink):
-    """Helper class for constructing list of Data Fusion Pipelines link"""
+    """Helper class for constructing list of Data Fusion Pipelines link."""
 
     name = "Data Fusion Pipelines List"
     key = "pipelines_conf"
@@ -120,11 +126,13 @@ class DataFusionPipelinesLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         uri: str,
+        namespace: str,
     ):
         task_instance.xcom_push(
             context=context,
             key=DataFusionPipelinesLink.key,
             value={
                 "uri": uri,
+                "namespace": namespace,
             },
         )

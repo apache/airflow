@@ -19,7 +19,11 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
+
+pytestmark = pytest.mark.db_test
 
 API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"

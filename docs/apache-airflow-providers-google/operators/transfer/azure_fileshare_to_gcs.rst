@@ -21,8 +21,6 @@ The `Google Cloud Storage <https://cloud.google.com/storage/>`__  (GCS) is used 
 The `Azure FileShare <https://docs.microsoft.com/en-us/azure/storage/files/>`__  (Azure FileShare) is very similar to GCS but from another provider (Azure).
 This page shows how to transfer data from Azure FileShare to GCS.
 
-Overview
---------
 
 Data transfer
 -------------

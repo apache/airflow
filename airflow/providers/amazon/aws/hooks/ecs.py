@@ -17,21 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import time
-from collections import deque
-from datetime import datetime, timedelta
-from logging import Logger
-from threading import Event, Thread
-from typing import Generator
-
-from botocore.exceptions import ClientError, ConnectionClosedError
-from botocore.waiter import Waiter
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import _StringCompareEnum
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from botocore.waiter import Waiter
 
 
 def should_retry(exception: Exception):
@@ -90,6 +84,7 @@ class EcsTaskStates(_StringCompareEnum):
 class EcsHook(AwsGenericHook):
     """
     Interact with Amazon Elastic Container Service (ECS).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("ecs") <ECS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -143,81 +138,12 @@ class EcsHook(AwsGenericHook):
         return self.conn.describe_tasks(cluster=cluster, tasks=[task])["tasks"][0]["lastStatus"]
 
 
-class EcsTaskLogFetcher(Thread):
-    """
-    Fetches Cloudwatch log events with specific interval as a thread
-    and sends the log events to the info channel of the provided logger.
-    """
-
-    def __init__(
-        self,
-        *,
-        log_group: str,
-        log_stream_name: str,
-        fetch_interval: timedelta,
-        logger: Logger,
-        aws_conn_id: str | None = "aws_default",
-        region_name: str | None = None,
-    ):
-        super().__init__()
-        self._event = Event()
-
-        self.fetch_interval = fetch_interval
-
-        self.logger = logger
-        self.log_group = log_group
-        self.log_stream_name = log_stream_name
-
-        self.hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
-
-    def run(self) -> None:
-        logs_to_skip = 0
-        while not self.is_stopped():
-            time.sleep(self.fetch_interval.total_seconds())
-            log_events = self._get_log_events(logs_to_skip)
-            for log_event in log_events:
-                self.logger.info(self._event_to_str(log_event))
-                logs_to_skip += 1
-
-    def _get_log_events(self, skip: int = 0) -> Generator:
-        try:
-            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
-        except ClientError as error:
-            if error.response["Error"]["Code"] != "ResourceNotFoundException":
-                self.logger.warning("Error on retrieving Cloudwatch log events", error)
-
-            yield from ()
-        except ConnectionClosedError as error:
-            self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
-            yield from ()
-
-    def _event_to_str(self, event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
-        formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
-        message = event["message"]
-        return f"[{formatted_event_dt}] {message}"
-
-    def get_last_log_messages(self, number_messages) -> list:
-        return [log["message"] for log in deque(self._get_log_events(), maxlen=number_messages)]
-
-    def get_last_log_message(self) -> str | None:
-        try:
-            return self.get_last_log_messages(1)[0]
-        except IndexError:
-            return None
-
-    def is_stopped(self) -> bool:
-        return self._event.is_set()
-
-    def stop(self):
-        self._event.set()
-
-
 @runtime_checkable
 class EcsProtocol(Protocol):
     """
-    A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
-    :py:meth:`.EcsOperator.client`.
+    A structured Protocol for ``boto3.client('ecs')``.
+
+    This is used for type hints on :py:meth:`.EcsOperator.client`.
 
     .. seealso::
 
@@ -226,25 +152,43 @@ class EcsProtocol(Protocol):
     """
 
     def run_task(self, **kwargs) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
+        """Run a task.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+        """
         ...
 
     def get_waiter(self, x: str) -> Waiter:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
+        """Get a waiter.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter
+        """
         ...
 
     def describe_tasks(self, cluster: str, tasks) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
+        """Describe tasks.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks
+        """
         ...
 
     def stop_task(self, cluster, task, reason: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
+        """Stop a task.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task
+        """
         ...
 
     def describe_task_definition(self, taskDefinition: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
+        """Describe a task definition.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition
+        """
         ...
 
     def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
+        """List tasks.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks
+        """
         ...

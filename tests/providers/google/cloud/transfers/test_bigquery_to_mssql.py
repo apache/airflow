@@ -36,18 +36,17 @@ TEST_DAG_ID = "test-bigquery-operators"
 
 @pytest.mark.backend("mssql")
 class TestBigQueryToMsSqlOperator:
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mssql.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
         destination_table = "table"
         operator = BigQueryToMsSqlOperator(
             task_id=TASK_ID,
             source_project_dataset_table=f"{TEST_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
-            mssql_table=destination_table,
+            target_table_name=destination_table,
             replace=False,
         )
 
         operator.execute(context=mock.MagicMock())
-        # fmt: off
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -55,4 +54,3 @@ class TestBigQueryToMsSqlOperator:
             selected_fields=None,
             start_index=0,
         )
-        # fmt: on

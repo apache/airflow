@@ -22,7 +22,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class ReadyToRescheduleDep(BaseTIDep):
@@ -31,12 +31,13 @@ class ReadyToRescheduleDep(BaseTIDep):
     NAME = "Ready To Reschedule"
     IGNORABLE = True
     IS_TASK_DEP = True
-    RESCHEDULEABLE_STATES = {State.UP_FOR_RESCHEDULE, State.NONE}
+    RESCHEDULEABLE_STATES = {TaskInstanceState.UP_FOR_RESCHEDULE, None}
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         """
-        Determines whether a task is ready to be rescheduled.
+        Determine whether a task is ready to be rescheduled.
+
         Only tasks in NONE state with at least one row in task_reschedule table are
         handled by this dependency class, otherwise this dependency is considered as passed.
         This dependency fails if the latest reschedule request's reschedule date is still
@@ -70,12 +71,12 @@ class ReadyToRescheduleDep(BaseTIDep):
             )
             return
 
-        task_reschedule = (
-            TaskReschedule.query_for_task_instance(task_instance=ti, descending=True, session=session)
-            .with_entities(TaskReschedule.reschedule_date)
-            .first()
+        next_reschedule_date = session.scalar(
+            TaskReschedule.stmt_for_task_instance(ti, descending=True)
+            .with_only_columns(TaskReschedule.reschedule_date)
+            .limit(1)
         )
-        if not task_reschedule:
+        if not next_reschedule_date:
             # Because mapped sensors don't have the reschedule property, here's the last resort
             # and we need a slightly different passing reason
             if is_mapped:
@@ -85,7 +86,6 @@ class ReadyToRescheduleDep(BaseTIDep):
             return
 
         now = timezone.utcnow()
-        next_reschedule_date = task_reschedule.reschedule_date
         if now >= next_reschedule_date:
             yield self._passing_status(reason="Task instance id ready for reschedule.")
             return

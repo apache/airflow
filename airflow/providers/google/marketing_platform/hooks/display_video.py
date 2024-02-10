@@ -45,7 +45,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """Retrieves connection to DisplayVideo."""
+        """Retrieve connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -57,7 +57,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         return self._conn
 
     def get_conn_to_display_video(self) -> Resource:
-        """Retrieves connection to DisplayVideo."""
+        """Retrieve connection to DisplayVideo."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -89,7 +89,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def create_query(self, query: dict[str, Any]) -> dict:
         """
-        Creates a query.
+        Create a query.
 
         :param query: Query object to be passed to request body.
         """
@@ -98,7 +98,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def delete_query(self, query_id: str) -> None:
         """
-        Deletes a stored query as well as the associated stored reports.
+        Delete a stored query as well as the associated stored reports.
 
         :param query_id: Query ID to delete.
         """
@@ -106,7 +106,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def get_query(self, query_id: str) -> dict:
         """
-        Retrieves a stored query.
+        Retrieve a stored query.
 
         :param query_id: Query ID to retrieve.
         """
@@ -114,13 +114,13 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         return response
 
     def list_queries(self) -> list[dict]:
-        """Retrieves stored queries."""
+        """Retrieve stored queries."""
         response = self.get_conn().queries().list().execute(num_retries=self.num_retries)
         return response.get("queries", [])
 
     def run_query(self, query_id: str, params: dict[str, Any] | None) -> dict:
         """
-        Runs a stored query to generate a report.
+        Run a stored query to generate a report.
 
         :param query_id: Query ID to run.
         :param params: Parameters for the report.
@@ -131,7 +131,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def get_report(self, query_id: str, report_id: str) -> dict:
         """
-        Retrieves a report.
+        Retrieve a report.
 
         :param query_id: Query ID for which report was generated.
         :param report_id: Report ID to retrieve.
@@ -146,7 +146,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def upload_line_items(self, line_items: Any) -> list[dict[str, Any]]:
         """
-        Uploads line items in CSV format.
+        Upload line items in CSV format.
 
         :param line_items: downloaded data from GCS and passed to the body request
         :return: response body.
@@ -167,7 +167,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def download_line_items(self, request_body: dict[str, Any]) -> list[Any]:
         """
-        Retrieves line items in CSV format.
+        Retrieve line items in CSV format.
 
         :param request_body: dictionary with parameters that should be passed into.
             More information about it can be found here:
@@ -183,7 +183,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def create_sdf_download_operation(self, body_request: dict[str, Any]) -> dict[str, Any]:
         """
-        Creates an SDF Download Task and Returns an Operation.
+        Create an SDF Download Task and Returns an Operation.
 
         :param body_request: Body request.
 
@@ -200,7 +200,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def get_sdf_download_operation(self, operation_name: str):
         """
-        Gets the latest state of an asynchronous SDF download task operation.
+        Get the latest state of an asynchronous SDF download task operation.
 
         :param operation_name: The name of the operation resource.
         """
@@ -215,7 +215,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
     def download_media(self, resource_name: str):
         """
-        Downloads media.
+        Download media.
 
         :param resource_name: of the media that is being downloaded.
         """

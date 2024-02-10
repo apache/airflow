@@ -31,9 +31,10 @@ if TYPE_CHECKING:
 
 class HiveToDynamoDBOperator(BaseOperator):
     """
-    Moves data from Hive to DynamoDB, note that for now the data is loaded
-    into memory before being pushed to DynamoDB, so this operator should
-    be used for smallish amount of data.
+    Moves data from Hive to DynamoDB.
+
+    Note that for now the data is loaded into memory before being pushed
+    to DynamoDB, so this operator should be used for smallish amount of data.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

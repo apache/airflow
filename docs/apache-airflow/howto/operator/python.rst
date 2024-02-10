@@ -22,28 +22,55 @@
 PythonOperator
 ==============
 
-Use the ``@task`` decorator to execute Python callables.
+Use the :class:`~airflow.operators.python.PythonOperator` to execute Python callables.
 
-.. warning::
-    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
-    to execute Python callables.
+.. tip::
+    The ``@task`` decorator is recommended over the classic ``PythonOperator`` to execute Python callables.
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python]
-    :end-before: [END howto_operator_python]
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python]
+            :end-before: [END howto_operator_python]
+
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python]
+            :end-before: [END howto_operator_python]
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
 
 Pass extra arguments to the ``@task`` decorated function as you would with a normal Python function.
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_kwargs]
-    :end-before: [END howto_operator_python_kwargs]
+.. tab-set::
+
+    .. tab-item:: @task
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_kwargs]
+            :end-before: [END howto_operator_python_kwargs]
+
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_kwargs]
+            :end-before: [END howto_operator_python_kwargs]
 
 Templating
 ^^^^^^^^^^
@@ -55,42 +82,58 @@ argument.
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_render_sql]
-    :end-before: [END howto_operator_python_render_sql]
+.. tab-set::
 
+    .. tab-item:: @task
+        :sync: taskflow
 
+        .. exampleinclude:: /../../airflow/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_render_sql]
+            :end-before: [END howto_operator_python_render_sql]
 
+    .. tab-item:: PythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_render_sql]
+            :end-before: [END howto_operator_python_render_sql]
 
 .. _howto/operator:PythonVirtualenvOperator:
 
 PythonVirtualenvOperator
 ========================
 
-Use the ``@task.virtualenv`` decorator to execute Python callables inside a new Python virtual environment.
-The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
+Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` decorator to execute Python callables
+inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment
+that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
-.. warning::
-    The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`
+.. tip::
+    The ``@task.virtualenv`` decorator is recommended over the classic ``PythonVirtualenvOperator``
     to execute Python callables inside new Python virtual environments.
 
-TaskFlow example of using the PythonVirtualenvOperator:
+.. tab-set::
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_venv]
-    :end-before: [END howto_operator_python_venv]
+    .. tab-item:: @task.virtualenv
+        :sync: taskflow
 
-Classic example of using the PythonVirtualenvOperator:
+        .. exampleinclude:: /../../airflow/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_venv]
+            :end-before: [END howto_operator_python_venv]
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_python_venv_classic]
-    :end-before: [END howto_operator_python_venv_classic]
+    .. tab-item:: PythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_python_venv]
+            :end-before: [END howto_operator_python_venv]
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
@@ -103,7 +146,15 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
-If additional parameters for package installation are needed pass them in ``requirements.txt`` as in the example below:
+.. important::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.PythonVirtualenvOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+If additional parameters for package installation are needed pass them in via the ``pip_install_options`` parameter or use a
+``requirements.txt`` as in the example below:
 
 .. code-block::
 
@@ -111,6 +162,41 @@ If additional parameters for package installation are needed pass them in ``requ
   AnotherPackage==1.4.3 --no-index --find-links /my/local/archives
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
+
+Virtual environment setup options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The virtual environment is created based on the global python pip configuration on your worker. Using additional ENVs in your environment or adjustments in the general
+pip configuration as described in `pip config <https://pip.pypa.io/en/stable/topics/configuration/>`_.
+
+If you want to use additional task specific private python repositories to setup the virtual environment, you can pass the ``index_urls`` parameter which will adjust the
+pip install configurations. Passed index urls replace the standard system configured index url settings.
+To prevent adding secrets to the private repository in your DAG code you can use the Airflow
+:doc:`../../authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+
+In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
+forced pip installer to use the ``--no-index`` option.
+
+Caching and reuse
+^^^^^^^^^^^^^^^^^
+
+Setup of virtual environments is made per task execution in a temporary directory. After execution the virtual environment is deleted again. Ensure that the ``$tmp`` folder
+on your workers have sufficient disk space. Usually (if not configured differently) the local pip cache will be used preventing a re-download of packages
+for each execution.
+
+But still setting up the virtual environment for every execution needs some time. For repeated execution you can set the option ``venv_cache_path`` to a file system
+folder on your worker. In this case the virtual environment will be set up once and be re-used. If virtual environment caching is used, per unique requirements set different
+virtual environment subfolders are created in the cache path. So depending on your variations in the DAGs in your system setup sufficient disk space is needed.
+
+Note that no automated cleanup is made and in case of cached mode. All worker slots share the same virtual environment but if tasks are scheduled over and over on
+different workers, it might happen that virtual environment are created on multiple workers individually. Also if the worker is started in a Kubernetes POD, a restart
+of the worker will drop the cache (assuming ``venv_cache_path`` is not on a persistent volume).
+
+In case you have problems during runtime with broken cached virtual environments, you can influence the cache directory hash by setting the Airflow variable
+``PythonVirtualenvOperator.cache_key`` to any text. The content of this variable is uses in the vector to calculate the cache directory key.
+
+Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
+operator is not maintaining or cleaning the cache path.
 
 
 .. _howto/operator:ExternalPythonOperator:
@@ -129,25 +215,33 @@ automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is 
 to the executable Python binary.
 
 Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
-pre-defined environment. The virtualenv should be preinstalled in the environment where Python is run.
+pre-defined environment. The virtualenv package should be preinstalled in the environment where Python is run.
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
 
-TaskFlow example of using the operator:
+.. tip::
+    The ``@task.external_python`` decorator is recommended over the classic ``ExternalPythonOperator``
+    to execute Python code in pre-defined Python environments.
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_external_python]
-    :end-before: [END howto_operator_external_python]
+.. tab-set::
 
-Classic example of using the operator:
+    .. tab-item:: @task.external_python
+        :sync: taskflow
 
-.. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_external_python_classic]
-    :end-before: [END howto_operator_external_python_classic]
+        .. exampleinclude:: /../../airflow/example_dags/example_python_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_external_python]
+            :end-before: [END howto_operator_external_python]
+
+    .. tab-item:: ExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_external_python]
+            :end-before: [END howto_operator_external_python]
 
 
 Passing in arguments
@@ -159,33 +253,156 @@ with the underlying library. For Airflow context variables make sure that Airflo
 of the virtualenv environment in the same version as the Airflow version the task is run on.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
-``lazy_object_proxy`` to your virtualenv.
+``lazy_object_proxy`` to your virtual environment.
+
+.. important::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+.. _howto/operator:PythonBranchOperator:
+
+PythonBranchOperator
+====================
+
+Use the :class:`~airflow.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
+tasks.
+
+.. tip::
+    The ``@task.branch`` decorator is recommended over the classic ``PythonBranchOperator``
+    to execute Python code.
+
+.. tab-set::
+
+    .. tab-item:: @task.branch
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_python]
+            :end-before: [END howto_operator_branch_python]
+
+    .. tab-item:: PythonBranchOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_python]
+            :end-before: [END howto_operator_branch_python]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
+
+.. _howto/operator:BranchPythonVirtualenvOperator:
+
+BranchPythonVirtualenvOperator
+==============================
+
+Use the :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in a virtual environment.
+
+.. tip::
+    The ``@task.branch_virtualenv`` decorator is recommended over the classic
+    ``BranchPythonVirtualenvOperator`` to execute Python code.
+
+.. tab-set::
+
+    .. tab-item:: @task.branch_virtualenv
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_virtualenv]
+            :end-before: [END howto_operator_branch_virtualenv]
+
+    .. tab-item:: BranchPythonVirtualenvOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_virtualenv]
+            :end-before: [END howto_operator_branch_virtualenv]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+
+.. _howto/operator:BranchExternalPythonOperator:
+
+BranchExternalPythonOperator
+============================
+
+Use the :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in an
+external Python environment.
+
+.. tip::
+    The ``@task.branch_external_python`` decorator is recommended over the classic
+    ``BranchExternalPythonOperator`` to execute Python code.
+
+.. tab-set::
+
+    .. tab-item:: @task.branch_external_python
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_ext_py]
+            :end-before: [END howto_operator_branch_ext_py]
+
+    .. tab-item:: BranchExternalPythonOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_branch_ext_py]
+            :end-before: [END howto_operator_branch_ext_py]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 
 ShortCircuitOperator
 ====================
 
-Use the ``@task.short_circuit`` decorator to control whether a pipeline continues
+Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
 if a condition is satisfied or a truthy value is obtained.
 
-.. warning::
-    The ``@task.short_circuit`` decorator is recommended over the classic :class:`~airflow.operators.python.ShortCircuitOperator`
+The evaluation of this condition and truthy value is done via the output of a callable. If the
+callable returns True or a truthy value, the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>`
+of the output will be pushed. If the output is False or a falsy value, the pipeline will be short-circuited
+based on the configured short-circuiting (more on this later). In the example below, the tasks that follow the
+"condition_is_true" task will execute while the tasks downstream of the "condition_is_false" task will be
+skipped.
+
+.. tip::
+    The ``@task.short_circuit`` decorator is recommended over the classic ``ShortCircuitOperator``
     to short-circuit pipelines via Python callables.
 
-The evaluation of this condition and truthy value
-is done via the output of the decorated function. If the decorated function returns True or a truthy value,
-the pipeline is allowed to continue and an :ref:`XCom <concepts:xcom>` of the output will be pushed. If the
-output is False or a falsy value, the pipeline will be short-circuited based on the configured
-short-circuiting (more on this later). In the example below, the tasks that follow the "condition_is_true"
-task will execute while the tasks downstream of the "condition_is_false" task will be skipped.
+.. tab-set::
 
+    .. tab-item:: @task.short_circuit
+        :sync: taskflow
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_short_circuit]
-    :end-before: [END howto_operator_short_circuit]
+        .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_short_circuit]
+            :end-before: [END howto_operator_short_circuit]
+
+    .. tab-item:: ShortCircuitOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_short_circuit]
+            :end-before: [END howto_operator_short_circuit]
 
 
 The "short-circuiting" can be configured to either respect or ignore the :ref:`trigger rule <concepts:trigger-rules>`
@@ -202,12 +419,25 @@ rules. This means while the tasks that follow the "short_circuit" task will be s
 since the decorated function returns False, "task_7" will still execute as its set to execute when upstream
 tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DONE`` trigger rule).
 
-.. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_short_circuit_trigger_rules]
-    :end-before: [END howto_operator_short_circuit_trigger_rules]
+.. tab-set::
 
+    .. tab-item:: @task.short_circuit
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_short_circuit_trigger_rules]
+            :end-before: [END howto_operator_short_circuit_trigger_rules]
+
+    .. tab-item:: ShortCircuitOperator
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_short_circuit_operator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START howto_operator_short_circuit_trigger_rules]
+            :end-before: [END howto_operator_short_circuit_trigger_rules]
 
 Passing in arguments
 ^^^^^^^^^^^^^^^^^^^^
@@ -225,17 +455,29 @@ Jinja templating can be used in same way as described for the PythonOperator.
 PythonSensor
 ============
 
-Sensors can be used in two ways. One is to use the :class:`~airflow.sensors.python.PythonSensor` to use arbitrary callable for sensing. The callable
-should return True when it succeeds, False otherwise. The other uses the Taskflow API utilizing the :class:`~airflow.decorators.task.sensor` as a decorator on a function.
+The :class:`~airflow.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
+value to be True.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_python_sensors]
-    :end-before: [END example_python_sensors]
+.. tip::
+    The ``@task.sensor`` decorator is recommended over the classic ``PythonSensor``
+    to execute Python callables to check for True condition.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START wait_function]
-    :end-before: [END wait_function]
+.. tab-set::
+
+    .. tab-item:: @task.sensor
+        :sync: taskflow
+
+        .. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+            :language: python
+            :dedent: 4
+            :start-after: [START wait_function]
+            :end-before: [END wait_function]
+
+    .. tab-item:: PythonSensor
+        :sync: operator
+
+        .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+            :language: python
+            :dedent: 4
+            :start-after: [START example_python_sensors]
+            :end-before: [END example_python_sensors]

@@ -24,6 +24,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -32,7 +33,10 @@ from airflow.serialization.serde import (
     SCHEMA_ID,
     VERSION,
     _get_patterns,
+    _get_regexp_patterns,
     _match,
+    _match_glob,
+    _match_regexp,
     deserialize,
     serialize,
 )
@@ -43,6 +47,16 @@ from tests.test_utils.config import conf_vars
 @pytest.fixture()
 def recalculate_patterns():
     _get_patterns.cache_clear()
+    _get_regexp_patterns.cache_clear()
+    _match_glob.cache_clear()
+    _match_regexp.cache_clear()
+    try:
+        yield
+    finally:
+        _get_patterns.cache_clear()
+        _get_regexp_patterns.cache_clear()
+        _match_glob.cache_clear()
+        _match_regexp.cache_clear()
 
 
 class Z:
@@ -90,6 +104,18 @@ class V:
     s: list
     t: tuple
     c: int
+
+
+class U(BaseModel):
+    __version__: ClassVar[int] = 1
+    x: int
+    v: V
+    u: tuple
+
+
+class C:
+    def __call__(self):
+        return None
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -201,7 +227,7 @@ class TestSerDe:
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "airflow[.].*",
+            ("core", "allowed_deserialization_classes"): "airflow.*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -215,13 +241,54 @@ class TestSerDe:
 
     @conf_vars(
         {
-            ("core", "allowed_deserialization_classes"): "tests.*",
+            ("core", "allowed_deserialization_classes"): "tests.airflow.*",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
-    def test_allow_list_replace(self):
+    def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
-        assert _match("testsfault") is False
+        assert _match("tests.wrongpath") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_class(self):
+        """Test the match function when passing a full classname as
+        allowed_deserialization_classes
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.airflow.FALSE") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_regexp(self):
+        """Test the match function when passing a path as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.wrongpath") is False
+
+    @conf_vars(
+        {
+            ("core", "allowed_deserialization_classes"): "",
+            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+        }
+    )
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_allow_list_match_class_regexp(self):
+        """Test the match function when passing a full classname as
+        allowed_deserialization_classes_regexp with no glob pattern defined
+        """
+        assert _match("tests.airflow.deep")
+        assert _match("tests.airflow.FALSE") is False
 
     def test_incompatible_version(self):
         data = dict(
@@ -244,6 +311,9 @@ class TestSerDe:
             deserialize(data)
 
     def test_backwards_compat(self):
+        """
+        Verify deserialization of old-style encoded Xcom values including nested ones
+        """
         uri = "s3://does_not_exist"
         data = {
             "__type": "airflow.datasets.Dataset",
@@ -251,13 +321,27 @@ class TestSerDe:
             "__var": {
                 "__var": {
                     "uri": uri,
-                    "extra": None,
+                    "extra": {
+                        "__var": {"hi": "bye"},
+                        "__type": "dict",
+                    },
                 },
                 "__type": "dict",
             },
         }
         dataset = deserialize(data)
+        assert dataset.extra == {"hi": "bye"}
         assert dataset.uri == uri
+
+    def test_backwards_compat_wrapped(self):
+        """
+        Verify deserialization of old-style wrapped XCom value
+        """
+        i = {
+            "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
+        }
+        e = deserialize(i)
+        assert e["extra"] == {"hi": "bye"}
 
     def test_encode_dataset(self):
         dataset = Dataset("mytest://dataset")
@@ -317,3 +401,16 @@ class TestSerDe:
         i = Z(10)
         e = deserialize(i)
         assert i == e
+
+    def test_pydantic(self):
+        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s
+
+    def test_error_when_serializing_callable_without_name(self):
+        i = C()
+        with pytest.raises(
+            TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
+        ):
+            serialize(i)

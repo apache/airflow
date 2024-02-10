@@ -23,23 +23,23 @@ import pendulum
 import pytest
 
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
-from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.utils.timezone import utc
 
-START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # This is a Saturday.
+START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # This is a Saturday.
 
 WEEK_1_WEEKDAYS = [
-    pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE),  # This is a US holiday
-    pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 8, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 9, tzinfo=TIMEZONE),
-    pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE),
+    pendulum.DateTime(2021, 9, 6, tzinfo=utc),  # This is a US holiday
+    pendulum.DateTime(2021, 9, 7, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 8, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 9, tzinfo=utc),
+    pendulum.DateTime(2021, 9, 10, tzinfo=utc),
 ]
 
-WEEK_1_SATURDAY = pendulum.DateTime(2021, 9, 11, tzinfo=TIMEZONE)
+WEEK_1_SATURDAY = pendulum.DateTime(2021, 9, 11, tzinfo=utc)
 
-WEEK_2_MONDAY = pendulum.DateTime(2021, 9, 13, tzinfo=TIMEZONE)
-WEEK_2_TUESDAY = pendulum.DateTime(2021, 9, 14, tzinfo=TIMEZONE)
+WEEK_2_MONDAY = pendulum.DateTime(2021, 9, 13, tzinfo=utc)
+WEEK_2_TUESDAY = pendulum.DateTime(2021, 9, 14, tzinfo=utc)
 
 
 @pytest.fixture()

@@ -27,7 +27,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class CloudBuildCreateBuildTrigger(BaseTrigger):
     """
-    CloudBuildCreateBuildTrigger run on the trigger worker to perform create Build operation
+    CloudBuildCreateBuildTrigger run on the trigger worker to perform create Build operation.
 
     :param id_: The ID of the build.
     :param project_id: Google Cloud Project where the job is running
@@ -62,7 +62,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         self.location = location
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes CloudBuildCreateBuildTrigger arguments and classpath."""
+        """Serialize CloudBuildCreateBuildTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger",
             {
@@ -76,10 +76,10 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current build execution status and yields a TriggerEvent"""
+        """Get current build execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 # Poll for job execution status
                 cloud_build_instance = await hook.get_cloud_build(
                     id_=self.id_,
@@ -95,6 +95,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                             "message": "Build completed",
                         }
                     )
+                    return
                 elif cloud_build_instance._pb.status in (
                     Build.Status.WORKING,
                     Build.Status.PENDING,
@@ -111,14 +112,16 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                     Build.Status.EXPIRED,
                 ):
                     yield TriggerEvent({"status": "error", "message": cloud_build_instance.status_detail})
+                    return
                 else:
                     yield TriggerEvent(
                         {"status": "error", "message": "Unidentified status of Cloud Build instance"}
                     )
+                    return
 
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for Cloud Build completion")
-                yield TriggerEvent({"status": "error", "message": str(e)})
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for Cloud Build completion")
+            yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> CloudBuildAsyncHook:
         return CloudBuildAsyncHook(gcp_conn_id=self.gcp_conn_id)

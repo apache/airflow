@@ -20,7 +20,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceAsyncSensor,
     BigQueryTableExistencePartitionAsyncSensor,
@@ -100,16 +105,20 @@ class TestBigqueryTableExistenceSensor:
             exc.value.trigger, BigQueryTableExistenceTrigger
         ), "Trigger is not a BigQueryTableExistenceTrigger"
 
-    def test_execute_deferred_failure(self):
-        """Tests that an AirflowException is raised in case of error event"""
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_execute_deferred_failure(self, soft_fail, expected_exception):
+        """Tests that an expected exception is raised in case of error event"""
         task = BigQueryTableExistenceSensor(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
             deferrable=True,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
 
     def test_execute_complete(self):
@@ -126,15 +135,19 @@ class TestBigqueryTableExistenceSensor:
             task.execute_complete(context={}, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("Sensor checks existence of table: %s", table_uri)
 
-    def test_execute_defered_complete_event_none(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_execute_defered_complete_event_none(self, soft_fail, expected_exception):
         """Asserts that logging occurs as expected"""
         task = BigQueryTableExistenceSensor(
             task_id="task-id",
             project_id=TEST_PROJECT_ID,
             dataset_id=TEST_DATASET_ID,
             table_id=TEST_TABLE_ID,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event=None)
 
 
@@ -206,7 +219,10 @@ class TestBigqueryTablePartitionExistenceSensor:
             exc.value.trigger, BigQueryTablePartitionExistenceTrigger
         ), "Trigger is not a BigQueryTablePartitionExistenceTrigger"
 
-    def test_execute_with_deferrable_mode_execute_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_execute_with_deferrable_mode_execute_failure(self, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
         task = BigQueryTablePartitionExistenceSensor(
             task_id="test_task_id",
@@ -215,11 +231,15 @@ class TestBigqueryTablePartitionExistenceSensor:
             table_id=TEST_TABLE_ID,
             partition_id=TEST_PARTITION_ID,
             deferrable=True,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
 
-    def test_execute_complete_event_none(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_execute_complete_event_none(self, soft_fail, expected_exception):
         """Asserts that logging occurs as expected"""
         task = BigQueryTablePartitionExistenceSensor(
             task_id="task-id",
@@ -228,8 +248,9 @@ class TestBigqueryTablePartitionExistenceSensor:
             table_id=TEST_TABLE_ID,
             partition_id=TEST_PARTITION_ID,
             deferrable=True,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(expected_exception, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_execute_complete(self):
@@ -273,7 +294,7 @@ class TestBigQueryTableExistenceAsyncSensor:
         Asserts that a task is deferred and a BigQueryTableExistenceTrigger will be fired
         when the BigQueryTableExistenceAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="check_table_exists",
                 project_id=TEST_PROJECT_ID,
@@ -287,21 +308,25 @@ class TestBigQueryTableExistenceAsyncSensor:
             exc.value.trigger, BigQueryTableExistenceTrigger
         ), "Trigger is not a BigQueryTableExistenceTrigger"
 
-    def test_big_query_table_existence_sensor_async_execute_failure(self):
-        """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_big_query_table_existence_sensor_async_execute_failure(self, soft_fail, expected_exception):
+        """Tests that an expected_exception is raised in case of error event"""
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
                 dataset_id=TEST_DATASET_ID,
                 table_id=TEST_TABLE_ID,
+                soft_fail=soft_fail,
             )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
 
     def test_big_query_table_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
@@ -313,16 +338,20 @@ class TestBigQueryTableExistenceAsyncSensor:
             task.execute_complete(context={}, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("Sensor checks existence of table: %s", table_uri)
 
-    def test_big_query_sensor_async_execute_complete_event_none(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_big_query_sensor_async_execute_complete_event_none(self, soft_fail, expected_exception):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistenceAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
                 dataset_id=TEST_DATASET_ID,
                 table_id=TEST_TABLE_ID,
+                soft_fail=soft_fail,
             )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event=None)
 
 
@@ -330,7 +359,7 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
     depcrecation_message = (
         "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
         "will be removed in a future release. "
-        "Please use `BigQueryTableExistencePartitionSensor` and "
+        "Please use `BigQueryTablePartitionExistenceSensor` and "
         "set `deferrable` attribute to `True` instead"
     )
 
@@ -340,7 +369,7 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
         Asserts that a task is deferred and a BigQueryTablePartitionExistenceTrigger will be fired
         when the BigQueryTableExistencePartitionAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="test_task_id",
                 project_id=TEST_PROJECT_ID,
@@ -355,35 +384,47 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
             exc.value.trigger, BigQueryTablePartitionExistenceTrigger
         ), "Trigger is not a BigQueryTablePartitionExistenceTrigger"
 
-    def test_big_query_table_existence_partition_sensor_async_execute_failure(self):
-        """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_big_query_table_existence_partition_sensor_async_execute_failure(
+        self, soft_fail, expected_exception
+    ):
+        """Tests that an expected exception is raised in case of error event"""
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="test_task_id",
                 project_id=TEST_PROJECT_ID,
                 dataset_id=TEST_DATASET_ID,
                 table_id=TEST_TABLE_ID,
                 partition_id=TEST_PARTITION_ID,
+                soft_fail=soft_fail,
             )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             task.execute_complete(context={}, event={"status": "error", "message": "test failure message"})
 
-    def test_big_query_table_existence_partition_sensor_async_execute_complete_event_none(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_big_query_table_existence_partition_sensor_async_execute_complete_event_none(
+        self, soft_fail, expected_exception
+    ):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,
                 dataset_id=TEST_DATASET_ID,
                 table_id=TEST_TABLE_ID,
                 partition_id=TEST_PARTITION_ID,
+                soft_fail=soft_fail,
             )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
+        with pytest.raises(expected_exception, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_big_query_table_existence_partition_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = BigQueryTableExistencePartitionAsyncSensor(
                 task_id="task-id",
                 project_id=TEST_PROJECT_ID,

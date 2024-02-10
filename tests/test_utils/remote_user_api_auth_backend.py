@@ -20,13 +20,15 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import Response, request
 from flask_login import login_user
-from requests.auth import AuthBase
 
 from airflow.utils.airflow_flask_app import get_airflow_app
+
+if TYPE_CHECKING:
+    from requests.auth import AuthBase
 
 log = logging.getLogger(__name__)
 

@@ -19,25 +19,6 @@
 """
 Example Airflow DAG that displays interactions with Google Cloud Functions.
 It creates a function and then deletes it.
-
-This DAG relies on the following OS environment variables
-https://airflow.apache.org/concepts.html#variables
-
-* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
-* LOCATION - Google Cloud Functions region where the function should be
-  created.
-* ENTRYPOINT - Name of the executable function in the source code.
-* and one of the below:
-
-    * SOURCE_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage
-
-    * SOURCE_UPLOAD_URL - Generated upload URL for the zipped source and ZIP_PATH - Local path to
-      the zipped source archive
-
-    * SOURCE_REPOSITORY - The URL pointing to the hosted repository where the function
-      is defined in a supported Cloud Source Repository URL format
-      https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#SourceRepository
-
 """
 
 from __future__ import annotations
@@ -46,8 +27,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,
@@ -55,26 +36,21 @@ from airflow.providers.google.cloud.operators.functions import (
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_gcp_function"
-
-# make sure there are no dashes in function name (!)
-SHORT_FUNCTION_NAME = "hello"
-
 LOCATION = "europe-west1"
 
+# make sure there are no dashes in function name (!)
+SHORT_FUNCTION_NAME = "hello_world"
 FUNCTION_NAME = f"projects/{PROJECT_ID}/locations/{LOCATION}/functions/{SHORT_FUNCTION_NAME}"
-SOURCE_ARCHIVE_URL = ""
+SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-functions/main_function.zip"
+ENTRYPOINT = "hello_world"
+RUNTIME = "python38"
+
 SOURCE_UPLOAD_URL = ""
-
-repo = "test-repo"
-SOURCE_REPOSITORY = (
-    f"https://source.developers.google.com/projects/{PROJECT_ID}/repos/{repo}/moveable-aliases/master"
-)
-
 ZIP_PATH = ""
-ENTRYPOINT = "helloWorld"
-RUNTIME = "nodejs14"
+repo = f"repo-{DAG_ID}-{ENV_ID}".replace("_", "-")
+SOURCE_REPOSITORY = ()
 VALIDATE_BODY = True
 
 # [START howto_operator_gcf_deploy_body]
@@ -100,17 +76,16 @@ else:
 # [END howto_operator_gcf_deploy_variants]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     default_args=default_args,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "gcp-functions"],
 ) as dag:
-
     # [START howto_operator_gcf_deploy]
-    deploy_task = CloudFunctionDeployFunctionOperator(
-        task_id="gcf_deploy_task",
+    deploy_function = CloudFunctionDeployFunctionOperator(
+        task_id="deploy_function",
         project_id=PROJECT_ID,
         location=LOCATION,
         body=body,
@@ -119,14 +94,14 @@ with models.DAG(
     # [END howto_operator_gcf_deploy]
 
     # [START howto_operator_gcf_deploy_no_project_id]
-    deploy2_task = CloudFunctionDeployFunctionOperator(
-        task_id="gcf_deploy2_task", location=LOCATION, body=body, validate_body=VALIDATE_BODY
+    deploy_function_no_project = CloudFunctionDeployFunctionOperator(
+        task_id="deploy_function_no_project", location=LOCATION, body=body, validate_body=VALIDATE_BODY
     )
     # [END howto_operator_gcf_deploy_no_project_id]
 
     # [START howto_operator_gcf_invoke_function]
-    invoke_task = CloudFunctionInvokeFunctionOperator(
-        task_id="invoke_task",
+    invoke_function = CloudFunctionInvokeFunctionOperator(
+        task_id="invoke_function",
         project_id=PROJECT_ID,
         location=LOCATION,
         input_data={},
@@ -135,14 +110,14 @@ with models.DAG(
     # [END howto_operator_gcf_invoke_function]
 
     # [START howto_operator_gcf_delete]
-    delete_task = CloudFunctionDeleteFunctionOperator(task_id="gcf_delete_task", name=FUNCTION_NAME)
+    delete_function = CloudFunctionDeleteFunctionOperator(task_id="delete_function", name=FUNCTION_NAME)
     # [END howto_operator_gcf_delete]
 
     chain(
-        deploy_task,
-        deploy2_task,
-        invoke_task,
-        delete_task,
+        deploy_function,
+        deploy_function_no_project,
+        invoke_function,
+        delete_function,
     )
 
     from tests.system.utils.watcher import watcher

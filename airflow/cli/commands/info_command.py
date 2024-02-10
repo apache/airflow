@@ -35,6 +35,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.platform import getuser
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ class Architecture(Enum):
     def get_current() -> Architecture:
         """Get architecture."""
         current_architecture = _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
-        return current_architecture if current_architecture else Architecture.UNKNOWN
+        return current_architecture or Architecture.UNKNOWN
 
 
 _MACHINE_TO_ARCHITECTURE: dict[str, Architecture] = {
@@ -208,7 +209,7 @@ class AirflowInfo:
 
     @staticmethod
     def _task_logging_handler():
-        """Returns task logging handler."""
+        """Return task logging handler."""
 
         def get_fullname(o):
             module = o.__class__.__module__
@@ -313,7 +314,7 @@ class AirflowInfo:
         return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: AirflowConsole | None = None) -> None:
-        """Shows information about Airflow instance."""
+        """Show information about Airflow instance."""
         all_info = {
             "Apache Airflow": self._airflow_info,
             "System info": self._system_info,
@@ -335,7 +336,7 @@ class AirflowInfo:
             )
 
     def render_text(self, output: str) -> str:
-        """Exports the info to string."""
+        """Export the info to string."""
         console = AirflowConsole(record=True)
         with console.capture():
             self.show(output=output, console=console)
@@ -378,6 +379,7 @@ def _send_report_to_fileio(info):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def show_info(args):
     """Show information related to Airflow, system and other."""
     # Enforce anonymization, when file_io upload is tuned on.

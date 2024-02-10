@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import contextlib
-import io
+from io import StringIO
 
 import pytest
 
@@ -26,10 +26,11 @@ from airflow.cli.commands import jobs_command
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import JobState, State
 from tests.test_utils.db import clear_db_jobs
 
 
+@pytest.mark.db_test
 class TestCliConfigList:
     @classmethod
     def setup_class(cls):
@@ -54,7 +55,7 @@ class TestCliConfigList:
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
         assert "Found one alive job." in temp_stdout.getvalue()
 
@@ -68,7 +69,7 @@ class TestCliConfigList:
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
                     ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
@@ -90,7 +91,7 @@ class TestCliConfigList:
             session.commit()
             scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
         try:
-            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 jobs_command.check(
                     self.parser.parse_args(
                         ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
@@ -109,7 +110,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = State.SHUTDOWN
+                scheduler_job.state = JobState.FAILED
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)

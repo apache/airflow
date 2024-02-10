@@ -30,6 +30,13 @@ from typing import Any, Iterable, NamedTuple
 
 import click
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_dry_run,
+    option_github_repository,
+    option_verbose,
+)
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -39,11 +46,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
-    option_answer,
-    option_dry_run,
-    option_verbose,
-)
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
@@ -52,8 +54,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -81,9 +82,6 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
-        run_command(
-            ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
-        )
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -103,7 +101,6 @@ DIRECTORIES_TO_FIX = [
     HOME_DIR / ".azure",
     HOME_DIR / ".config/gcloud",
     HOME_DIR / ".docker",
-    HOME_DIR / MSSQL_TMP_DIR_NAME,
 ]
 
 
@@ -201,14 +198,14 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
 @click.option(
     "--default-branch",
     help="Branch against which the PR should be run",
-    default="main",
+    default=AIRFLOW_BRANCH,
     envvar="DEFAULT_BRANCH",
     show_default=True,
 )
 @click.option(
     "--default-constraints-branch",
     help="Constraints Branch against which the PR should be run",
-    default="constraints-main",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar="DEFAULT_CONSTRAINTS_BRANCH",
     show_default=True,
 )
@@ -220,6 +217,21 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     envvar="GITHUB_EVENT_NAME",
     show_default=True,
 )
+@option_github_repository
+@click.option(
+    "--github-actor",
+    help="Actor that triggered the event (Github user)",
+    envvar="GITHUB_ACTOR",
+    type=str,
+    default="",
+)
+@click.option(
+    "--github-context",
+    help="Github context (JSON formatted) passed by Github Actions",
+    envvar="GITHUB_CONTEXT",
+    type=str,
+    default="",
+)
 @option_verbose
 @option_dry_run
 def selective_check(
@@ -228,9 +240,13 @@ def selective_check(
     default_branch: str,
     default_constraints_branch: str,
     github_event_name: str,
+    github_repository: str,
+    github_actor: str,
+    github_context: str,
 ):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+    github_context_dict = json.loads(github_context) if github_context else {}
     github_event = GithubEvents(github_event_name)
     if commit_ref is not None:
         changed_files = get_changed_files(commit_ref=commit_ref)
@@ -243,6 +259,9 @@ def selective_check(
         default_constraints_branch=default_constraints_branch,
         pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
         github_event=github_event,
+        github_repository=github_repository,
+        github_actor=github_actor,
+        github_context_dict=github_context_dict,
     )
     print(str(sc), file=sys.stderr)
 
@@ -260,6 +279,8 @@ class WorkflowInfo(NamedTuple):
     pr_number: int | None
 
     def get_all_ga_outputs(self) -> Iterable[str]:
+        from airflow_breeze.utils.github import get_ga_output
+
         yield get_ga_output(name="pr_labels", value=str(self.pull_request_labels))
         yield get_ga_output(name="target_repo", value=self.target_repo)
         yield get_ga_output(name="head_repo", value=self.head_repo)
@@ -285,7 +306,7 @@ class WorkflowInfo(NamedTuple):
         return RUNS_ON_SELF_HOSTED_RUNNER
 
     def in_workflow_build(self) -> str:
-        if self.event_name == "push" or self.head_repo == "apache/airflow":
+        if self.event_name == "push" or self.head_repo == self.target_repo:
             return "true"
         return "false"
 
@@ -389,3 +410,13 @@ def get_workflow_info(github_context: str, github_context_input: StringIO):
         sys.exit(1)
     wi = workflow_info(context=context)
     wi.print_all_ga_outputs()
+
+
+@ci_group.command(
+    name="find-backtracking-candidates",
+    help="Find new releases of dependencies that could be the reason of backtracking.",
+)
+def find_backtracking_candidates():
+    from airflow_breeze.utils.backtracking import print_backtracking_candidates
+
+    print_backtracking_candidates()

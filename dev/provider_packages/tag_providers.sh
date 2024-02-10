@@ -35,6 +35,18 @@ do
     { git tag "${tag}" -m "Release $(date '+%Y-%m-%d') of providers" && tags+=("$tag") ; } || true
    fi
 done
+
 if [[ -n "${tags:-}" && "${#tags}" -gt 0 ]]; then
-   git push $remote "${tags[@]}"
+   if git push $remote "${tags[@]}"; then
+       echo "Tags pushed successfully"
+   else
+       echo "Failed to push tags, probably a connectivity issue to Github"
+       CLEAN_LOCAL_TAGS="${CLEAN_LOCAL_TAGS:-true}"
+       if [[ "$CLEAN_LOCAL_TAGS" == "true" ]]; then
+           echo "Cleaning up local tags..."
+           git tag -d "${tags[@]}"
+       else
+           echo "Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true"
+       fi
+   fi
 fi

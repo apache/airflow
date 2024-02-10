@@ -20,11 +20,17 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from openlineage.client.run import Dataset
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerProcessingOperator
+from airflow.providers.amazon.aws.operators.sagemaker import (
+    SageMakerBaseOperator,
+    SageMakerProcessingOperator,
+)
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 CREATE_PROCESSING_PARAMS: dict = {
     "AppSpecification": {
@@ -95,6 +101,10 @@ class TestSageMakerProcessingOperator:
             check_interval=5,
         )
 
+        self.defer_processing_config_kwargs = dict(
+            task_id="test_sagemaker_operator", wait_for_completion=True, check_interval=5, deferrable=True
+        )
+
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
     @mock.patch.object(
@@ -112,7 +122,7 @@ class TestSageMakerProcessingOperator:
         sagemaker.execute(None)
 
         assert sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2, key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, key3 in EXPECTED_INTEGER_FIELDS:
             assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
@@ -132,7 +142,7 @@ class TestSageMakerProcessingOperator:
         assert (
             sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
         )
-        for (key1, key2, *key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
             if key3:
                 (key3,) = key3
                 assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
@@ -236,3 +246,102 @@ class TestSageMakerProcessingOperator:
                 config=CREATE_PROCESSING_PARAMS,
                 action_if_job_exists="not_fail_or_increment",
             )
+
+    @mock.patch.object(
+        SageMakerHook, "describe_processing_job", return_value={"ProcessingJobStatus": "InProgress"}
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={
+            "ProcessingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_operator_defer(self, mock_job_exists, mock_processing, mock_describe):
+        sagemaker_operator = SageMakerProcessingOperator(
+            **self.defer_processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+        )
+        sagemaker_operator.wait_for_completion = True
+        with pytest.raises(TaskDeferred) as exc:
+            sagemaker_operator.execute(context=None)
+        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+
+    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer")
+    @mock.patch.object(
+        SageMakerHook, "describe_processing_job", return_value={"ProcessingJobStatus": "Completed"}
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_operator_complete_before_defer(
+        self, mock_job_exists, mock_processing, mock_describe, mock_defer
+    ):
+        sagemaker_operator = SageMakerProcessingOperator(
+            **self.defer_processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+        )
+        sagemaker_operator.execute(context=None)
+        assert not mock_defer.called
+
+    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator.defer")
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={"ProcessingJobStatus": "Failed", "FailureReason": "It failed"},
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_operator_failed_before_defer(
+        self,
+        mock_job_exists,
+        mock_processing,
+        mock_describe,
+        mock_defer,
+    ):
+        sagemaker_operator = SageMakerProcessingOperator(
+            **self.defer_processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+        )
+        with pytest.raises(AirflowException):
+            sagemaker_operator.execute(context=None)
+
+        assert not mock_defer.called
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_processing_job",
+        return_value={
+            "ProcessingInputs": [{"S3Input": {"S3Uri": "s3://input-bucket/input-path"}}],
+            "ProcessingOutputConfig": {
+                "Outputs": [{"S3Output": {"S3Uri": "s3://output-bucket/output-path"}}]
+            },
+        },
+    )
+    @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)
+    @mock.patch.object(
+        SageMakerHook,
+        "create_processing_job",
+        return_value={"ProcessingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}},
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_operator_openlineage_data(self, check_job_exists, mock_processing, _, mock_desc):
+        sagemaker = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+            deferrable=True,
+        )
+        sagemaker.execute(context=None)
+        assert sagemaker.get_openlineage_facets_on_complete(None) == OperatorLineage(
+            inputs=[Dataset(namespace="s3://input-bucket", name="input-path")],
+            outputs=[Dataset(namespace="s3://output-bucket", name="output-path")],
+        )

@@ -24,7 +24,6 @@ This section contains information about deploying DAGs into production and the a
     :maxdepth: 2
 
     production-deployment
-    security/index
     logging-monitoring/index
     kubernetes
     lineage

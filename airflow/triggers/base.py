@@ -37,23 +37,19 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
-
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
         self.trigger_id = None
 
     def _set_context(self, context):
-        """
-        This method, part of LoggingMixin, is used mainly for configuration of logging
-        for tasks, but is not used for triggers.
-        """
+        """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
         raise NotImplementedError
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """
-        Returns the information needed to reconstruct this Trigger.
+        Return the information needed to reconstruct this Trigger.
 
         :return: Tuple of (class path, keyword arguments needed to re-instantiate).
         """
@@ -62,7 +58,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     @abc.abstractmethod
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
-        Runs the trigger in an asynchronous context.
+        Run the trigger in an asynchronous context.
 
         The trigger should yield an Event whenever it wants to fire off
         an event, and return None if it is finished. Single-event triggers

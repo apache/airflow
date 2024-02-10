@@ -17,23 +17,21 @@
 from __future__ import annotations
 
 from operator import attrgetter
+from typing import TYPE_CHECKING
 
-from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.api_connexion.types import APIResponse
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 
+if TYPE_CHECKING:
+    from airflow import DAG
+    from airflow.api_connexion.types import APIResponse
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -47,12 +45,7 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     return task_schema.dump(task)
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)

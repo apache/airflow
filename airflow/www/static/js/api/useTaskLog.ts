@@ -74,7 +74,6 @@ const useTaskLog = ({
       });
     },
     {
-      placeholderData: "",
       refetchInterval:
         expectingLogs && isRefreshOn && (autoRefreshInterval || 1) * 1000,
     }

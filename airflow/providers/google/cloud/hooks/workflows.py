@@ -16,19 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
-from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
-from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
+    from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class WorkflowsHook(GoogleBaseHook):
@@ -67,10 +69,11 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Creates a new workflow. If a workflow with the specified name
-        already exists in the specified project and location, the long
-        running operation will return
-        [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
+        Creates a new workflow.
+
+        If a workflow with the specified name already exists in the
+        specified project and location, the long running operation will
+        return [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
 
         :param workflow: Required. Workflow to be created.
         :param workflow_id: Required. The ID of the workflow to be created.
@@ -129,6 +132,7 @@ class WorkflowsHook(GoogleBaseHook):
     ) -> Operation:
         """
         Updates an existing workflow.
+
         Running this method has no impact on already running
         executions of the workflow. A new revision of the
         workflow may be created as a result of a successful
@@ -164,9 +168,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a workflow with the specified name.
-        This method also cancels and deletes all running
-        executions of the workflow.
+        Delete a workflow with the specified name and all running executions of the workflow.
 
         :param workflow_id: Required. The ID of the workflow to be created.
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
@@ -194,8 +196,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListWorkflowsPager:
         """
-        Lists Workflows in a given project and location.
-        The default order is not specified.
+        Lists Workflows in a given project and location; the default order is not specified.
 
         :param filter_: Filter to restrict results to specific workflows.
         :param order_by: Comma-separated list of fields that
@@ -233,8 +234,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Execution:
         """
-        Creates a new execution using the latest revision of
-        the given workflow.
+        Creates a new execution using the latest revision of the given workflow.
 
         :param execution: Required. Input parameters of the execution represented as a dictionary.
         :param workflow_id: Required. The ID of the workflow.
@@ -328,11 +328,10 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListExecutionsPager:
         """
-        Returns a list of executions which belong to the
-        workflow with the given name. The method returns
-        executions of all workflow revisions. Returned
-        executions are ordered by their start time (newest
-        first).
+        Returns a list of executions which belong to the workflow with the given name.
+
+        The method returns executions of all workflow revisions. Returned
+        executions are ordered by their start time (newest first).
 
         :param workflow_id: Required. The ID of the workflow to be created.
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.

@@ -20,12 +20,12 @@ from __future__ import annotations
 import base64
 import json
 
-from moto import mock_secretsmanager
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 
 
-@mock_secretsmanager
+@mock_aws
 class TestSecretsManagerHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = SecretsManagerHook(aws_conn_id="aws_default")
@@ -33,20 +33,15 @@ class TestSecretsManagerHook:
 
     def test_get_secret_string(self):
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
-        secret_value = '{"user": "test"}'
+        secret_value = "test"
         hook = SecretsManagerHook(aws_conn_id="aws_default")
 
         create_param = {
             "Name": secret_name,
-        }
-
-        put_param = {
-            "SecretId": secret_name,
             "SecretString": secret_value,
         }
 
         hook.get_conn().create_secret(**create_param)
-        hook.get_conn().put_secret_value(**put_param)
 
         secret = hook.get_secret(secret_name)
         assert secret == secret_value
@@ -58,15 +53,10 @@ class TestSecretsManagerHook:
 
         create_param = {
             "Name": secret_name,
-        }
-
-        put_param = {
-            "SecretId": secret_name,
             "SecretString": secret_value,
         }
 
         hook.get_conn().create_secret(**create_param)
-        hook.get_conn().put_secret_value(**put_param)
 
         secret = hook.get_secret_as_dict(secret_name)
         assert secret == json.loads(secret_value)
@@ -75,17 +65,9 @@ class TestSecretsManagerHook:
         secret_name = "arn:aws:secretsmanager:us-east-2:999999999999:secret:db_cluster-YYYYYYY"
         secret_value_binary = base64.b64encode(b'{"username": "test"}')
         hook = SecretsManagerHook(aws_conn_id="aws_default")
-        create_param = {
-            "Name": secret_name,
-        }
-
-        put_param = {
-            "SecretId": secret_name,
-            "SecretBinary": secret_value_binary,
-        }
+        create_param = {"Name": secret_name, "SecretBinary": secret_value_binary}
 
         hook.get_conn().create_secret(**create_param)
-        hook.get_conn().put_secret_value(**put_param)
 
         secret = hook.get_secret(secret_name)
         assert secret == base64.b64decode(secret_value_binary)

@@ -26,11 +26,10 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 
 class SparkJDBCHook(SparkSubmitHook):
     """
-    This hook extends the SparkSubmitHook specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark.
+    Extends the SparkSubmitHook for performing data transfers to/from JDBC-based databases with Apache Spark.
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>`
         as configured in Airflow administration
     :param spark_conf: Any additional Spark configuration properties
     :param spark_py_files: Additional python files used (.zip, .egg, or .py)
@@ -84,6 +83,8 @@ class SparkJDBCHook(SparkSubmitHook):
                                       (e.g: "name CHAR(64), comments VARCHAR(1024)").
                                       The specified types should be valid spark sql data
                                       types.
+    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+                           on keytab for Kerberos login
     """
 
     conn_name_attr = "spark_conn_id"
@@ -122,6 +123,7 @@ class SparkJDBCHook(SparkSubmitHook):
         upper_bound: str | None = None,
         create_table_column_types: str | None = None,
         *args: Any,
+        use_krb5ccache: bool = False,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -154,6 +156,7 @@ class SparkJDBCHook(SparkSubmitHook):
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
         self._jdbc_connection = self._resolve_jdbc_connection()
+        self._use_krb5ccache = use_krb5ccache
 
     def _resolve_jdbc_connection(self) -> dict[str, Any]:
         conn_data = {"url": "", "schema": "", "conn_prefix": "", "user": "", "password": ""}
@@ -182,6 +185,8 @@ class SparkJDBCHook(SparkSubmitHook):
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection["url"]:
+            if "?" in jdbc_conn["conn_prefix"]:
+                raise ValueError("The jdbc extra conn_prefix should not contain a '?'")
             arguments += [
                 "-url",
                 f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",
@@ -223,7 +228,7 @@ class SparkJDBCHook(SparkSubmitHook):
         return arguments
 
     def submit_jdbc_job(self) -> None:
-        """Submit Spark JDBC job"""
+        """Submit Spark JDBC job."""
         self._application_args = self._build_jdbc_application_arguments(self._jdbc_connection)
         self.submit(application=f"{os.path.dirname(os.path.abspath(__file__))}/spark_jdbc_script.py")
 

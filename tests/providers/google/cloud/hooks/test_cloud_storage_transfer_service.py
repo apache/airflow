@@ -23,6 +23,7 @@ from copy import deepcopy
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
@@ -101,11 +102,6 @@ def _with_name(body, job_name):
     return obj
 
 
-class GCPRequestMock:
-
-    status = TEST_HTTP_ERR_CODE
-
-
 class TestGCPTransferServiceHookWithPassedName:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -143,10 +139,11 @@ class TestGCPTransferServiceHookWithPassedName:
         enable_transfer_job: MagicMock,
     ):
         body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
-        get_conn.side_effect = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
+        get_conn.side_effect = HttpError(
+            httplib2.Response({"status": TEST_HTTP_ERR_CODE}), TEST_HTTP_ERR_CONTENT
+        )
 
         with pytest.raises(HttpError):
-
             # check status DELETED generates new job name
             get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
             self.gct_hook.create_transfer_job(body=body)

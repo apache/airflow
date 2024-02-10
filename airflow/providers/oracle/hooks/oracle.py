@@ -23,11 +23,7 @@ from datetime import datetime
 
 import oracledb
 
-try:
-    import numpy
-except ImportError:
-    numpy = None  # type: ignore
-
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -121,13 +117,12 @@ class OracleHook(DbApiHook):
         self.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
-        """
-        Returns a oracle connection object
-        Optional parameters for using a custom DSN connection
-        (instead of using a server alias from tnsnames.ora)
-        The dsn (data source name) is the TNS entry
-        (from the Oracle names server or tnsnames.ora file)
-        or is a string like the one returned from makedsn().
+        """Get an Oracle connection object.
+
+        Optional parameters for using a custom DSN connection (instead of using
+        a server alias from tnsnames.ora) The dsn (data source name) is the TNS
+        entry (from the Oracle names server or tnsnames.ora file), or is a
+        string like the one returned from ``makedsn()``.
 
         :param dsn: the data source name for the Oracle server
         :param service_name: the db_unique_name of the database
@@ -198,17 +193,17 @@ class OracleHook(DbApiHook):
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
-                    dsn += ":" + str(conn.port)
+                    dsn += f":{conn.port}"
                 if service_name:
-                    dsn += "/" + service_name
+                    dsn += f"/{service_name}"
                 elif conn.schema:
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
                         Please use conn.extra.service_name instead.""",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    dsn += "/" + conn.schema
+                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
@@ -260,15 +255,15 @@ class OracleHook(DbApiHook):
         replace: bool | None = False,
         **kwargs,
     ) -> None:
-        """
-        A generic way to insert a set of tuples into a table,
-        the whole set of inserts is treated as one transaction
-        Changes from standard DbApiHook implementation:
+        """Insert a collection of tuples into a table.
 
-        - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)
-        - Replace NaN values with NULL using `numpy.nan_to_num` (not using
-          `is_nan()` because of input types error for strings)
-        - Coerce datetime cells to Oracle DATETIME format during insert
+        All data to insert are treated as one transaction. Changes from standard
+        DbApiHook implementation:
+
+        - Oracle SQL queries can not be terminated with a semicolon (``;``).
+        - Replace NaN values with NULL using ``numpy.nan_to_num`` (not using
+          ``is_nan()`` because of input types error for strings).
+        - Coerce datetime cells to Oracle DATETIME format during insert.
 
         :param table: target Oracle table, use dot notation to target a
             specific database
@@ -279,6 +274,11 @@ class OracleHook(DbApiHook):
             Set 1 to insert each row in each single transaction
         :param replace: Whether to replace instead of insert
         """
+        try:
+            import numpy as np
+        except ImportError:
+            np = None  # type: ignore
+
         if target_fields:
             target_fields = ", ".join(target_fields)
             target_fields = f"({target_fields})"
@@ -295,16 +295,12 @@ class OracleHook(DbApiHook):
             for cell in row:
                 if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
-                elif cell is None:
+                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append("NULL")
-                elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
-                    lst.append("NULL")
-                elif numpy and isinstance(cell, numpy.datetime64):
-                    lst.append("'" + str(cell) + "'")
+                elif np and isinstance(cell, np.datetime64):
+                    lst.append(f"'{cell}'")
                 elif isinstance(cell, datetime):
-                    lst.append(
-                        "to_date('" + cell.strftime("%Y-%m-%d %H:%M:%S") + "','YYYY-MM-DD HH24:MI:SS')"
-                    )
+                    lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
@@ -325,10 +321,10 @@ class OracleHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """
-        A performant bulk insert for oracledb
-        that uses prepared statements via `executemany()`.
-        For best performance, pass in `rows` as an iterator.
+        """A performant bulk insert for Oracle DB.
+
+        This uses prepared statements via `executemany()`. For best performance,
+        pass in `rows` as an iterator.
 
         :param table: target Oracle table, use dot notation to target a
             specific database
@@ -344,11 +340,11 @@ class OracleHook(DbApiHook):
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
-        values_base = target_fields if target_fields else rows[0]
+        values_base = target_fields or rows[0]
         prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
             columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join(":%s" % i for i in range(1, len(values_base) + 1)),
+            values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
         )
         row_count = 0
         # Chunk the rows
@@ -376,11 +372,11 @@ class OracleHook(DbApiHook):
         identifier: str,
         autocommit: bool = False,
         parameters: list | dict | None = None,
-    ) -> list | dict | None:
+    ) -> list | dict | tuple | None:
         """
         Call the stored procedure identified by the provided string.
 
-        Any 'OUT parameters' must be provided with a value of either the
+        Any OUT parameters must be provided with a value of either the
         expected Python type (e.g., `int`) or an instance of that type.
 
         The return value is a list or mapping that includes parameters in

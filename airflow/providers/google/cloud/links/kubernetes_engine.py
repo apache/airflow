@@ -37,7 +37,7 @@ KUBERNETES_POD_LINK = (
 
 
 class KubernetesEngineClusterLink(BaseGoogleLink):
-    """Helper class for constructing Kubernetes Engine Cluster Link"""
+    """Helper class for constructing Kubernetes Engine Cluster Link."""
 
     name = "Kubernetes Cluster"
     key = "kubernetes_cluster_conf"
@@ -60,7 +60,7 @@ class KubernetesEngineClusterLink(BaseGoogleLink):
 
 
 class KubernetesEnginePodLink(BaseGoogleLink):
-    """Helper class for constructing Kubernetes Engine Pod Link"""
+    """Helper class for constructing Kubernetes Engine Pod Link."""
 
     name = "Kubernetes Pod"
     key = "kubernetes_pod_conf"

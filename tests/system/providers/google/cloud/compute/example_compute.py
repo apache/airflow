@@ -27,9 +27,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
     ComputeEngineDeleteInstanceTemplateOperator,
@@ -49,7 +48,7 @@ DAG_ID = "cloud_compute"
 
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
-GCE_INSTANCE_NAME = "instance-1"
+GCE_INSTANCE_NAME = "instance-compute-test"
 SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
 TEMPLATE_NAME = "instance-template"
 
@@ -99,9 +98,9 @@ GCE_INSTANCE_FROM_TEMPLATE_BODY = {
 }
 # [END howto_operator_gce_args_common]
 
-with models.DAG(
+with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -244,20 +243,12 @@ with models.DAG(
     # [END howto_operator_gce_delete_new_template_no_project_id]
     gce_instance_template_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    bash_wait_operator = BashOperator(task_id="delay_bash_task", bash_command="sleep 3m")
-
-    bash_wait_operator2 = BashOperator(task_id="delay_bash_task2", bash_command="sleep 3m")
-
-    bash_wait_operator3 = BashOperator(task_id="delay_bash_task3", bash_command="sleep 3m")
-
     chain(
         gce_instance_insert,
         gce_instance_insert2,
-        bash_wait_operator,
         gce_instance_delete,
         gce_instance_template_insert,
         gce_instance_template_insert2,
-        bash_wait_operator2,
         gce_instance_insert_from_template,
         gce_instance_insert_from_template2,
         gce_instance_start,
@@ -268,7 +259,6 @@ with models.DAG(
         gce_set_machine_type2,
         gce_instance_delete2,
         gce_instance_template_delete,
-        bash_wait_operator3,
     )
 
     # ### Everything below this line is not part of example ###

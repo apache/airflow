@@ -88,7 +88,7 @@ Add the following settings in ``airflow.cfg``:
 *   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
     It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
 
-If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
+If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db migrate``.
 
 
 Limitations
@@ -102,7 +102,7 @@ Limitations
 
 .. note::
     You need Airflow >= 1.10.10 for completely stateless Webserver.
-    Airflow 1.10.7 to 1.10.9 needed access to Dag files in some cases.
+    Airflow 1.10.7 to 1.10.9 needed access to DAG files in some cases.
     More Information: https://airflow.apache.org/docs/1.10.9/dag-serialization.html#limitations
 
 Using a different JSON Library

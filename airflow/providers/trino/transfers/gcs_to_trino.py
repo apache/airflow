@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 class GCSToTrinoOperator(BaseOperator):
     """
     Loads a csv file from Google Cloud Storage into a Trino table.
+
     Assumptions:
     1. CSV file should not have headers
     2. Trino table with requisite columns is already created

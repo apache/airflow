@@ -16,23 +16,41 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from typing import Any, Callable, Iterable, Mapping
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from databricks import sql  # type: ignore[attr-defined]
-from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+
+if TYPE_CHECKING:
+    from databricks.sql.client import Connection
+    from databricks.sql.types import Row
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
+T = TypeVar("T")
+
+
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """
-    Hook to interact with Databricks SQL.
+    """Hook to interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`.
@@ -47,6 +65,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         on every request
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+
     :param schema: An optional initial schema to use. Requires DBR version 9.0+
+    :param return_tuple: Return a ``namedtuple`` object instead of a ``databricks.sql.Row`` object. Default
+        to False. In a future release of the provider, this will become True by default. This parameter
+        ensures backward-compatibility during the transition phase to common tuple objects for all hooks based
+        on DbApiHook. This flag will also be removed in a future release.
     :param kwargs: Additional parameters internal to Databricks SQL Connector parameters
     """
 
@@ -63,6 +85,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         catalog: str | None = None,
         schema: str | None = None,
         caller: str = "DatabricksSqlHook",
+        return_tuple: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id, caller=caller)
@@ -75,11 +98,21 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.http_headers = http_headers
         self.catalog = catalog
         self.schema = schema
+        self.return_tuple = return_tuple
         self.additional_params = kwargs
+
+        if not self.return_tuple:
+            warnings.warn(
+                """Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
+                returned instead in a future release of the databricks provider. Set `return_tuple=True` to
+                enable this behavior.""",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration", *self.extra_parameters]:
             if arg in extra_params:
                 del extra_params[arg]
 
@@ -89,13 +122,15 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
         if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
-        lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
-        if len(lst) == 0:
-            raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
-        return lst[0]
+        try:
+            endpoint = next(endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name)
+        except StopIteration:
+            raise AirflowException(f"Can't find Databricks SQL endpoint with name '{endpoint_name}'")
+        else:
+            return endpoint
 
     def get_conn(self) -> Connection:
-        """Returns a Databricks SQL connection object"""
+        """Return a Databricks SQL connection object."""
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
@@ -139,19 +174,44 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
+    @overload  # type: ignore[override]
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially.
+        Run a command or a list of commands.
+
+        Pass a list of SQL statements to the SQL parameter to get them to
+        execute sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -180,23 +240,31 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
+        conn = None
         results = []
         for sql_statement in sql_list:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
-            with closing(self.get_conn()) as conn:
+            conn = self.get_conn()
+            with closing(conn.cursor()) as cur:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    self._run_command(cur, sql_statement, parameters)
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     if handler is not None:
-                        result = handler(cur)
+                        raw_result = handler(cur)
+                        if self.return_tuple:
+                            result = self._make_common_data_structure(raw_result)
+                        else:
+                            # Returning raw result is deprecated, and do not comply with current common.sql interface
+                            result = raw_result  # type: ignore[assignment]
                         if return_single_query_results(sql, return_last, split_statements):
                             results = [result]
                             self.descriptions = [cur.description]
                         else:
                             results.append(result)
                             self.descriptions.append(cur.description)
-
+        if conn:
+            conn.close()
             self._sql_conn = None
 
         if handler is None:
@@ -205,6 +273,23 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return results[-1]
         else:
             return results
+
+    def _make_common_data_structure(self, result: Sequence[Row] | Row) -> list[tuple] | tuple:
+        """Transform the databricks Row objects into namedtuple."""
+        # Below ignored lines respect namedtuple docstring, but mypy do not support dynamically
+        # instantiated namedtuple, and will never do: https://github.com/python/mypy/issues/848
+        if isinstance(result, list):
+            rows: list[Row] = result
+            if not rows:
+                return []
+            rows_fields = tuple(rows[0].__fields__)
+            rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
+            return cast(List[tuple], [rows_object(*row) for row in rows])
+        else:
+            row: Row = result
+            row_fields = tuple(row.__fields__)
+            row_object = namedtuple("Row", row_fields, rename=True)  # type: ignore
+            return cast(tuple, row_object(*row))
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

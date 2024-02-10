@@ -17,19 +17,10 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch
-
-import pytest
+from unittest import mock
 
 from airflow.models import Connection
-
-try:
-    import yandexcloud
-
-    from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
-except ImportError:
-    yandexcloud = None
-
+from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 
 # Airflow connection with type "yandexcloud" must be created
 CONNECTION_ID = "yandexcloud_default"
@@ -61,23 +52,22 @@ SSH_PUBLIC_KEYS = [
     "cFDe6faKCxH6iDRteo4D8L8BxwzN42uZSB0nfmjkIxFTcEU3mFSXEbWByg78aoddMrAAjatyrhH1pON6P0="
 ]
 
-# If Yandex.Cloud credentials are set than full test will be run. Otherwise only mocked tests.
+# If Yandex.Cloud credentials are set than full test will be run. Otherwise, only mocked tests.
 HAS_CREDENTIALS = OAUTH_TOKEN != "my_oauth_token"
 
 
-@pytest.mark.skipif(yandexcloud is None, reason="Skipping Yandex.Cloud hook test: no yandexcloud module")
 class TestYandexCloudDataprocHook:
     def _init_hook(self):
-        with patch("airflow.hooks.base.BaseHook.get_connection") as get_connection_mock:
-            get_connection_mock.return_value = self.connection
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
+            mock_get_connection.return_value = self.connection
             self.hook = DataprocHook()
 
     def setup_method(self):
         self.connection = Connection(extra=json.dumps({"oauth": OAUTH_TOKEN}))
         self._init_hook()
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_create_dataproc_cluster_mocked(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_create_dataproc_cluster_mocked(self, mock_create_operation):
         self._init_hook()
 
         self.hook.client.create_cluster(
@@ -90,16 +80,16 @@ class TestYandexCloudDataprocHook:
             cluster_image_version=CLUSTER_IMAGE_VERSION,
             service_account_id=SERVICE_ACCOUNT_ID,
         )
-        assert create_operation_mock.called
+        assert mock_create_operation.called
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_delete_dataproc_cluster_mocked(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_delete_dataproc_cluster_mocked(self, mock_create_operation):
         self._init_hook()
         self.hook.client.delete_cluster("my_cluster_id")
-        assert create_operation_mock.called
+        assert mock_create_operation.called
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_create_hive_job_hook(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_create_hive_job_hook(self, mock_create_operation):
         self._init_hook()
 
         self.hook.client.create_hive_job(
@@ -110,10 +100,10 @@ class TestYandexCloudDataprocHook:
             query="SELECT 1;",
             script_variables=None,
         )
-        assert create_operation_mock.called
+        assert mock_create_operation.called
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_create_mapreduce_job_hook(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_create_mapreduce_job_hook(self, mock_create_operation):
         self._init_hook()
 
         self.hook.client.create_mapreduce_job(
@@ -145,10 +135,10 @@ class TestYandexCloudDataprocHook:
                 "mapreduce.job.maps": "6",
             },
         )
-        assert create_operation_mock.called
+        assert mock_create_operation.called
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_create_spark_job_hook(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_create_spark_job_hook(self, mock_create_operation):
         self._init_hook()
 
         self.hook.client.create_spark_job(
@@ -170,10 +160,10 @@ class TestYandexCloudDataprocHook:
             name="Spark job",
             properties={"spark.submit.deployMode": "cluster"},
         )
-        assert create_operation_mock.called
+        assert mock_create_operation.called
 
-    @patch("yandexcloud.SDK.create_operation_and_get_result")
-    def test_create_pyspark_job_hook(self, create_operation_mock):
+    @mock.patch("yandexcloud.SDK.create_operation_and_get_result")
+    def test_create_pyspark_job_hook(self, mock_create_operation):
         self._init_hook()
 
         self.hook.client.create_pyspark_job(
@@ -194,4 +184,4 @@ class TestYandexCloudDataprocHook:
             properties={"spark.submit.deployMode": "cluster"},
             python_file_uris=["s3a://some-in-bucket/jobs/sources/pyspark-001/geonames.py"],
         )
-        assert create_operation_mock.called
+        assert mock_create_operation.called

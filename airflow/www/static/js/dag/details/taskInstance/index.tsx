@@ -99,12 +99,23 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           key={dagId + runId + taskId + instance.mapIndex}
         />
       )}
+      {isMapped && group.extraLinks && isMapIndexDefined && (
+        <ExtraLinks
+          taskId={taskId}
+          dagId={dagId}
+          mapIndex={mapIndex}
+          executionDate={executionDate}
+          extraLinks={group?.extraLinks}
+          tryNumber={instance.tryNumber}
+        />
+      )}
       {!isMapped && group.extraLinks && (
         <ExtraLinks
           taskId={taskId}
           dagId={dagId}
           executionDate={executionDate}
           extraLinks={group?.extraLinks}
+          tryNumber={instance.tryNumber}
         />
       )}
       <Details instance={instance} group={group} dagId={dagId} />

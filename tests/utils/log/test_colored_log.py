@@ -20,7 +20,11 @@ from __future__ import annotations
 import logging
 from unittest.mock import patch
 
+import pytest
+
 from airflow.utils.log.colored_log import CustomTTYColoredFormatter
+
+pytestmark = pytest.mark.db_test
 
 
 @patch("airflow.utils.log.timezone_aware.TimezoneAware.formatTime")

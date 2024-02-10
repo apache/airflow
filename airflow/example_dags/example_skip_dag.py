@@ -18,14 +18,18 @@
 """Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pendulum
 
-from airflow import DAG
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 # Create some placeholder operators

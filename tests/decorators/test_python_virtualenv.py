@@ -24,8 +24,9 @@ from subprocess import CalledProcessError
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PYTHON_VERSION = sys.version_info[0]
@@ -102,6 +103,32 @@ class TestPythonVirtualenvDecorator:
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    def test_with_requirements_file(self, dag_maker, tmp_path):
+        requirements_file = tmp_path / "requirements.txt"
+        requirements_file.write_text("funcsigs==0.4\nattrs==23.1.0")
+
+        @task.virtualenv(
+            system_site_packages=False,
+            requirements="requirements.txt",
+            python_version=PYTHON_VERSION,
+            use_dill=True,
+        )
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise Exception
+
+            import attrs
+
+            if attrs.__version__ != "23.1.0":
+                raise Exception
+
+        with dag_maker(template_searchpath=tmp_path.as_posix()):
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
     def test_unpinned_requirements(self, dag_maker):
         @task.virtualenv(
             system_site_packages=False,
@@ -174,11 +201,10 @@ class TestPythonVirtualenvDecorator:
             return None
 
         with dag_maker():
-            ret = f(datetime.datetime.utcnow())
+            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_marking_virtualenv_python_task_as_setup(self, dag_maker):
         @setup
         @task.virtualenv
@@ -190,10 +216,9 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_marking_virtualenv_python_task_as_teardown(self, dag_maker):
         @teardown
         @task.virtualenv
@@ -205,10 +230,9 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_marking_virtualenv_python_task_as_teardown_with_on_failure_fail(
         self, dag_maker, on_failure_fail_dagrun
@@ -223,6 +247,6 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

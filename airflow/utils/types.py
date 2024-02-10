@@ -35,6 +35,7 @@ class ArgNotSet:
                 return False
             return True
 
+
         is_arg_passed()  # False.
         is_arg_passed(None)  # True.
     """
@@ -45,7 +46,7 @@ NOTSET = ArgNotSet()
 
 
 class DagRunType(str, enum.Enum):
-    """Class with DagRun types"""
+    """Class with DagRun types."""
 
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
@@ -60,7 +61,7 @@ class DagRunType(str, enum.Enum):
 
     @staticmethod
     def from_run_id(run_id: str) -> DagRunType:
-        """Resolved DagRun type from run_id."""
+        """Resolve DagRun type from run_id."""
         for run_type in DagRunType:
             if run_id and run_id.startswith(f"{run_type.value}__"):
                 return run_type
@@ -68,9 +69,6 @@ class DagRunType(str, enum.Enum):
 
 
 class EdgeInfoType(TypedDict):
-    """
-    Represents extra metadata that the DAG can store about an edge,
-    usually generated from an EdgeModifier.
-    """
+    """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None

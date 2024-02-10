@@ -69,11 +69,19 @@ Examples
 * **Password**: ``********``
 * **Port**: ``5439``
 
-**IAM Authentication**
+**Credentials Authentication**
 
-Uses AWS IAM to retrieve a temporary password to connect to Amazon Redshift. Port is required.
+Uses the credentials in Connection to connect to Amazon Redshift. Port is required.
 If none is provided, default is used (5439). This assumes all other Connection fields e.g. **Login** are empty.
 In this method, **cluster_identifier** replaces **Host** and **Port** in order to uniquely identify the cluster.
+
+**IAM Authentication**
+
+Uses the AWS IAM profile given at hook initialization to retrieve a temporary password to connect
+to Amazon Redshift. **Port** is required. If none is provided, default is used (5439). **Login**
+and **Schema** are also required. This assumes all other Connection fields are empty.
+In this method, if **cluster_identifier** is not set within the extras, it is automatically
+inferred by the **Host** field in Connection.
 `More details about AWS IAM authentication to generate database user credentials <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`_.
 
 * **Extra**:
@@ -86,6 +94,26 @@ In this method, **cluster_identifier** replaces **Host** and **Port** in order t
       "port": 5439,
       "region": "us-east-1",
       "db_user": "awsuser",
+      "database": "dev",
+      "profile": "default"
+    }
+
+If you want to use IAM with Amazon Redshift Serverless, you need to set **is_serverless** to true and provide
+**serverless_work_group**. You can also set **serverless_token_duration_seconds** to specify the number of seconds
+until the returned temporary password expires; the minimum is 900 seconds, the maximum is 3600 seconds and by default
+it's 3600 seconds.
+
+* **Extra**:
+
+.. code-block:: json
+
+    {
+      "iam": true,
+      "is_serverless": true,
+      "serverless_work_group": "default",
+      "serverless_token_duration_seconds": 3600,
+      "port": 5439,
+      "region": "us-east-1",
       "database": "dev",
       "profile": "default"
     }

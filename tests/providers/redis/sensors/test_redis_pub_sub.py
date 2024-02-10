@@ -72,3 +72,24 @@ class TestRedisPubSubSensor:
 
         context_calls = []
         assert self.mock_context["ti"].method_calls == context_calls, "context calls should be same"
+
+    @patch("airflow.providers.redis.hooks.redis.RedisHook.get_conn")
+    def test_poke_subscribe_called_only_once(self, mock_redis_conn):
+        sensor = RedisPubSubSensor(
+            task_id="test_task", dag=self.dag, channels="test", redis_conn_id="redis_default"
+        )
+
+        mock_redis_conn().pubsub().get_message.return_value = {
+            "type": "subscribe",
+            "channel": b"test",
+            "data": b"d1",
+        }
+
+        result = sensor.poke(self.mock_context)
+        assert not result
+
+        context_calls = []
+        assert self.mock_context["ti"].method_calls == context_calls, "context calls should be same"
+        result = sensor.poke(self.mock_context)
+
+        assert mock_redis_conn().pubsub().subscribe.call_count == 1

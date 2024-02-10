@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 from unittest import mock
 
-import numpy
+import numpy as np
 import oracledb
 import pytest
 
@@ -290,8 +290,8 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                numpy.NAN,
-                numpy.datetime64("2019-01-24T01:02:03"),
+                np.NAN,
+                np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,
                 10.24,
@@ -321,8 +321,8 @@ class TestOracleHook:
             (
                 "'basestr_with_quote",
                 None,
-                numpy.NAN,
-                numpy.datetime64("2019-01-24T01:02:03"),
+                np.NAN,
+                np.datetime64("2019-01-24T01:02:03"),
                 datetime(2019, 1, 24),
                 1,
                 10.24,

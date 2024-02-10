@@ -19,6 +19,7 @@
 
 {% extends base_template %}
 {% block page_title %}Datasets - {{ appbuilder.app_name }}{% endblock %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block head_meta %}
   {{ super() }}
@@ -34,6 +35,7 @@
   {{ super() }}
   <div id="root">
     <div id="react-container"></div>
+    {{ loading_dots(id='react-loading') }}
   </div>
 {% endblock %}
 

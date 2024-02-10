@@ -28,11 +28,10 @@ from typing import Iterator
 def iter_decorated_operators(source: pathlib.Path) -> Iterator[ast.ClassDef]:
     mod = ast.parse(source.read_text("utf-8"), str(source))
     for node in ast.walk(mod):
-        if not isinstance(node, ast.ClassDef):
-            continue
-        if not any(isinstance(base, ast.Name) and base.id == "DecoratedOperator" for base in node.bases):
-            continue  # Not a decorated operator.
-        yield node
+        if isinstance(node, ast.ClassDef) and any(
+            isinstance(base, ast.Name) and base.id == "DecoratedOperator" for base in node.bases
+        ):
+            yield node
 
 
 def check_missing_custom_operator_name(klass: ast.ClassDef) -> bool:

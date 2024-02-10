@@ -18,30 +18,170 @@
 Architecture Overview
 =====================
 
-Airflow is a platform that lets you build and run *workflows*. A workflow is represented as a :doc:`DAG <dags>` (a Directed Acyclic Graph), and contains individual pieces of work called :doc:`tasks`, arranged with dependencies and data flows taken into account.
+Airflow is a platform that lets you build and run *workflows*. A workflow is represented as a
+:doc:`DAG <dags>` (a Directed Acyclic Graph), and contains individual pieces of work called
+:doc:`tasks`, arranged with dependencies and data flows taken into account.
 
 .. image:: ../img/edge_label_example.png
   :alt: An example Airflow DAG, rendered in Graph
 
-A DAG specifies the dependencies between Tasks, and the order in which to execute them and run retries; the Tasks themselves describe what to do, be it fetching data, running analysis, triggering other systems, or more.
+A DAG specifies the dependencies between tasks, which defines the order in which to execute the tasks.
+Tasks describe what to do, be it fetching data, running analysis, triggering other systems, or more.
 
-An Airflow installation generally consists of the following components:
+Airflow itself is agnostic to what you're running - it will happily orchestrate and run anything,
+either with high-level support from one of our providers, or directly as a command using the shell
+or Python :doc:`operators`.
 
-* A :doc:`scheduler <../administration-and-deployment/scheduler>`, which handles both triggering scheduled workflows, and submitting :doc:`tasks` to the executor to run.
+Airflow components
+------------------
 
-* An :doc:`executor <executor/index>`, which handles running tasks. In the default Airflow installation, this runs everything *inside* the scheduler, but most production-suitable executors actually push task execution out to *workers*.
+Airflow's architecture consists of multiple components. The following sections describe each component's
+function and whether they're required for a bare-minimum Airflow installation, or an optional component
+to achieve better Airflow extensibility, performance, and scalability.
 
-* A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of DAGs and tasks.
+Required components
+...................
 
-* A folder of *DAG files*, read by the scheduler and executor (and any workers the executor has)
+A minimal Airflow installation consists of the following components:
 
-* A *metadata database*, used by the scheduler, executor and webserver to store state.
+* A :doc:`scheduler <../administration-and-deployment/scheduler>`, which handles both triggering scheduled
+  workflows, and submitting :doc:`tasks` to the executor to run. The :doc:`executor <executor/index>`, is
+  a configuration property of the *scheduler*, not a separate component and runs within the scheduler
+  process. There are several executors available out of the box, and you can also write your own.
 
-.. image:: ../img/arch-diag-basic.png
+* A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
+  DAGs and tasks.
 
-Most executors will generally also introduce other components to let them talk to their workers - like a task queue - but you can still think of the executor and its workers as a single logical component in Airflow overall, handling the actual task execution.
+* A folder of *DAG files* is read by the *scheduler* to figure out what tasks to run and when and to
+  run them.
 
-Airflow itself is agnostic to what you're running - it will happily orchestrate and run anything, either with high-level support from one of our providers, or directly as a command using the shell or Python :doc:`operators`.
+* A *metadata database*, which airflow components use to store state of workflows and tasks.
+  Setting up a metadata database is described in :doc:`/howto/set-up-database` and is required for
+  Airflow to work.
+
+Optional components
+...................
+
+Some Airflow components are optional and can enable better extensibility, scalability, and
+performance in your Airflow:
+
+* Optional *worker*, which executes the tasks given to it by the scheduler. In the basic installation
+  worker might be part of the scheduler not a separate component. It can be run as a long running process
+  in the :doc:`CeleryExecutor <executor/celery>`, or as a POD in the
+  :doc:`KubernetesExecutor <executor/kubernetes>`.
+
+* Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
+  where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
+  found in :doc:`/authoring-and-scheduling/deferring`.
+
+* Optional *dag processor*, which parses DAG files and serializes them into the
+  *metadata database*. By default, the *dag processor* process is part of the scheduler, but it can
+  be run as a separate component for scalability and security reasons. If *dag processor* is present
+  *scheduler* does not need to read the *DAG files* directly. More about
+  processing DAG files can be found in :doc:`/authoring-and-scheduling/dagfile-processing`
+
+* Optional folder of *plugins*. Plugins are a way to extend Airflow's functionality (similar to installed
+  packages). Plugins are read by the *scheduler*, *dag processor*, *triggerer* and *webserver*. More about
+  plugins can be found in :doc:`/authoring-and-scheduling/plugins`.
+
+Deploying Airflow components
+----------------------------
+
+All the components are Python applications that can be deployed using various deployment mechanisms.
+
+They can have extra *installed packages* installed in their Python environment. This is useful for example to
+install custom operators or sensors or extend Airflow functionality with custom plugins.
+
+While Airflow can be run in a single machine and with simple installation where only *scheduler* and
+*webserver* are deployed, Airflow is designed to be scalable and secure, and is able ot run in a distributed
+environment - where various components can run on different machines, with different security perimeters
+and can be scaled by running multiple instances of the components above.
+
+The separation of components also allow for increased security, by isolating the components from each other
+and by allowing to perform different tasks. For example separating *dag processor* from *scheduler*
+allows to make sure that the *scheduler* does not have access to the *DAG files* and cannot execute
+code provided by *DAG author*.
+
+Also while single person can run and manage Airflow installation, Airflow Deployment in more complex
+setup can involve various roles of users that can interact with different parts of the system, which is
+an important aspect of secure Airflow deployment. The roles are described in detail in the
+:doc:`/security/security_model` and generally speaking include:
+
+* Deployment Manager - a person that installs and configures Airflow and manages the deployment
+* DAG author - a person that writes DAGs and submits them to Airflow
+* Operations User - a person that triggers DAGs and tasks and monitors their execution
+
+Architecture Diagrams
+---------------------
+
+The diagrams below show different ways to deploy Airflow - gradually from the simple "one machine" and
+single person deployment, to a more complex deployment with separate components, separate user roles and
+finally with more isolated security perimeters.
+
+The meaning of the different connection types in the diagrams below is as follows:
+
+* **brown solid lines** represent *DAG files* submission and synchronization
+* **blue solid lines** represent deploying and accessing *installed packages* and *plugins*
+* **black dashed lines** represent control flow of workers by the *scheduler* (via executor)
+* **black solid lines** represent accessing the UI to manage execution of the workflows
+* **red dashed lines** represent accessing the *metadata database* by all components
+
+.. _overview-basic-airflow-architecture:
+
+Basic Airflow deployment
+........................
+
+This is the simplest deployment of Airflow, usually operated and managed on a single
+machine. Such a deployment usually uses the LocalExecutor, where the *scheduler* and the *workers* are in
+the same Python process and the *DAG files* are read directly from the local filesystem by the *scheduler*.
+The *webserver* runs on the same machine as the *scheduler*. There is no *triggerer* component, which
+means that task deferral is not possible.
+
+Such an installation typically does not separate user roles - deployment, configuration, operation, authoring
+and maintenance are all done by the same person and there are no security perimeters between the components.
+
+.. image:: ../img/diagram_basic_airflow_architecture.png
+
+If you want to run Airflow on a single machine in a simple single-machine setup, you can skip the
+more complex diagrams below and go straight to the :ref:`overview:workloads` section.
+
+.. _overview-distributed-airflow-architecture:
+
+Distributed Airflow architecture
+................................
+
+This is the architecture of Airflow where components of Airflow are distributed among multiple machines
+and where various roles of users are introduced - *Deployment Manager*, **DAG author**,
+**Operations User**. You can read more about those various roles in the :doc:`/security/security_model`.
+
+In the case of a distributed deployment, it is important to consider the security aspects of the components.
+The *webserver* does not have access to the *DAG files* directly. The code in the ``Code`` tab of the
+UI is read from the *metadata database*. The *webserver* cannot execute any code submitted by the
+**DAG author**. It can only execute code that is installed as an *installed package* or *plugin* by
+the **Deployment Manager**. The **Operations User** only has access to the UI and can only trigger
+DAGs and tasks, but cannot author DAGs.
+
+The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
+*triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
+ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` ot our
+Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
+
+.. image:: ../img/diagram_distributed_airflow_architecture.png
+
+.. _overview-separate-dag-processing-airflow-architecture:
+
+Separate DAG processing architecture
+....................................
+
+In a more complex installation where security and isolation are important, you'll also see the
+standalone *dag processor* component that allows to separate *scheduler* from accessing *DAG files*.
+This is suitable if the deployment focus is on isolation between parsed tasks. While Airflow does not yet
+support full multi-tenant features, it can be used to make sure that **DAG author** provided code is never
+executed in the context of the scheduler.
+
+.. image:: ../img/diagram_dag_processor_airflow_architecture.png
+
+.. _overview:workloads:
 
 Workloads
 ---------

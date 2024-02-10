@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import os
 from collections import namedtuple
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -125,7 +125,7 @@ class SFTPToWasbOperator(BaseOperator):
             sftp_complete_path, prefix=prefix, delimiter=delimiter
         )
 
-        self.log.info("Found %s files at sftp source path: %s", str(len(found_files)), self.sftp_source_path)
+        self.log.info("Found %d files at sftp source path: %s", len(found_files), self.sftp_source_path)
 
         for file in found_files:
             future_blob_name = self.get_full_path_blob(file)
@@ -134,11 +134,10 @@ class SFTPToWasbOperator(BaseOperator):
         return sftp_files
 
     def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
-        """Extracts from source path the tree behavior to interact with the remote folder"""
+        """Extracts from source path the tree behavior to interact with the remote folder."""
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:
-
             prefix, delimiter = self.sftp_source_path.split(WILDCARD, 1)
 
             sftp_complete_path = os.path.dirname(prefix)
@@ -163,11 +162,11 @@ class SFTPToWasbOperator(BaseOperator):
 
     @cached_property
     def sftp_hook(self) -> SFTPHook:
-        """Property of sftp hook to be re-used."""
+        """Property of sftp hook to be reused."""
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:
-        """Get a blob name based on the previous name and a blob_prefix variable"""
+        """Get a blob name based on the previous name and a blob_prefix variable."""
         return self.blob_prefix + os.path.basename(file)
 
     def copy_files_to_wasb(self, sftp_files: list[SftpFile]) -> list[str]:

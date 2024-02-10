@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from alembic import op
-from sqlalchemy import Column, Integer, inspect
+from sqlalchemy import Column, Integer, inspect, text
 
 # revision identifiers, used by Alembic.
 revision = "bbf4a7ad0465"
@@ -49,12 +49,14 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     """
-    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = text(
+        f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """
+    )
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:
@@ -102,7 +104,7 @@ def upgrade():
         if "id" in xcom_columns:
             if conn.dialect.name == "mssql":
                 constraint_dict = get_table_constraints(conn, "xcom")
-                drop_column_constraints(bop, "id", constraint_dict)
+                drop_column_constraints(operator=bop, column_name="id", constraint_dict=constraint_dict)
             bop.drop_column("id")
             bop.drop_index("idx_xcom_dag_task_date")
             # mssql doesn't allow primary keys with nullable columns

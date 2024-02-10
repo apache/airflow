@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State

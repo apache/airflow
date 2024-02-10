@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 import ast
+import itertools
 import os
 import re
 from glob import glob
-from itertools import chain
 from typing import Iterable
 
 from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS
@@ -87,7 +87,7 @@ def check_guide_links_in_operator_descriptions() -> list[DocBuildError]:
             operator_names=find_existing_guide_operator_names(
                 f"{DOCS_DIR}/apache-airflow/howto/operator/**/*.rst"
             ),
-            python_module_paths=chain(
+            python_module_paths=itertools.chain(
                 glob(f"{ROOT_PACKAGE_DIR}/operators/*.py"),
                 glob(f"{ROOT_PACKAGE_DIR}/sensors/*.py"),
             ),
@@ -101,7 +101,7 @@ def check_guide_links_in_operator_descriptions() -> list[DocBuildError]:
         }
 
         # Extract all potential python modules that can contain operators
-        python_module_paths = chain(
+        python_module_paths = itertools.chain(
             glob(f"{provider['package-dir']}/**/operators/*.py", recursive=True),
             glob(f"{provider['package-dir']}/**/sensors/*.py", recursive=True),
             glob(f"{provider['package-dir']}/**/transfers/*.py", recursive=True),

@@ -21,12 +21,12 @@ import { useQuery } from "react-query";
 import axios, { AxiosResponse } from "axios";
 
 import { getMetaValue } from "src/utils";
-import type { DepNode } from "src/types";
 import useFilters, {
   FILTER_DOWNSTREAM_PARAM,
   FILTER_UPSTREAM_PARAM,
   ROOT_PARAM,
 } from "src/dag/useFilters";
+import type { WebserverEdge, DepNode } from "src/types";
 
 const DAG_ID_PARAM = "dag_id";
 
@@ -37,11 +37,6 @@ interface GraphData {
   edges: WebserverEdge[];
   nodes: DepNode;
   arrange: string;
-}
-export interface WebserverEdge {
-  label?: string;
-  sourceId: string;
-  targetId: string;
 }
 
 const useGraphData = () => {

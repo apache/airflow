@@ -29,16 +29,21 @@ interface Props extends IconBaseProps {
   runType: DagRun["runType"];
 }
 
+const iconStyle = {
+  display: "inline",
+  verticalAlign: "bottom",
+};
+
 const DagRunTypeIcon = ({ runType, ...rest }: Props) => {
   switch (runType) {
     case "manual":
-      return <MdPlayArrow style={{ display: "inline" }} {...rest} />;
+      return <MdPlayArrow style={iconStyle} {...rest} />;
     case "backfill":
-      return <RiArrowGoBackFill style={{ display: "inline" }} {...rest} />;
+      return <RiArrowGoBackFill style={iconStyle} {...rest} />;
     case "scheduled":
-      return <MdOutlineSchedule style={{ display: "inline" }} {...rest} />;
+      return <MdOutlineSchedule style={iconStyle} {...rest} />;
     case "dataset_triggered":
-      return <HiDatabase style={{ display: "inline" }} {...rest} />;
+      return <HiDatabase style={iconStyle} {...rest} />;
     default:
       return null;
   }

@@ -18,19 +18,21 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
-    """
-    Branches into one of two lists of tasks depending on the current datetime.
+    """Branches into one of two lists of tasks depending on the current datetime.
+
     For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:BranchDateTimeOperator`
+    :ref:`howto/operator:BranchDateTimeOperator`.
 
     True branch will be returned when ``datetime.datetime.now()`` falls below
     ``target_upper`` and above ``target_lower``.
@@ -99,7 +101,7 @@ def target_times_as_dates(
     lower: datetime.datetime | datetime.time | None,
     upper: datetime.datetime | datetime.time | None,
 ):
-    """Ensures upper and lower time targets are datetimes by combining them with base_date."""
+    """Ensure upper and lower time targets are datetimes by combining them with base_date."""
     if isinstance(lower, datetime.datetime) and isinstance(upper, datetime.datetime):
         return lower, upper
 

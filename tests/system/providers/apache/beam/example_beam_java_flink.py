@@ -37,7 +37,6 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     jar_to_local_flink_runner = GCSToLocalFilesystemOperator(
         task_id="jar_to_local_flink_runner",
         bucket=GCS_JAR_FLINK_RUNNER_BUCKET_NAME,

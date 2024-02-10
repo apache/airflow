@@ -37,7 +37,7 @@ Date: 2022-04-04
 
 Accepted
 
-Supersedes [--](0003-bootstrapping-virtual-environment.md)
+Supersedes [3. Bootstrapping virtual environment](0003-bootstrapping-virtual-environment.md)
 
 ## Context
 

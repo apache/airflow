@@ -22,7 +22,7 @@ from unittest import mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_glue
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
@@ -41,7 +41,7 @@ PARTITION_INPUT: dict = {
 }
 
 
-@mock_glue
+@mock_aws
 class TestGlueCatalogHook:
     def setup_method(self, method):
         self.client = boto3.client("glue", region_name="us-east-1")

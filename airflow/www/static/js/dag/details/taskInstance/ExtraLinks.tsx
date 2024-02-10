@@ -26,15 +26,26 @@ interface Props {
   dagId: string;
   taskId: string;
   executionDate: string;
+  mapIndex?: number | undefined;
   extraLinks: string[];
+  tryNumber?: number | undefined;
 }
 
-const ExtraLinks = ({ dagId, taskId, executionDate, extraLinks }: Props) => {
+const ExtraLinks = ({
+  dagId,
+  taskId,
+  executionDate,
+  mapIndex,
+  extraLinks,
+  tryNumber,
+}: Props) => {
   const { data: links } = useExtraLinks({
     dagId,
     taskId,
     executionDate,
+    mapIndex,
     extraLinks,
+    tryNumber,
   });
 
   if (!links?.length) return null;

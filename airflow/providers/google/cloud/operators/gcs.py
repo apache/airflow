@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import subprocess
 import sys
+import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Sequence
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
@@ -42,8 +43,10 @@ from airflow.utils import timezone
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
     """
-    Creates a new bucket. Google Cloud Storage uses a flat namespace,
-    so you can't create a bucket with a name that is already in use.
+    Creates a new bucket.
+
+    Google Cloud Storage uses a flat namespace, so you
+    can't create a bucket with a name that is already in use.
 
         .. seealso::
             For more information, see Bucket Naming Guidelines:
@@ -87,7 +90,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
     .. code-block:: python
 
-        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+        CreateBucket = GCSCreateBucketOperator(
             task_id="CreateNewBucket",
             bucket_name="test-bucket",
             storage_class="MULTI_REGIONAL",
@@ -157,16 +160,16 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
 class GCSListObjectsOperator(GoogleCloudBaseOperator):
     """
-    List all objects from the bucket with the given string prefix and delimiter in name.
+    List all objects from the bucket filtered by given string prefix and delimiter in name or match_glob.
 
     This operator returns a python list with the name of objects which can be used by
     XCom in the downstream task.
 
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param prefix: String or list of strings, which filter objects whose name begin with
+    :param prefix: String or list of strings, which filter objects whose name begins with
            it/them. (templated)
-    :param delimiter: The delimiter by which you want to filter the objects. (templated)
-        For example, to lists the CSV files from in a directory in GCS you would use
+    :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
+        For example, to list the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -177,17 +180,19 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+        (e.g, ``'**/*/.json'``)
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
         folder in ``data`` bucket. ::
 
-            GCS_Files = GoogleCloudStorageListOperator(
-                task_id='GCS_Files',
-                bucket='data',
-                prefix='sales/sales-2017/',
-                delimiter='.avro',
-                gcp_conn_id=google_cloud_conn_id
+            GCS_Files = GCSListOperator(
+                task_id="GCS_Files",
+                bucket="data",
+                prefix="sales/sales-2017/",
+                match_glob="**/*/.avro",
+                gcp_conn_id=google_cloud_conn_id,
             )
     """
 
@@ -210,14 +215,22 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        match_glob: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.bucket = bucket
         self.prefix = prefix
+        if delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.match_glob = match_glob
 
     def execute(self, context: Context) -> list:
         hook = GCSHook(
@@ -225,12 +238,20 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix(es): %s",
-            self.bucket,
-            self.delimiter,
-            self.prefix,
-        )
+        if self.match_glob:
+            self.log.info(
+                "Getting list of the files. Bucket: %s; MatchGlob: %s; Prefix(es): %s",
+                self.bucket,
+                self.match_glob,
+                self.prefix,
+            )
+        else:
+            self.log.info(
+                "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix(es): %s",
+                self.bucket,
+                self.delimiter,
+                self.prefix,
+            )
 
         StorageLink.persist(
             context=context,
@@ -238,14 +259,14 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             uri=self.bucket,
             project_id=hook.project_id,
         )
-        return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        return hook.list(
+            bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter, match_glob=self.match_glob
+        )
 
 
 class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     """
-    Deletes objects from a Google Cloud Storage bucket, either
-    from an explicit list of object names or all objects
-    matching a prefix.
+    Deletes objects from a list or all objects matching a prefix from a Google Cloud Storage bucket.
 
     :param bucket_name: The GCS bucket to delete from
     :param objects: List of objects to delete. These should be the names
@@ -280,7 +301,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
@@ -293,6 +313,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             )
             raise ValueError(err_message)
 
+        self._objects: list[str] = []
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
@@ -301,13 +322,47 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        if self.objects:
-            objects = self.objects
+        if self.objects is not None:
+            self._objects = self.objects
         else:
-            objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
-        self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
-        for object_name in objects:
+            self._objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
+        self.log.info("Deleting %s objects from %s", len(self._objects), self.bucket_name)
+        for object_name in self._objects:
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implementing on_complete as execute() resolves object names."""
+        from openlineage.client.facet import (
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+        )
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self._objects:
+            return OperatorLineage()
+
+        bucket_url = f"gs://{self.bucket_name}"
+        input_datasets = [
+            Dataset(
+                namespace=bucket_url,
+                name=object_name,
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name=object_name,
+                        ),
+                    )
+                },
+            )
+            for object_name in self._objects
+        ]
+
+        return OperatorLineage(inputs=input_datasets)
 
 
 class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
@@ -473,11 +528,11 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
 
 class GCSFileTransformOperator(GoogleCloudBaseOperator):
     """
-    Copies data from a source GCS location to a temporary location on the
-    local filesystem. Runs a transformation on this file as specified by
-    the transformation script and uploads the output to a destination bucket.
-    If the output bucket is not specified the original file will be
-    overwritten.
+    Copies data from a source GCS location to a temporary location on the local filesystem.
+
+    Runs a transformation on this file as specified by the transformation script
+    and uploads the output to a destination bucket. If the output bucket is not
+    specified the original file will be overwritten.
 
     The locations of the source and the destination files in the local
     filesystem is provided as an first and second arguments to the
@@ -576,9 +631,27 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
                 filename=destination_file.name,
             )
 
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_dataset = Dataset(
+            namespace=f"gs://{self.source_bucket}",
+            name=self.source_object,
+        )
+        output_dataset = Dataset(
+            namespace=f"gs://{self.destination_bucket}",
+            name=self.destination_object,
+        )
+
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
+
 
 class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     """
+    Copy objects that were modified during a time span, run a transform, and upload results to a bucket.
+
     Determines a list of objects that were added or modified at a GCS source
     location during a specific time-span, copies them to a temporary location
     on the local file system, runs a transform on this file as specified by
@@ -700,6 +773,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         self.upload_continue_on_fail = upload_continue_on_fail
         self.upload_num_attempts = upload_num_attempts
 
+        self._source_object_names: list[str] = []
+        self._destination_object_names: list[str] = []
+
     def execute(self, context: Context) -> list[str]:
         # Define intervals and prefixes.
         try:
@@ -751,7 +827,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
 
         # Fetch list of files.
-        blobs_to_transform = source_hook.list_by_timespan(
+        self._source_object_names = source_hook.list_by_timespan(
             bucket_name=self.source_bucket,
             prefix=source_prefix_interp,
             timespan_start=timespan_start,
@@ -763,7 +839,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             temp_output_dir_path = Path(temp_output_dir)
 
             # TODO: download in parallel.
-            for blob_to_transform in blobs_to_transform:
+            for blob_to_transform in self._source_object_names:
                 destination_file = temp_input_dir_path / blob_to_transform
                 destination_file.parent.mkdir(parents=True, exist_ok=True)
                 try:
@@ -775,9 +851,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         num_max_attempts=self.download_num_attempts,
                     )
                 except GoogleCloudError:
-                    if self.download_continue_on_fail:
-                        continue
-                    raise
+                    if not self.download_continue_on_fail:
+                        raise
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
@@ -801,8 +876,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
             self.log.info("Transformation succeeded. Output temporarily located at %s", temp_output_dir_path)
 
-            files_uploaded = []
-
             # TODO: upload in parallel.
             for upload_file in temp_output_dir_path.glob("**/*"):
                 if upload_file.is_dir():
@@ -823,13 +896,35 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         chunk_size=self.chunk_size,
                         num_max_attempts=self.upload_num_attempts,
                     )
-                    files_uploaded.append(str(upload_file_name))
+                    self._destination_object_names.append(str(upload_file_name))
                 except GoogleCloudError:
-                    if self.upload_continue_on_fail:
-                        continue
-                    raise
+                    if not self.upload_continue_on_fail:
+                        raise
 
-            return files_uploaded
+            return self._destination_object_names
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implementing on_complete as execute() resolves object names."""
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        input_datasets = [
+            Dataset(
+                namespace=f"gs://{self.source_bucket}",
+                name=object_name,
+            )
+            for object_name in self._source_object_names
+        ]
+        output_datasets = [
+            Dataset(
+                namespace=f"gs://{self.destination_bucket}",
+                name=object_name,
+            )
+            for object_name in self._destination_object_names
+        ]
+
+        return OperatorLineage(inputs=input_datasets, outputs=output_datasets)
 
 
 class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
@@ -852,12 +947,15 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The identifier of the project to bill for this request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
         "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
+        "user_project",
     )
 
     def __init__(
@@ -867,6 +965,7 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         force: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -875,10 +974,11 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         self.force: bool = force
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
+        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force, user_project=self.user_project)
 
 
 class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
@@ -894,7 +994,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBucketsOperator`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :param destination_bucket: The name of the bucket containing the destination objects.

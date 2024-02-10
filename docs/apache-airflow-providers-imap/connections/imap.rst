@@ -55,6 +55,9 @@ Extra (optional)
     Specify the extra parameters (as json dictionary)
 
     * ``use_ssl``: If set to false, then a non-ssl connection is being used. Default is true. Also note that changing the ssl option also influences the default port being used.
+    * ``ssl_context``: Can be "default" or "none". Only valid when "use_ssl" is used. The "default" context provides a balance between security and compatibility, "none" is not recommended
+      as it disables validation of certificates and allow MITM attacks and is only needed in case your certificates are wrongly configured in your system. If not specified, defaults are taken from the
+      "imap", "ssl_context" configuration with the fallback to "email". "ssl_context" configuration. If none of it is specified, "default" is used.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

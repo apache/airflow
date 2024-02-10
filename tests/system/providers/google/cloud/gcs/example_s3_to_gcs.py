@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -31,9 +32,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_s3_to_gcs"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 GCS_BUCKET_URL = f"gs://{BUCKET_NAME}/"
-UPLOAD_FILE = "/tmp/example-file.txt"
+FILE_NAME = "example_upload.txt"
+UPLOAD_FILE = str(Path(__file__).parent / "resources" / FILE_NAME)
 PREFIX = "TESTS"
 
 
@@ -44,7 +46,7 @@ def upload_file():
     s3_hook.load_file(filename=UPLOAD_FILE, key=PREFIX, bucket_name=BUCKET_NAME)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -62,7 +64,11 @@ with models.DAG(
     )
     # [START howto_transfer_s3togcs_operator]
     transfer_to_gcs = S3ToGCSOperator(
-        task_id="s3_to_gcs_task", bucket=BUCKET_NAME, prefix=PREFIX, dest_gcs=GCS_BUCKET_URL
+        task_id="s3_to_gcs_task",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+        dest_gcs=GCS_BUCKET_URL,
+        apply_gcs_prefix=True,
     )
     # [END howto_transfer_s3togcs_operator]
 

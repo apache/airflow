@@ -16,9 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains a Segment Hook
-which allows you to connect to your Segment account,
-retrieve data from it or write to that file.
+Connect to your Segment account, retrieve data from it or write to that file.
 
 NOTE:   this hook also relies on the Segment analytics package:
         https://github.com/segmentio/analytics-python
@@ -33,8 +31,7 @@ from airflow.hooks.base import BaseHook
 
 class SegmentHook(BaseHook):
     """
-    Create new connection to Segment
-    and allows you to pull data out of Segment or write to it.
+    Create new connection to Segment and allows you to pull data out of Segment or write to it.
 
     You can then use that file with other
     Airflow operators to move the data around or interact with segment.
@@ -83,6 +80,6 @@ class SegmentHook(BaseHook):
         return analytics
 
     def on_error(self, error: str, items: str) -> None:
-        """Handles error callbacks when using Segment with segment_debug_mode set to True"""
+        """Handles error callbacks when using Segment with segment_debug_mode set to True."""
         self.log.error("Encountered Segment error: %s with items: %s", error, items)
         raise AirflowException(f"Segment error: {error}")

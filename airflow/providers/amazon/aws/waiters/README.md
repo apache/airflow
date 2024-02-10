@@ -98,3 +98,5 @@ EksHook().get_waiter("all_nodegroups_deleted").wait(clusterName=cluster_name)
 
 Note that since the get_waiter is in the hook instead of on the client side, a custom waiter is
 just `hook.get_waiter` and not `hook.conn.get_waiter`.  Other than that, they should be identical.
+
+Note the custom waiter doesn't work with resource_type, only client_type is supported.

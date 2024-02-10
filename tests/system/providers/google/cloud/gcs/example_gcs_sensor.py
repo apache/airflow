@@ -24,9 +24,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -55,7 +54,7 @@ def workaround_in_debug_executor(cls):
     This method creates dummy property to overwrite it and force poke method to always return True.
     """
     cls.mode = dummy_mode_property()
-    cls.poke = lambda self, ctx: True
+    cls.poke = lambda self, context: True
 
 
 def dummy_mode_property():
@@ -68,7 +67,7 @@ def dummy_mode_property():
     return property(mode_getter, mode_setter)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -92,6 +91,19 @@ with models.DAG(
         task_id="gcs_upload_session_complete_task",
     )
     # [END howto_sensor_gcs_upload_session_complete_task]
+
+    # [START howto_sensor_gcs_upload_session_async_task]
+    gcs_upload_session_async_complete = GCSUploadSessionCompleteSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME,
+        inactivity_period=15,
+        min_objects=1,
+        allow_delete=True,
+        previous_objects=set(),
+        task_id="gcs_upload_session_async_complete",
+        deferrable=True,
+    )
+    # [END howto_sensor_gcs_upload_session_async_task]
 
     # [START howto_sensor_object_update_exists_task]
     gcs_update_object_exists = GCSObjectUpdateSensor(
@@ -157,12 +169,9 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    sleep = BashOperator(task_id="sleep", bash_command="sleep 5")
-
     chain(
         # TEST SETUP
         create_bucket,
-        sleep,
         upload_file,
         # TEST BODY
         [
@@ -170,6 +179,7 @@ with models.DAG(
             gcs_object_exists_defered,
             gcs_object_exists_async,
             gcs_object_with_prefix_exists,
+            gcs_object_with_prefix_exists_async,
         ],
         # TEST TEARDOWN
         delete_bucket,
@@ -179,6 +189,7 @@ with models.DAG(
         # TEST BODY
         gcs_upload_session_complete,
         gcs_update_object_exists,
+        gcs_update_object_exists_async,
         delete_bucket,
     )
 

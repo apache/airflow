@@ -95,7 +95,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildErro
     :return: list of DocBuildErrors.
     """
     sphinx_build_errors = []
-    for sphinx_warning in warning_text.split("\n"):
+    for sphinx_warning in warning_text.splitlines():
         if not sphinx_warning:
             continue
         warning_parts = sphinx_warning.split(":", 2)

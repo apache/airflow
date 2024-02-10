@@ -48,7 +48,9 @@ class ConnectionExtraConfig:
                 warnings.warn(
                     f"Conflicting params `{field}` and `{backcompat_key}` found in extras for conn "
                     f"{self.conn_id}. Using value for `{field}`.  Please ensure this is the correct value "
-                    f"and remove the backcompat key `{backcompat_key}`."
+                    f"and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
             return self.extra[field]
         elif backcompat_key in self.extra and self.extra[backcompat_key] not in (None, ""):
@@ -84,6 +86,7 @@ def parse_filename(
 ) -> tuple[str, str | None]:
     """
     Parse filetype and compression from given filename.
+
     :param filename: filename to parse.
     :param supported_file_formats: list of supported file extensions.
     :param fallback: fallback to given file format.

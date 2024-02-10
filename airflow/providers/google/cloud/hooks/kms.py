@@ -15,27 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud KMS hook"""
+"""This module contains a Google Cloud KMS hook."""
 from __future__ import annotations
 
 import base64
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
 
 def _b64encode(s: bytes) -> str:
-    """Base 64 encodes a bytes object to a string"""
+    """Base 64 encodes a bytes object to a string."""
     return base64.b64encode(s).decode("ascii")
 
 
 def _b64decode(s: str) -> bytes:
-    """Base 64 decodes a string to bytes"""
+    """Base 64 decodes a string to bytes."""
     return base64.b64decode(s.encode("utf-8"))
 
 

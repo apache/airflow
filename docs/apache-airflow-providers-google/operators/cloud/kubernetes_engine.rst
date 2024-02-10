@@ -27,7 +27,7 @@ consists of multiple machines (specifically, Compute Engine instances) grouped t
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Manage GKE cluster
 ^^^^^^^^^^^^^^^^^^
@@ -111,7 +111,7 @@ Run a Pod on a GKE cluster
 
 There are two operators available in order to run a pod on a GKE cluster:
 
-* :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+* :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 * :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
 
 ``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
@@ -131,11 +131,19 @@ Private clusters have two unique endpoint values: ``privateEndpoint``, which is 
 sets the external IP address as the endpoint by default. If you prefer to use the internal IP as the
 endpoint, you need to set ``use_internal_ip`` parameter to ``True``.
 
+Using with Autopilot (serverless) cluster
+'''''''''''''''''''''''''''''''''''''''''
+
+When running on serverless cluster like GKE Autopilot, the pod startup can sometimes take longer due to cold start.
+During the pod startup, the status is checked in regular short intervals and warning messages are emitted if the pod
+has not yet started. You can increase this interval length via the ``startup_check_interval_seconds`` parameter, with
+recommendation of 60 seconds.
+
 Use of XCom
 '''''''''''
 
 We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
-with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and it's mount point
+with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and its mount point
 is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
 ``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
 Here is an example of it being used:

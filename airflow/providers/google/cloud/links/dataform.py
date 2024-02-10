@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 DATAFORM_BASE_LINK = "/bigquery/dataform"
@@ -46,7 +46,7 @@ DATAFORM_WORKSPACE_LINK = (
 
 
 class DataformWorkflowInvocationLink(BaseGoogleLink):
-    """Helper class for constructing Dataflow Job Link"""
+    """Helper class for constructing Dataflow Job Link."""
 
     name = "Dataform Workflow Invocation"
     key = "dataform_workflow_invocation_config"

@@ -25,7 +25,7 @@ The Microsoft Azure Data Lake Storage Gen2 connection type enables the ADLS gen2
 Authenticating to Azure Data Lake Storage Gen2
 ----------------------------------------------
 
-Currently, there are two ways to connect to Azure Data Lake Storage Gen2 using Airflow.
+Currently, there are three ways to connect to Azure Data Lake Storage Gen2 using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
@@ -33,6 +33,9 @@ Currently, there are two ways to connect to Azure Data Lake Storage Gen2 using A
 2. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
+3. Fallback on DefaultAzureCredential_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI, etc.
+
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -47,22 +50,28 @@ Configuring the Connection
 
 Login (optional)
     Specify the login used for azure blob storage. For use with Shared Key Credential and SAS Token authentication.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Password (optional)
     Specify the password used for azure blob storage. For use with
     Active Directory (token credential) and shared key authentication.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Host (optional)
     Specify the account url for anonymous public read, Active Directory, shared access key authentication.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
-    * ``connection_string``: Connection string for use with connection string authentication.
+    * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication. It can be left out to fall back on DefaultAzureCredential_.
+    * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
 Note that all components of the URI should be URL-encoded.
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential

@@ -24,10 +24,12 @@ Cloud Storage allows world-wide storage and retrieval of any amount of data at a
 You can use Cloud Storage for a range of scenarios including serving website content,
 storing data for archival and disaster recovery, or distributing large data objects to users via direct download.
 
+See :doc:`/operators/transfer/index` for a list of specialized transfer operators to and from Google Cloud Storage.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Operators
 ^^^^^^^^^
@@ -223,6 +225,15 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionComp
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_complete_task]
     :end-before: [END howto_sensor_gcs_upload_session_complete_task]
+
+You can set the parameter ``deferrable`` to True if you want the worker slots to be freed up while sensor is running.
+
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_gcs_upload_session_async_task]
+    :end-before: [END howto_sensor_gcs_upload_session_async_task]
 
 .. _howto/sensor:GCSObjectUpdateSensor:
 

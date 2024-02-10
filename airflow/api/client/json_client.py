@@ -108,23 +108,26 @@ class Client(api_client.Client):
         pools = self._request(url)
         return [(p["pool"], p["slots"], p["description"]) for p in pools]
 
-    def create_pool(self, name: str, slots: int, description: str):
+    def create_pool(self, name: str, slots: int, description: str, include_deferred: bool):
         """Create a new pool.
 
         :param name: The name of the pool to create.
         :param slots: The number of slots in the pool.
         :param description: A description of the pool.
+        :param include_deferred: include deferred tasks in pool calculations
+
         :return: A tuple containing the name of the pool, the number of slots in the pool,
-            and a description of the pool.
+            a description of the pool and the include_deferred flag.
         """
         endpoint = "/api/experimental/pools"
         data = {
             "name": name,
             "slots": slots,
             "description": description,
+            "include_deferred": include_deferred,
         }
         response = self._request(urljoin(self._api_base_url, endpoint), method="POST", json=data)
-        return response["pool"], response["slots"], response["description"]
+        return response["pool"], response["slots"], response["description"], response["include_deferred"]
 
     def delete_pool(self, name: str):
         """Delete a pool.

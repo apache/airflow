@@ -22,9 +22,11 @@ from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
@@ -121,16 +123,29 @@ class TestDockerDecorator:
         assert dag.task_ids[-1] == "do_run__20"
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_state",
+        "kwargs, actual_exit_code, expected_state",
         [
-            (None, 99, TaskInstanceState.FAILED),
+            ({}, 0, TaskInstanceState.SUCCESS),
+            ({}, 100, TaskInstanceState.FAILED),
+            ({}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": None}, 100, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 0, TaskInstanceState.SUCCESS),
             ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
             ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 0}, 0, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": (100,)}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": (100,)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100,)}, 101, TaskInstanceState.FAILED),
         ],
     )
-    def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
+    def test_skip_docker_operator(self, kwargs, actual_exit_code, expected_state, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", **kwargs)
         def f(exit_code):
             raise SystemExit(exit_code)
 
@@ -146,7 +161,6 @@ class TestDockerDecorator:
             ti = dr.get_task_instances()[0]
             assert ti.state == expected_state
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_setup_decorator_with_decorated_docker_task(self, dag_maker):
         @setup
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -158,9 +172,8 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
         @teardown
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -172,9 +185,8 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
         self, dag_maker, on_failure_fail_dagrun
@@ -189,5 +201,48 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
+
+    @pytest.mark.parametrize("use_dill", [True, False])
+    def test_deepcopy_with_python_operator(self, dag_maker, use_dill):
+        import copy
+
+        from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
+
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=use_dill)
+        def f():
+            import logging
+
+            logger = logging.getLogger("airflow.task")
+            logger.info("info log in docker")
+
+        @task.python()
+        def g():
+            import logging
+
+            logger = logging.getLogger("airflow.task")
+            logger.info("info log in python")
+
+        with dag_maker() as dag:
+            docker_task = f()
+            python_task = g()
+            _ = python_task >> docker_task
+
+        docker_operator = getattr(docker_task, "operator", None)
+        assert isinstance(docker_operator, _DockerDecoratedOperator)
+        task_id = docker_operator.task_id
+
+        assert isinstance(dag, DAG)
+        assert hasattr(dag, "task_dict")
+        assert isinstance(dag.task_dict, dict)
+        assert task_id in dag.task_dict
+
+        some_task = dag.task_dict[task_id]
+        clone_of_docker_operator = copy.deepcopy(docker_operator)
+        assert isinstance(some_task, _DockerDecoratedOperator)
+        assert isinstance(clone_of_docker_operator, _DockerDecoratedOperator)
+        assert some_task.command == clone_of_docker_operator.command
+        assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
+        assert some_task.use_dill == clone_of_docker_operator.use_dill
+        assert some_task.pickling_library is clone_of_docker_operator.pickling_library

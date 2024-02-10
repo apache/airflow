@@ -19,50 +19,66 @@
 ``apache-airflow-providers-openlineage``
 ========================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: User guide
 
     Guides <guides/user>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Developer guide
 
     Guides <guides/developer>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Structure of provider
 
     Guides <guides/structure>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Macros
 
     Macros <macros>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/openlineage/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-openlineage/>
     Installing from sources <installing-providers-from-sources>
+    Supported operators <supported_classes.rst>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -70,12 +86,12 @@ Content
 
 
 Package apache-airflow-providers-openlineage
---------------------------------------------
+------------------------------------------------------
 
 `OpenLineage <https://openlineage.io/>`__
 
 
-Release: 1.0.0
+Release: 1.5.0
 
 Provider package
 ----------------
@@ -93,10 +109,42 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.6.0``
-==================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
 
-.. include:: ../../airflow/providers/openlineage/CHANGELOG.rst
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.7.0``
+``apache-airflow-providers-common-sql``  ``>=1.6.0``
+``attrs``                                ``>=22.2``
+``openlineage-integration-common``       ``>=0.28.0``
+``openlineage-python``                   ``>=0.28.0``
+=======================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-openlineage[common.sql]
+
+
+============================================================================================================  ==============
+Dependent package                                                                                             Extra
+============================================================================================================  ==============
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
+============================================================================================================  ==============
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-openlineage 1.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-openlineage-1.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-openlineage-1.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-openlineage-1.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-openlineage 1.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-1.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-1.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_openlineage-1.5.0-py3-none-any.whl.sha512>`__)

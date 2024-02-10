@@ -71,6 +71,7 @@ class TestAutoMLTrainModelOperator:
     def test_execute(self, mock_hook):
         mock_hook.return_value.create_model.return_value.result.return_value = Model(name=MODEL_PATH)
         mock_hook.return_value.extract_object_id = extract_object_id
+        mock_hook.return_value.wait_for_operation.return_value = Model()
         op = AutoMLTrainModelOperator(
             model=MODEL,
             location=GCP_LOCATION,
@@ -93,6 +94,7 @@ class TestAutoMLBatchPredictOperator:
     def test_execute(self, mock_hook):
         mock_hook.return_value.batch_predict.return_value.result.return_value = BatchPredictResult()
         mock_hook.return_value.extract_object_id = extract_object_id
+        mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
 
         op = AutoMLBatchPredictOperator(
             model_id=MODEL_ID,

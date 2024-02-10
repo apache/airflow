@@ -22,7 +22,7 @@ import os
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
@@ -72,7 +72,7 @@ class TestFileToS3Operator:
         with pytest.raises(TypeError):
             operator.execute(None)
 
-    @mock_s3
+    @mock_aws
     def test_execute(self):
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.dest_bucket)
@@ -92,7 +92,7 @@ class TestFileToS3Operator:
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
 
-    @mock_s3
+    @mock_aws
     def test_execute_with_only_key(self):
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.dest_bucket)

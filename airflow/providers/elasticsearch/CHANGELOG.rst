@@ -21,8 +21,233 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-elasticsearch``
+
+
 Changelog
 ---------
+
+5.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Remove getattr in es task handler when airflow min version bumped to 2.6 (#36431)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
+5.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Cleanup code for elasticsearch<8 (#35707)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Extend task context logging support for remote logging using Elasticsearch (#32977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update es read query to not use body (#34792)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+
+Misc
+~~~~
+
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Use None instead of empty data structures when no ElasticSearch logs (#34793)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
+5.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. note::
+  In PR #34790 we removed the unused argument ``metadata`` from method ``es_read``.  We determined that ``es_read``
+  is an internal method and therefore not subject to backcompat, so we did not bump major version for this provider.
+  In order to make clearer that this is an internal method we renamed it with an underscore prefix ``_es_read``.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Remove unused argument metadata from es_read and make clearly private (#34790)``
+* ``Improve intelligibility of end_of_log determination (#34788)``
+* ``Replace try/except/pass by contextlib.suppress in ElasticSearch provider (#34251)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor shorter defaults in providers (#34347)``
+
+
+5.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make sure that only valid elasticsearch keys are passed to handler (#34119)``
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+5.0.1
+.....
+
+.. note::
+  This release added support for elasticsearch 8
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility for elasticsearch<8 (#33281)``
+* ``Fix urlparse schemaless-behaviour on Python 3.9+ (#33289)``
+
+Misc
+~~~~
+
+* ``Upgrade Elasticsearch to 8 (#33135)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace strftime with f-strings where nicer (#33455)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+5.0.0
+.....
+
+.. note::
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
+
+* ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
+
+Misc
+~~~~
+
+* ``Fix Failing ES Remote Logging (#32438)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Add deprecation info to the providers modules and classes docstring (#32536)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+
+4.5.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+
+4.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Upper-bind elasticearch integration (#31255)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 4.4.0
 .....
@@ -63,8 +288,9 @@ Bug Fixes
 4.3.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~
@@ -123,8 +349,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

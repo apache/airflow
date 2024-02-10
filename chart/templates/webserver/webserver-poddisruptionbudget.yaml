@@ -20,15 +20,12 @@
 ################################
 ## Airflow Webserver PodDisruptionBudget
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if .Values.webserver.podDisruptionBudget.enabled }}
-kind: PodDisruptionBudget
-{{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: policy/v1
-{{- else }}
-apiVersion: policy/v1beta1
-{{- end }}
+kind: PodDisruptionBudget
 metadata:
-  name: {{ .Release.Name }}-webserver-pdb
+  name: {{ include "airflow.fullname" . }}-webserver-pdb
   labels:
     tier: airflow
     component: webserver
@@ -45,4 +42,5 @@ spec:
       component: webserver
       release: {{ .Release.Name }}
   {{- toYaml .Values.webserver.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
 {{- end }}

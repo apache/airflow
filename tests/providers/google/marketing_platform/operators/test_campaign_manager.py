@@ -86,6 +86,7 @@ class TestGoogleCampaignManagerDeleteReportOperator:
         )
 
 
+@pytest.mark.db_test
 class TestGoogleCampaignManagerDownloadReportOperator:
     def setup_method(self):
         with create_session() as session:

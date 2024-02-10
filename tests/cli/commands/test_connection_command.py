@@ -16,23 +16,26 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
+import os
 import re
 import shlex
 import warnings
 from contextlib import redirect_stdout
+from io import StringIO
 from unittest import mock
 
 import pytest
 
-from airflow.cli import cli_parser
+from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -48,7 +51,7 @@ class TestCliGetConnection:
         clear_db_connections(add_default_connections_back=True)
 
     def test_cli_connection_get(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_get(
                 self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
@@ -83,7 +86,7 @@ class TestCliListConnections:
 
     def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_list(args)
             print(stdout.getvalue())
             stdout = stdout.getvalue()
@@ -96,7 +99,7 @@ class TestCliListConnections:
         args = self.parser.parse_args(
             ["connections", "list", "--output", "json", "--conn-id", "http_default"]
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_list(args)
             stdout = stdout.getvalue()
         assert "http_default" in stdout
@@ -166,9 +169,7 @@ class TestCliExportConnections:
         def my_side_effect(_):
             raise Exception("dummy exception")
 
-        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = (
-            my_side_effect
-        )
+        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
@@ -547,7 +548,7 @@ class TestCliAddConnections:
     )
     @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
 
         stdout = stdout.getvalue()
@@ -635,6 +636,16 @@ class TestCliAddConnections:
                 )
             )
 
+    def test_cli_connections_add_invalid_conn_id(self):
+        with pytest.raises(SystemExit) as e:
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
+            )
+        assert (
+            e.value.args[0] == "Could not create connection. The key 'Test$' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively"
+        )
+
 
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()
@@ -657,7 +668,7 @@ class TestCliDeleteConnections:
             session=session,
         )
         # Delete connections
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "new1"]))
             stdout = stdout.getvalue()
 
@@ -810,7 +821,7 @@ class TestCliImportConnections:
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
         mock_parse_secret_file.return_value = expected_connections
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
                 self.parser.parse_args(["connections", "import", "sample.json"])
             )
@@ -890,7 +901,7 @@ class TestCliImportConnections:
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
         mock_parse_secret_file.return_value = expected_connections
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
                 self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
             )
@@ -928,29 +939,50 @@ class TestCliTestConnections:
     def setup_class(self):
         clear_db_connections()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_success(self, mock_test_conn):
         """Check that successful connection test result is displayed properly."""
         conn_id = "http_default"
         mock_test_conn.return_value = True, None
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
 
             assert "Connection success!" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_fail(self, mock_test_conn):
         """Check that failed connection test result is displayed properly."""
         conn_id = "http_default"
         mock_test_conn.return_value = False, "Failed."
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
 
             assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_missing_conn(self):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
-        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert "Connection not found.\n\n" in stdout.getvalue()
 
-            assert "Connection not found.\n\n" in stdout.getvalue()
+    def test_cli_connections_test_disabled_by_default(self):
+        """Check that test connection functionality is disabled by default."""
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert (
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.\n\n"
+        ) in stdout.getvalue()
+
+
+class TestCliCreateDefaultConnection:
+    @mock.patch("airflow.cli.commands.connection_command.db_create_default_connections")
+    def test_cli_create_default_connections(self, mock_db_create_default_connections):
+        create_default_connection_fnc = dict(
+            (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS
+        )["create-default-connections"]
+        create_default_connection_fnc(())
+        mock_db_create_default_connections.assert_called_once()

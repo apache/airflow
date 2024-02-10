@@ -31,7 +31,7 @@ TaskFlow takes care of moving inputs and outputs between your Tasks using XComs 
     def get_ip():
         return my_ip_service.get_main_ip()
 
-    @task
+    @task(multiple_outputs=True)
     def compose_email(external_ip):
         return {
             'subject':f'Server connected from {external_ip}',
@@ -66,9 +66,16 @@ If you want to learn more about using TaskFlow, you should consult :doc:`the Tas
 Context
 -------
 
-When running your callable, Airflow will pass a set of keyword arguments that can be used in your function. This set of kwargs correspond exactly to the :ref:`context variables<templates:variables>` you can use in your Jinja templates.
+You can access Airflow :ref:`context variables <templates:variables>` by adding them as keyword arguments as shown in the following example:
 
-For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the keyword arguments you would like to get such as ``ti=None`` to have the task instance passed.
+.. include:: ../../shared/template-examples/taskflow.rst
+
+Alternatively, you may add ``**kwargs`` to the signature of your task and all Airflow context variables will be accessible in the ``kwargs`` dict:
+
+.. include:: ../../shared/template-examples/taskflow-kwargs.rst
+
+For a full list of context variables, see :ref:`context variables <templates:variables>`.
+
 
 Logging
 -------

@@ -65,6 +65,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
     fi
 
+    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+        # When we install only provider packages from docker-context files, we need to still
+        # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
+        # pre-release dockerhub image of airflow is built, but we want to install some providers from
+        # docker-context files
+        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+    fi
     # Find Apache Airflow packages in docker-context files
     local reinstalling_apache_airflow_providers_packages
     reinstalling_apache_airflow_providers_packages=$(ls \
@@ -74,17 +81,42 @@ function install_airflow_and_providers_from_docker_context_files(){
         return
     fi
 
-    echo
-    echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
-    echo
-    # force reinstall all airflow + provider package local files with eager upgrade
-    set -x
-    pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
-        ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-        ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
-    set +x
+    if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
+        local python_version
+        python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        local local_constraints_file=/docker-context-files/constraints-"${python_version}"/${AIRFLOW_CONSTRAINTS_MODE}-"${python_version}".txt
 
+        if [[ -f "${local_constraints_file}" ]]; then
+            echo
+            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints found in ${local_constraints_file}${COLOR_RESET}"
+            echo
+            # force reinstall all airflow + provider packages with constraints found in
+            set -x
+            pip install "${pip_flags[@]}" --root-user-action ignore --upgrade \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
+                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            set +x
+        else
+            echo
+            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
+            echo
+            set -x
+            pip install "${pip_flags[@]}" --root-user-action ignore \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            set +x
+        fi
+    else
+        echo
+        echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
+        echo
+        set -x
+        pip install "${pip_flags[@]}" --root-user-action ignore \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+        set +x
+    fi
     common::install_pip_version
     pip check
 }

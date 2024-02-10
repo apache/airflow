@@ -69,7 +69,7 @@ class TemplateJobStartTrigger(BaseTrigger):
         self.cancel_timeout = cancel_timeout
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataflow.TemplateJobStartTrigger",
             {
@@ -85,6 +85,8 @@ class TemplateJobStartTrigger(BaseTrigger):
 
     async def run(self):
         """
+        Fetch job status or yield certain Events.
+
         Main loop of the class in where it is fetching the job status and yields certain Event.
 
         If the job has status success then it yields TriggerEvent with success status, if job has
@@ -92,8 +94,8 @@ class TemplateJobStartTrigger(BaseTrigger):
         amount of time stored in self.poll_sleep variable.
         """
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 status = await hook.get_job_status(
                     project_id=self.project_id,
                     job_id=self.job_id,
@@ -129,10 +131,9 @@ class TemplateJobStartTrigger(BaseTrigger):
                     self.log.info("Current job status is: %s", status)
                     self.log.info("Sleeping for %s seconds.", self.poll_sleep)
                     await asyncio.sleep(self.poll_sleep)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for job completion.")
-                yield TriggerEvent({"status": "error", "message": str(e)})
-                return
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for job completion.")
+            yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> AsyncDataflowHook:
         return AsyncDataflowHook(

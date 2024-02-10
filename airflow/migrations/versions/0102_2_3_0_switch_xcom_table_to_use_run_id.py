@@ -172,4 +172,8 @@ def downgrade():
         constraints = get_mssql_table_constraints(conn, "xcom")
         pk, _ = constraints["PRIMARY KEY"].popitem()
         op.drop_constraint(pk, "xcom", type_="primary")
-        op.create_primary_key("pk_xcom", "xcom", ["dag_id", "task_id", "execution_date", "key"])
+        op.create_primary_key(
+            constraint_name="pk_xcom",
+            table_name="xcom",
+            columns=["dag_id", "task_id", "execution_date", "key"],
+        )

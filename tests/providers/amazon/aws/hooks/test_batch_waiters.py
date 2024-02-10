@@ -19,16 +19,18 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import time
 from unittest import mock
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError, WaiterError
 from botocore.waiter import SingleWaiterConfig, WaiterModel
-from moto import mock_batch
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_waiters import BatchWaitersHook
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 INTERMEDIATE_STATES = ("SUBMITTED", "PENDING", "RUNNABLE", "STARTING")
 RUNNING_STATE = "RUNNING"
@@ -43,7 +45,7 @@ def aws_region():
     return AWS_REGION
 
 
-@mock_batch
+@mock_aws
 @pytest.fixture
 def patch_hook(monkeypatch, aws_region):
     """Patch hook object by dummy boto3 Batch client."""
@@ -128,7 +130,6 @@ class TestBatchWaiters:
         self.batch_waiters.add_jitter = mock_jitter
 
         with mock.patch.object(self.batch_waiters, "get_waiter") as get_waiter:
-
             self.batch_waiters.wait_for_job(self.job_id)
 
             assert get_waiter.call_args_list == [
@@ -144,6 +145,41 @@ class TestBatchWaiters:
             mock_config = mock_waiter.config
             assert mock_config.delay == 0
             assert mock_config.max_attempts == sys.maxsize
+
+    def test_wait_for_job_with_cloudwatch_logs(self):
+        # mock delay for speedy test
+        mock_jitter = mock.Mock(return_value=0)
+        self.batch_waiters.add_jitter = mock_jitter
+
+        batch_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
+        mock_get_batch_log_fetcher = mock.Mock(return_value=batch_log_fetcher)
+
+        thread_start = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_stop = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_join = mock.Mock(side_effect=lambda: time.sleep(2))
+
+        with mock.patch.object(self.batch_waiters, "get_waiter") as mock_get_waiter, mock.patch.object(
+            batch_log_fetcher, "start", thread_start
+        ) as mock_fetcher_start, mock.patch.object(
+            batch_log_fetcher, "stop", thread_stop
+        ) as mock_fetcher_stop, mock.patch.object(
+            batch_log_fetcher, "join", thread_join
+        ) as mock_fetcher_join:
+            # Run the wait_for_job method
+            self.batch_waiters.wait_for_job(self.job_id, get_batch_log_fetcher=mock_get_batch_log_fetcher)
+
+            # Assertions
+            assert mock_get_waiter.call_args_list == [
+                mock.call("JobExists"),
+                mock.call("JobRunning"),
+                mock.call("JobComplete"),
+            ]
+
+            mock_get_waiter.return_value.wait.assert_called_with(jobs=[self.job_id])
+            mock_get_batch_log_fetcher.assert_called_with(self.job_id)
+            mock_fetcher_start.assert_called_once()
+            mock_fetcher_stop.assert_called_once()
+            mock_fetcher_join.assert_called_once()
 
     def test_wait_for_job_raises_for_client_error(self):
         # mock delay for speedy test
@@ -205,7 +241,7 @@ class TestBatchJobWaiters:
 
         return {"jobs": [{"jobId": job_id, "status": status}]}
 
-    @pytest.mark.parametrize("status", ALL_STATES)
+    @pytest.mark.parametrize("status", sorted(ALL_STATES))
     def test_job_exists_waiter_exists(self, status: str):
         """Test `JobExists` when response return dictionary regardless state."""
         self.mock_describe_jobs.return_value = self.describe_jobs_response(
@@ -235,11 +271,9 @@ class TestBatchJobWaiters:
         self.mock_describe_jobs.side_effect = [
             # Emulate change job status before one of expected states.
             # SUBMITTED -> PENDING -> RUNNABLE -> STARTING
-            *itertools.chain(
-                *[
-                    itertools.repeat(self.describe_jobs_response(job_id=job_id, status=inter_status), 3)
-                    for inter_status in INTERMEDIATE_STATES
-                ]
+            *itertools.chain.from_iterable(
+                itertools.repeat(self.describe_jobs_response(job_id=job_id, status=inter_status), 3)
+                for inter_status in INTERMEDIATE_STATES
             ),
             # Expected status
             self.describe_jobs_response(job_id=job_id, status=status),

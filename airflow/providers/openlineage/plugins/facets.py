@@ -17,24 +17,23 @@
 from __future__ import annotations
 
 from attrs import define
-
 from openlineage.client.facet import BaseFacet
 from openlineage.client.utils import RedactMixin
 
 
 @define(slots=False)
 class AirflowMappedTaskRunFacet(BaseFacet):
-    """Run facet containing information about mapped tasks"""
+    """Run facet containing information about mapped tasks."""
 
     mapIndex: int
     operatorClass: str
 
-    _additional_skip_redact: list[str] = ["operatorClass"]
+    _additional_skip_redact = ["operatorClass"]
 
     @classmethod
     def from_task_instance(cls, task_instance):
         task = task_instance.task
-        from airflow.providers.openlineage.utils import get_operator_class
+        from airflow.providers.openlineage.utils.utils import get_operator_class
 
         return cls(
             mapIndex=task_instance.map_index,
@@ -55,20 +54,20 @@ class AirflowRunFacet(BaseFacet):
 
 @define(slots=False)
 class UnknownOperatorInstance(RedactMixin):
-    """
-    Describes an unknown operator - specifies the (class) name of the operator
-    and its properties
+    """Describes an unknown operator.
+
+    This specifies the (class) name of the operator and its properties.
     """
 
     name: str
     properties: dict[str, object]
     type: str = "operator"
 
-    _skip_redact: list[str] = ["name", "type"]
+    _skip_redact = ["name", "type"]
 
 
 @define(slots=False)
 class UnknownOperatorAttributeRunFacet(BaseFacet):
-    """RunFacet that describes unknown operators in an Airflow DAG"""
+    """RunFacet that describes unknown operators in an Airflow DAG."""
 
     unknownItems: list[UnknownOperatorInstance]

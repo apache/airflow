@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class GrpcOperator(BaseOperator):
     """
-    Calls a gRPC endpoint to execute an action
+    Calls a gRPC endpoint to execute an action.
 
     :param stub_class: The stub client to use for this gRPC call
     :param call_func: The client function name to call the gRPC endpoint
@@ -91,6 +91,6 @@ class GrpcOperator(BaseOperator):
 
     def _handle_response(self, response: Any, context: Context) -> None:
         if self.log_response:
-            self.log.info(repr(response))
+            self.log.info("%r", response)
         if self.response_callback:
             self.response_callback(response, context)

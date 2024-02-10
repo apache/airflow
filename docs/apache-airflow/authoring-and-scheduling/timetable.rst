@@ -114,6 +114,11 @@ DeltaDataIntervalTimetable
 Schedules data intervals with a time delta. Can be selected by providing a
 :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule`` parameter of a DAG.
 
+This timetable is more focused on the data interval value and does not necessarily align execution dates with
+arbitrary bounds such as start of day or of hour.
+
+.. seealso:: `Differences between the cron and delta data interval timetables`_
+
 .. code-block:: python
 
     @dag(schedule=datetime.timedelta(minutes=30))
@@ -129,6 +134,7 @@ A timetable that accepts a cron expression, creates data intervals according to 
 trigger points, and triggers a DAG run at the end of each data interval.
 
 .. seealso:: `Differences between the two cron timetables`_
+.. seealso:: `Differences between the cron and delta data interval timetables`_
 
 This can be selected by providing a string that is a valid cron expression to the ``schedule``
 parameter of a DAG as described in the :doc:`../core-concepts/dags` documentation.
@@ -171,10 +177,54 @@ first) event for the data interval, otherwise manual runs will run with a ``data
     def example_dag():
         pass
 
+.. _dataset-timetable-section:
+
+DatasetTimetable
+^^^^^^^^^^^^^^^^
+
+The ``DatasetTimetable`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
+
+This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
+
+Here's an example of a DAG using ``DatasetTimetable``:
+
+.. code-block:: python
+
+    from airflow.timetables.dataset import DatasetTimetable
+    from airflow.timetables.trigger import CronTriggerTimetable
+    from airflow.datasets import Dataset
+    from airflow.models import DAG
+    from airflow.operators.bash import BashOperator
+    import pendulum
+
+    with DAG(
+        dag_id="dataset_and_time_based_timetable",
+        catchup=False,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        schedule=DatasetTimetable(time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), event=[dag1_dataset]),
+        tags=["dataset-time-based-timetable"],
+    ) as dag7:
+        BashOperator(
+            outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
+            task_id="consuming_dataset_time_based",
+            bash_command="sleep 5",
+        )
+
+In this example, the DAG is scheduled to run every Wednesday at 01:00 UTC based on the ``CronTriggerTimetable``, and it is also triggered by updates to ``dag1_dataset``.
+
+Future Enhancements
+~~~~~~~~~~~~~~~~~~~
+Future iterations may introduce more complex combinations for scheduling (e.g., dataset1 OR dataset2 OR timetable), further enhancing the flexibility for scheduling DAGs in various scenarios.
+
+
+Timetables comparisons
+----------------------
+
+
 .. _Differences between the two cron timetables:
 
 Differences between the two cron timetables
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are two timetables `CronTriggerTimetable`_ and `CronDataIntervalTimetable`_ that accepts a cron expression.
 There are some differences between the two:
@@ -183,7 +233,7 @@ There are some differences between the two:
 expect cron to behave than that of `CronDataIntervalTimetable`_ (when ``catchup`` is ``False``).
 
 Whether taking care of *Data Interval*
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `CronTriggerTimetable`_ *does not* care the idea of *data interval*. It means the value of ``data_interval_start``,
 ``data_interval_end`` and legacy ``execution_date`` are the same - the time when a DAG run is triggered.
@@ -193,7 +243,7 @@ On the other hand, `CronDataIntervalTimetable`_ *does* care the idea of *data in
 and end of the interval respectively.
 
 The time when a DAG run is triggered
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There is no difference between the two when ``catchup`` is ``True``. :ref:`dag-catchup` tells you how DAG runs are
 triggered when ``catchup`` is ``True``.
@@ -217,3 +267,72 @@ is immediately triggered after you re-enable the DAG.
 
 By these examples, you see how `CronTriggerTimetable`_ triggers DAG runs is more intuitive and more similar to what
 people expect cron to behave than how `CronDataIntervalTimetable`_ does.
+
+
+.. _Differences between the cron and delta data interval timetables:
+
+Differences between the cron and delta data interval timetables:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Choosing between `DeltaDataIntervalTimetable`_ and `CronDataIntervalTimetable`_ depends on your use case.
+If you enable a DAG at 01:05 on February 1st, the following table summarizes the DAG runs created (and the
+data interval that they cover), depending on 3 arguments: ``schedule``, ``start_date`` and ``catchup``.
+
+.. list-table::
+   :header-rows: 1
+
+   * - ``schedule``
+     - ``start_date``
+     - ``catchup``
+     - Intervals covered
+     - Remarks
+
+   * - ``*/30 * * * *``
+     - ``year-02-01``
+     - ``True``
+     - * 00:00 - 00:30
+       * 00:30 - 01:00
+     - Same behavior than using the timedelta object.
+
+   * - ``*/30 * * * *``
+     - ``year-02-01``
+     - ``False``
+     - * 00:30 - 01:00
+     -
+
+   * - ``*/30 * * * *``
+     - ``year-02-01 00:10``
+     - ``True``
+     - * 00:30 - 01:00
+     - Interval 00:00 - 00:30 is not after the start date, and so is skipped.
+
+   * - ``*/30 * * * *``
+     - ``year-02-01 00:10``
+     - ``False``
+     - * 00:30 - 01:00
+     - Whatever the start date, the data intervals are aligned with hour/day/etc. boundaries.
+
+   * - ``datetime.timedelta(minutes=30)``
+     - ``year-02-01``
+     - ``True``
+     - * 00:00 - 00:30
+       * 00:30 - 01:00
+     - Same behavior than using the cron expression.
+
+   * - ``datetime.timedelta(minutes=30)``
+     - ``year-02-01``
+     - ``False``
+     - * 00:35 - 01:05
+     - Interval is not aligned with start date but with the current time.
+
+   * - ``datetime.timedelta(minutes=30)``
+     - ``year-02-01 00:10``
+     - ``True``
+     - * 00:10 - 00:40
+     - Interval is aligned with start date. Next one will be triggered in 5 minutes covering 00:40 - 01:10.
+
+   * - ``datetime.timedelta(minutes=30)``
+     - ``year-02-01 00:10``
+     - ``False``
+     - * 00:35 - 01:05
+     - Interval is aligned with current time. Next run will be triggered in 30 minutes.

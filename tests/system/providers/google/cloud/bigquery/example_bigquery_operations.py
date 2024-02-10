@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateExternalTableOperator,
@@ -43,7 +43,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = "bigquery/us-states/us-states.csv"
 CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "us-states.csv")
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

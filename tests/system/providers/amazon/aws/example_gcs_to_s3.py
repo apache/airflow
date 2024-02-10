@@ -18,14 +18,26 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.operators.s3 import (
+    S3CreateBucketOperator,
+    S3DeleteBucketOperator,
+)
 from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-sys_test_context_task = SystemTestContextBuilder().build()
+# Externally fetched variables:
+GCP_PROJECT_ID = "GCP_PROJECT_ID"
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(GCP_PROJECT_ID).build()
 
 DAG_ID = "example_gcs_to_s3"
 
@@ -38,18 +50,40 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
+    gcp_user_project = test_context[GCP_PROJECT_ID]
 
     s3_bucket = f"{env_id}-gcs-to-s3-bucket"
     s3_key = f"{env_id}-gcs-to-s3-key"
 
     create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
 
+    gcs_bucket = f"{env_id}-gcs-to-s3-bucket"
+    gcs_key = f"{env_id}-gcs-to-s3-key"
+
+    create_gcs_bucket = GCSCreateBucketOperator(
+        task_id="create_gcs_bucket",
+        bucket_name=gcs_bucket,
+        resource={"billing": {"requesterPays": True}},
+        project_id=gcp_user_project,
+    )
+
+    @task
+    def upload_gcs_file(bucket_name: str, object_name: str, user_project: str):
+        hook = GCSHook()
+        with hook.provide_file_and_upload(
+            bucket_name=bucket_name,
+            object_name=object_name,
+            user_project=user_project,
+        ) as temp_file:
+            temp_file.write(b"test")
+
     # [START howto_transfer_gcs_to_s3]
     gcs_to_s3 = GCSToS3Operator(
         task_id="gcs_to_s3",
-        bucket=s3_bucket,
-        dest_s3_key=s3_key,
+        gcs_bucket=gcs_bucket,
+        dest_s3_key=f"s3://{s3_bucket}/{s3_key}",
         replace=True,
+        gcp_user_project=gcp_user_project,
     )
     # [END howto_transfer_gcs_to_s3]
 
@@ -60,14 +94,24 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_gcs_bucket = GCSDeleteBucketOperator(
+        task_id="delete_gcs_bucket",
+        bucket_name=gcs_bucket,
+        trigger_rule=TriggerRule.ALL_DONE,
+        user_project=gcp_user_project,
+    )
+
     chain(
         # TEST SETUP
         test_context,
+        create_gcs_bucket,
+        upload_gcs_file(gcs_bucket, gcs_key, gcp_user_project),
         create_s3_bucket,
         # TEST BODY
         gcs_to_s3,
         # TEST TEARDOWN
         delete_s3_bucket,
+        delete_gcs_bucket,
     )
 
     from tests.system.utils.watcher import watcher

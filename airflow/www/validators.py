@@ -22,6 +22,9 @@ from json import JSONDecodeError
 
 from wtforms.validators import EqualTo, ValidationError
 
+from airflow.models.connection import CONN_ID_MAX_LEN, sanitize_conn_id
+from airflow.utils import helpers
+
 
 class GreaterEqualThan(EqualTo):
     """Compares the values of two fields.
@@ -76,3 +79,58 @@ class ValidJson:
             except JSONDecodeError as ex:
                 message = self.message or f"JSON Validation Error: {ex}"
                 raise ValidationError(message=field.gettext(message.format(field.data)))
+
+
+class ValidKey:
+    """
+    Validates values that will be used as keys.
+
+    :param max_length:
+        The maximum allowed length of the given key
+    """
+
+    def __init__(self, max_length=200):
+        self.max_length = max_length
+
+    def __call__(self, form, field):
+        if field.data:
+            try:
+                helpers.validate_key(field.data, self.max_length)
+            except Exception as e:
+                raise ValidationError(str(e))
+
+
+class ReadOnly:
+    """Adds readonly flag to a field.
+
+    When using this you normally will need to override the form's populate_obj method,
+    so field.populate_obj is not called for read-only fields.
+    """
+
+    def __call__(self, form, field):
+        field.flags.readonly = True
+
+
+class ValidConnID:
+    """
+    Validates the connection ID adheres to the desired format.
+
+    :param max_length:
+        The maximum allowed length of the given Connection ID.
+    """
+
+    message = (
+        "Connection ID must be alphanumeric characters plus dashes, dots, hashes, colons, semicolons, "
+        "underscores, exclamation marks, and parentheses"
+    )
+
+    def __init__(
+        self,
+        max_length: int = CONN_ID_MAX_LEN,
+    ):
+        self.max_length = max_length
+
+    def __call__(self, form, field):
+        if field.data:
+            if sanitize_conn_id(field.data, self.max_length) is None:
+                raise ValidationError(f"{self.message} for 1 and up to {self.max_length} matches")

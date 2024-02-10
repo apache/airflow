@@ -1,0 +1,552 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v10.json",
+    "dbt_version": "1.6.1",
+    "adapter_type": "snowflake"
+  },
+  "nodes": {
+    "model.test_project.my_second_dbt_model": {
+      "compiled": true,
+      "resource_type": "model",
+      "depends_on": {
+        "macros": [],
+        "nodes": [
+          "model.test_project.my_first_dbt_model"
+        ]
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "view",
+        "incremental_strategy": null,
+        "persist_docs": {},
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "post-hook": [],
+        "pre-hook": []
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA",
+      "fqn": [
+        "test_project",
+        "example",
+        "my_second_dbt_model"
+      ],
+      "unique_id": "model.test_project.my_second_dbt_model",
+      "raw_code": "-- Use the `ref` function to select from other models\n\nselect *\nfrom {{ ref('my_first_dbt_model') }}\nwhere id = 1",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "example/my_second_dbt_model.sql",
+      "original_file_path": "models/example/my_second_dbt_model.sql",
+      "name": "my_second_dbt_model",
+      "alias": "my_second_dbt_model",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "b3aa346f283f3c9c9a75936f3b80d2572ca9ab39aee4c02b30553d3fe2ba5692"
+      },
+      "tags": [],
+      "refs": [
+        [
+          "my_first_dbt_model"
+        ]
+      ],
+      "sources": [],
+      "metrics": [],
+      "description": "A starter dbt model",
+      "columns": {
+        "id": {
+          "name": "id",
+          "description": "The primary key for this table",
+          "meta": {},
+          "data_type": "NUMBER",
+          "quote": null,
+          "tags": []
+        }
+      },
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "test_project://models/example/schema.yml",
+      "compiled_path": "target/compiled/test_project/models/example/my_second_dbt_model.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {
+        "materialized": "view"
+      },
+      "created_at": 1668111830.9512105,
+      "compiled_code": "-- Use the `ref` function to select from other models\n\nselect *\nfrom SANDBOX.TEST_SCHEMA.my_first_dbt_model\nwhere id = 1",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": "SANDBOX.TEST_SCHEMA.my_second_dbt_model"
+    },
+    "model.test_project.my_first_dbt_model": {
+      "compiled": true,
+      "resource_type": "model",
+      "depends_on": {
+        "macros": [],
+        "nodes": []
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": null,
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "table",
+        "incremental_strategy": null,
+        "persist_docs": {},
+        "quoting": {},
+        "column_types": {},
+        "full_refresh": null,
+        "unique_key": null,
+        "on_schema_change": "ignore",
+        "grants": {},
+        "packages": [],
+        "docs": {
+          "show": true,
+          "node_color": null
+        },
+        "post-hook": [],
+        "pre-hook": []
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA",
+      "fqn": [
+        "test_project",
+        "example",
+        "my_first_dbt_model"
+      ],
+      "unique_id": "model.test_project.my_first_dbt_model",
+      "raw_code": "/*\n    Welcome to your first dbt model!\n    Did you know that you can also configure models directly within SQL files?\n    This will override configurations stated in dbt_project.yml\n\n    Try changing \"table\" to \"view\" below\n*/\n\n{{ config(materialized='table') }}\n\nwith source_data as (\n\n    select 1 as id\n    union all\n    select null as id\n\n)\n\nselect *\nfrom source_data\n\n/*\n    Uncomment the line below to remove records with null `id` values\n*/\n\n-- where id is not null",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "example/my_first_dbt_model.sql",
+      "original_file_path": "models/example/my_first_dbt_model.sql",
+      "name": "my_first_dbt_model",
+      "alias": "my_first_dbt_model",
+      "checksum": {
+        "name": "sha256",
+        "checksum": "842251f5ed1d97920d3748d9686b8c05a3a0071ec7990f948f36796491788aed"
+      },
+      "tags": [],
+      "refs": [],
+      "sources": [],
+      "metrics": [],
+      "description": "A starter dbt model",
+      "columns": {
+        "id": {
+          "name": "id",
+          "description": "The primary key for this table",
+          "meta": {},
+          "data_type": "NUMBER",
+          "quote": null,
+          "tags": []
+        }
+      },
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": "test_project://models/example/schema.yml",
+      "compiled_path": "target/compiled/test_project/models/example/my_first_dbt_model.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {
+        "materialized": "table"
+      },
+      "created_at": 1668111830.949891,
+      "compiled_code": "/*\n    Welcome to your first dbt model!\n    Did you know that you can also configure models directly within SQL files?\n    This will override configurations stated in dbt_project.yml\n\n    Try changing \"table\" to \"view\" below\n*/\n\n\n\nwith source_data as (\n\n    select 1 as id\n    union all\n    select null as id\n\n)\n\nselect *\nfrom source_data\n\n/*\n    Uncomment the line below to remove records with null `id` values\n*/\n\n-- where id is not null",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": "SANDBOX.TEST_SCHEMA.my_first_dbt_model"
+    },
+    "test.test_project.unique_my_first_dbt_model_id.16e066b321": {
+      "test_metadata": {
+        "name": "unique",
+        "kwargs": {
+          "column_name": "id",
+          "model": "{{ get_where_subquery(ref('my_first_dbt_model')) }}"
+        },
+        "namespace": null
+      },
+      "compiled": true,
+      "resource_type": "test",
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_unique",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.test_project.my_first_dbt_model"
+        ]
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA_dbt_test__audit",
+      "fqn": [
+        "test_project",
+        "example",
+        "unique_my_first_dbt_model_id"
+      ],
+      "unique_id": "test.test_project.unique_my_first_dbt_model_id.16e066b321",
+      "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "unique_my_first_dbt_model_id.sql",
+      "original_file_path": "models/example/schema.yml",
+      "name": "unique_my_first_dbt_model_id",
+      "alias": "unique_my_first_dbt_model_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "tags": [],
+      "refs": [
+        [
+          "my_first_dbt_model"
+        ]
+      ],
+      "sources": [],
+      "metrics": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "compiled_path": "target/compiled/test_project/models/example/schema.yml/unique_my_first_dbt_model_id.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {},
+      "created_at": 1668111830.9600286,
+      "compiled_code": "\n    \n    \n\nselect\n    id as unique_field,\n    count(*) as n_records\n\nfrom SANDBOX.TEST_SCHEMA.my_first_dbt_model\nwhere id is not null\ngroup by id\nhaving count(*) > 1\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": null,
+      "column_name": "id",
+      "file_key_name": "models.my_first_dbt_model"
+    },
+    "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710": {
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "id",
+          "model": "{{ get_where_subquery(ref('my_first_dbt_model')) }}"
+        },
+        "namespace": null
+      },
+      "compiled": true,
+      "resource_type": "test",
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.test_project.my_first_dbt_model"
+        ]
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA_dbt_test__audit",
+      "fqn": [
+        "test_project",
+        "example",
+        "not_null_my_first_dbt_model_id"
+      ],
+      "unique_id": "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710",
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "not_null_my_first_dbt_model_id.sql",
+      "original_file_path": "models/example/schema.yml",
+      "name": "not_null_my_first_dbt_model_id",
+      "alias": "not_null_my_first_dbt_model_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "tags": [],
+      "refs": [
+        [
+          "my_first_dbt_model"
+        ]
+      ],
+      "sources": [],
+      "metrics": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "compiled_path": "target/compiled/test_project/models/example/schema.yml/not_null_my_first_dbt_model_id.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {},
+      "created_at": 1668111830.9622147,
+      "compiled_code": "\n    \n    \n\n\n\nselect id\nfrom SANDBOX.TEST_SCHEMA.my_first_dbt_model\nwhere id is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": null,
+      "column_name": "id",
+      "file_key_name": "models.my_first_dbt_model"
+    },
+    "test.test_project.unique_my_second_dbt_model_id.57a0f8c493": {
+      "test_metadata": {
+        "name": "unique",
+        "kwargs": {
+          "column_name": "id",
+          "model": "{{ get_where_subquery(ref('my_second_dbt_model')) }}"
+        },
+        "namespace": null
+      },
+      "compiled": true,
+      "resource_type": "test",
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_unique",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.test_project.my_second_dbt_model"
+        ]
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA_dbt_test__audit",
+      "fqn": [
+        "test_project",
+        "example",
+        "unique_my_second_dbt_model_id"
+      ],
+      "unique_id": "test.test_project.unique_my_second_dbt_model_id.57a0f8c493",
+      "raw_code": "{{ test_unique(**_dbt_generic_test_kwargs) }}",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "unique_my_second_dbt_model_id.sql",
+      "original_file_path": "models/example/schema.yml",
+      "name": "unique_my_second_dbt_model_id",
+      "alias": "unique_my_second_dbt_model_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "tags": [],
+      "refs": [
+        [
+          "my_second_dbt_model"
+        ]
+      ],
+      "sources": [],
+      "metrics": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "compiled_path": "target/compiled/test_project/models/example/schema.yml/unique_my_second_dbt_model_id.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {},
+      "created_at": 1668111830.9642546,
+      "compiled_code": "\n    \n    \n\nselect\n    id as unique_field,\n    count(*) as n_records\n\nfrom SANDBOX.TEST_SCHEMA.my_second_dbt_model\nwhere id is not null\ngroup by id\nhaving count(*) > 1\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": null,
+      "column_name": "id",
+      "file_key_name": "models.my_second_dbt_model"
+    },
+    "test.test_project.not_null_my_second_dbt_model_id.151b76d778": {
+      "test_metadata": {
+        "name": "not_null",
+        "kwargs": {
+          "column_name": "id",
+          "model": "{{ get_where_subquery(ref('my_second_dbt_model')) }}"
+        },
+        "namespace": null
+      },
+      "compiled": true,
+      "resource_type": "test",
+      "depends_on": {
+        "macros": [
+          "macro.dbt.test_not_null",
+          "macro.dbt.get_where_subquery"
+        ],
+        "nodes": [
+          "model.test_project.my_second_dbt_model"
+        ]
+      },
+      "config": {
+        "enabled": true,
+        "alias": null,
+        "schema": "dbt_test__audit",
+        "database": null,
+        "tags": [],
+        "meta": {},
+        "materialized": "test",
+        "severity": "ERROR",
+        "store_failures": null,
+        "where": null,
+        "limit": null,
+        "fail_calc": "count(*)",
+        "warn_if": "!= 0",
+        "error_if": "!= 0"
+      },
+      "database": "SANDBOX",
+      "schema": "TEST_SCHEMA_dbt_test__audit",
+      "fqn": [
+        "test_project",
+        "example",
+        "not_null_my_second_dbt_model_id"
+      ],
+      "unique_id": "test.test_project.not_null_my_second_dbt_model_id.151b76d778",
+      "raw_code": "{{ test_not_null(**_dbt_generic_test_kwargs) }}",
+      "language": "sql",
+      "package_name": "test_project",
+      "path": "not_null_my_second_dbt_model_id.sql",
+      "original_file_path": "models/example/schema.yml",
+      "name": "not_null_my_second_dbt_model_id",
+      "alias": "not_null_my_second_dbt_model_id",
+      "checksum": {
+        "name": "none",
+        "checksum": ""
+      },
+      "tags": [],
+      "refs": [
+        [
+          "my_second_dbt_model"
+        ]
+      ],
+      "sources": [],
+      "metrics": [],
+      "description": "",
+      "columns": {},
+      "meta": {},
+      "docs": {
+        "show": true,
+        "node_color": null
+      },
+      "patch_path": null,
+      "compiled_path": "target/compiled/test_project/models/example/schema.yml/not_null_my_second_dbt_model_id.sql",
+      "build_path": null,
+      "deferred": false,
+      "unrendered_config": {},
+      "created_at": 1668111830.9663358,
+      "compiled_code": "\n    \n    \n\n\n\nselect id\nfrom SANDBOX.TEST_SCHEMA.my_second_dbt_model\nwhere id is null\n\n\n",
+      "extra_ctes_injected": true,
+      "extra_ctes": [],
+      "relation_name": null,
+      "column_name": "id",
+      "file_key_name": "models.my_second_dbt_model"
+    }
+  },
+  "sources": {},
+  "macros": {},
+  "exposures": {},
+  "metrics": {},
+  "selectors": {},
+  "disabled": {},
+  "parent_map": {
+    "model.test_project.my_second_dbt_model": [
+      "model.test_project.my_first_dbt_model"
+    ],
+    "model.test_project.my_first_dbt_model": [],
+    "test.test_project.unique_my_first_dbt_model_id.16e066b321": [
+      "model.test_project.my_first_dbt_model"
+    ],
+    "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710": [
+      "model.test_project.my_first_dbt_model"
+    ],
+    "test.test_project.unique_my_second_dbt_model_id.57a0f8c493": [
+      "model.test_project.my_second_dbt_model"
+    ],
+    "test.test_project.not_null_my_second_dbt_model_id.151b76d778": [
+      "model.test_project.my_second_dbt_model"
+    ]
+  },
+  "child_map": {
+    "model.test_project.my_second_dbt_model": [
+      "test.test_project.not_null_my_second_dbt_model_id.151b76d778",
+      "test.test_project.unique_my_second_dbt_model_id.57a0f8c493"
+    ],
+    "model.test_project.my_first_dbt_model": [
+      "model.test_project.my_second_dbt_model",
+      "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710",
+      "test.test_project.unique_my_first_dbt_model_id.16e066b321"
+    ],
+    "test.test_project.unique_my_first_dbt_model_id.16e066b321": [],
+    "test.test_project.not_null_my_first_dbt_model_id.5fb22c2710": [],
+    "test.test_project.unique_my_second_dbt_model_id.57a0f8c493": [],
+    "test.test_project.not_null_my_second_dbt_model_id.151b76d778": []
+  }
+}

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import time
+from enum import Enum
 from typing import Any, Iterable
 
 import requests
@@ -28,9 +29,20 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
+class IngestionType(Enum):
+    """
+    Druid Ingestion Type. Could be Native batch ingestion or SQL-based ingestion.
+
+    https://druid.apache.org/docs/latest/ingestion/index.html
+    """
+
+    BATCH = 1
+    MSQ = 2
+
+
 class DruidHook(BaseHook):
     """
-    Connection to Druid overlord for ingestion
+    Connection to Druid overlord for ingestion.
 
     To connect to a Druid cluster that is secured with the druid-basic-security
     extension, add the username and password to the druid ingestion connection.
@@ -49,7 +61,6 @@ class DruidHook(BaseHook):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
-
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
@@ -59,13 +70,16 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
-    def get_conn_url(self) -> str:
-        """Get Druid connection url"""
+    def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
+        """Get Druid connection url."""
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
         conn_type = conn.conn_type or "http"
-        endpoint = conn.extra_dejson.get("endpoint", "")
+        if ingestion_type == IngestionType.BATCH:
+            endpoint = conn.extra_dejson.get("endpoint", "")
+        else:
+            endpoint = conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
@@ -82,28 +96,35 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec: dict[str, Any] | str) -> None:
-        """Submit Druid ingestion job"""
-        url = self.get_conn_url()
+    def submit_indexing_job(
+        self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
+    ) -> None:
+        """Submit Druid ingestion job."""
+        url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
 
         code = req_index.status_code
-        if code != 200:
+        not_accepted = not (200 <= code < 300)
+        if not_accepted:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
+            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed
-        druid_task_id = req_json["task"]
+        if ingestion_type == IngestionType.BATCH:
+            druid_task_id = req_json["task"]
+        else:
+            druid_task_id = req_json["taskId"]
+        druid_task_status_url = f"{self.get_conn_url()}/{druid_task_id}/status"
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
 
         sec = 0
         while running:
-            req_status = requests.get(f"{url}/{druid_task_id}/status", auth=self.get_auth())
+            req_status = requests.get(druid_task_status_url, auth=self.get_auth())
 
             self.log.info("Job still running for %s seconds...", sec)
 
@@ -131,10 +152,14 @@ class DruidHook(BaseHook):
 
 class DruidDbApiHook(DbApiHook):
     """
-    Interact with Druid broker
+    Interact with Druid broker.
 
     This hook is purely for users to query druid broker.
     For ingestion, please use druidHook.
+
+    :param context: Optional query context parameters to pass to the SQL endpoint.
+        Example: ``{"sqlFinalizeOuterSketches": True}``
+        See: https://druid.apache.org/docs/latest/querying/sql-query-context/
     """
 
     conn_name_attr = "druid_broker_conn_id"
@@ -142,6 +167,10 @@ class DruidDbApiHook(DbApiHook):
     conn_type = "druid"
     hook_name = "Druid"
     supports_autocommit = False
+
+    def __init__(self, context: dict | None = None, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.context = context or {}
 
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
@@ -153,6 +182,7 @@ class DruidDbApiHook(DbApiHook):
             scheme=conn.extra_dejson.get("schema", "http"),
             user=conn.login,
             password=conn.password,
+            context=self.context,
         )
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn
@@ -171,7 +201,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
         return f"{conn_type}://{host}/{endpoint}"
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> None:
         raise NotImplementedError()
 
     def insert_rows(
@@ -182,5 +212,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplementedError:
+    ) -> None:
         raise NotImplementedError()

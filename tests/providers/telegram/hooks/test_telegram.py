@@ -27,12 +27,15 @@ from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 TELEGRAM_TOKEN = "dummy token"
 
 
 class AsyncMock(mock.MagicMock):
     async def __call__(self, *args, **kwargs):
-        return super(AsyncMock, self).__call__(*args, **kwargs)
+        return super().__call__(*args, **kwargs)
 
 
 class TestTelegramHook:

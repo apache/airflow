@@ -28,7 +28,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, Integer, String, inspect
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from airflow.utils.types import DagRunType
 
@@ -61,7 +61,6 @@ def upgrade():
     dag_run_columns = [col.get("name") for col in inspector.get_columns("dag_run")]
 
     if "run_type" not in dag_run_columns:
-
         # Add nullable column
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.add_column(sa.Column("run_type", run_type_col_type, nullable=True))

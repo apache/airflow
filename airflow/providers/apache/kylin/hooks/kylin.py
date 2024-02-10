@@ -32,9 +32,14 @@ class KylinHook(BaseHook):
     :param dsn: dsn
     """
 
+    conn_name_attr = "kylin_conn_id"
+    default_conn_name = "kylin_default"
+    conn_type = "kylin"
+    hook_name = "Apache Kylin"
+
     def __init__(
         self,
-        kylin_conn_id: str = "kylin_default",
+        kylin_conn_id: str = default_conn_name,
         project: str | None = None,
         dsn: str | None = None,
     ):
@@ -59,7 +64,7 @@ class KylinHook(BaseHook):
 
     def cube_run(self, datasource_name, op, **op_args):
         """
-        Run CubeSource command which in CubeSource.support_invoke_command
+        Run CubeSource command which in CubeSource.support_invoke_command.
 
         :param datasource_name:
         :param op: command
@@ -74,7 +79,7 @@ class KylinHook(BaseHook):
 
     def get_job_status(self, job_id):
         """
-        Get job status
+        Get job status.
 
         :param job_id: kylin job id
         :return: job status

@@ -28,11 +28,10 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class SequentialExecutor(BaseExecutor):
@@ -75,10 +74,10 @@ class SequentialExecutor(BaseExecutor):
 
             try:
                 subprocess.check_call(command, close_fds=True)
-                self.change_state(key, State.SUCCESS)
+                self.success(key)
             except subprocess.CalledProcessError as e:
-                self.change_state(key, State.FAILED)
-                self.log.error("Failed to execute task %s.", str(e))
+                self.fail(key)
+                self.log.error("Failed to execute task %s.", e)
 
         self.commands_to_run = []
 

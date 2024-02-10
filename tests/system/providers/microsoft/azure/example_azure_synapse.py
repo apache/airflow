@@ -63,7 +63,9 @@ with DAG(
 ) as dag:
     # [START howto_operator_azure_synapse]
     run_spark_job = AzureSynapseRunSparkBatchOperator(
-        task_id="run_spark_job", spark_pool="provsparkpool", payload=SPARK_JOB_PAYLOAD  # type: ignore
+        task_id="run_spark_job",
+        spark_pool="provsparkpool",
+        payload=SPARK_JOB_PAYLOAD,  # type: ignore
     )
     # [END howto_operator_azure_synapse]
 

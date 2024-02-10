@@ -28,17 +28,16 @@ if TYPE_CHECKING:
 
 class SparkJDBCOperator(SparkSubmitOperator):
     """
-    This operator extends the SparkSubmitOperator specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark. As with the
-    SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the
-    PATH.
+    Extend the SparkSubmitOperator to perform data transfers to/from JDBC-based databases with Apache Spark.
+
+     As with the SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SparkJDBCOperator`
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
+    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark-submit>`
         as configured in Airflow administration
     :param spark_conf: Any additional Spark configuration properties
     :param spark_py_files: Additional python files used (.zip, .egg, or .py)
@@ -92,6 +91,9 @@ class SparkJDBCOperator(SparkSubmitOperator):
                                       (e.g: "name CHAR(64), comments VARCHAR(1024)").
                                       The specified types should be valid spark sql data
                                       types.
+    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+                           on keytab for Kerberos login
+
     """
 
     def __init__(
@@ -125,6 +127,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         lower_bound: str | None = None,
         upper_bound: str | None = None,
         create_table_column_types: str | None = None,
+        use_krb5ccache: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -157,9 +160,10 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
         self._hook: SparkJDBCHook | None = None
+        self._use_krb5ccache = use_krb5ccache
 
     def execute(self, context: Context) -> None:
-        """Call the SparkSubmitHook to run the provided spark job"""
+        """Call the SparkSubmitHook to run the provided spark job."""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit_jdbc_job()
@@ -199,4 +203,5 @@ class SparkJDBCOperator(SparkSubmitOperator):
             lower_bound=self._lower_bound,
             upper_bound=self._upper_bound,
             create_table_column_types=self._create_table_column_types,
+            use_krb5ccache=self._use_krb5ccache,
         )

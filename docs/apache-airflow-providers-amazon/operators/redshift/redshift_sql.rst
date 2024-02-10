@@ -35,9 +35,9 @@ Operators
 Execute a SQL query
 ===================
 
-The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against an Amazon Redshift cluster using a Postgres connection.
+The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against an Amazon Redshift cluster using a :ref:`howto/connection:redshift`.
 
-To execute a SQL query against an Amazon Redshift cluster without using a Postgres connection,
+To execute a SQL query against an Amazon Redshift cluster without using a Redshift connection,
 please check ``RedshiftDataOperator``.
 
 .. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_execute_query.py

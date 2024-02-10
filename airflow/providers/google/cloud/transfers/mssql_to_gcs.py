@@ -27,8 +27,8 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 
 class MSSQLToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from Microsoft SQL Server to Google Cloud Storage
-    in JSON, CSV or Parquet format.
+    """
+    Copy data from Microsoft SQL Server to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param bit_fields: Sequence of fields names of MSSQL "BIT" data type,
         to be interpreted in the schema as "BOOLEAN". "BIT" fields that won't
@@ -41,16 +41,16 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         within the given MSSQL Database and then upload it to the
         'mssql-export' GCS bucket (along with a schema file). ::
 
-            export_customers = MsSqlToGoogleCloudStorageOperator(
-                task_id='export_customers',
-                sql='SELECT * FROM dbo.Customers;',
-                bit_fields=['some_bit_field', 'another_bit_field'],
-                bucket='mssql-export',
-                filename='data/customers/export.json',
-                schema_filename='schemas/export.json',
-                mssql_conn_id='mssql_default',
-                gcp_conn_id='google_cloud_default',
-                dag=dag
+            export_customers = MSSQLToGCSOperator(
+                task_id="export_customers",
+                sql="SELECT * FROM dbo.Customers;",
+                bit_fields=["some_bit_field", "another_bit_field"],
+                bucket="mssql-export",
+                filename="data/customers/export.json",
+                schema_filename="schemas/export.json",
+                mssql_conn_id="mssql_default",
+                gcp_conn_id="google_cloud_default",
+                dag=dag,
             )
 
     .. seealso::
@@ -72,11 +72,11 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     ):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
-        self.bit_fields = bit_fields if bit_fields else []
+        self.bit_fields = bit_fields or []
 
     def query(self):
         """
-        Queries MSSQL and returns a cursor of results.
+        Query MSSQL and returns a cursor of results.
 
         :return: mssql cursor
         """
@@ -99,8 +99,8 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     @classmethod
     def convert_type(cls, value, schema_type, **kwargs):
         """
-        Takes a value from MSSQL, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery.
+        Take a value from MSSQL and convert it to a value safe for JSON/Google Cloud Storage/BigQuery.
+
         Datetime, Date and Time are converted to ISO formatted strings.
         """
         if isinstance(value, decimal.Decimal):

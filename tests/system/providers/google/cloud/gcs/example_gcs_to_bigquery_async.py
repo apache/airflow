@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryDeleteDatasetOperator,
@@ -46,7 +46,7 @@ TABLE_NAME_DELIMITER = "test_delimiter"
 MAX_ID_STR = "name"
 MAX_ID_DATE = "date"
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -80,7 +80,7 @@ with models.DAG(
         write_disposition="WRITE_TRUNCATE",
         external_table=False,
         autodetect=True,
-        max_id_key=MAX_ID_STR,
+        max_id_key="string_field_0",
         deferrable=True,
     )
 

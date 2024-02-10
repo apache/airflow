@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dag import DAG
 
 with DAG(
     dag_id="test_dags_folder",

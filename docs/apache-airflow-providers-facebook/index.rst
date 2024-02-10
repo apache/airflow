@@ -19,16 +19,25 @@
 ``apache-airflow-providers-facebook``
 =====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/facebook/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -39,6 +48,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -48,10 +58,10 @@ Content
 Package apache-airflow-providers-facebook
 ------------------------------------------------------
 
-`Facebook Ads <http://business.facebook.com/>`__
+`Facebook Ads <https://www.facebook.com/about/ads>`__
 
 
-Release: 3.1.0
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -69,11 +79,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+
 =====================  ==================
 PIP package            Version required
 =====================  ==================
-``apache-airflow``     ``>=2.3.0``
+``apache-airflow``     ``>=2.6.0``
 ``facebook-business``  ``>=6.0.2``
 =====================  ==================
-
-.. include:: ../../airflow/providers/facebook/CHANGELOG.rst

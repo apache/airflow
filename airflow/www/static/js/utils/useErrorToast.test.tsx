@@ -19,7 +19,7 @@
 
 /* global describe, test, expect */
 
-import type { AxiosError } from "axios";
+import type { AxiosError, AxiosResponse } from "axios";
 import { getErrorDescription } from "./useErrorToast";
 
 describe("Test getErrorDescription()", () => {
@@ -36,7 +36,7 @@ describe("Test getErrorDescription()", () => {
       statusText: "BadRequest",
       headers: {},
       config: {},
-    };
+    } as AxiosResponse;
     axiosError.isAxiosError = true;
 
     // if response.data is defined

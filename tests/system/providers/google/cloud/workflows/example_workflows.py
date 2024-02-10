@@ -22,7 +22,7 @@ from typing import cast
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsCancelExecutionOperator,
@@ -38,31 +38,29 @@ from airflow.providers.google.cloud.operators.workflows import (
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "cloud_workflows"
+DAG_ID = "example_cloud_workflows"
 
 LOCATION = "us-central1"
-WORKFLOW_ID = f"workflow-{DAG_ID}-{ENV_ID}"
+WORKFLOW_ID = f"workflow-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 # [START how_to_define_workflow]
 WORKFLOW_CONTENT = """
-- getCurrentTime:
-    call: http.get
-    args:
-        url: https://us-central1-workflowsample.cloudfunctions.net/datetime
-    result: currentTime
+- getLanguage:
+    assign:
+        - inputLanguage: "English"
 - readWikipedia:
     call: http.get
     args:
-        url: https://en.wikipedia.org/w/api.php
+        url: https://www.wikipedia.org/
         query:
             action: opensearch
-            search: ${currentTime.body.dayOfTheWeek}
+            search: ${inputLanguage}
     result: wikiResult
 - returnResult:
-    return: ${wikiResult.body[1]}
+    return: ${wikiResult}
 """
 
 WORKFLOW = {
@@ -74,7 +72,7 @@ WORKFLOW = {
 
 EXECUTION = {"argument": ""}
 
-SLEEP_WORKFLOW_ID = f"sleep-workflow-{DAG_ID}-{ENV_ID}"
+SLEEP_WORKFLOW_ID = f"sleep-workflow-{DAG_ID}-{ENV_ID}".replace("_", "-")
 SLEEP_WORKFLOW_CONTENT = """
 - someSleep:
     call: sys.sleep
@@ -94,6 +92,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "workflows"],
 ) as dag:
     # [START how_to_create_workflow]
     create_workflow = WorkflowsCreateWorkflowOperator(
@@ -131,10 +130,13 @@ with DAG(
 
     # [START how_to_delete_workflow]
     delete_workflow = WorkflowsDeleteWorkflowOperator(
-        task_id="delete_workflow", location=LOCATION, project_id=PROJECT_ID, workflow_id=WORKFLOW_ID
+        task_id="delete_workflow",
+        location=LOCATION,
+        project_id=PROJECT_ID,
+        workflow_id=WORKFLOW_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_delete_workflow]
-    delete_workflow.trigger_rule = TriggerRule.ALL_DONE
 
     # [START how_to_create_execution]
     create_execution = WorkflowsCreateExecutionOperator(
@@ -222,11 +224,6 @@ with DAG(
     )
 
     [cancel_execution, list_executions] >> delete_workflow
-
-    # Task dependencies created via `XComArgs`:
-    #   create_execution >> wait_for_execution
-    #   create_execution >> get_execution
-    #   create_execution >> cancel_execution
 
     # ### Everything below this line is not part of example ###
     # ### Just for system tests purpose ###

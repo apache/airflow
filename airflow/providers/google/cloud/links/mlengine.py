@@ -37,7 +37,7 @@ MLENGINE_JOBS_LIST_LINK = MLENGINE_BASE_LINK + "/jobs?project={project_id}"
 
 
 class MLEngineModelLink(BaseGoogleLink):
-    """Helper class for constructing ML Engine link"""
+    """Helper class for constructing ML Engine link."""
 
     name = "MLEngine Model"
     key = "ml_engine_model"
@@ -58,7 +58,7 @@ class MLEngineModelLink(BaseGoogleLink):
 
 
 class MLEngineModelsListLink(BaseGoogleLink):
-    """Helper class for constructing ML Engine link"""
+    """Helper class for constructing ML Engine link."""
 
     name = "MLEngine Models List"
     key = "ml_engine_models_list"
@@ -78,7 +78,7 @@ class MLEngineModelsListLink(BaseGoogleLink):
 
 
 class MLEngineJobDetailsLink(BaseGoogleLink):
-    """Helper class for constructing ML Engine link"""
+    """Helper class for constructing ML Engine link."""
 
     name = "MLEngine Job Details"
     key = "ml_engine_job_details"
@@ -99,7 +99,7 @@ class MLEngineJobDetailsLink(BaseGoogleLink):
 
 
 class MLEngineModelVersionDetailsLink(BaseGoogleLink):
-    """Helper class for constructing ML Engine link"""
+    """Helper class for constructing ML Engine link."""
 
     name = "MLEngine Version Details"
     key = "ml_engine_version_details"
@@ -121,7 +121,7 @@ class MLEngineModelVersionDetailsLink(BaseGoogleLink):
 
 
 class MLEngineJobSListLink(BaseGoogleLink):
-    """Helper class for constructing ML Engine link"""
+    """Helper class for constructing ML Engine link."""
 
     name = "MLEngine Jobs List"
     key = "ml_engine_jobs_list"

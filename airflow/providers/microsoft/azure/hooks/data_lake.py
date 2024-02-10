@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import Any, Union
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
@@ -33,25 +34,30 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
+
+Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter]
 
 
 class AzureDataLakeHook(BaseHook):
-    """
-    This module contains integration with Azure Data Lake.
+    """Integration with Azure Data Lake.
 
-    AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
-    Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
-    login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name
-    (Account Name)(see connection `azure_data_lake_default` for an example).
+    AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make
+    sure that a Airflow connection of type ``azure_data_lake`` exists.
+    Authorization can be done by supplying a *login* (=Client ID), *password*
+    (=Client Secret), and extra fields *tenant* (Tenant) and *account_name*
+    (Account Name). See connection ``azure_data_lake_default`` for an example.
 
-    Interacts with Azure Data Lake.
-
-    Client ID and client secret should be in user and password parameters.
+    Client ID and secret should be in user and password parameters.
     Tenant and account name should be extra field as
-    {"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}.
+    ``{"tenant": "<TENANT>", "account_name": "ACCOUNT_NAME"}``.
 
-    :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+    :param azure_data_lake_conn_id: Reference to
+        :ref:`Azure Data Lake connection<howto/connection:adl>`.
     """
 
     conn_name_attr = "azure_data_lake_conn_id"
@@ -59,9 +65,10 @@ class AzureDataLakeHook(BaseHook):
     conn_type = "azure_data_lake"
     hook_name = "Azure Data Lake"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -73,10 +80,9 @@ class AzureDataLakeHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_lake")
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -111,15 +117,24 @@ class AzureDataLakeHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             self.account_name = self._get_field(extras, "account_name")
+
+            credential: Credentials
             tenant = self._get_field(extras, "tenant")
-            adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
-            self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
+            if tenant:
+                credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
+            else:
+                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                credential = AzureIdentityCredentialAdapter(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+            self._conn = core.AzureDLFileSystem(credential, store_name=self.account_name)
             self._conn.connect()
         return self._conn
 
     def check_for_file(self, file_path: str) -> bool:
-        """
-        Check if a file exists on Azure Data Lake.
+        """Check if a file exists on Azure Data Lake.
 
         :param file_path: Path and name of the file.
         :return: True if the file exists, False otherwise.
@@ -140,8 +155,7 @@ class AzureDataLakeHook(BaseHook):
         blocksize: int = 4194304,
         **kwargs,
     ) -> None:
-        """
-        Upload a file to Azure Data Lake.
+        """Upload a file to Azure Data Lake.
 
         :param local_path: local path. Can be single file, directory (in which case,
             upload recursively) or glob pattern. Recursive glob patterns using `**`
@@ -181,8 +195,7 @@ class AzureDataLakeHook(BaseHook):
         blocksize: int = 4194304,
         **kwargs,
     ) -> None:
-        """
-        Download a file from Azure Blob Storage.
+        """Download a file from Azure Blob Storage.
 
         :param local_path: local path. If downloading a single file, will write to this
             specific file, unless it is an existing directory, in which case a file is
@@ -214,8 +227,7 @@ class AzureDataLakeHook(BaseHook):
         )
 
     def list(self, path: str) -> list:
-        """
-        List files in Azure Data Lake Storage
+        """List files in Azure Data Lake Storage.
 
         :param path: full path/globstring to use to list files in ADLS
         """
@@ -225,8 +237,7 @@ class AzureDataLakeHook(BaseHook):
             return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
-        """
-        Remove files in Azure Data Lake Storage
+        """Remove files in Azure Data Lake Storage.
 
         :param path: A directory or file to remove in ADLS
         :param recursive: Whether to loop into directories in the location and remove the files
@@ -242,13 +253,14 @@ class AzureDataLakeHook(BaseHook):
 
 
 class AzureDataLakeStorageV2Hook(BaseHook):
-    """
-    This Hook interacts with ADLS gen2 storage account it mainly helps to create and manage
-    directories and files in storage accounts that have a hierarchical namespace. Using Adls_v2 connection
-    details create DataLakeServiceClient object
+    """Interact with a ADLS gen2 storage account.
 
-    Due to Wasb is marked as legacy and and retirement of the (ADLS1) it would be nice to
-    implement ADLS gen2 hook for interacting with the storage account.
+    It mainly helps to create and manage directories and files in storage
+    accounts that have a hierarchical namespace. Using Adls_v2 connection
+    details create DataLakeServiceClient object.
+
+    Due to Wasb is marked as legacy and retirement of the (ADLS1), it would
+    be nice to implement ADLS gen2 hook for interacting with the storage account.
 
     .. seealso::
         https://learn.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-directory-file-acl-python
@@ -262,9 +274,10 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     conn_type = "adls"
     hook_name = "Azure Date Lake Storage V2"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -278,9 +291,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -302,33 +315,6 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         super().__init__()
         self.conn_id = adls_conn_id
         self.public_read = public_read
-        self.service_client = self.get_conn()
-
-    def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
-        """Return the DataLakeServiceClient object."""
-        conn = self.get_connection(self.conn_id)
-        extra = conn.extra_dejson or {}
-
-        connection_string = self._get_field(extra, "connection_string")
-        if connection_string:
-            # connection_string auth takes priority
-            return DataLakeServiceClient.from_connection_string(connection_string, **extra)
-
-        tenant = self._get_field(extra, "tenant_id")
-        if tenant:
-            # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return DataLakeServiceClient(
-                account_url=f"https://{conn.host}.dfs.core.windows.net", credential=token_credential, **extra
-            )
-
-        # otherwise, use key auth
-        credential = conn.password
-        return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net", credential=credential, **extra
-        )
 
     def _get_field(self, extra_dict, field_name):
         prefix = "extra__adls__"
@@ -341,10 +327,48 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             return extra_dict[field_name] or None
         return extra_dict.get(f"{prefix}{field_name}") or None
 
+    @cached_property
+    def service_client(self) -> DataLakeServiceClient:
+        """Return the DataLakeServiceClient object (cached)."""
+        return self.get_conn()
+
+    def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
+        """Return the DataLakeServiceClient object."""
+        conn = self.get_connection(self.conn_id)
+        extra = conn.extra_dejson or {}
+
+        connection_string = self._get_field(extra, "connection_string")
+        if connection_string:
+            # connection_string auth takes priority
+            return DataLakeServiceClient.from_connection_string(connection_string, **extra)
+
+        credential: Credentials
+        tenant = self._get_field(extra, "tenant_id")
+        if tenant:
+            # use Active Directory auth
+            app_id = conn.login
+            app_secret = conn.password
+            credential = ClientSecretCredential(tenant, app_id, app_secret)
+        elif conn.password:
+            credential = conn.password
+        else:
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
+        return DataLakeServiceClient(
+            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            credential=credential,  # type: ignore[arg-type]
+            **extra,
+        )
+
     def create_file_system(self, file_system_name: str) -> None:
-        """
-        A container acts as a file system for your files. Creates a new file system under
-        the specified account.
+        """Create a new file system under the specified account.
+
+        A container acts as a file system for your files.
 
         If the file system with the same name already exists, a ResourceExistsError will
         be raised. This method returns a client with which to interact with the newly
@@ -360,8 +384,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             raise
 
     def get_file_system(self, file_system: FileSystemProperties | str) -> FileSystemClient:
-        """
-        Get a client to interact with the specified file system
+        """Get a client to interact with the specified file system.
 
         :param file_system: This can either be the name of the file system
             or an instance of FileSystemProperties.
@@ -379,8 +402,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     def create_directory(
         self, file_system_name: FileSystemProperties | str, directory_name: str, **kwargs
     ) -> DataLakeDirectoryClient:
-        """
-        Create a directory under the specified file system.
+        """Create a directory under the specified file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory which needs to be created in the file system.
@@ -393,8 +415,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         file_system_name: FileSystemProperties | str,
         directory_name: DirectoryProperties | str,
     ) -> DataLakeDirectoryClient:
-        """
-        Get the specific directory under the specified file system.
+        """Get the specific directory under the specified file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory or instance of DirectoryProperties which needs to be
@@ -413,8 +434,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             raise
 
     def create_file(self, file_system_name: FileSystemProperties | str, file_name: str) -> DataLakeFileClient:
-        """
-        Creates a file under the file system
+        """Create a file under the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param file_name: Name of the file which needs to be created in the file system.
@@ -430,8 +450,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> None:
-        """
-        Create a file with data in the file system
+        """Create a file with data in the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param file_name: Name of the file to be created with name.
@@ -451,9 +470,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         overwrite: bool = False,
         **kwargs: Any,
     ) -> None:
-        """
-        Create a new file and return the file client to be interacted with and then
-        upload data to a file
+        """Upload data to a file.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
@@ -469,8 +486,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     def list_files_directory(
         self, file_system_name: FileSystemProperties | str, directory_name: str
     ) -> list[str]:
-        """
-        Get the list of files or directories under the specified file system
+        """List files or directories under the specified file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
@@ -484,8 +500,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     def list_file_system(
         self, prefix: str | None = None, include_metadata: bool = False, **kwargs: Any
     ) -> list[str]:
-        """
-        Get the list the file systems under the specified account.
+        """List file systems under the specified account.
 
         :param prefix:
             Filters the results to return only file systems whose names
@@ -502,8 +517,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         return file_system_list
 
     def delete_file_system(self, file_system_name: FileSystemProperties | str) -> None:
-        """
-        Deletes the file system
+        """Delete the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         """
@@ -517,11 +531,23 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             raise
 
     def delete_directory(self, file_system_name: FileSystemProperties | str, directory_name: str) -> None:
-        """
-        Deletes specified directory in file system
+        """Delete the specified directory in a file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
         """
         directory_client = self.get_directory_client(file_system_name, directory_name)
         directory_client.delete_directory()
+
+    def test_connection(self):
+        """Test ADLS Gen2 Storage connection."""
+        try:
+            # Attempts to list file systems in ADLS Gen2 Storage and retrieves the first
+            # file_system from the returned iterator. The Azure DataLake Storage allows creation
+            # of DataLakeServiceClient even if the credentials are incorrect but will fail properly
+            # if we try to fetch the file_system. We need to _actually_ try to retrieve a
+            # file_system to properly test the connection
+            next(self.get_conn().list_file_systems(), None)
+            return True, "Successfully connected to ADLS Gen2 Storage."
+        except Exception as e:
+            return False, str(e)

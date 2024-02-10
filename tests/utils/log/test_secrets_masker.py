@@ -18,17 +18,19 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-import io
 import logging
 import logging.config
 import os
 import sys
 import textwrap
+from enum import Enum
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
 
 from airflow import settings
+from airflow.models import Connection
 from airflow.utils.log.secrets_masker import (
     RedactedIO,
     SecretsMasker,
@@ -36,11 +38,16 @@ from airflow.utils.log.secrets_masker import (
     redact,
     should_hide_value_for_key,
 )
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
+
+
+class MyEnum(str, Enum):
+    testname = "testvalue"
 
 
 @pytest.fixture
@@ -74,7 +81,6 @@ def logger(caplog):
     logger.addFilter(filt)
 
     filt.add_mask("password")
-
     return logger
 
 
@@ -299,6 +305,57 @@ class TestSecretsMasker:
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
+    def test_redact_with_str_type(self, logger, caplog):
+        """
+        SecretsMasker's re2 replacer has issues handling a redactable item of type
+        `str` with required constructor args. This test ensures there is a shim in
+        place that avoids any issues.
+        See: https://github.com/apache/airflow/issues/19816#issuecomment-983311373
+        """
+
+        class StrLikeClassWithRequiredConstructorArg(str):
+            def __init__(self, required_arg):
+                pass
+
+        text = StrLikeClassWithRequiredConstructorArg("password")
+        logger.info("redacted: %s", text)
+
+        # we expect the object's __str__() output to be logged (no warnings due to a failed masking)
+        assert caplog.messages == ["redacted: ***"]
+
+    @pytest.mark.parametrize(
+        "state, expected",
+        [
+            (DagRunState.SUCCESS, "success"),
+            (TaskInstanceState.FAILED, "failed"),
+            (JobState.RUNNING, "running"),
+            ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
+            ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
+            (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
+            (MyEnum.testname, "testvalue"),
+        ],
+    )
+    def test_redact_state_enum(self, logger, caplog, state, expected):
+        logger.info("State: %s", state)
+        assert caplog.text == f"INFO State: {expected}\n"
+        assert "TypeError" not in caplog.text
+
+    def test_masking_quoted_strings_in_connection(self, logger, caplog):
+        secrets_masker = [fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker)][0]
+        with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
+            test_conn_attributes = dict(
+                conn_type="scheme",
+                host="host/location",
+                schema="schema",
+                login="user",
+                password="should_be_hidden!",
+                port=1234,
+                extra=None,
+            )
+            conn = Connection(**test_conn_attributes)
+            logger.info(conn.get_uri())
+            assert "should_be_hidden" not in caplog.text
+
 
 class TestShouldHideValueForKey:
     @pytest.mark.parametrize(
@@ -334,8 +391,10 @@ class TestShouldHideValueForKey:
 
         with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
             get_sensitive_variables_fields.cache_clear()
-            assert expected_result == should_hide_value_for_key(key)
-        get_sensitive_variables_fields.cache_clear()
+            try:
+                assert expected_result == should_hide_value_for_key(key)
+            finally:
+                get_sensitive_variables_fields.cache_clear()
 
 
 class ShortExcFormatter(logging.Formatter):
@@ -383,7 +442,7 @@ class TestRedactedIO:
 
         This is used by debuggers!
         """
-        monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
+        monkeypatch.setattr(sys, "stdin", StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"
 
@@ -393,7 +452,7 @@ class TestMaskSecretAdapter:
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
-            with patch("airflow.utils.log.secrets_masker.re.escape", lambda x: x):
+            with patch("airflow.utils.log.secrets_masker.re2.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):

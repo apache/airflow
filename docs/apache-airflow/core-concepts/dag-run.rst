@@ -40,41 +40,9 @@ There are two possible terminal states for the DAG Run:
     Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
 
-Cron Presets
-''''''''''''
+*Added in Airflow 2.7*
 
-You may set your DAG to run on a simple schedule by setting its ``schedule`` argument to either a
-`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, a ``datetime.timedelta`` object,
-or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable <../authoring-and-scheduling/timetable>`
-
-.. tip::
-    You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
-
-+----------------+--------------------------------------------------------------------+-----------------+
-| preset         | meaning                                                            | cron            |
-+================+====================================================================+=================+
-| ``None``       | Don't schedule, use for exclusively "externally triggered" DAGs    |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@once``      | Schedule once and only once                                        |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@continuous``| Run as soon as the previous run finishes                           |                 |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@hourly``    | Run once an hour at the end of the hour                            | ``0 * * * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@daily``     | Run once a day at midnight (24:00)                                 | ``0 0 * * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@weekly``    | Run once a week at midnight (24:00) on Sunday                      | ``0 0 * * 0``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@monthly``   | Run once a month at midnight (24:00) of the first day of the month | ``0 0 1 * *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@quarterly`` | Run once a quarter at midnight (24:00) on the first day            | ``0 0 1 */3 *`` |
-+----------------+--------------------------------------------------------------------+-----------------+
-| ``@yearly``    | Run once a year at midnight (24:00) of January 1                   | ``0 0 1 1 *``   |
-+----------------+--------------------------------------------------------------------+-----------------+
-
-Your DAG will be instantiated for each schedule along with a corresponding
-DAG Run entry in the database backend.
-
+DAGs that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, DAGs whose latest DAG run is marked as failed can be found on the "Failed" tab.
 
 .. _data-interval:
 
@@ -156,6 +124,12 @@ In the example above, if the DAG is picked up by the scheduler daemon on
 with a data between 2016-01-01 and 2016-01-02, and the next one will be created
 just after midnight on the morning of 2016-01-03 with a data interval between
 2016-01-02 and 2016-01-03.
+
+Be aware that using a ``datetime.timedelta`` object as schedule can lead to a different behavior.
+In such a case, the single DAG Run created will cover data between 2016-01-01 06:00 and
+2016-01-02 06:00 (one schedule interval ending now). For a more detailed description of the
+differences between a cron and a delta based schedule, take a look at the
+:ref:`timetables comparison <Differences between the cron and delta data interval timetables>`
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,

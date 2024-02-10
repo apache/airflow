@@ -27,23 +27,22 @@ log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
     def decrypt(self, b):
-        """Decrypt with Fernet"""
+        """Decrypt with Fernet."""
 
     def encrypt(self, b):
-        """Encrypt with Fernet"""
+        """Encrypt with Fernet."""
 
 
 class NullFernet:
     """
-    A "Null" encryptor class that doesn't encrypt or decrypt but that presents
-    a similar interface to Fernet.
+    A "Null" encryptor class that doesn't encrypt or decrypt but that presents a similar interface to Fernet.
 
     The purpose of this is to make the rest of the code not have to know the
     difference, and to only display the message once, not 20 times when
-    `airflow db init` is ran.
+    `airflow db migrate` is run.
     """
 
     is_encrypted = False

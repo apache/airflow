@@ -20,11 +20,14 @@
 ################################
 ## Pgbouncer NetworkPolicy
 #################################
+{{- $workersKedaEnabled := and .Values.workers.keda.enabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- $triggererEnabled := and (semverCompare ">=2.2.0" .Values.airflowVersion) .Values.triggerer.enabled }}
+{{- $triggererKedaEnabled := and $triggererEnabled .Values.triggerer.keda.enabled }}
 {{- if and .Values.pgbouncer.enabled .Values.networkPolicies.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-pgbouncer-policy
+  name: {{ include "airflow.fullname" . }}-pgbouncer-policy
   labels:
     tier: airflow
     component: airflow-pgbouncer-policy
@@ -48,10 +51,14 @@ spec:
         matchLabels:
           tier: airflow
           release: {{ .Release.Name }}
-    {{- if .Values.workers.keda.enabled }}
-    {{- if .Values.workers.keda.namespaceLabels }}
+    {{- if or $workersKedaEnabled  $triggererKedaEnabled }}
+    {{- if and $workersKedaEnabled .Values.workers.keda.namespaceLabels }}
     - namespaceSelector:
        matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
+      podSelector:
+    {{- else if and $triggererEnabled .Values.triggerer.keda.namespaceLabels }}
+    - namespaceSelector:
+        matchLabels: {{- toYaml .Values.triggerer.keda.namespaceLabels | nindent 10 }}
       podSelector:
     {{- else }}
     - podSelector:

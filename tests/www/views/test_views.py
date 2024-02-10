@@ -19,25 +19,28 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Callable
 from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config
+from airflow.configuration import (
+    initialize_config,
+    write_default_airflow_configuration_if_needed,
+    write_webserver_configuration_if_needed,
+)
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
-from airflow.www import views
 from airflow.www.views import (
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
     get_value_from_path,
-    truncate_task_duration,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+pytestmark = pytest.mark.db_test
 
 
 def test_configuration_do_not_expose_config(admin_client):
@@ -63,6 +66,20 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
+@mock.patch("airflow.configuration.WEBSERVER_CONFIG")
+def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+    import airflow.configuration
+
+    config_file = str(tmp_path / "my_custom_webserver_config.py")
+    with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        conf = write_default_airflow_configuration_if_needed()
+        write_webserver_configuration_if_needed(conf)
+        initialize_config()
+        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+
+    assert os.path.isfile(config_file)
+
+
 def test_redoc_should_render_template(capture_templates, admin_client):
     from airflow.utils.docs import get_docs_url
 
@@ -73,6 +90,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert len(templates) == 1
     assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
+        "config_test_connection": "Disabled",
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
@@ -182,7 +200,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
-        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
+        (" javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("google.com", "http://localhost:8080/google.com"),
         ("\\/google.com", "http://localhost:8080/\\/google.com"),
@@ -210,20 +228,6 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
         assert get_safe_url(test_url) == expected_url
 
 
-@pytest.mark.parametrize(
-    "test_duration, expected_duration",
-    [
-        (0.12345, 0.123),
-        (0.12355, 0.124),
-        (3.12, 3.12),
-        (9.99999, 10.0),
-        (10.01232, 10),
-    ],
-)
-def test_truncate_task_duration(test_duration, expected_duration):
-    assert truncate_task_duration(test_duration) == expected_duration
-
-
 @pytest.fixture
 def test_app():
     from airflow.www import app
@@ -238,7 +242,9 @@ def test_mark_task_instance_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -327,7 +333,9 @@ def test_mark_task_group_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -444,34 +452,6 @@ def test_generate_key_paths(test_content_dict, expected_paths):
 )
 def test_get_value_from_path(test_content_dict, test_key_path, expected_value):
     assert expected_value == get_value_from_path(test_key_path, test_content_dict)
-
-
-def assert_decorator_used(cls: type, fn_name: str, decorator: Callable):
-    fn = getattr(cls, fn_name)
-    code = decorator(None).__code__
-    while fn is not None:
-        if fn.__code__ is code:
-            return
-        if not hasattr(fn, "__wrapped__"):
-            break
-        fn = getattr(fn, "__wrapped__")
-    assert False, f"{cls.__name__}.{fn_name} was not decorated with @{decorator.__name__}"
-
-
-@pytest.mark.parametrize(
-    "cls",
-    [
-        views.TaskInstanceModelView,
-        views.DagRunModelView,
-    ],
-)
-def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
-    action_funcs = {func for func in dir(cls) if callable(getattr(cls, func)) and func.startswith("action_")}
-
-    # We remove action_post as this is a standard SQLAlchemy function no enable other action functions.
-    action_funcs = action_funcs - {"action_post"}
-    for action_function in action_funcs:
-        assert_decorator_used(cls, action_function, views.action_has_dag_edit_access)
 
 
 def test_get_task_stats_from_query():

@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class StsHook(AwsBaseHook):
     """
     Interact with AWS Security Token Service (STS).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("sts") <STS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

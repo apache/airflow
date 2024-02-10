@@ -56,7 +56,7 @@ def print_all_cases(xunit_test_file_path):
     modules = set()
 
     for test_case in test_cases:
-        the_module = ".".join(test_case.get("classname").split(".")[:-1])
+        the_module = test_case["classname"].rpartition(".")[0]
         the_class = last_replace(test_case.get("classname"), ".", ":", 1)
         test_method = test_case.get("name")
         modules.add(the_module)

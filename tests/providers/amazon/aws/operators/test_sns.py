@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
 
 TASK_ID = "sns_publish_job"
@@ -30,44 +32,47 @@ MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
 class TestSnsPublishOperator:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self.default_op_kwargs = {
+            "task_id": TASK_ID,
+            "target_arn": TARGET_ARN,
+            "message": MESSAGE,
+            "subject": SUBJECT,
+            "message_attributes": MESSAGE_ATTRIBUTES,
+        }
+
     def test_init(self):
-        # Given / When
-        operator = SnsPublishOperator(
-            task_id=TASK_ID,
+        op = SnsPublishOperator(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = SnsPublishOperator(
+            **self.default_op_kwargs,
             aws_conn_id=AWS_CONN_ID,
-            target_arn=TARGET_ARN,
-            message=MESSAGE,
-            subject=SUBJECT,
-            message_attributes=MESSAGE_ATTRIBUTES,
+            region_name="us-west-1",
+            verify="/spam/egg.pem",
+            botocore_config={"read_timeout": 42},
         )
+        assert op.hook.aws_conn_id == AWS_CONN_ID
+        assert op.hook._region_name == "us-west-1"
+        assert op.hook._verify == "/spam/egg.pem"
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
 
-        # Then
-        assert TASK_ID == operator.task_id
-        assert AWS_CONN_ID == operator.aws_conn_id
-        assert TARGET_ARN == operator.target_arn
-        assert MESSAGE == operator.message
-        assert SUBJECT == operator.subject
-        assert MESSAGE_ATTRIBUTES == operator.message_attributes
-
-    @mock.patch("airflow.providers.amazon.aws.operators.sns.SnsHook")
-    def test_execute(self, mock_hook):
-        # Given
+    @mock.patch.object(SnsPublishOperator, "hook")
+    def test_execute(self, mocked_hook):
         hook_response = {"MessageId": "foobar"}
+        mocked_hook.publish_to_target.return_value = hook_response
 
-        hook_instance = mock_hook.return_value
-        hook_instance.publish_to_target.return_value = hook_response
+        op = SnsPublishOperator(**self.default_op_kwargs)
+        assert op.execute({}) == hook_response
 
-        operator = SnsPublishOperator(
-            task_id=TASK_ID,
-            aws_conn_id=AWS_CONN_ID,
-            target_arn=TARGET_ARN,
+        mocked_hook.publish_to_target.assert_called_once_with(
             message=MESSAGE,
-            subject=SUBJECT,
             message_attributes=MESSAGE_ATTRIBUTES,
+            subject=SUBJECT,
+            target_arn=TARGET_ARN,
         )
-
-        # When
-        result = operator.execute(None)
-
-        # Then
-        assert hook_response == result

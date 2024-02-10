@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator, SnowflakeSqlApiOperator
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 SNOWFLAKE_SAMPLE_TABLE = "sample_table"
@@ -34,7 +34,7 @@ CREATE_TABLE_SQL_STRING = (
     f"CREATE OR REPLACE TRANSIENT TABLE {SNOWFLAKE_SAMPLE_TABLE} (name VARCHAR(250), id INT);"
 )
 SQL_INSERT_STATEMENT = f"INSERT INTO {SNOWFLAKE_SAMPLE_TABLE} VALUES ('name', %(id)s)"
-SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(0, 10)]
+SQL_LIST = [SQL_INSERT_STATEMENT % {"id": n} for n in range(10)]
 SQL_MULTIPLE_STMTS = "; ".join(SQL_LIST)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_snowflake"
@@ -72,6 +72,14 @@ with DAG(
 
     # [END howto_operator_snowflake]
 
+    # [START howto_snowflake_sql_api_operator]
+    snowflake_sql_api_op_sql_multiple_stmt = SnowflakeSqlApiOperator(
+        task_id="snowflake_op_sql_multiple_stmt",
+        sql=SQL_MULTIPLE_STMTS,
+        statement_count=len(SQL_LIST),
+    )
+    # [END howto_snowflake_sql_api_operator]
+
     (
         snowflake_op_sql_str
         >> [
@@ -79,6 +87,7 @@ with DAG(
             snowflake_op_sql_list,
             snowflake_op_template_file,
             snowflake_op_sql_multiple_stmts,
+            snowflake_sql_api_op_sql_multiple_stmt,
         ]
     )
 

@@ -37,7 +37,6 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_start_java_direct_runner_pipeline]
     jar_to_local_direct_runner = GCSToLocalFilesystemOperator(
         task_id="jar_to_local_direct_runner",

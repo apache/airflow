@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 BIGQUERY_BASE_LINK = "/bigquery"
@@ -37,7 +37,7 @@ BIGQUERY_TABLE_LINK = (
 
 
 class BigQueryDatasetLink(BaseGoogleLink):
-    """Helper class for constructing BigQuery Dataset Link"""
+    """Helper class for constructing BigQuery Dataset Link."""
 
     name = "BigQuery Dataset"
     key = "bigquery_dataset"
@@ -58,7 +58,7 @@ class BigQueryDatasetLink(BaseGoogleLink):
 
 
 class BigQueryTableLink(BaseGoogleLink):
-    """Helper class for constructing BigQuery Table Link"""
+    """Helper class for constructing BigQuery Table Link."""
 
     name = "BigQuery Table"
     key = "bigquery_table"

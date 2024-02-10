@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 
 
 class KylinCubeOperator(BaseOperator):
-    """
-    This operator is used to submit request about kylin build/refresh/merge,
-    and can track job status . so users can easier to build kylin job
+    """Submit request about Kylin build/refresh/merge and track job status.
 
     For more detail information in
     `Apache Kylin <http://kylin.apache.org/>`_
@@ -135,7 +133,6 @@ class KylinCubeOperator(BaseOperator):
         self.jobs_error_status = [stat.upper() for stat in eager_error_status]
 
     def execute(self, context: Context):
-
         _hook = KylinHook(kylin_conn_id=self.kylin_conn_id, project=self.project, dsn=self.dsn)
 
         _support_invoke_command = kylinpy.CubeSource.support_invoke_command

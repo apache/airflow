@@ -21,9 +21,9 @@ from urllib.parse import quote_plus
 
 import pytest
 
-from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
@@ -36,6 +36,8 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -142,7 +144,7 @@ class TestGetExtraLinks:
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200(self):
         XCom.set(
-            key="job_id",
+            key="job_id_path",
             value="TEST_JOB_ID",
             task_id="TEST_SINGLE_QUERY",
             dag_id=self.dag.dag_id,
@@ -171,7 +173,7 @@ class TestGetExtraLinks:
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
         XCom.set(
-            key="job_id",
+            key="job_id_path",
             value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
             task_id="TEST_MULTIPLE_QUERY",
             dag_id=self.dag.dag_id,

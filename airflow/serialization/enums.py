@@ -54,4 +54,8 @@ class DagAttributeTypes(str, Enum):
     BASE_JOB = "Job"
     TASK_INSTANCE = "task_instance"
     DAG_RUN = "dag_run"
+    DAG_MODEL = "dag_model"
     DATA_SET = "data_set"
+    LOG_TEMPLATE = "log_template"
+    CONNECTION = "connection"
+    ARG_NOT_SET = "arg_not_set"

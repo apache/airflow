@@ -41,6 +41,40 @@ const setNextDatasets = (datasets, error) => {
   nextDatasetsError = error;
 };
 
+// Check if there is a highlighted tab and change the active nav button
+const onTabChange = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isGrid = window.location.href.includes(`${dagId}/grid`);
+  const tab = urlParams.get("tab");
+  const gridNav = document.getElementById("grid-nav");
+  const graphNav = document.getElementById("graph-nav");
+  const ganttNav = document.getElementById("gantt-nav");
+  const codeNav = document.getElementById("code-nav");
+  if (isGrid) {
+    if (tab === "graph") {
+      gridNav.classList.remove("active");
+      ganttNav.classList.remove("active");
+      codeNav.classList.remove("active");
+      graphNav.classList.add("active");
+    } else if (tab === "gantt") {
+      gridNav.classList.remove("active");
+      graphNav.classList.remove("active");
+      codeNav.classList.remove("active");
+      ganttNav.classList.add("active");
+    } else if (tab === "code") {
+      gridNav.classList.remove("active");
+      graphNav.classList.remove("active");
+      ganttNav.classList.remove("active");
+      codeNav.classList.add("active");
+    } else {
+      graphNav.classList.remove("active");
+      ganttNav.classList.remove("active");
+      codeNav.classList.remove("active");
+      gridNav.classList.add("active");
+    }
+  }
+};
+
 // Pills highlighting
 $(window).on("load", function onLoad() {
   $(`a[href*="${this.location.pathname}"]`).parent().addClass("active");
@@ -50,6 +84,32 @@ $(window).on("load", function onLoad() {
   if (!singleDatasetUri) {
     getDatasetTooltipInfo(dagId, run, setNextDatasets);
   }
+
+  onTabChange();
+});
+
+// Dispatch an event whenever history changes that we can then listen to
+const LOCATION_CHANGE = "locationchange";
+(function dispatchLocationEvent() {
+  const { pushState, replaceState } = window.history;
+
+  window.history.pushState = (...args) => {
+    pushState.apply(window.history, args);
+    window.dispatchEvent(new Event(LOCATION_CHANGE));
+  };
+
+  window.history.replaceState = (...args) => {
+    replaceState.apply(window.history, args);
+    window.dispatchEvent(new Event(LOCATION_CHANGE));
+  };
+
+  window.addEventListener("popstate", () => {
+    window.dispatchEvent(new Event(LOCATION_CHANGE));
+  });
+})();
+
+window.addEventListener(LOCATION_CHANGE, () => {
+  onTabChange();
 });
 
 $("#pause_resume").on("change", function onChange() {

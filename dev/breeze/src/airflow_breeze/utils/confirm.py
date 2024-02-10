@@ -37,14 +37,12 @@ def user_confirm(
     default_answer: Answer | None = Answer.NO,
     quit_allowed: bool = True,
 ) -> Answer:
-    """
-    Ask the user for confirmation.
+    """Ask the user for confirmation.
 
     :param message: message to display to the user (should end with the question mark)
     :param timeout: time given user to answer
     :param default_answer: default value returned on timeout. If no default - is set, the timeout is ignored.
     :param quit_allowed: whether quit answer is allowed
-    :return:
     """
     from inputimeout import TimeoutOccurred, inputimeout
 
@@ -93,7 +91,6 @@ def user_confirm(
             if default_answer:
                 return default_answer
             # timeout should only occur when default_answer is set so this should never happened
-            continue
         except KeyboardInterrupt:
             if quit_allowed:
                 return Answer.QUIT

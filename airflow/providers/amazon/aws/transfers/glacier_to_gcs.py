@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class GlacierToGCSOperator(BaseOperator):
     """
-    Transfers data from Amazon Glacier to Google Cloud Storage
+    Transfers data from Amazon Glacier to Google Cloud Storage.
 
     .. note::
         Please be warn that GlacierToGCSOperator may depends on memory usage.
@@ -98,7 +98,7 @@ class GlacierToGCSOperator(BaseOperator):
             # Read the file content in chunks using StreamingBody
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/response.html
             stream = glacier_data["body"]
-            for chunk in stream.iter_chunk(chunk_size=self.chunk_size):
+            for chunk in stream.iter_chunks(chunk_size=self.chunk_size):
                 temp_file.write(chunk)
             temp_file.flush()
             gcs_hook.upload(

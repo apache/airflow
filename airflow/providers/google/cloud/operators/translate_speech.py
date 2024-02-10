@@ -20,7 +20,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
@@ -30,6 +29,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
+    from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
+
     from airflow.utils.context import Context
 
 
@@ -151,7 +152,7 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
         )
 
         recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
-        recognize_dict = MessageToDict(recognize_result)
+        recognize_dict = MessageToDict(recognize_result._pb)
 
         self.log.info("Recognition operation finished")
 

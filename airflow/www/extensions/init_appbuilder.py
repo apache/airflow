@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import logging
 from functools import reduce
+from typing import TYPE_CHECKING
 
 from flask import Blueprint, current_app, url_for
-from flask_appbuilder import BaseView, __version__
+from flask_appbuilder import __version__
 from flask_appbuilder.babel.manager import BabelManager
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
@@ -35,12 +36,18 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
-from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
+
+if TYPE_CHECKING:
+    from flask import Flask
+    from flask_appbuilder import BaseView
+    from flask_appbuilder.security.manager import BaseSecurityManager
+    from sqlalchemy.orm import Session
+
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -51,7 +58,8 @@ log = logging.getLogger("flask_appbuilder.base")
 
 def dynamic_class_import(class_path):
     """
-    Will dynamically import a class from a string path
+    Will dynamically import a class from a string path.
+
     :param class_path: string with class path
     :return: class
     """
@@ -63,12 +71,13 @@ def dynamic_class_import(class_path):
         return reduce(getattr, tmp[1:], package)
     except Exception as e:
         log.exception(e)
-        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT.format(class_path, e))
+        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT, class_path, e)
 
 
 class AirflowAppBuilder:
     """
     This is the base class for all the framework.
+
     This is where you will register all your views
     and create the menu structure.
     Will hold your flask app object, all your views, and security classes.
@@ -87,12 +96,11 @@ class AirflowAppBuilder:
         app = Flask(__name__)
         app.config.from_object('config')
         dbmongo = MongoEngine(app)
-        appbuilder = AppBuilder(app, security_manager_class=SecurityManager)
+        appbuilder = AppBuilder(app)
     You can also create everything as an application factory.
     """
 
     baseviews: list[BaseView | Session] = []
-    security_manager_class = None
     # Flask app
     app = None
     # Database Session
@@ -101,7 +109,7 @@ class AirflowAppBuilder:
     sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # dict with addon name has key and intantiated class has value
+    # dict with addon name has key and instantiated class has value
     addon_managers: dict
     # temporary list that hold addon_managers config key
     _addon_managers: list
@@ -123,10 +131,19 @@ class AirflowAppBuilder:
         base_template="airflow/main.html",
         static_folder="static/appbuilder",
         static_url_path="/appbuilder",
-        security_manager_class=None,
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        update_perms=conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ),
+        auth_rate_limited=conf.getboolean(
+            "fab",
+            "AUTH_RATE_LIMITED",
+            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        ),
+        auth_rate_limit=conf.get(
+            "fab",
+            "AUTH_RATE_LIMIT",
+            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        ),
     ):
         """
         App-builder constructor.
@@ -143,8 +160,6 @@ class AirflowAppBuilder:
             optional, your override for the global static folder
         :param static_url_path:
             optional, your override for the global static url path
-        :param security_manager_class:
-            optional, pass your own security manager class
         :param update_perms:
             optional, update permissions flag (Boolean) you can use
             FAB_UPDATE_PERMS config key also
@@ -158,7 +173,6 @@ class AirflowAppBuilder:
         self.addon_managers = {}
         self.menu = menu
         self.base_template = base_template
-        self.security_manager_class = security_manager_class
         self.indexview = indexview
         self.static_folder = static_folder
         self.static_url_path = static_url_path
@@ -172,6 +186,7 @@ class AirflowAppBuilder:
     def init_app(self, app, session):
         """
         Will initialize the Flask app, supporting the app factory pattern.
+
         :param app:
         :param session: The SQLAlchemy session
         """
@@ -206,17 +221,11 @@ class AirflowAppBuilder:
 
         if self.update_perms:  # default is True, if False takes precedence from config
             self.update_perms = app.config.get("FAB_UPDATE_PERMS", True)
-        _security_manager_class_name = app.config.get("FAB_SECURITY_MANAGER_CLASS", None)
-        if _security_manager_class_name is not None:
-            self.security_manager_class = dynamic_class_import(_security_manager_class_name)
-        if self.security_manager_class is None:
-            from flask_appbuilder.security.sqla.manager import SecurityManager
-
-            self.security_manager_class = SecurityManager
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
-        self.sm = self.security_manager_class(self)
+        auth_manager = init_auth_manager(self)
+        self.sm = auth_manager.security_manager
         self.bm = BabelManager(self)
         self._add_global_static()
         self._add_global_filters()
@@ -237,10 +246,7 @@ class AirflowAppBuilder:
         app.extensions["appbuilder"] = self
 
     def _swap_url_filter(self):
-        """
-        Use our url filtering util function so there is consistency between
-        FAB and Airflow routes
-        """
+        """Use our url filtering util function so there is consistency between FAB and Airflow routes."""
         from flask_appbuilder.security import views as fab_sec_views
 
         from airflow.www.views import get_safe_url
@@ -260,7 +266,8 @@ class AirflowAppBuilder:
     @property
     def get_app(self):
         """
-        Get current or configured flask app
+        Get current or configured flask app.
+
         :return: Flask App
         """
         if self.app:
@@ -272,6 +279,7 @@ class AirflowAppBuilder:
     def get_session(self):
         """
         Get the current sqlalchemy session.
+
         :return: SQLAlchemy Session
         """
         return self.session
@@ -279,7 +287,8 @@ class AirflowAppBuilder:
     @property
     def app_name(self):
         """
-        Get the App name
+        Get the App name.
+
         :return: String with app name
         """
         return self.get_app.config["APP_NAME"]
@@ -287,7 +296,8 @@ class AirflowAppBuilder:
     @property
     def app_theme(self):
         """
-        Get the App theme name
+        Get the App theme name.
+
         :return: String app theme name
         """
         return self.get_app.config["APP_THEME"]
@@ -295,7 +305,8 @@ class AirflowAppBuilder:
     @property
     def app_icon(self):
         """
-        Get the App icon location
+        Get the App icon location.
+
         :return: String with relative app icon location
         """
         return self.get_app.config["APP_ICON"]
@@ -307,7 +318,8 @@ class AirflowAppBuilder:
     @property
     def version(self):
         """
-        Get the current F.A.B. version
+        Get the current F.A.B. version.
+
         :return: String with the current F.A.B. version
         """
         return __version__
@@ -346,10 +358,10 @@ class AirflowAppBuilder:
                     addon_class.register_views()
                     addon_class.post_process()
                     self.addon_managers[addon] = addon_class
-                    log.info(LOGMSG_INF_FAB_ADDON_ADDED.format(str(addon)))
+                    log.info(LOGMSG_INF_FAB_ADDON_ADDED, addon)
                 except Exception as e:
                     log.exception(e)
-                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS.format(addon, e))
+                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS, addon, e)
 
     def _check_and_init(self, baseview):
         if hasattr(baseview, "datamodel"):
@@ -400,42 +412,39 @@ class AirflowAppBuilder:
             then this link will be a part of the menu. Otherwise, it
             will not be included in the menu items. Defaults to
             :code:`None`, meaning the item will always be present.
+
         Examples::
+
             appbuilder = AppBuilder(app, db)
             # Register a view, rendering a top menu without icon.
             appbuilder.add_view(MyModelView(), "My View")
             # or not instantiated
             appbuilder.add_view(MyModelView, "My View")
             # Register a view, a submenu "Other View" from "Other" with a phone icon.
-            appbuilder.add_view(
-                MyOtherModelView,
-                "Other View",
-                icon='fa-phone',
-                category="Others"
-            )
+            appbuilder.add_view(MyOtherModelView, "Other View", icon="fa-phone", category="Others")
             # Register a view, with category icon and translation.
             appbuilder.add_view(
                 YetOtherModelView,
                 "Other View",
-                icon='fa-phone',
-                label=_('Other View'),
+                icon="fa-phone",
+                label=_("Other View"),
                 category="Others",
-                category_icon='fa-envelop',
-                category_label=_('Other View')
+                category_icon="fa-envelop",
+                category_label=_("Other View"),
             )
             # Register a view whose menu item will be conditionally displayed
             appbuilder.add_view(
                 YourFeatureView,
                 "Your Feature",
-                icon='fa-feature',
-                label=_('Your Feature'),
+                icon="fa-feature",
+                label=_("Your Feature"),
                 menu_cond=lambda: is_feature_enabled("your-feature"),
             )
             # Add a link
-            appbuilder.add_link("google", href="www.google.com", icon = "fa-google-plus")
+            appbuilder.add_link("google", href="www.google.com", icon="fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, name))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -470,8 +479,8 @@ class AirflowAppBuilder:
         baseview=None,
         cond=None,
     ):
-        """
-        Add your own links to menu using this method
+        """Add your own links to menu using this method.
+
         :param name:
             The string name that identifies the menu.
         :param href:
@@ -516,8 +525,8 @@ class AirflowAppBuilder:
                 self._add_permissions_menu(category)
 
     def add_separator(self, category, cond=None):
-        """
-        Add a separator to the menu, you will sequentially create the menu
+        """Add a separator to the menu, you will sequentially create the menu.
+
         :param category:
             The menu category where the separator will be included.
         :param cond:
@@ -531,12 +540,12 @@ class AirflowAppBuilder:
 
     def add_view_no_menu(self, baseview, endpoint=None, static_folder=None):
         """
-            Add your views without creating a menu.
-        :param baseview:
-            A BaseView type class instantiated.
+        Add your views without creating a menu.
+
+        :param baseview: A BaseView type class instantiated.
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, ""))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, "")
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -546,55 +555,51 @@ class AirflowAppBuilder:
                 self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
                 self._add_permission(baseview)
         else:
-            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
+            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS, baseview.__class__.__name__)
         return baseview
 
     def security_cleanup(self):
+        """Clean up security.
+
+        This method is useful if you have changed the name of your menus or
+        classes. Changing them leaves behind permissions that are not associated
+        with anything. You can use it always or just sometimes to perform a
+        security cleanup.
+
+        .. warning::
+
+            This deletes any permission that is no longer part of any registered
+            view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
-        This method is useful if you have changed
-        the name of your menus or classes,
-        changing them will leave behind permissions
-        that are not associated with anything.
-        You can use it always or just sometimes to
-        perform a security cleanup. Warning this will delete any permission
-        that is no longer part of any registered view or menu.
-        Remember invoke ONLY AFTER YOU HAVE REGISTERED ALL VIEWS
-        """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
-        """
-            This method is useful when you use:
-            - `class_permission_name`
-            - `previous_class_permission_name`
-            - `method_permission_name`
-            - `previous_method_permission_name`
-            migrates all permissions to the new names on all the Roles
+        """Migrates all permissions to the new names on all the Roles.
+
+        This method is useful when you use:
+
+        - ``class_permission_name``
+        - ``previous_class_permission_name``
+        - ``method_permission_name``
+        - ``previous_method_permission_name``
+
         :param dry: If True will not change DB
         :return: Dict with all computed necessary operations
         """
         return self.sm.security_converge(self.baseviews, self.menu, dry)
 
     def get_url_for_login_with(self, next_url: str | None = None) -> str:
-        if self.sm.auth_view is None:
-            return ""
-        return url_for(f"{self.sm.auth_view.endpoint}.{'login'}", next=next_url)
+        return get_auth_manager().get_url_login(next_url=next_url)
 
     @property
     def get_url_for_login(self):
-        return url_for(f"{self.sm.auth_view.endpoint}.login")
-
-    @property
-    def get_url_for_logout(self):
-        return url_for(f"{self.sm.auth_view.endpoint}.logout")
+        return get_auth_manager().get_url_login()
 
     @property
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
-
-    @property
-    def get_url_for_userinfo(self):
-        return url_for(f"{self.sm.user_view.endpoint}.userinfo")
 
     def get_url_for_locale(self, lang):
         return url_for(
@@ -618,7 +623,7 @@ class AirflowAppBuilder:
                 self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
                 log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW.format(str(e)))
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
 
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
@@ -626,7 +631,7 @@ class AirflowAppBuilder:
                 self.sm.add_permissions_menu(name)
             except Exception as e:
                 log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU.format(str(e)))
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU, e)
 
     def _add_menu_permissions(self, update_perms=False):
         if self.update_perms or update_perms:
@@ -643,10 +648,7 @@ class AirflowAppBuilder:
         )
 
     def _view_exists(self, view):
-        for baseview in self.baseviews:
-            if baseview.__class__ == view.__class__:
-                return True
-        return False
+        return any(baseview.__class__ == view.__class__ for baseview in self.baseviews)
 
     def _process_inner_views(self):
         for view in self.baseviews:
@@ -656,24 +658,23 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.www.security import AirflowSecurityManager
-
-    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
-
-    if not issubclass(security_manager_class, AirflowSecurityManager):
-        raise Exception(
-            """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-             not FAB's security manager."""
-        )
-
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
-        security_manager_class=security_manager_class,
         base_template="airflow/main.html",
-        update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
-        auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
-        auth_rate_limit=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        update_perms=conf.getboolean(
+            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        ),
+        auth_rate_limited=conf.getboolean(
+            "fab",
+            "AUTH_RATE_LIMITED",
+            fallback=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
+        ),
+        auth_rate_limit=conf.get(
+            "fab",
+            "AUTH_RATE_LIMIT",
+            fallback=conf.get("webserver", "AUTH_RATE_LIMIT", fallback="5 per 40 second"),
+        ),
     )

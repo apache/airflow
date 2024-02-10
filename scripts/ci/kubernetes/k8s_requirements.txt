@@ -1,6 +1,1 @@
-.[cncf.kubernetes]
-pytest
-pytest-cov
-pytest-instafail
-pytest-timeouts
-pytest-xdist
+-e .[devel-devscripts,devel-tests,cncf.kubernetes] --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"

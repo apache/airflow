@@ -17,8 +17,6 @@
 # under the License.
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
-This DAG relies on the following OS environment variables:
-* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 """
 from __future__ import annotations
 
@@ -26,8 +24,8 @@ import os
 from datetime import datetime
 from typing import Any, cast
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCreateBuildTriggerOperator,
@@ -44,6 +42,11 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
+# Repository with this name is expected created within the project $SYSTEM_TESTS_GCP_PROJECT
+# If you'd like to run this system test locally, please
+#   1. Create Cloud Source Repository
+#   2. Push into a master branch the following file:
+#   tests/system/providers/google/cloud/cloud_build/resources/example_cloud_build.yaml
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}"
@@ -80,14 +83,13 @@ create_build_from_repo_body: dict[str, Any] = {
 # [END howto_operator_create_build_from_repo_body]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_create_build_trigger]
     create_build_trigger = CloudBuildCreateBuildTriggerOperator(
         task_id="create_build_trigger", project_id=PROJECT_ID, trigger=create_build_trigger_body

@@ -81,6 +81,7 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 }
 
 
+@pytest.mark.db_test
 class TestStackdriverHookMethods:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):

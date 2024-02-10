@@ -21,14 +21,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -136,8 +137,12 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
             timeout=self.request_timeout,
             metadata=self.metadata,
         )
-        self.log.info("Status of %s run: %s", self.run_id, str(run.state))
+        self.log.info("Status of %s run: %s", self.run_id, run.state)
 
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
-            raise AirflowException(f"Transfer {self.run_id} did not succeed")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Transfer {self.run_id} did not succeed"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         return run.state in self.expected_statuses

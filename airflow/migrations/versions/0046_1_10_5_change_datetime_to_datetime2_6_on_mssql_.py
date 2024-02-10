@@ -27,6 +27,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
@@ -42,9 +43,11 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         result = conn.execute(
-            """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+            text(
+                """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
             like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
             like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
+            )
         ).fetchone()
         mssql_version = result[0]
         if mssql_version in ("2000", "2005"):
@@ -153,9 +156,11 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
         result = conn.execute(
-            """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
+            text(
+                """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
             like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
             like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
+            )
         ).fetchone()
         mssql_version = result[0]
         if mssql_version in ("2000", "2005"):
@@ -254,12 +259,14 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     """
-    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = text(
+        f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """
+    )
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:

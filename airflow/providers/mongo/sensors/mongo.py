@@ -28,14 +28,17 @@ if TYPE_CHECKING:
 
 class MongoSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in MongoDB. Example:
+    Checks for the existence of a document which matches the given query in MongoDB.
 
-    >>> mongo_sensor = MongoSensor(collection="coll",
-    ...                            query={"key": "value"},
-    ...                            mongo_conn_id="mongo_default",
-    ...                            mongo_db="admin",
-    ...                            task_id="mongo_sensor")
+    .. code-block:: python
+
+        mongo_sensor = MongoSensor(
+            collection="coll",
+            query={"key": "value"},
+            mongo_conn_id="mongo_default",
+            mongo_db="admin",
+            task_id="mongo_sensor",
+        )
 
     :param collection: Target MongoDB collection.
     :param query: The query to find the target document.
@@ -59,5 +62,5 @@ class MongoSensor(BaseSensorOperator):
         self.log.info(
             "Sensor check existence of the document that matches the following query: %s", self.query
         )
-        hook = MongoHook(self.mongo_conn_id)
+        hook = MongoHook(mongo_conn_id=self.mongo_conn_id)
         return hook.find(self.collection, self.query, mongo_db=self.mongo_db, find_one=True) is not None

@@ -21,6 +21,7 @@ from datetime import datetime
 from unittest import mock
 
 import pytest
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import WILDCARD, GCSToGCSOperator
@@ -54,6 +55,8 @@ MOD_TIME_1 = datetime(2016, 1, 1)
 MOD_TIME_2 = datetime(2019, 1, 1)
 
 
+# TODO: After deprecating delimiter and wildcards in source objects,
+#       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToCloudStorageOperator:
     """
     Tests the three use-cases for the wildcard operator. These are
@@ -100,7 +103,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter="", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -117,8 +120,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
-            mock.call(DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
+            mock.call(TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None, match_glob=None),
+            mock.call(DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -126,6 +129,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
     def test_copy_file_with_exact_match(self, mock_hook):
         SOURCE_FILES = [
             "test_object.txt",
+            "test_object.txt.abc",
             "test_object.txt.copy/",
             "test_object.txt.folder/",
         ]
@@ -140,9 +144,45 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None),
+            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
+        mock_hook.return_value.rewrite.assert_has_calls(
+            [
+                mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt"),
+            ]
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_file_with_exact_match_destination(self, mock_hook):
+        SOURCE_FILES = [
+            "test_object.txt",
+            "test_object.txt.abc",
+            "test_object.txt.copy/",
+            "test_object.txt.folder/",
+        ]
+        DESTINATION_OBJ = f"{DESTINATION_OBJECT_PREFIX}/test_object.txt"
+
+        mock_hook.return_value.list.return_value = SOURCE_FILES
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJ,
+            exact_match=True,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)
+
+        mock_calls_rewrite = [
+            mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, DESTINATION_OBJ),
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_rewrite)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_prefix_and_suffix(self, mock_hook):
@@ -450,7 +490,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=None)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix="", delimiter=None, match_glob=None
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_raises_exception_with_two_empty_list_inside_source_objects(self, mock_hook):
@@ -469,7 +511,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None
+            TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None, match_glob=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -480,8 +522,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_hook.return_value.list.assert_has_calls(
             [
-                mock.call(TEST_BUCKET, prefix="test_object/file1.txt", delimiter=None),
-                mock.call(TEST_BUCKET, prefix="test_object/file2.txt", delimiter=None),
+                mock.call(TEST_BUCKET, prefix="test_object/file1.txt", delimiter=None, match_glob=None),
+                mock.call(TEST_BUCKET, prefix="test_object/file2.txt", delimiter=None, match_glob=None),
             ],
             any_order=True,
         )
@@ -495,7 +537,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             delimiter=DELIMITER,
         )
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=DELIMITER)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix="", delimiter=DELIMITER, match_glob=None
+        )
 
     # COPY
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -593,7 +637,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter="", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -613,3 +657,246 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             AirflowException, match=f"{SOURCE_OBJECTS_SINGLE_FILE} does not exist in bucket {TEST_BUCKET}"
         ):
             operator.execute(None)
+
+    @pytest.mark.parametrize(
+        "existing_objects, source_object, match_glob, exact_match, expected_source_objects, "
+        "expected_destination_objects",
+        [
+            (["source/foo.txt"], "source/foo.txt", None, True, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/foo.txt", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/*", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/foo.*", None, False, ["source/foo.txt"], ["{prefix}/txt"]),
+            (["source/foo.txt"], "source/", "**/foo*", False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/", "**/foo.txt", False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.txt",
+                None,
+                True,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.txt",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/txt", "{prefix}/txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                "**/foo*",
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                "**/foo.txt",
+                False,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.txt",
+                None,
+                True,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.txt",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/txt", "{prefix}/txt.abc", "{prefix}/txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                "**/foo*",
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                "**/foo.txt",
+                False,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_files_into_a_folder(
+        self,
+        mock_hook,
+        existing_objects,
+        source_object,
+        match_glob,
+        exact_match,
+        expected_source_objects,
+        expected_destination_objects,
+    ):
+        mock_hook.return_value.list.return_value = existing_objects
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX + "/",
+            exact_match=exact_match,
+            match_glob=match_glob,
+        )
+        operator.execute(None)
+
+        mock_calls = [
+            mock.call(TEST_BUCKET, src, DESTINATION_BUCKET, dst.format(prefix=DESTINATION_OBJECT_PREFIX))
+            for src, dst in zip(expected_source_objects, expected_destination_objects)
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_simple_reports_openlineage(self, mock_hook):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECTS_SINGLE_FILE[0],
+            destination_bucket=DESTINATION_BUCKET,
+        )
+
+        operator.execute(None)
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == Dataset(
+            namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0]
+        )
+        assert lineage.outputs[0] == Dataset(
+            namespace=f"gs://{DESTINATION_BUCKET}", name=SOURCE_OBJECTS_SINGLE_FILE[0]
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_multiple_reports_openlineage(self, mock_hook):
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_objects=SOURCE_OBJECTS_LIST,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT,
+        )
+
+        operator.execute(None)
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 3
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs == [
+            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[0]),
+            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[1]),
+            Dataset(namespace=f"gs://{TEST_BUCKET}", name=SOURCE_OBJECTS_LIST[2]),
+        ]
+        assert lineage.outputs[0] == Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name=DESTINATION_OBJECT)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_execute_wildcard_reports_openlineage(self, mock_hook):
+        mock_hook.return_value.list.return_value = [
+            "test_object1.txt",
+            "test_object2.txt",
+        ]
+
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_WILDCARD_SUFFIX,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT,
+        )
+
+        operator.execute(None)
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 2
+        assert lineage.inputs == [
+            Dataset(namespace=f"gs://{TEST_BUCKET}", name="test_object1.txt"),
+            Dataset(namespace=f"gs://{TEST_BUCKET}", name="test_object2.txt"),
+        ]
+        assert lineage.outputs == [
+            Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="foo/bar/1.txt"),
+            Dataset(namespace=f"gs://{DESTINATION_BUCKET}", name="foo/bar/2.txt"),
+        ]

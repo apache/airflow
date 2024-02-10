@@ -95,7 +95,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         return self.hook.check_for_named_partition(schema, table, partition)
 
     def poke(self, context: Context) -> bool:
-
         number_of_partitions = len(self.partition_names)
         poke_index_start = self.next_index_to_poke
         for i in range(number_of_partitions):

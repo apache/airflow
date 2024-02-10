@@ -145,6 +145,7 @@ Create a database instance
 
 To create a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateDbInstanceOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python
@@ -159,6 +160,7 @@ Delete a database instance
 
 To delete a AWS DB instance you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDbInstanceOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
     :language: python

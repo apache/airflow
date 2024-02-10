@@ -26,21 +26,21 @@ import logging
 import os
 import sys
 import types
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
-
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import qualname
+from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    try:
+        import importlib_metadata
+    except ImportError:
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+    from types import ModuleType
+
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
@@ -50,6 +50,7 @@ log = logging.getLogger(__name__)
 import_errors: dict[str, str] = {}
 
 plugins: list[AirflowPlugin] | None = None
+loaded_plugins: set[str] = set()
 
 # Plugin components to integrate as modules
 registered_hooks: list[BaseHook] | None = None
@@ -77,14 +78,16 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
+    "admin_views",
     "flask_blueprints",
+    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
     "ti_deps",
     "timetables",
-    "source",
     "listeners",
 }
 
@@ -168,15 +171,14 @@ class AirflowPlugin:
 
     @classmethod
     def validate(cls):
-        """Validates that plugin has a name."""
+        """Validate if plugin has a name."""
         if not cls.name:
             raise AirflowPluginException("Your plugin needs a name.")
 
     @classmethod
     def on_load(cls, *args, **kwargs):
         """
-        Executed when the plugin is loaded.
-        This method is only called once during runtime.
+        Execute when the plugin is loaded; This method is only called once during runtime.
 
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
@@ -207,9 +209,16 @@ def register_plugin(plugin_instance):
     """
     Start plugin load and register it after success initialization.
 
+    If plugin is already registered, do nothing.
+
     :param plugin_instance: subclass of AirflowPlugin
     """
     global plugins
+
+    if plugin_instance.name in loaded_plugins:
+        return
+
+    loaded_plugins.add(plugin_instance.name)
     plugin_instance.on_load()
     plugins.append(plugin_instance)
 
@@ -217,6 +226,7 @@ def register_plugin(plugin_instance):
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
+
     The entry_point group should be 'airflow.plugins'.
     """
     global import_errors
@@ -244,11 +254,10 @@ def load_plugins_from_plugin_directory():
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
-        if not os.path.isfile(file_path):
+        path = Path(file_path)
+        if not path.is_file() or path.suffix != ".py":
             continue
-        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-        if file_ext != ".py":
-            continue
+        mod_name = path.stem
 
         try:
             loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
@@ -267,8 +276,27 @@ def load_plugins_from_plugin_directory():
             import_errors[file_path] = str(e)
 
 
+def load_providers_plugins():
+    from airflow.providers_manager import ProvidersManager
+
+    log.debug("Loading plugins from providers")
+    providers_manager = ProvidersManager()
+    providers_manager.initialize_providers_plugins()
+    for plugin in providers_manager.plugins:
+        log.debug("Importing plugin %s from class %s", plugin.name, plugin.plugin_class)
+
+        try:
+            plugin_instance = import_string(plugin.plugin_class)
+            if is_valid_plugin(plugin_instance):
+                register_plugin(plugin_instance)
+            else:
+                log.warning("Plugin %s is not a valid plugin", plugin.name)
+        except ImportError:
+            log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
+
+
 def make_module(name: str, objects: list[Any]):
-    """Creates new module."""
+    """Create new module."""
     if not objects:
         return None
     log.debug("Creating module %s", name)
@@ -306,14 +334,16 @@ def ensure_plugins_loaded():
         load_plugins_from_plugin_directory()
         load_entrypoint_plugins()
 
+        if not settings.LAZY_LOAD_PROVIDERS:
+            load_providers_plugins()
+
         # We don't do anything with these for now, but we want to keep track of
         # them so we can integrate them in to the UI's Connection screens
         for plugin in plugins:
             registered_hooks.extend(plugin.hooks)
 
-    num_loaded = len(plugins)
-    if num_loaded > 0:
-        log.debug("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
+    if plugins:
+        log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
 def initialize_web_ui_plugins():
@@ -529,8 +559,10 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 elif attr in ("macros", "timetables", "hooks", "executors"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
-                    # listeners are always modules
-                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
+                    # listeners may be modules or class instances
+                    info[attr] = [
+                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
+                    ]
                 elif attr == "appbuilder_views":
                     info[attr] = [
                         {**d, "view": qualname(d["view"].__class__) if "view" in d else None}

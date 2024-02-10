@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
@@ -51,13 +51,12 @@ FILE_LOCAL_PATH = str(Path(LOCAL_PATH) / TMP_PATH / DIR)
 FILE_NAME = "tmp.tar.gz"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
     unzip_file = BashOperator(
@@ -91,7 +90,7 @@ with models.DAG(
     # [END howto_operator_sftp_to_gcs_copy_directory]
 
     # [START howto_operator_sftp_to_gcs_move_specific_files]
-    move_specific_files_from_gcs_to_sftp = SFTPToGCSOperator(
+    move_specific_files_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="dir-move-specific-files-sftp-to-gcs",
         source_path=f"{FILE_LOCAL_PATH}/{SUBDIR}/*.bin",
         destination_bucket=BUCKET_NAME,
@@ -112,7 +111,7 @@ with models.DAG(
         copy_file_from_sftp_to_gcs,
         move_file_from_sftp_to_gcs_destination,
         copy_directory_from_sftp_to_gcs,
-        move_specific_files_from_gcs_to_sftp,
+        move_specific_files_from_sftp_to_gcs,
         # TEST TEARDOWN
         delete_bucket,
     )

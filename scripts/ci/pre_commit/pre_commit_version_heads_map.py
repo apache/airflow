@@ -18,42 +18,71 @@
 # under the License.
 from __future__ import annotations
 
-import ast
+import os
 import sys
 from pathlib import Path
 
-from packaging.version import Version
+import re2
+from packaging.version import parse as parse_version
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
+MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "migrations" / "versions"
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 
-from common_precommit_utils import read_airflow_version  # noqa: E402
 
+def revision_heads_map():
+    rh_map = {}
+    pattern = r'revision = "[a-fA-F0-9]+"'
+    airflow_version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
+    filenames = os.listdir(MIGRATION_PATH)
 
-def read_revision_heads_map():
-    revision_heads_map_ast_obj = ast.parse(open(DB_FILE).read())
+    def sorting_key(filen):
+        prefix = filen.split("_")[0]
+        return int(prefix) if prefix.isdigit() else 0
 
-    revision_heads_map_ast = [
-        a
-        for a in revision_heads_map_ast_obj.body
-        if isinstance(a, ast.Assign) and a.targets[0].id == "REVISION_HEADS_MAP"
-    ][0]
+    sorted_filenames = sorted(filenames, key=sorting_key)
 
-    revision_heads_map = ast.literal_eval(revision_heads_map_ast.value)
-
-    return revision_heads_map.keys()
+    for filename in sorted_filenames:
+        if not filename.endswith(".py"):
+            continue
+        with open(os.path.join(MIGRATION_PATH, filename)) as file:
+            content = file.read()
+            revision_match = re2.search(pattern, content)
+            airflow_version_match = re2.search(airflow_version_pattern, content)
+            if revision_match and airflow_version_match:
+                revision = revision_match.group(0).split('"')[1]
+                version = airflow_version_match.group(0).split('"')[1]
+                if parse_version(version) >= parse_version("2.0.0"):
+                    rh_map[version] = revision
+    return rh_map
 
 
 if __name__ == "__main__":
-    airflow_version = Version(read_airflow_version())
-    if airflow_version.is_devrelease or "b" in (airflow_version.pre or ()):
-        exit(0)
-    versions = read_revision_heads_map()
-    if airflow_version.base_version not in versions:
-        print("Current airflow version is not in the REVISION_HEADS_MAP")
-        print("Current airflow version:", airflow_version)
-        print("Please add the version to the REVISION_HEADS_MAP at:", DB_FILE)
-        sys.exit(3)
+    with open(DB_FILE) as file:
+        content = file.read()
+
+    pattern = r"_REVISION_HEADS_MAP = {[^}]+\}"
+    match = re2.search(pattern, content)
+    if not match:
+        print(
+            f"_REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
+            "please update scripts/ci/pre_commit/pre_commit_version_heads_map.py"
+        )
+        sys.exit(1)
+
+    existing_revision_heads_map = match.group(0)
+    rh_map = revision_heads_map()
+    updated_revision_heads_map = "_REVISION_HEADS_MAP = {\n"
+    for k, v in rh_map.items():
+        updated_revision_heads_map += f'    "{k}": "{v}",\n'
+    updated_revision_heads_map += "}"
+    if existing_revision_heads_map != updated_revision_heads_map:
+        new_content = content.replace(existing_revision_heads_map, updated_revision_heads_map)
+
+        with open(DB_FILE, "w") as file:
+            file.write(new_content)
+        print("_REVISION_HEADS_MAP updated in db.py. Please commit the changes.")
+        sys.exit(1)

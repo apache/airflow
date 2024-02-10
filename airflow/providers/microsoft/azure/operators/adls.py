@@ -64,7 +64,7 @@ class ADLSDeleteOperator(BaseOperator):
 
 class ADLSListOperator(BaseOperator):
     """
-    List all files from the specified path
+    List all files from the specified path.
 
     This operator returns a python list with the names of files which can be used by
      `xcom` in the downstream tasks.
@@ -78,9 +78,9 @@ class ADLSListOperator(BaseOperator):
         folder in the specified ADLS account ::
 
             adls_files = ADLSListOperator(
-                task_id='adls_files',
-                path='folder/output/*.parquet',
-                azure_data_lake_conn_id='azure_data_lake_default'
+                task_id="adls_files",
+                path="folder/output/*.parquet",
+                azure_data_lake_conn_id="azure_data_lake_default",
             )
     """
 

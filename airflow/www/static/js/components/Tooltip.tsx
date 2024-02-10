@@ -136,7 +136,7 @@ const Tooltip = forwardRef<TooltipProps, "div">((props, ref) => {
    * Ensure tooltip has only one child node
    */
   const child = React.Children.only(children) as React.ReactElement & {
-    ref?: React.Ref<any>;
+    ref?: React.Ref<HTMLElement>;
   };
   const trigger: React.ReactElement = React.cloneElement(
     child,
@@ -168,6 +168,7 @@ const Tooltip = forwardRef<TooltipProps, "div">((props, ref) => {
             >
               <StyledTooltip
                 variants={scale}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 {...(tooltipProps as any)}
                 initial="exit"
                 animate="enter"

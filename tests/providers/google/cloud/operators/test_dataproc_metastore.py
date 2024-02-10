@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
-from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -34,6 +34,9 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreRestoreServiceOperator,
     DataprocMetastoreUpdateServiceOperator,
 )
+
+if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
 
 TASK_ID: str = "task_id"
 GCP_LOCATION: str = "test-location"

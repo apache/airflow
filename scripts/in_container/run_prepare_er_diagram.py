@@ -35,8 +35,9 @@ MIGRATIONS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "migrations"
 if __name__ == "__main__":
     from eralchemy2 import render_er
 
-    console = Console(width=400)
+    console = Console(width=400, color_system="standard")
 
+    console.print("[bright_blue]Preparing diagram for Airflow ERD")
     sha256hash = dirhash(
         MIGRATIONS_DIR, "sha256", excluded_extensions=["pyc"], ignore_hidden=True, include_paths=True
     )
@@ -53,7 +54,8 @@ if __name__ == "__main__":
         )
         HASH_FILE.write_text(sha256hash)
         host_os = os.environ.get("HOST_OS")
-        if host_os and host_os.lower() == "linux":
+        docker_is_rootless = os.environ.get("DOCKER_IS_ROOTLESS", "false") == "true"
+        if host_os and host_os.lower() == "linux" and not docker_is_rootless:
             try:
                 host_uid = int(os.environ["HOST_USER_ID"])
                 host_gid = int(os.environ["HOST_GROUP_ID"])
@@ -65,3 +67,7 @@ if __name__ == "__main__":
         console.print(f"[green]The diagram has been generated in {SVG_FILE}. Please commit the changes!")
     else:
         console.print("[green]Skip file generation as no files changes since last generation")
+        console.print(
+            f"[bright_blue]You can delete [magenta]{HASH_FILE.relative_to(AIRFLOW_SOURCES_ROOT)}[/] "
+            f"[bright_blue]to regenerate the diagrams.[/]"
+        )

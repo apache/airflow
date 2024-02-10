@@ -69,6 +69,10 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from Postgres to Google Cloud Storage in JSON, CSV or Parquet format.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PostgresToGCSOperator`
+
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
         For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors
@@ -111,7 +115,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         return f"{self.dag_id}__{self.task_id}__{uuid.uuid4()}" if self.use_server_side_cursor else None
 
     def query(self):
-        """Queries Postgres and returns a cursor to the results."""
+        """Query Postgres and returns a cursor to the results."""
         hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
         conn = hook.get_conn()
         cursor = conn.cursor(name=self._unique_name())
@@ -130,8 +134,8 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
 
     def convert_type(self, value, schema_type, stringify_dict=True):
         """
-        Takes a value from Postgres, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery.
+        Take a value from Postgres and convert it to a value safe for JSON/Google Cloud Storage/BigQuery.
+
         Timezone aware Datetime are converted to UTC seconds.
         Unaware Datetime, Date and Time are converted to ISO formatted strings.
         Decimals are converted to floats.

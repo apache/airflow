@@ -33,7 +33,14 @@ import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
-import { MdDetails, MdAccountTree, MdReorder } from "react-icons/md";
+import {
+  MdDetails,
+  MdAccountTree,
+  MdReorder,
+  MdCode,
+  MdOutlineViewTimeline,
+  MdSyncAlt,
+} from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
@@ -42,6 +49,8 @@ import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
 import DagContent from "./Dag";
 import Graph from "./graph";
+import Gantt from "./gantt";
+import DagCode from "./dagCode";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
@@ -50,6 +59,7 @@ import ClearRun from "./dagRun/ClearRun";
 import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
+import XcomCollection from "./taskInstance/Xcom";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -57,15 +67,23 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  gridScrollRef: React.RefObject<HTMLDivElement>;
+  ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
 const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
+    case "gantt":
+      return 2;
+    case "code":
+      return 3;
     case "logs":
     case "mapped_tasks":
-      return 2;
+      return 4;
+    case "xcom":
+      return 5;
     case "details":
     default:
       return 0;
@@ -74,15 +92,23 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
-  showLogs: boolean,
-  showMappedTasks: boolean
+  taskId: string | null,
+  isTaskInstance: boolean,
+  isMappedTaskSummary: boolean
 ) => {
   switch (index) {
     case 1:
       return "graph";
     case 2:
-      if (showMappedTasks) return "mapped_tasks";
-      if (showLogs) return "logs";
+      return "gantt";
+    case 3:
+      return "code";
+    case 4:
+      if (isMappedTaskSummary) return "mapped_tasks";
+      if (isTaskInstance) return "logs";
+      return undefined;
+    case 5:
+      if (isTaskInstance) return "xcom";
       return undefined;
     case 0:
     default:
@@ -90,16 +116,21 @@ const indexToTab = (
   }
 };
 
-const TAB_PARAM = "tab";
+export const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const Details = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
   } = useSelection();
   const isDag = !runId && !taskId;
   const isDagRun = runId && !taskId;
-  const isTaskInstance = taskId && runId;
 
   const {
     data: { dagRuns, groups },
@@ -107,12 +138,21 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const group = getTask({ taskId, task: groups });
   const children = group?.children;
   const isMapped = group?.isMapped;
-
-  const isMappedTaskSummary = isMapped && mapIndex === undefined && taskId;
   const isGroup = !!children;
-  const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
-  const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
-  const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
+
+  const isMappedTaskSummary = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    isMapped &&
+    mapIndex === undefined
+  );
+  const isTaskInstance = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    !isMappedTaskSummary
+  );
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -121,16 +161,23 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      const newTab = indexToTab(
+        index,
+        taskId,
+        isTaskInstance,
+        isMappedTaskSummary
+      );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks]
+    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary, taskId]
   );
 
   useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 1) {
+    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
+    const tabCount = runId && taskId && !isGroup ? 5 : 4;
+    if (tabCount === 4 && tabIndex > 3) {
       onChangeTab(1);
     }
   }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
@@ -150,10 +197,15 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between" ml={6}>
+    <Flex flexDirection="column" height="100%">
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        ml={6}
+      >
         <Header />
-        <Flex>
+        <Flex flexWrap="wrap">
           {runId && !taskId && (
             <>
               <ClearRun runId={runId} mr={2} />
@@ -169,6 +221,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
+                mt={2}
                 mr={2}
               />
               <MarkInstanceAs
@@ -178,6 +231,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
+                mt={2}
                 mr={2}
               />
             </>
@@ -206,7 +260,19 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               Graph
             </Text>
           </Tab>
-          {showLogs && (
+          <Tab>
+            <MdOutlineViewTimeline size={16} />
+            <Text as="strong" ml={1}>
+              Gantt
+            </Text>
+          </Tab>
+          <Tab>
+            <MdCode size={16} />
+            <Text as="strong" ml={1}>
+              Code
+            </Text>
+          </Tab>
+          {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
               <Text as="strong" ml={1}>
@@ -214,11 +280,19 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               </Text>
             </Tab>
           )}
-          {showMappedTasks && (
+          {isMappedTaskSummary && (
             <Tab>
               <BiBracket size={16} />
               <Text as="strong" ml={1}>
                 Mapped Tasks
+              </Text>
+            </Tab>
+          )}
+          {isTaskInstance && (
+            <Tab>
+              <MdSyncAlt size={16} />
+              <Text as="strong" ml={1}>
+                XCom
               </Text>
             </Tab>
           )}
@@ -227,7 +301,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           <TabPanel height="100%">
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
-            {isTaskInstance && (
+            {!!runId && !!taskId && (
               <>
                 <BackToTaskSummary
                   isMapIndexDefined={mapIndex !== undefined && mapIndex > -1}
@@ -248,7 +322,17 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
-          {showLogs && run && (
+          <TabPanel p={0} height="100%">
+            <Gantt
+              openGroupIds={openGroupIds}
+              gridScrollRef={gridScrollRef}
+              ganttScrollRef={ganttScrollRef}
+            />
+          </TabPanel>
+          <TabPanel height="100%">
+            <DagCode />
+          </TabPanel>
+          {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
               height="100%"
@@ -268,7 +352,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               />
             </TabPanel>
           )}
-          {showMappedTasks && (
+          {isMappedTaskSummary && (
             <TabPanel height="100%">
               <MappedInstances
                 dagId={dagId}
@@ -277,6 +361,17 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
                 onRowClicked={(row) =>
                   onSelect({ runId, taskId, mapIndex: row.values.mapIndex })
                 }
+              />
+            </TabPanel>
+          )}
+          {isTaskInstance && (
+            <TabPanel height="100%">
+              <XcomCollection
+                dagId={dagId}
+                dagRunId={runId}
+                taskId={taskId}
+                mapIndex={mapIndex}
+                tryNumber={instance?.tryNumber}
               />
             </TabPanel>
           )}

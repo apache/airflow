@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections & variables from Hashicorp Vault"""
+"""Objects relating to sourcing connections & variables from Hashicorp Vault."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 
+from deprecated import deprecated
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -168,7 +170,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_response(self, conn_id: str) -> dict | None:
         """
-        Get data from Vault
+        Get data from Vault.
 
         :return: The data from the Vault path if exists
         """
@@ -183,21 +185,19 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
+    @deprecated(
+        reason="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
-        Get serialized representation of connection
+        Get serialized representation of connection.
 
         :param conn_id: The connection id
         :return: The connection uri retrieved from the secret
         """
         # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
         # don't need to implement (or direct users to use) method `get_conn_value` instead
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         response = self.get_response(conn_id)
         return response.get("conn_uri") if response else None
 
@@ -208,8 +208,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_connection(self, conn_id: str) -> Connection | None:
         """
-        Get connection from Vault as secret. Prioritize conn_uri if exists,
-        if not fall back to normal Connection creation.
+        Get connection from Vault as secret.
+
+        Prioritize conn_uri if exists, if not fall back to normal Connection creation.
 
         :return: A Connection object constructed from Vault data
         """
@@ -229,7 +230,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable
+        Get Airflow Variable.
 
         :param key: Variable Key
         :return: Variable Value retrieved from the vault
@@ -248,7 +249,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
 
         :param key: Configuration Option Key
         :return: Configuration Option Value retrieved from the vault

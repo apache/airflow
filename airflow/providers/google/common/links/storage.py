@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 BASE_LINK = "https://console.cloud.google.com"
@@ -27,11 +26,12 @@ GCS_STORAGE_LINK = BASE_LINK + "/storage/browser/{uri};tab=objects?project={proj
 GCS_FILE_DETAILS_LINK = BASE_LINK + "/storage/browser/_details/{uri};tab=live_object?project={project_id}"
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 
 class StorageLink(BaseGoogleLink):
-    """Helper class for constructing GCS Storage link"""
+    """Helper class for constructing GCS Storage link."""
 
     name = "GCS Storage"
     key = "storage_conf"
@@ -47,7 +47,7 @@ class StorageLink(BaseGoogleLink):
 
 
 class FileDetailsLink(BaseGoogleLink):
-    """Helper class for constructing GCS file details link"""
+    """Helper class for constructing GCS file details link."""
 
     name = "GCS File Details"
     key = "file_details"

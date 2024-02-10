@@ -21,14 +21,14 @@
 ## Airflow Pod Reader Role
 #################################
 {{- if and .Values.rbac.create (or .Values.webserver.allowPodLogReading .Values.triggerer.enabled) }}
+apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRole
 {{- else }}
 kind: Role
 {{- end }}
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ .Release.Name }}-pod-log-reader-role
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}

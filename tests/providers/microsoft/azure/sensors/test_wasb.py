@@ -18,24 +18,24 @@
 from __future__ import annotations
 
 import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import Connection
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.microsoft.azure.sensors.wasb import (
-    WasbBlobSensor,
-    WasbPrefixSensor,
-)
+from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 TEST_DATA_STORAGE_BLOB_NAME = "test_blob_providers.txt"
 TEST_DATA_STORAGE_CONTAINER_NAME = "test-container-providers"
@@ -128,9 +128,17 @@ class TestWasbBlobAsyncSensor:
         deferrable=True,
     )
 
-    def test_wasb_blob_sensor_async(self):
-        """Assert execute method defer for wasb blob sensor"""
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor.defer")
+    def test_wasb_blob_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = True
+        self.SENSOR.execute(mock.MagicMock())
+        assert not mock_defer.called
 
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    def test_wasb_blob_sensor_async(self, mock_hook):
+        """Assert execute method defer for wasb blob sensor"""
+        mock_hook.return_value.check_for_blob.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
         assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
@@ -152,10 +160,14 @@ class TestWasbBlobAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    def test_wasb_blob_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_wasb_blob_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        with pytest.raises(AirflowException):
+        self.SENSOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
@@ -244,9 +256,17 @@ class TestWasbPrefixAsyncSensor:
         deferrable=True,
     )
 
-    def test_wasb_prefix_sensor_async(self):
-        """Assert execute method defer for wasb prefix sensor"""
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbPrefixSensor.defer")
+    def test_wasb_prefix_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.check_for_prefix.return_value = True
+        self.SENSOR.execute(mock.MagicMock())
+        assert not mock_defer.called
 
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    def test_wasb_prefix_sensor_async(self, mock_hook):
+        """Assert execute method defer for wasb prefix sensor"""
+        mock_hook.return_value.check_for_prefix.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
         assert isinstance(
@@ -269,8 +289,12 @@ class TestWasbPrefixAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    def test_wasb_prefix_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_wasb_prefix_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
+        self.SENSOR.soft_fail = soft_fail
         with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})

@@ -15,14 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
 services:
   airflow:
     environment:
       - BACKEND=postgres
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
       postgres:
         condition: service_healthy
@@ -35,7 +33,6 @@ services:
       - POSTGRES_DB=airflow
       - POSTGRES_HOST_AUTH_METHOD=password
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "psql", "-h", "localhost", "-U", "postgres", "-c", "select 1", "airflow"]

@@ -29,9 +29,10 @@ if TYPE_CHECKING:
 
 class TrinoToMySqlOperator(BaseOperator):
     """
-    Moves data from Trino to MySQL, note that for now the data is loaded
-    into memory before being pushed to MySQL, so this operator should
-    be used for smallish amount of data.
+    Moves data from Trino to MySQL.
+
+    Note that for now the data is loaded into memory before being pushed
+    to MySQL, so this operator should be used for smallish amount of data.
 
     :param sql: SQL query to execute against Trino. (templated)
     :param mysql_table: target MySQL table, use dot notation to target a

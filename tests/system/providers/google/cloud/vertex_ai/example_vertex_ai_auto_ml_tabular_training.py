@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Auto ML operations.
@@ -26,15 +24,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLTabularTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
@@ -43,22 +43,17 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_auto_ml_operations"
+DAG_ID = "example_vertex_ai_auto_ml_operations"
 REGION = "us-central1"
 TABULAR_DISPLAY_NAME = f"auto-ml-tabular-{ENV_ID}"
 MODEL_DISPLAY_NAME = "adopted-prediction-model"
 
-TABULAR_GCS_BUCKET_NAME = f"bucket_tabular_{DAG_ID}_{ENV_ID}"
-
-RESOURCES_PATH = Path(__file__).parent / "resources"
-TABULAR_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "tabular-dataset.csv.zip")
-TABULAR_GCS_OBJECT_NAME = "vertex-ai/tabular-dataset.csv"
-TABULAR_CSV_FILE_LOCAL_PATH = "/tabular/tabular-dataset.csv"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+TABULAR_GCS_BUCKET_NAME = f"bucket_tabular_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
 TABULAR_DATASET = {
     "display_name": f"tabular-dataset-{ENV_ID}",
@@ -88,7 +83,7 @@ COLUMN_TRANSFORMATIONS = [
     {"numeric": {"column_name": "PhotoAmt"}},
 ]
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_tabular_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -102,16 +97,13 @@ with models.DAG(
         location=REGION,
     )
 
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"unzip {TABULAR_ZIP_CSV_FILE_LOCAL_PATH} -d /tabular/",
-    )
-
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=TABULAR_CSV_FILE_LOCAL_PATH,
-        dst=TABULAR_GCS_OBJECT_NAME,
-        bucket=TABULAR_GCS_BUCKET_NAME,
+    move_dataset_file = GCSSynchronizeBucketsOperator(
+        task_id="move_dataset_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/datasets",
+        destination_bucket=TABULAR_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
 
     create_tabular_dataset = CreateDatasetOperator(
@@ -142,7 +134,8 @@ with models.DAG(
 
     delete_auto_ml_tabular_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
-        training_pipeline_id=create_auto_ml_tabular_training_job.output["training_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_tabular_task', "
+        "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -162,16 +155,10 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /tabular/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_dataset_file
         >> create_tabular_dataset
         # TEST BODY
         >> create_auto_ml_tabular_training_job
@@ -179,7 +166,6 @@ with models.DAG(
         >> delete_auto_ml_tabular_training_job
         >> delete_tabular_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

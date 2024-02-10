@@ -39,6 +39,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.listeners import xcom_listener
 from tests.listeners.file_write_listener import FileWriteListener
 from tests.test_utils.db import clear_db_runs
 
@@ -85,10 +86,14 @@ class TestStandardTaskRunner:
         (as the test environment does not have enough context for the normal
         way to run) and ensures they reset back to normal on the way out.
         """
-        get_listener_manager().clear()
         clear_db_runs()
         yield
         clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
         get_listener_manager().clear()
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
@@ -127,15 +132,12 @@ class TestStandardTaskRunner:
 
         assert task_runner.return_code() is not None
 
-    def test_notifies_about_start_and_stop(self):
-        path_listener_writer = "/tmp/test_notifies_about_start_and_stop"
-        try:
-            os.unlink(path_listener_writer)
-        except OSError:
-            pass
+    @pytest.mark.db_test
+    def test_notifies_about_start_and_stop(self, tmp_path):
+        path_listener_writer = tmp_path / "test_notifies_about_start_and_stop"
 
         lm = get_listener_manager()
-        lm.add_listener(FileWriteListener(path_listener_writer))
+        lm.add_listener(FileWriteListener(os.fspath(path_listener_writer)))
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -165,21 +167,18 @@ class TestStandardTaskRunner:
 
             # Wait till process finishes
         assert task_runner.return_code(timeout=10) is not None
-        with open(path_listener_writer) as f:
+        with path_listener_writer.open() as f:
             assert f.readline() == "on_starting\n"
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "before_stopping\n"
 
-    def test_notifies_about_fail(self):
-        path_listener_writer = "/tmp/test_notifies_about_fail"
-        try:
-            os.unlink(path_listener_writer)
-        except OSError:
-            pass
+    @pytest.mark.db_test
+    def test_notifies_about_fail(self, tmp_path):
+        path_listener_writer = tmp_path / "test_notifies_about_fail"
 
         lm = get_listener_manager()
-        lm.add_listener(FileWriteListener(path_listener_writer))
+        lm.add_listener(FileWriteListener(os.fspath(path_listener_writer)))
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -209,11 +208,57 @@ class TestStandardTaskRunner:
 
             # Wait till process finishes
         assert task_runner.return_code(timeout=10) is not None
-        with open(path_listener_writer) as f:
+        with path_listener_writer.open() as f:
             assert f.readline() == "on_starting\n"
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
+
+    @pytest.mark.db_test
+    def test_ol_does_not_block_xcoms(self, tmp_path):
+        """
+        Test that ensures that pushing and pulling xcoms both in listener and task does not collide
+        """
+
+        path_listener_writer = tmp_path / "test_ol_does_not_block_xcoms"
+
+        listener = xcom_listener.XComListener(os.fspath(path_listener_writer), "push_and_pull")
+        get_listener_manager().add_listener(listener)
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_dag_xcom_openlineage")
+        task = dag.get_task("push_and_pull")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
+
+        # Wait until process makes itself the leader of its own process group
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+        # Wait till process finishes
+        assert task_runner.return_code(timeout=10) is not None
+
+        with path_listener_writer.open() as f:
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_success\n"
+            assert f.readline() == "listener\n"
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_start_and_terminate_run_as_user(self, mock_init):
@@ -295,21 +340,16 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
+    @pytest.mark.db_test
     def test_on_kill(self):
         """
         Test that ensures that clearing in the UI SIGTERMS
         the task
         """
-        path_on_kill_running = "/tmp/airflow_on_kill_running"
-        path_on_kill_killed = "/tmp/airflow_on_kill_killed"
-        try:
-            os.unlink(path_on_kill_running)
-        except OSError:
-            pass
-        try:
-            os.unlink(path_on_kill_killed)
-        except OSError:
-            pass
+        path_on_kill_running = Path("/tmp/airflow_on_kill_running")
+        path_on_kill_killed = Path("/tmp/airflow_on_kill_killed")
+        path_on_kill_running.unlink(missing_ok=True)
+        path_on_kill_killed.unlink(missing_ok=True)
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -340,9 +380,7 @@ class TestStandardTaskRunner:
 
         logging.info("Waiting for the task to start")
         with timeout(seconds=20):
-            while True:
-                if os.path.exists(path_on_kill_running):
-                    break
+            while not path_on_kill_running.exists():
                 time.sleep(0.01)
         logging.info("Task started. Give the task some time to settle")
         time.sleep(3)
@@ -351,24 +389,20 @@ class TestStandardTaskRunner:
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
-            while True:
-                if os.path.exists(path_on_kill_killed):
-                    break
+            while not path_on_kill_killed.exists():
                 time.sleep(0.01)
         logging.info("The file appeared")
 
-        with open(path_on_kill_killed) as f:
+        with path_on_kill_killed.open() as f:
             assert "ON_KILL_TEST" == f.readline()
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
+    @pytest.mark.db_test
     def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")
-        try:
-            context_file.unlink()
-        except FileNotFoundError:
-            pass
+        context_file.unlink(missing_ok=True)
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,

@@ -20,10 +20,14 @@ from __future__ import annotations
 import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.operators.email import EmailOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -59,6 +63,6 @@ class TestEmailOperator:
         with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):
             self._run_as_operator()
         assert send_email_test.call_count == 1
-        call_args = send_email_test.call_args[1]
+        call_args = send_email_test.call_args.kwargs
         assert call_args["files"] == ["/tmp/Report-A-2016-01-01.csv"]
         assert call_args["custom_headers"] == {"Reply-To": "reply_to@example.com"}

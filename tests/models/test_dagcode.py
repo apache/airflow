@@ -22,7 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import AirflowException, example_dags as example_dags_module
+import airflow.example_dags as example_dags_module
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag
 from airflow.models.dagcode import DagCode
 
@@ -30,6 +31,8 @@ from airflow.models.dagcode import DagCode
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dag_code
+
+pytestmark = pytest.mark.db_test
 
 
 def make_example_dags(module):
@@ -81,7 +84,7 @@ class TestDagCode:
         """Dg code can be bulk written into database."""
         example_dags = make_example_dags(example_dags_module)
         files = [dag.fileloc for dag in example_dags.values()]
-        half_files = files[: int(len(files) / 2)]
+        half_files = files[: len(files) // 2]
         with create_session() as session:
             DagCode.bulk_sync_to_db(half_files, session=session)
             session.commit()

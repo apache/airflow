@@ -41,12 +41,19 @@ class TriggererInfoSchema(BaseInfoSchema):
     latest_triggerer_heartbeat = fields.String(dump_only=True)
 
 
+class DagProcessorInfoSchema(BaseInfoSchema):
+    """Schema for DagProcessor info."""
+
+    latest_dag_processor_heartbeat = fields.String(dump_only=True)
+
+
 class HealthInfoSchema(Schema):
     """Schema for the Health endpoint."""
 
     metadatabase = fields.Nested(MetaDatabaseInfoSchema)
     scheduler = fields.Nested(SchedulerInfoSchema)
     triggerer = fields.Nested(TriggererInfoSchema)
+    dag_processor = fields.Nested(DagProcessorInfoSchema)
 
 
 health_schema = HealthInfoSchema()

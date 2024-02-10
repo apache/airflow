@@ -69,19 +69,20 @@ export function escapeHtml(text) {
 window.escapeHtml = escapeHtml;
 
 export function convertSecsToHumanReadable(seconds) {
+  let processedSeconds = seconds;
   const oriSeconds = seconds;
   const floatingPart = oriSeconds - Math.floor(oriSeconds);
 
-  seconds = Math.floor(seconds);
+  processedSeconds = Math.floor(processedSeconds);
 
   const secondsPerHour = 60 * 60;
   const secondsPerMinute = 60;
 
-  const hours = Math.floor(seconds / secondsPerHour);
-  seconds -= hours * secondsPerHour;
+  const hours = Math.floor(processedSeconds / secondsPerHour);
+  processedSeconds -= hours * secondsPerHour;
 
-  const minutes = Math.floor(seconds / secondsPerMinute);
-  seconds -= minutes * secondsPerMinute;
+  const minutes = Math.floor(processedSeconds / secondsPerMinute);
+  processedSeconds -= minutes * secondsPerMinute;
 
   let readableFormat = "";
   if (hours > 0) {
@@ -90,12 +91,12 @@ export function convertSecsToHumanReadable(seconds) {
   if (minutes > 0) {
     readableFormat += `${minutes}Min `;
   }
-  if (seconds + floatingPart > 0) {
+  if (processedSeconds + floatingPart > 0) {
     if (Math.floor(oriSeconds) === oriSeconds) {
-      readableFormat += `${seconds}Sec`;
+      readableFormat += `${processedSeconds}Sec`;
     } else {
-      seconds += floatingPart;
-      readableFormat += `${seconds.toFixed(3)}Sec`;
+      processedSeconds += floatingPart;
+      readableFormat += `${processedSeconds.toFixed(3)}Sec`;
     }
   }
   return readableFormat;

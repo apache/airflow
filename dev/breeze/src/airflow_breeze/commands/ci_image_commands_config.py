@@ -35,49 +35,73 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
-                "--force-build",
-                "--github-repository",
+                "--version-suffix-for-pypi",
+                "--build-progress",
+                "--docker-host",
             ],
         },
         {
             "name": "Building images in parallel",
             "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--python-versions",
-                "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+                "--parallelism",
+                "--python-versions",
+                "--run-in-parallel",
+                "--skip-cleanup",
             ],
         },
         {
-            "name": "Advanced options (for power users)",
+            "name": "Advanced build options (for power users)",
             "options": [
-                "--builder",
-                "--install-providers-from-sources",
+                "--additional-pip-install-flags",
+                "--commit-sha",
+                "--debian-version",
+                "--install-mysql-client-type",
+                "--python-image",
+            ],
+        },
+        {
+            "name": "Selecting constraint location (for power users)",
+            "options": [
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
-                "--python-image",
+            ],
+        },
+        {
+            "name": "Choosing dependencies and extras (for power users)",
+            "options": [
+                "--additional-airflow-extras",
                 "--additional-python-deps",
-                "--additional-extras",
-                "--additional-pip-install-flags",
-                "--additional-dev-apt-deps",
-                "--additional-dev-apt-env",
-                "--additional-dev-apt-command",
                 "--dev-apt-deps",
+                "--additional-dev-apt-deps",
                 "--dev-apt-command",
+                "--additional-dev-apt-command",
+                "--additional-dev-apt-env",
+            ],
+        },
+        {
+            "name": "Backtracking options",
+            "options": [
+                "--build-timeout-minutes",
+                "--eager-upgrade-additional-requirements",
             ],
         },
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--github-token",
-                "--github-username",
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
             ],
         },
     ],
@@ -87,11 +111,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--python",
-                "--github-token",
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
-                "--github-repository",
             ],
         },
         {
@@ -105,6 +127,13 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-success-outputs",
             ],
         },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
     "breeze ci-image verify": [
         {
@@ -114,8 +143,25 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--pull",
-                "--github-repository",
             ],
-        }
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
 }

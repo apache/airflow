@@ -309,7 +309,6 @@ class TestMLEngineBatchPredictionOperator:
 
 
 class TestMLEngineTrainingCancelJobOperator:
-
     TRAINING_DEFAULT_ARGS = {
         "project_id": "test-project",
         "job_id": "test_training",
@@ -936,11 +935,11 @@ TEST_JOB_ID = "1234"
 TEST_GCP_PROJECT_ID = "test-project"
 TEST_REGION = "us-central1"
 TEST_RUNTIME_VERSION = "1.15"
-TEST_PYTHON_VERSION = "3.7"
+TEST_PYTHON_VERSION = "3.8"
 TEST_JOB_DIR = "gs://example_mlengine_bucket/job-dir"
 TEST_PACKAGE_URIS = ["gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"]
 TEST_TRAINING_PYTHON_MODULE = "trainer.task"
-TEST_TRAINING_ARGS = []
+TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 

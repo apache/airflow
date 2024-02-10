@@ -22,8 +22,8 @@ import inspect
 import os
 import pkgutil
 import sys
-from glob import glob
 from importlib import import_module
+from pathlib import Path
 
 import airflow
 from airflow.hooks.base import BaseHook
@@ -39,7 +39,7 @@ if __name__ != "__main__":
         f"To execute this script, run the '{program}' command"
     )
 
-AIRFLOW_ROOT = os.path.abspath(os.path.join(os.path.dirname(airflow.__file__), os.pardir))
+AIRFLOW_ROOT = Path(airflow.__file__).resolve().parents[1]
 
 
 def _find_clazzes(directory, base_class):
@@ -111,11 +111,7 @@ RESOURCE_TYPES = {
 }
 
 for integration_base_directory, integration_class in RESOURCE_TYPES.items():
-    for integration_directory in glob(
-        f"{AIRFLOW_ROOT}/airflow/**/{integration_base_directory}", recursive=True
-    ):
-        if "contrib" in integration_directory:
-            continue
-
-        for clazz_to_print in sorted(_find_clazzes(integration_directory, integration_class)):
-            print(clazz_to_print)
+    for integration_directory in (AIRFLOW_ROOT / "airflow").rglob(integration_base_directory):
+        if "contrib" not in integration_directory.parts:
+            for clazz_to_print in sorted(_find_clazzes(integration_directory, integration_class)):
+                print(clazz_to_print)

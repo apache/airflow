@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 class GlueCrawlerSensor(BaseSensorOperator):
     """
-    Waits for an AWS Glue crawler to reach any of the statuses below
+    Waits for an AWS Glue crawler to reach any of the statuses below.
+
     'FAILED', 'CANCELLED', 'SUCCEEDED'
 
     .. seealso::
@@ -62,13 +63,17 @@ class GlueCrawlerSensor(BaseSensorOperator):
                 self.log.info("Status: %s", crawler_status)
                 return True
             else:
-                raise AirflowException(f"Status: {crawler_status}")
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                message = f"Status: {crawler_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
         else:
             return False
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> GlueCrawlerHook:
-        """Returns a new or pre-existing GlueCrawlerHook"""
+        """Return a new or pre-existing GlueCrawlerHook."""
         return self.hook
 
     @cached_property

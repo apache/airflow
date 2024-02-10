@@ -45,7 +45,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -65,6 +65,8 @@ from tests.test_utils.db import (
 )
 from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.timetables import cron_timetable
+
+pytestmark = pytest.mark.db_test
 
 logger = logging.getLogger(__name__)
 
@@ -244,11 +246,23 @@ class TestBackfillJob:
                     "branch_b",
                     "branch_c",
                     "branch_d",
-                    "follow_branch_a",
-                    "follow_branch_b",
-                    "follow_branch_c",
-                    "follow_branch_d",
+                    "follow_a",
+                    "follow_b",
+                    "follow_c",
+                    "follow_d",
                     "join",
+                    "branching_ext_python",
+                    "ext_py_a",
+                    "ext_py_b",
+                    "ext_py_c",
+                    "ext_py_d",
+                    "join_ext_python",
+                    "branching_venv",
+                    "venv_a",
+                    "venv_b",
+                    "venv_c",
+                    "venv_d",
+                    "join_venv",
                 ),
             ],
             [
@@ -598,6 +612,7 @@ class TestBackfillJob:
         pool = Pool(
             pool="pool_with_two_slots",
             slots=slots,
+            include_deferred=False,
         )
         session.add(pool)
         session.commit()
@@ -784,7 +799,6 @@ class TestBackfillJob:
         assert ti.state == State.SUCCESS
 
     def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
-
         with dag_maker(dag_id="test_backfill_rerun_upstream_failed", schedule="@daily") as dag:
             op1 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-1")
             op2 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-2")
@@ -908,7 +922,6 @@ class TestBackfillJob:
             run_job(job=job, execute_callable=job_runner._execute)
 
     def test_backfill_ordered_concurrent_execute(self, dag_maker):
-
         with dag_maker(
             dag_id="test_backfill_ordered_concurrent_execute",
             schedule="@daily",
@@ -961,7 +974,7 @@ class TestBackfillJob:
         Test that queued tasks are executed by BackfillJobRunner
         """
         session = settings.Session()
-        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1)
+        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1, include_deferred=False)
         session.add(pool)
         session.commit()
         session.close()
@@ -1257,9 +1270,10 @@ class TestBackfillJob:
         assert 0 == running_dagruns  # no dag_runs in running state are left
 
     def test_sub_set_subdag(self, dag_maker):
-
         with dag_maker(
             "test_sub_set_subdag",
+            on_success_callback=lambda _: None,
+            on_failure_callback=lambda _: None,
         ) as dag:
             op1 = EmptyOperator(task_id="leave1")
             op2 = EmptyOperator(task_id="leave2")
@@ -1902,7 +1916,7 @@ class TestBackfillJob:
         executor = MockExecutor()
 
         ti_status = BackfillJobRunner._DagRunTaskStatus()
-        ti_status.active_runs.append(dr)
+        ti_status.active_runs.add(dr)
         ti_status.to_run = {ti.key: ti for ti in dr.task_instances}
 
         job = Job(executor=executor)
@@ -1991,7 +2005,6 @@ class TestBackfillJob:
         tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
 
     def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
-
         with dag_maker() as dag:
             EmptyOperator(task_id="task1")
 
@@ -2054,7 +2067,7 @@ class TestBackfillJob:
     def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
         with dag_maker(
             dag_id="test_disable_retry",
-            schedule_interval="@daily",
+            schedule="@daily",
             default_args={
                 "retries": 2,
                 "retry_delay": datetime.timedelta(seconds=3),
@@ -2090,3 +2103,31 @@ class TestBackfillJob:
         assert dag_run.state == DagRunState.FAILED
 
         dag.clear()
+
+    def test_backfill_failed_dag_with_upstream_failed_task(self, dag_maker):
+        self.dagbag.process_file(str(TEST_DAGS_FOLDER / "test_backfill_with_upstream_failed_task.py"))
+        dag = self.dagbag.get_dag("test_backfill_with_upstream_failed_task")
+
+        # We have to use the "fake" version of perform_heartbeat due to the 'is_unit_test' check in
+        # the original one. However, instead of using the original version of perform_heartbeat,
+        # we can simply wait for a LocalExecutor's worker cycle. The approach with sleep works well now,
+        # but it can be replaced with checking the state of the LocalTaskJob.
+        def fake_perform_heartbeat(*args, **kwargs):
+            import time
+
+            time.sleep(1)
+
+        with mock.patch("airflow.jobs.backfill_job_runner.perform_heartbeat", fake_perform_heartbeat):
+            job = Job(executor=ExecutorLoader.load_executor("LocalExecutor"))
+            job_runner = BackfillJobRunner(
+                job=job,
+                dag=dag,
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                rerun_failed_tasks=True,
+            )
+            with pytest.raises(BackfillUnfinished):
+                run_job(job=job, execute_callable=job_runner._execute)
+
+        dr: DagRun = dag.get_last_dagrun()
+        assert dr.state == State.FAILED

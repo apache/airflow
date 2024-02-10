@@ -21,9 +21,13 @@ import copy
 from copy import deepcopy
 from unittest import mock
 
-import pytest as pytest
+import pytest
 
 import airflow
+from airflow.providers.google.cloud.hooks.dataflow import (
+    DEFAULT_DATAFLOW_LOCATION,
+    DataflowJobStatus,
+)
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
@@ -76,6 +80,7 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_LOCATION = "custom-location"
+TEST_REGION = "custom-region"
 TEST_PROJECT = "test-project"
 TEST_SQL_JOB_NAME = "test-sql-job-name"
 TEST_DATASET = "test-dataset"
@@ -99,7 +104,7 @@ IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
 
-class TestDataflowPythonOperator:
+class TestDataflowCreatePythonJobOperator:
     def setup_method(self):
         self.dataflow = DataflowCreatePythonJobOperator(
             task_id=TASK_ID,
@@ -114,7 +119,7 @@ class TestDataflowPythonOperator:
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
-        """Test DataFlowPythonOperator instance is properly initialized."""
+        """Test DataflowCreatePythonJobOperator instance is properly initialized."""
         assert self.dataflow.task_id == TASK_ID
         assert self.dataflow.job_name == JOB_NAME
         assert self.dataflow.py_file == PY_FILE
@@ -179,7 +184,7 @@ class TestDataflowPythonOperator:
         provide_gcloud_mock.assert_called_once_with()
 
 
-class TestDataflowJavaOperator:
+class TestDataflowCreateJavaJobOperator:
     def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
@@ -194,7 +199,7 @@ class TestDataflowJavaOperator:
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
-        """Test DataflowTemplateOperator instance is properly initialized."""
+        """Test DataflowCreateJavaJobOperator instance is properly initialized."""
         assert self.dataflow.task_id == TASK_ID
         assert self.dataflow.job_name == JOB_NAME
         assert self.dataflow.poll_sleep == POLL_SLEEP
@@ -386,7 +391,7 @@ class TestDataflowJavaOperator:
         )
 
 
-class TestDataflowJavaOperatorWithLocal:
+class TestDataflowCreateJavaJobOperatorWithLocal:
     def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
@@ -401,7 +406,7 @@ class TestDataflowJavaOperatorWithLocal:
         self.expected_airflow_version = "v" + airflow.version.version.replace(".", "-").replace("+", "-")
 
     def test_init(self):
-        """Test DataflowTemplateOperator instance is properly initialized."""
+        """Test DataflowCreateJavaJobOperator instance is properly initialized."""
         assert self.dataflow.jar == LOCAL_JAR_FILE
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.BeamHook")
@@ -448,7 +453,7 @@ class TestDataflowJavaOperatorWithLocal:
         )
 
 
-class TestDataflowTemplateOperator:
+class TestDataflowTemplatedJobStartOperator:
     @pytest.fixture
     def sync_operator(self):
         return DataflowTemplatedJobStartOperator(
@@ -534,6 +539,44 @@ class TestDataflowTemplateOperator:
         with pytest.raises(ValueError):
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_custom_region(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "dataflow_default_options": {
+                "region": TEST_REGION,
+            },
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert kwargs["variables"]["region"] == TEST_REGION
+        assert kwargs["location"] == DEFAULT_DATAFLOW_LOCATION
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_location(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "location": TEST_LOCATION,
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert not kwargs["variables"]
+        assert kwargs["location"] == TEST_LOCATION
+
 
 class TestDataflowStartFlexTemplateOperator:
     @pytest.fixture
@@ -544,6 +587,7 @@ class TestDataflowStartFlexTemplateOperator:
             do_xcom_push=True,
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
         )
 
     @pytest.fixture
@@ -563,6 +607,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_dataflow.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             drain_pipeline=False,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
             cancel_timeout=600,
             wait_until_finished=None,
             impersonation_chain=None,
@@ -609,7 +654,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_defer_method.assert_called_once()
 
 
-class TestDataflowSqlOperator:
+class TestDataflowStartSqlJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
         start_sql = DataflowStartSqlJobOperator(

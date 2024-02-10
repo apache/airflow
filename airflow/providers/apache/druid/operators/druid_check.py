@@ -17,22 +17,22 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from deprecated import deprecated
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLCheckOperator
 
 
+@deprecated(
+    reason="Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DruidCheckOperator(SQLCheckOperator):
     """
     This class is deprecated.
-    Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLCheckOperator`.
     """
 
     def __init__(self, druid_broker_conn_id: str = "druid_broker_default", **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(conn_id=druid_broker_conn_id, **kwargs)

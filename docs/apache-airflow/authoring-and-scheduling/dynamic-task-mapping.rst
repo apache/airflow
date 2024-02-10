@@ -177,9 +177,8 @@ Mapping with non-TaskFlow operators
 It is possible to use ``partial`` and ``expand`` with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as ``task_id``, ``queue``, ``pool``, and most other arguments to ``BaseOperator``.
 
 
-.. code-block:: python
-
-    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(bash_command=["echo 1", "echo 2"])
+.. exampleinclude:: /../../airflow/example_dags/example_dynamic_task_mapping_with_no_taskflow_operators.py
+    :language: python
 
 .. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 
@@ -314,7 +313,7 @@ For example, this code will *not* work:
 
 
         @task_group
-        def my_group(value):
+        def my_task_group(value):
             if not value:  # DOES NOT work as you'd expect!
                 task_a = EmptyOperator(...)
             else:
@@ -322,9 +321,9 @@ For example, this code will *not* work:
             task_a << my_task(value)
 
 
-        my_group.expand(value=[0, 1, 2])
+        my_task_group.expand(value=[0, 1, 2])
 
-When code in ``my_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
+When code in ``my_task_group`` is executed, ``value`` would still only be a reference, not the real value, so the ``if not value`` branch will not work as you likely want. However, if you pass that reference into a task, it will become resolved when the task is executed, and the three ``my_task`` instances will therefore receive 1, 2, and 3, respectively.
 
 It is, therefore, important to remember that, if you intend to perform any logic to a value passed into a task group function, you must always use a task to run the logic, such as  ``@task.branch`` (or ``BranchPythonOperator``) for conditions, and task mapping methods for loops.
 
@@ -375,6 +374,44 @@ Similar to a mapped task group, depending on a mapped task group's output would 
     consumer(results)  # Will receive [4, 6, 8].
 
 It is also possible to perform any operations as results from a normal mapped task.
+
+Branching on a mapped task group's output
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While it's not possible to implement branching logic (for example using ``@task.branch``) on the results of a mapped task, it is possible to branch based on the *input* of a task group. The following example demonstrates executing one of three tasks based on the input to a mapped task group.
+
+.. code-block:: python
+
+    inputs = ["a", "b", "c"]
+
+
+    @task_group(group_id="my_task_group")
+    def my_task_group(input):
+        @task.branch
+        def branch(element):
+            if "a" in element:
+                return "my_task_group.a"
+            elif "b" in element:
+                return "my_task_group.b"
+            else:
+                return "my_task_group.c"
+
+        @task
+        def a():
+            print("a")
+
+        @task
+        def b():
+            print("b")
+
+        @task
+        def c():
+            print("c")
+
+        branch(input) >> [a(), b(), c()]
+
+
+    my_task_group.expand(input=inputs)
 
 Filtering items from a mapped task
 ==================================

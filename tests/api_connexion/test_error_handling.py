@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.db_test
+
 
 def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
     client = minimal_app_for_api.test_client()

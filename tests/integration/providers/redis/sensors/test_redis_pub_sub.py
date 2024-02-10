@@ -46,10 +46,10 @@ class TestRedisPubSubSensor:
 
         hook = RedisHook(redis_conn_id="redis_default")
         redis = hook.get_conn()
-        redis.publish("test", "message")
 
         result = sensor.poke(self.mock_context)
         assert not result
+        redis.publish("test", "message")
 
         for _ in range(1, 10):
             result = sensor.poke(self.mock_context)

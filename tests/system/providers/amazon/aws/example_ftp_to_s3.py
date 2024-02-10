@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
@@ -29,7 +29,7 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 DAG_ID = "example_ftp_to_s3"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

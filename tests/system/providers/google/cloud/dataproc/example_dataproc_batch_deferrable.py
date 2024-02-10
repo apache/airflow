@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
     DataprocDeleteBatchOperator,
@@ -36,7 +36,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_batch_deferrable"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 REGION = "europe-west1"
-BATCH_ID = f"test-def-batch-id-{ENV_ID}"
+BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_CONFIG = {
     "spark_batch": {
         "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
@@ -45,12 +45,12 @@ BATCH_CONFIG = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "batch", "deferrable"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_batch_operator_async]
     create_batch = DataprocCreateBatchOperator(
@@ -75,7 +75,14 @@ with models.DAG(
     )
     delete_batch.trigger_rule = TriggerRule.ALL_DONE
 
-    (create_batch >> get_batch >> delete_batch)
+    (
+        # TEST SETUP
+        create_batch
+        # TEST BODY
+        >> get_batch
+        # TEST TEARDOWN
+        >> delete_batch
+    )
 
     from tests.system.utils.watcher import watcher
 

@@ -39,10 +39,6 @@ __deprecated_classes = {
         "DruidDbApiHook": "airflow.providers.apache.druid.hooks.druid.DruidDbApiHook",
         "DruidHook": "airflow.providers.apache.druid.hooks.druid.DruidHook",
     },
-    "hdfs_hook": {
-        "HDFSHook": "airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook",
-        "HDFSHookException": "airflow.providers.apache.hdfs.hooks.hdfs.HDFSHookException",
-    },
     "hive_hooks": {
         "HIVE_QUEUE_PRIORITIES": "airflow.providers.apache.hive.hooks.hive.HIVE_QUEUE_PRIORITIES",
         "HiveCliHook": "airflow.providers.apache.hive.hooks.hive.HiveCliHook",

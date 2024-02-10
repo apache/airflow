@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 import jwt
+
+from airflow.utils import timezone
 
 
 class JWTSigner:
@@ -50,14 +52,15 @@ class JWTSigner:
     def generate_signed_token(self, extra_payload: dict[str, Any]) -> str:
         """
         Generate JWT with extra payload added.
+
         :param extra_payload: extra payload that is added to the signed token
         :return: signed token
         """
         jwt_dict = {
             "aud": self._audience,
-            "iat": datetime.utcnow(),
-            "nbf": datetime.utcnow(),
-            "exp": datetime.utcnow() + timedelta(seconds=self._expiration_time_in_seconds),
+            "iat": timezone.utcnow(),
+            "nbf": timezone.utcnow(),
+            "exp": timezone.utcnow() + timedelta(seconds=self._expiration_time_in_seconds),
         }
         jwt_dict.update(extra_payload)
         token = jwt.encode(

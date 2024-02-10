@@ -23,8 +23,14 @@
 /* global document, DOMParser, $, CodeMirror */
 import { getMetaValue } from "./utils";
 
+const configTestConnection = getMetaValue("config_test_connection")
+  .toLowerCase()
+  .trim();
 const restApiEnabled = getMetaValue("rest_api_enabled") === "True";
 const connectionTestUrl = getMetaValue("test_url");
+
+// Define editor var which may get populated if extra field exists on the connection
+let editor;
 
 function decode(str) {
   return new DOMParser().parseFromString(str, "text/html").documentElement
@@ -70,12 +76,15 @@ function getControlsContainer() {
 function restoreFieldBehaviours() {
   Array.from(document.querySelectorAll("label[data-orig-text]")).forEach(
     (elem) => {
+      // eslint-disable-next-line no-param-reassign
       elem.innerText = elem.dataset.origText;
+      // eslint-disable-next-line no-param-reassign
       delete elem.dataset.origText;
     }
   );
 
   Array.from(document.querySelectorAll(".form-control")).forEach((elem) => {
+    // eslint-disable-next-line no-param-reassign
     elem.placeholder = "";
     elem.parentElement.parentElement.classList.remove("hide");
   });
@@ -123,6 +132,24 @@ function applyFieldBehaviours(connection) {
  */
 function handleTestConnection(connectionType, testableConnections) {
   const testButton = document.getElementById("test-connection");
+
+  if (configTestConnection === "hidden") {
+    // If test connection is hidden in config, hide button and return.
+    $(testButton).hide();
+    return;
+  }
+  if (configTestConnection !== "enabled") {
+    // If test connection is not enabled in config, disable button and display toolip
+    // alerting the user.
+    $(testButton)
+      .prop("disabled", true)
+      .attr(
+        "title",
+        "Testing connections is disabled in Airflow configuration. Contact your deployment admin to enable it."
+      );
+    return;
+  }
+
   const testConnEnabled = testableConnections.includes(connectionType);
 
   if (testConnEnabled) {
@@ -228,6 +255,11 @@ $(document).ready(() => {
     }
   }
 
+  function hideAlert() {
+    const alertBox = $(".container .row .alert");
+    alertBox.hide();
+  }
+
   /**
    * Produces JSON stringified data from a html form data
    *
@@ -254,6 +286,7 @@ $(document).ready(() => {
         - All other custom form fields (i.e. fields that are named ``extra__...``) in
           alphabetical order
     */
+    // eslint-disable-next-line func-names
     $.each(inArray, function () {
       if (this.name === "conn_id") {
         outObj.connection_id = this.value;
@@ -299,6 +332,12 @@ $(document).ready(() => {
   // Bind click event to Test Connection button & perform an AJAX call via REST API
   $("#test-connection").on("click", (e) => {
     e.preventDefault();
+    hideAlert();
+    // save the contents of the CodeMirror editor to the textArea if it is populated
+    // (i.e., connection type has extra field)
+    if (Object.prototype.hasOwnProperty.call(editor, "save")) {
+      editor.save();
+    }
     $.ajax({
       url: connectionTestUrl,
       type: "post",
@@ -325,16 +364,18 @@ $(document).ready(() => {
 
   // Change conn.extra TextArea widget to CodeMirror
   const textArea = document.getElementById("extra");
-  const editor = CodeMirror.fromTextArea(textArea, {
+  editor = CodeMirror.fromTextArea(textArea, {
     mode: { name: "javascript", json: true },
     gutters: ["CodeMirror-lint-markers"],
     lineWrapping: true,
     lint: true,
   });
 
-  // beautify JSON
+  // beautify JSON but only if it is not equal to default value of empty string
   const jsonData = editor.getValue();
-  const data = JSON.parse(jsonData);
-  const formattedData = JSON.stringify(data, null, 2);
-  editor.setValue(formattedData);
+  if (jsonData !== "") {
+    const data = JSON.parse(jsonData);
+    const formattedData = JSON.stringify(data, null, 2);
+    editor.setValue(formattedData);
+  }
 });

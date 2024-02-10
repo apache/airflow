@@ -27,7 +27,7 @@ from datetime import datetime
 
 from google.cloud.dlp_v2.types import InspectConfig, InspectJobConfig
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCancelDLPJobOperator,
     CloudDLPCreateDLPJobOperator,
@@ -52,7 +52,7 @@ INSPECT_JOB = InspectJobConfig(
 )
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

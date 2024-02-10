@@ -18,7 +18,6 @@
 """This module contains Google BigQuery to BigQuery operator."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -53,10 +52,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: The geographic location of the job. You must specify the location to run the job if
         the location to run a job is not in the US or the EU multi-regional location or
@@ -108,6 +108,58 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.encryption_configuration = encryption_configuration
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.hook: BigQueryHook | None = None
+
+    def _prepare_job_configuration(self):
+        self.source_project_dataset_tables = (
+            [self.source_project_dataset_tables]
+            if not isinstance(self.source_project_dataset_tables, list)
+            else self.source_project_dataset_tables
+        )
+
+        source_project_dataset_tables_fixup = []
+        for source_project_dataset_table in self.source_project_dataset_tables:
+            source_project, source_dataset, source_table = self.hook.split_tablename(
+                table_input=source_project_dataset_table,
+                default_project_id=self.hook.project_id,
+                var_name="source_project_dataset_table",
+            )
+            source_project_dataset_tables_fixup.append(
+                {"projectId": source_project, "datasetId": source_dataset, "tableId": source_table}
+            )
+
+        destination_project, destination_dataset, destination_table = self.hook.split_tablename(
+            table_input=self.destination_project_dataset_table,
+            default_project_id=self.hook.project_id,
+        )
+        configuration = {
+            "copy": {
+                "createDisposition": self.create_disposition,
+                "writeDisposition": self.write_disposition,
+                "sourceTables": source_project_dataset_tables_fixup,
+                "destinationTable": {
+                    "projectId": destination_project,
+                    "datasetId": destination_dataset,
+                    "tableId": destination_table,
+                },
+            }
+        }
+
+        if self.labels:
+            configuration["labels"] = self.labels
+
+        if self.encryption_configuration:
+            configuration["copy"]["destinationEncryptionConfiguration"] = self.encryption_configuration
+
+        return configuration
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        configuration: dict,
+    ) -> str:
+        job = hook.insert_job(configuration=configuration, project_id=hook.project_id)
+        return job.job_id
 
     def execute(self, context: Context) -> None:
         self.log.info(
@@ -120,24 +172,20 @@ class BigQueryToBigQueryOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+        self.hook = hook
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
-            job_id = hook.run_copy(
-                source_project_dataset_tables=self.source_project_dataset_tables,
-                destination_project_dataset_table=self.destination_project_dataset_table,
-                write_disposition=self.write_disposition,
-                create_disposition=self.create_disposition,
-                labels=self.labels,
-                encryption_configuration=self.encryption_configuration,
-            )
+        if not hook.project_id:
+            raise ValueError("The project_id should be set")
 
-            job = hook.get_job(job_id=job_id, location=self.location).to_api_repr()
-            conf = job["configuration"]["copy"]["destinationTable"]
-            BigQueryTableLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=conf["datasetId"],
-                project_id=conf["projectId"],
-                table_id=conf["tableId"],
-            )
+        configuration = self._prepare_job_configuration()
+        job_id = self._submit_job(hook=hook, configuration=configuration)
+
+        job = hook.get_job(job_id=job_id, location=self.location).to_api_repr()
+        conf = job["configuration"]["copy"]["destinationTable"]
+        BigQueryTableLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=conf["datasetId"],
+            project_id=conf["projectId"],
+            table_id=conf["tableId"],
+        )

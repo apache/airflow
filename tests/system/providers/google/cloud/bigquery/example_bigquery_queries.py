@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -68,7 +68,7 @@ for index, location in enumerate(locations, 1):
     )
     # [END howto_operator_bigquery_query]
 
-    with models.DAG(
+    with DAG(
         DAG_ID,
         schedule="@once",
         start_date=datetime(2021, 1, 1),
@@ -242,6 +242,7 @@ for index, location in enumerate(locations, 1):
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+        execute_insert_query >> [column_check, table_check] >> delete_dataset
 
         from tests.system.utils.watcher import watcher
 

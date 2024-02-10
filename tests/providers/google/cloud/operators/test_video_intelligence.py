@@ -20,8 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.videointelligence_v1 import enums
-from google.cloud.videointelligence_v1.proto.video_intelligence_pb2 import AnnotateVideoResponse
+from google.cloud.videointelligence_v1 import AnnotateVideoResponse, Feature
 
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
@@ -41,7 +40,6 @@ INPUT_URI = "gs://test-bucket//test-video.mp4"
 class TestCloudVideoIntelligenceOperators:
     @mock.patch("airflow.providers.google.cloud.operators.video_intelligence.CloudVideoIntelligenceHook")
     def test_detect_video_labels_green_path(self, mock_hook):
-
         mocked_operation = mock.Mock()
         mocked_operation.result = mock.Mock(return_value=AnnotateVideoResponse(annotation_results=[]))
         mock_hook.return_value.annotate_video.return_value = mocked_operation
@@ -59,7 +57,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.LABEL_DETECTION],
+            features=[Feature.LABEL_DETECTION],
             input_content=None,
             video_context=None,
             location=None,
@@ -86,7 +84,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.EXPLICIT_CONTENT_DETECTION],
+            features=[Feature.EXPLICIT_CONTENT_DETECTION],
             input_content=None,
             video_context=None,
             location=None,
@@ -113,7 +111,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.SHOT_CHANGE_DETECTION],
+            features=[Feature.SHOT_CHANGE_DETECTION],
             input_content=None,
             video_context=None,
             location=None,

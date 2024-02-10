@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
     CloudDatastoreBeginTransactionOperator,
@@ -46,7 +46,7 @@ KEYS = [
 TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -76,6 +76,12 @@ with models.DAG(
     # [END how_to_run_query]
 
     allocate_ids >> begin_transaction_query >> run_query
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 
 from tests.system.utils import get_test_run  # noqa: E402

@@ -16,20 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
+import datetime
 import json
 import re
 import uuid
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Sequence
 
-import pytz
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution
 from google.cloud.workflows_v1beta import Workflow
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.cloud.links.workflows import (
@@ -40,14 +36,23 @@ from airflow.providers.google.cloud.links.workflows import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    # Remove when Airflow providers min Airflow version is "2.7.0"
+    from hashlib import md5
 
 
 class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
     """
-    Creates a new workflow. If a workflow with the specified name
-    already exists in the specified project and location, the long
-    running operation will return
+    Creates a new workflow.
+
+    If a workflow with the specified name already exists in the specified
+    project and location, the long-running operation will return
     [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
 
     .. seealso::
@@ -112,7 +117,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         # we use hash of whole information
         exec_date = context["execution_date"].isoformat()
         base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{hash_base}"
-        workflow_id = hashlib.md5(base.encode()).hexdigest()
+        workflow_id = md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)
 
     def execute(self, context: Context):
@@ -155,6 +160,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
 class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
     """
     Updates an existing workflow.
+
     Running this method has no impact on already running
     executions of the workflow. A new revision of the
     workflow may be created as a result of a successful
@@ -241,9 +247,7 @@ class WorkflowsUpdateWorkflowOperator(GoogleCloudBaseOperator):
 
 class WorkflowsDeleteWorkflowOperator(GoogleCloudBaseOperator):
     """
-    Deletes a workflow with the specified name.
-    This method also cancels and deletes all running
-    executions of the workflow.
+    Delete a workflow with the specified name and all running executions of the workflow.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -301,8 +305,7 @@ class WorkflowsDeleteWorkflowOperator(GoogleCloudBaseOperator):
 
 class WorkflowsListWorkflowsOperator(GoogleCloudBaseOperator):
     """
-    Lists Workflows in a given project and location.
-    The default order is not specified.
+    Lists Workflows in a given project and location; the default order is not specified.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -443,8 +446,7 @@ class WorkflowsGetWorkflowOperator(GoogleCloudBaseOperator):
 
 class WorkflowsCreateExecutionOperator(GoogleCloudBaseOperator):
     """
-    Creates a new execution using the latest revision of
-    the given workflow.
+    Creates a new execution using the latest revision of the given workflow.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -593,11 +595,10 @@ class WorkflowsCancelExecutionOperator(GoogleCloudBaseOperator):
 
 class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
     """
-    Returns a list of executions which belong to the
-    workflow with the given name. The method returns
-    executions of all workflow revisions. Returned
-    executions are ordered by their start time (newest
-    first).
+    Returns a list of executions which belong to the workflow with the given name.
+
+    The method returns executions of all workflow revisions. Returned
+    executions are ordered by their start time (newest first).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -605,7 +606,8 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
     :param workflow_id: Required. The ID of the workflow to be created.
     :param start_date_filter: If passed only executions older that this date will be returned.
-        By default operators return executions from last 60 minutes
+        By default, operators return executions from last 60 minutes.
+        Note that datetime object must specify a time zone, e.g. ``datetime.timezone.utc``.
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :param location: Required. The GCP region in which to handle the request.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
@@ -623,7 +625,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
         *,
         workflow_id: str,
         location: str,
-        start_date_filter: datetime | None = None,
+        start_date_filter: datetime.datetime | None = None,
         project_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -636,7 +638,9 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
         self.workflow_id = workflow_id
         self.location = location
-        self.start_date_filter = start_date_filter or datetime.now(tz=pytz.UTC) - timedelta(minutes=60)
+        self.start_date_filter = start_date_filter or datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(minutes=60)
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
@@ -664,7 +668,11 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
 
-        return [Execution.to_dict(e) for e in execution_iter if e.start_time > self.start_date_filter]
+        return [
+            Execution.to_dict(e)
+            for e in execution_iter
+            if e.start_time > self.start_date_filter  # type: ignore
+        ]
 
 
 class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):

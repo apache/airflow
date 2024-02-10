@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 class HiveToSambaOperator(BaseOperator):
     """
-    Executes hql code in a specific Hive database and loads the
-    results of the query as a csv to a Samba location.
+    Execute hql code in a specific Hive database and load the results as a csv to a Samba location.
 
     :param hql: the hql to be exported. (templated)
     :param destination_filepath: the file path to where the file will be pushed onto samba
@@ -62,9 +61,10 @@ class HiveToSambaOperator(BaseOperator):
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id
         self.destination_filepath = destination_filepath
-        self.hql = hql.strip().rstrip(";")
+        self.hql = hql
 
     def execute(self, context: Context):
+        self.hql = self.hql.strip().rstrip(";")
         with NamedTemporaryFile() as tmp_file:
             self.log.info("Fetching file from Hive")
             hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)

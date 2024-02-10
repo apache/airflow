@@ -36,12 +36,12 @@ def load_auth():
         pass
 
     backends = []
-    for backend in auth_backends.split(","):
-        try:
+    try:
+        for backend in auth_backends.split(","):
             auth = import_module(backend.strip())
             log.info("Loaded API auth backend: %s", backend)
             backends.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
+        raise AirflowException(err)
     return backends

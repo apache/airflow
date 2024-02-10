@@ -24,7 +24,7 @@ data from Oracle to GCS.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/howto/operator/google/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:OracleToGCSOperator:
 

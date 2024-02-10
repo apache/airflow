@@ -27,7 +27,7 @@ from pathlib import Path
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreCreateMetadataImportOperator,
     DataprocMetastoreCreateServiceOperator,
@@ -86,7 +86,7 @@ SERVICE_TO_UPDATE = {
 UPDATE_MASK = FieldMask(paths=["labels"])
 # [END how_to_cloud_dataproc_metastore_update_service]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",
@@ -116,7 +116,7 @@ with models.DAG(
     # [END how_to_cloud_dataproc_metastore_create_service_operator]
 
     # [START how_to_cloud_dataproc_metastore_get_service_operator]
-    get_service_details = DataprocMetastoreGetServiceOperator(
+    get_service = DataprocMetastoreGetServiceOperator(
         task_id="get_service",
         region=REGION,
         project_id=PROJECT_ID,
@@ -138,7 +138,7 @@ with models.DAG(
 
     # [START how_to_cloud_dataproc_metastore_create_metadata_import_operator]
     import_metadata = DataprocMetastoreCreateMetadataImportOperator(
-        task_id="create_metadata_import",
+        task_id="import_metadata",
         project_id=PROJECT_ID,
         region=REGION,
         service_id=SERVICE_ID,
@@ -176,8 +176,9 @@ with models.DAG(
 
     (
         create_bucket
+        >> upload_file
         >> create_service
-        >> get_service_details
+        >> get_service
         >> update_service
         >> import_metadata
         >> export_metadata

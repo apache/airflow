@@ -26,6 +26,8 @@ from airflow.models import XCom
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSensorDecorator:
     def test_sensor_fails_on_none_python_callable(self, dag_maker):

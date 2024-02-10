@@ -41,7 +41,6 @@ with models.DAG(
     default_args=DEFAULT_ARGS,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_start_go_direct_runner_pipeline_local_file]
     start_go_pipeline_local_direct_runner = BeamRunGoPipelineOperator(
         task_id="start_go_pipeline_local_direct_runner",

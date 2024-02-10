@@ -18,19 +18,23 @@
 """Hook for Google Cloud Build service."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
-from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
+    from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 5
@@ -180,9 +184,15 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
+
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `create_build_without_waiting_for_result`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_build(
         self,
         build: dict | Build,
@@ -494,8 +504,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> Build:
         """
-        Creates a new build based on the specified build. This method creates a new build
-        using the original build request, which may or may not result in an identical build.
+        Create a new build using the original build request; may or may not result in an identical build.
 
         :param id_: Build ID of the original build.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -520,13 +529,12 @@ class CloudBuildHook(GoogleBaseHook):
         )
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been retried: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
 
-        operation.result()
-
-        self.log.info("Build has been retried: %s.", id_)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
@@ -567,14 +575,15 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self.log.info("Build trigger has been run: %s.", trigger_id)
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
-        operation.result()
 
-        self.log.info("Build trigger has been run: %s.", trigger_id)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
@@ -636,7 +645,7 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         location: str = "global",

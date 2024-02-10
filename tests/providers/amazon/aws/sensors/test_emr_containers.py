@@ -21,9 +21,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 
 
 class TestEmrContainerSensor:
@@ -73,3 +74,13 @@ class TestEmrContainerSensor:
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
         assert "EMR Containers sensor failed" in str(ctx.value)
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
+    def test_sensor_defer(self, mock_poke):
+        self.sensor.deferrable = True
+        mock_poke.return_value = False
+        with pytest.raises(TaskDeferred) as e:
+            self.sensor.execute(context=None)
+        assert isinstance(
+            e.value.trigger, EmrContainerTrigger
+        ), f"{e.value.trigger} is not a EmrContainerTrigger"

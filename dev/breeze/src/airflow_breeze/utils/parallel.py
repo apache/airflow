@@ -66,7 +66,7 @@ def get_temp_file_name() -> str:
 
 
 def get_output_files(titles: list[str]) -> list[Output]:
-    outputs = [Output(title=titles[i], file_name=get_temp_file_name()) for i in range(len(titles))]
+    outputs = [Output(title=title, file_name=get_temp_file_name()) for title in titles]
     for out in outputs:
         get_console().print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
     return outputs
@@ -116,6 +116,12 @@ class AbstractProgressInfoMatcher(metaclass=ABCMeta):
         Return best matching lines of the output.
         :return: array of lines to print
         """
+
+
+class ShowLastLineProgressMatcher(AbstractProgressInfoMatcher):
+    def get_best_matching_lines(self, output: Output) -> list[str] | None:
+        last_lines, _ = get_last_lines_of_file(output.file_name, num_lines=1)
+        return last_lines
 
 
 class DockerBuildxProgressMatcher(AbstractProgressInfoMatcher):
@@ -203,7 +209,7 @@ def bytes2human(n):
         prefix[s] = 1 << (i + 1) * 10
     for s in reversed(symbols):
         if n >= prefix[s]:
-            value = float(n) / prefix[s]
+            value = n / prefix[s]
             return f"{value:.1f}{s}"
     return f"{n}B"
 
@@ -222,7 +228,7 @@ def get_single_tuple_array(title: str, t: NamedTuple) -> Table:
     for key, value in t._asdict().items():
         table.add_column(header=key, header_style="info")
         row.append(get_printable_value(key, value))
-    table.add_row(*row, style="magenta")
+    table.add_row(*row, style="special")
     return table
 
 
@@ -239,7 +245,7 @@ def get_multi_tuple_array(title: str, tuples: list[tuple[NamedTuple, ...]]) -> T
         for named_tuple in t:
             for key, value in named_tuple._asdict().items():
                 row.append(get_printable_value(key, value))
-        table.add_row(*row, style="magenta")
+        table.add_row(*row, style="special")
     return table
 
 
@@ -341,7 +347,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
     get_console().print()
     for result in completed_list:
         return_code, info = result.get()
-        info = info.replace("[", "\[")
+        info = info.replace("[", "\\[")
         if return_code != 0:
             get_console().print(f"[error]NOK[/] for {info}: Return code: {return_code}.")
         else:
@@ -351,7 +357,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
 
 def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
-    return list(filter(lambda result: result.ready(), results))
+    return [result for result in results if result.ready()]
 
 
 class SummarizeAfter(Enum):
@@ -366,7 +372,7 @@ def check_async_run_results(
     success: str,
     outputs: list[Output],
     include_success_outputs: bool,
-    poll_time: float = 0.2,
+    poll_time_seconds: float = 0.2,
     skip_cleanup: bool = False,
     summarize_on_ci: SummarizeAfter = SummarizeAfter.NO_SUMMARY,
     summary_start_regexp: str | None = None,
@@ -377,7 +383,7 @@ def check_async_run_results(
     :param outputs: outputs where results are written to
     :param success: Success string printed when everything is OK
     :param include_success_outputs: include outputs of successful parallel runs
-    :param poll_time: what's the poll time between checks
+    :param poll_time_seconds: what's the poll time between checks
     :param skip_cleanup: whether to skip cleanup of temporary files.
     :param summarize_on_ci: determines when to summarize the parallel jobs  when they are completed in CI,
         outside the folded CI output
@@ -396,15 +402,15 @@ def check_async_run_results(
             completed_number = current_completed_number
             get_console().print(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-                f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+                f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
             print_async_summary(completed_list)
-        time.sleep(poll_time)
+        time.sleep(poll_time_seconds)
         completed_list = get_completed_result_list(results)
     completed_number = len(completed_list)
     get_console().print(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-        f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+        f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
     print_async_summary(completed_list)
     errors = False
@@ -437,16 +443,19 @@ def check_async_run_results(
     try:
         if errors:
             get_console().print("\n[error]There were errors when running some tasks. Quitting.[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
             sys.exit(1)
         else:
             get_console().print(f"\n[success]{success}[/]\n")
+            from airflow_breeze.utils.docker_command_utils import fix_ownership_using_docker
+
+            fix_ownership_using_docker()
     finally:
         if not skip_cleanup:
             for output in outputs:
-                try:
-                    os.unlink(output.file_name)
-                except FileNotFoundError:
-                    pass
+                Path(output.file_name).unlink(missing_ok=True)
 
 
 @contextmanager

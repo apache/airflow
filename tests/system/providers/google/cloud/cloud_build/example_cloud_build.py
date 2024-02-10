@@ -17,13 +17,6 @@
 # under the License.
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
-
-This DAG relies on the following OS environment variables:
-
-* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
-* GCP_CLOUD_BUILD_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage.
-    This object must be a gzipped archive file (.tar.gz) containing source to build.
-* GCP_CLOUD_BUILD_REPOSITORY_NAME - Name of the Cloud Source Repository.
 """
 from __future__ import annotations
 
@@ -33,10 +26,9 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-from future.backports.urllib.parse import urlsplit
 
-from airflow import models
-from airflow.models.baseoperator import chain
+from airflow.decorators import task_group
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
@@ -46,42 +38,38 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildListBuildsOperator,
     CloudBuildRetryBuildOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build"
 
-BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
-
-GCP_SOURCE_ARCHIVE_URL = f"gs://{BUCKET_NAME_SRC}/file.tar.gz"
+GCP_SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-build/file.tar.gz"
+# Repository with this name is expected created within the project $SYSTEM_TESTS_GCP_PROJECT
+# If you'd like to run this system test locally, please
+#   1. Create Cloud Source Repository
+#   2. Push into a master branch the following file:
+#   tests/system/providers/google/cloud/cloud_build/resources/example_cloud_build.yaml
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
-GCP_SOURCE_ARCHIVE_URL_PARTS = urlsplit(GCP_SOURCE_ARCHIVE_URL)
-GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
-
 CURRENT_FOLDER = Path(__file__).parent
-FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / "file.tar.gz")
 
 # [START howto_operator_gcp_create_build_from_storage_body]
-create_build_from_storage_body = {
+CREATE_BUILD_FROM_STORAGE_BODY = {
     "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
     "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: dict[str, Any] = {
+CREATE_BUILD_FROM_REPO_BODY: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
     "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -89,85 +77,79 @@ with models.DAG(
     tags=["example"],
 ) as dag:
 
-    create_bucket_src = GCSCreateBucketOperator(task_id="create_bucket_src", bucket_name=BUCKET_NAME_SRC)
+    @task_group(group_id="build_from_storage")
+    def build_from_storage():
+        # [START howto_operator_create_build_from_storage]
+        create_build_from_storage = CloudBuildCreateBuildOperator(
+            task_id="create_build_from_storage",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_STORAGE_BODY,
+        )
+        # [END howto_operator_create_build_from_storage]
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=FILE_LOCAL_PATH,
-        dst="file.tar.gz",
-        bucket=BUCKET_NAME_SRC,
-    )
+        # [START howto_operator_create_build_from_storage_result]
+        create_build_from_storage_result = BashOperator(
+            bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
+            task_id="create_build_from_storage_result",
+        )
+        # [END howto_operator_create_build_from_storage_result]
 
-    # [START howto_operator_create_build_from_storage]
-    create_build_from_storage = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_storage",
-        project_id=PROJECT_ID,
-        build=create_build_from_storage_body,
-    )
-    # [END howto_operator_create_build_from_storage]
+        create_build_from_storage >> create_build_from_storage_result
 
-    # [START howto_operator_create_build_from_storage_result]
-    create_build_from_storage_result = BashOperator(
-        bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
-        task_id="create_build_from_storage_result",
-    )
-    # [END howto_operator_create_build_from_storage_result]
+    @task_group(group_id="build_from_storage_deferrable")
+    def build_from_storage_deferrable():
+        # [START howto_operator_create_build_from_storage_async]
+        create_build_from_storage = CloudBuildCreateBuildOperator(
+            task_id="create_build_from_storage",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_STORAGE_BODY,
+            deferrable=True,
+        )
+        # [END howto_operator_create_build_from_storage_async]
 
-    # [START howto_operator_create_build_from_repo]
-    create_build_from_repo = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_repo",
-        project_id=PROJECT_ID,
-        build=create_build_from_repo_body,
-    )
-    # [END howto_operator_create_build_from_repo]
+        create_build_from_storage_result = BashOperator(
+            bash_command=f"echo {cast(str, XComArg(create_build_from_storage, key='results'))}",
+            task_id="create_build_from_storage_result",
+        )
 
-    # [START howto_operator_create_build_from_repo_result]
-    create_build_from_repo_result = BashOperator(
-        bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
-        task_id="create_build_from_repo_result",
-    )
-    # [END howto_operator_create_build_from_repo_result]
+        create_build_from_storage >> create_build_from_storage_result
 
-    # [START howto_operator_list_builds]
-    list_builds = CloudBuildListBuildsOperator(
-        task_id="list_builds",
-        project_id=PROJECT_ID,
-        location="global",
-    )
-    # [END howto_operator_list_builds]
+    @task_group(group_id="build_from_repo")
+    def build_from_repo():
+        # [START howto_operator_create_build_from_repo]
+        create_build_from_repo = CloudBuildCreateBuildOperator(
+            task_id="create_build_from_repo",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_REPO_BODY,
+        )
+        # [END howto_operator_create_build_from_repo]
 
-    # [START howto_operator_create_build_without_wait]
-    create_build_without_wait = CloudBuildCreateBuildOperator(
-        task_id="create_build_without_wait",
-        project_id=PROJECT_ID,
-        build=create_build_from_repo_body,
-        wait=False,
-    )
-    # [END howto_operator_create_build_without_wait]
+        # [START howto_operator_create_build_from_repo_result]
+        create_build_from_repo_result = BashOperator(
+            bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
+            task_id="create_build_from_repo_result",
+        )
+        # [END howto_operator_create_build_from_repo_result]
 
-    # [START howto_operator_cancel_build]
-    cancel_build = CloudBuildCancelBuildOperator(
-        task_id="cancel_build",
-        id_=cast(str, XComArg(create_build_without_wait, key="id")),
-        project_id=PROJECT_ID,
-    )
-    # [END howto_operator_cancel_build]
+        create_build_from_repo >> create_build_from_repo_result
 
-    # [START howto_operator_retry_build]
-    retry_build = CloudBuildRetryBuildOperator(
-        task_id="retry_build",
-        id_=cast(str, XComArg(cancel_build, key="id")),
-        project_id=PROJECT_ID,
-    )
-    # [END howto_operator_retry_build]
+    @task_group(group_id="build_from_repo_deferrable")
+    def build_from_repo_deferrable():
+        # [START howto_operator_create_build_from_repo_async]
+        create_build_from_repo = CloudBuildCreateBuildOperator(
+            task_id="create_build_from_repo",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_REPO_BODY,
+            deferrable=True,
+        )
+        # [END howto_operator_create_build_from_repo_async]
 
-    # [START howto_operator_get_build]
-    get_build = CloudBuildGetBuildOperator(
-        task_id="get_build",
-        id_=cast(str, XComArg(retry_build, key="id")),
-        project_id=PROJECT_ID,
-    )
-    # [END howto_operator_get_build]
+        create_build_from_repo_result = BashOperator(
+            bash_command=f"echo {cast(str, XComArg(create_build_from_repo, key='results'))}",
+            task_id="create_build_from_repo_result",
+        )
+
+        create_build_from_repo >> create_build_from_repo_result
 
     # [START howto_operator_gcp_create_build_from_yaml_body]
     create_build_from_file = CloudBuildCreateBuildOperator(
@@ -178,29 +160,108 @@ with models.DAG(
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
-    delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src",
-        bucket_name=BUCKET_NAME_SRC,
-        trigger_rule=TriggerRule.ALL_DONE,
+    # [START howto_operator_gcp_create_build_from_yaml_body_async]
+    create_build_from_file_deferrable = CloudBuildCreateBuildOperator(
+        task_id="create_build_from_file_deferrable",
+        project_id=PROJECT_ID,
+        build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
+        params={"name": "Airflow"},
+        deferrable=True,
     )
+    # [END howto_operator_gcp_create_build_from_yaml_body_async]
 
-    chain(
-        # TEST SETUP
-        create_bucket_src,
-        upload_file,
-        # TEST BODY
-        create_build_from_storage,
-        create_build_from_storage_result,
-        create_build_from_repo,
-        create_build_from_repo_result,
-        list_builds,
-        create_build_without_wait,
-        cancel_build,
-        retry_build,
-        get_build,
-        create_build_from_file,
-        # TEST TEARDOWN
-        delete_bucket_src,
+    # [START howto_operator_list_builds]
+    list_builds = CloudBuildListBuildsOperator(
+        task_id="list_builds",
+        project_id=PROJECT_ID,
+        location="global",
+    )
+    # [END howto_operator_list_builds]
+
+    @task_group(group_id="no_wait_cancel_retry_get")
+    def no_wait_cancel_retry_get():
+        # [START howto_operator_create_build_without_wait]
+        create_build_without_wait = CloudBuildCreateBuildOperator(
+            task_id="create_build_without_wait",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_REPO_BODY,
+            wait=False,
+        )
+        # [END howto_operator_create_build_without_wait]
+
+        # [START howto_operator_cancel_build]
+        cancel_build = CloudBuildCancelBuildOperator(
+            task_id="cancel_build",
+            id_=cast(str, XComArg(create_build_without_wait, key="id")),
+            project_id=PROJECT_ID,
+        )
+        # [END howto_operator_cancel_build]
+
+        # [START howto_operator_retry_build]
+        retry_build = CloudBuildRetryBuildOperator(
+            task_id="retry_build",
+            id_=cast(str, XComArg(cancel_build, key="id")),
+            project_id=PROJECT_ID,
+        )
+        # [END howto_operator_retry_build]
+
+        # [START howto_operator_get_build]
+        get_build = CloudBuildGetBuildOperator(
+            task_id="get_build",
+            id_=cast(str, XComArg(retry_build, key="id")),
+            project_id=PROJECT_ID,
+        )
+        # [END howto_operator_get_build]
+
+        create_build_without_wait >> cancel_build >> retry_build >> get_build
+
+    @task_group(group_id="no_wait_cancel_retry_get_deferrable")
+    def no_wait_cancel_retry_get_deferrable():
+        # [START howto_operator_create_build_without_wait_async]
+        create_build_without_wait = CloudBuildCreateBuildOperator(
+            task_id="create_build_without_wait",
+            project_id=PROJECT_ID,
+            build=CREATE_BUILD_FROM_REPO_BODY,
+            wait=False,
+            deferrable=True,
+        )
+        # [END howto_operator_create_build_without_wait_async]
+
+        cancel_build = CloudBuildCancelBuildOperator(
+            task_id="cancel_build",
+            id_=cast(str, XComArg(create_build_without_wait, key="id")),
+            project_id=PROJECT_ID,
+        )
+
+        retry_build = CloudBuildRetryBuildOperator(
+            task_id="retry_build",
+            id_=cast(str, XComArg(cancel_build, key="id")),
+            project_id=PROJECT_ID,
+        )
+
+        get_build = CloudBuildGetBuildOperator(
+            task_id="get_build",
+            id_=cast(str, XComArg(retry_build, key="id")),
+            project_id=PROJECT_ID,
+        )
+
+        create_build_without_wait >> cancel_build >> retry_build >> get_build
+
+    # TEST BODY
+    (
+        [
+            build_from_storage(),
+            build_from_storage_deferrable(),
+            build_from_repo(),
+            build_from_repo_deferrable(),
+            create_build_from_file,
+            create_build_from_file_deferrable,
+        ]
+        >> list_builds
+        >> [
+            no_wait_cancel_retry_get(),
+            no_wait_cancel_retry_get_deferrable(),
+        ]
     )
 
     from tests.system.utils.watcher import watcher

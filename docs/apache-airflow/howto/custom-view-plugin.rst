@@ -24,12 +24,12 @@ core UI using the Plugin manager
 
 This is an example plugin for Airflow that displays absolutely nothing.
 
-In this plugin, two object reference are derived from the base class
+In this plugin, two object references are derived from the base class
 ``airflow.plugins_manager.AirflowPlugin``. They are flask_blueprints and
 appbuilder_views
 
 Using flask_blueprints in Airflow plugin, the core application can be extended
-to support the application that is customized to view Empty Plugin.
+to support the customized application to view Empty Plugin.
 In this object reference, the list of Blueprint object with the static template for
 rendering the information.
 
@@ -55,7 +55,7 @@ The following is a skeleton for us to implement a new custom view:
 the name of the tab in the navigation bar of the Airflow UI. ``Empty Plugin``
 is the name of the link under the tab ``Plugins``, which will launch the plugin
 
-We have to add Blueprint for generating the part of the application
+We need to add Blueprint for generating the part of the application
 that needs to be rendered in Airflow web UI. We can define templates, static files
 and this blueprint will be registered as part of the Airflow application when the
 plugin gets loaded.
@@ -71,6 +71,6 @@ The ``$AIRFLOW_HOME/plugins`` folder with custom view UI have the following fold
     |       ├── index.html
     └── README.md
 
-The HTML files required to render the views built is added as part of the
+The HTML files required to render the views built are added as part of the
 Airflow plugin into ``$AIRFLOW_HOME/plugins/templates`` folder and defined in the
 blueprint.

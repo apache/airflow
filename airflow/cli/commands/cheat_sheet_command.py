@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
-from airflow.cli.cli_parser import ActionCommand, GroupCommand, airflow_commands
+from airflow.cli.cli_parser import GroupCommand, airflow_commands
 from airflow.cli.simple_table import AirflowConsole, SimpleTable
 from airflow.utils.cli import suppress_logs_and_warning
+
+if TYPE_CHECKING:
+    from airflow.cli.cli_parser import ActionCommand
 
 
 @suppress_logs_and_warning

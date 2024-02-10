@@ -20,12 +20,13 @@
 ################################
 ## Airflow Webserver NetworkPolicy
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if .Values.networkPolicies.enabled }}
 {{- $from := or .Values.webserver.networkPolicy.ingress.from .Values.webserver.extraNetworkPolicies }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-webserver-policy
+  name: {{ include "airflow.fullname" . }}-webserver-policy
   labels:
     tier: airflow
     component: airflow-webserver-policy
@@ -54,4 +55,5 @@ spec:
           {{- end }}
       {{- end }}
   {{- end }}
+{{- end }}
 {{- end }}

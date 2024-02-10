@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""json_formatter module stores all related to ElasticSearch specific logger classes"""
+"""json_formatter module stores all related to ElasticSearch specific logger classes."""
 from __future__ import annotations
 
 import json
@@ -37,7 +37,7 @@ class JSONFormatter(logging.Formatter):
         self.extras = extras
 
     def usesTime(self):
-        return self.json_fields.count("asctime") > 0
+        return "asctime" in self.json_fields
 
     def format(self, record):
         super().format(record)

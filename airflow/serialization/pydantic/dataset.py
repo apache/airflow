@@ -17,42 +17,30 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
-    """
-    Serializable representation of the DagScheduleDatasetReference
-    ORM SqlAlchemyModel used by internal API.
-    """
+    """Serializable version of the DagScheduleDatasetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
     dag_id: str
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
-
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
-    """
-    Serializable representation of the
-    TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API.
-    """
+    """Serializable version of the TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
-    dag_id = str
-    task_id = str
-    created_at = datetime
-    updated_at = datetime
+    dag_id: str
+    task_id: str
+    created_at: datetime
+    updated_at: datetime
 
-    class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
-
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DatasetPydantic(BaseModelPydantic):
@@ -68,25 +56,20 @@ class DatasetPydantic(BaseModelPydantic):
     consuming_dags: List[DagScheduleDatasetReferencePydantic]
     producing_tasks: List[TaskOutletDatasetReferencePydantic]
 
-    class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
-
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DatasetEventPydantic(BaseModelPydantic):
     """Serializable representation of the DatasetEvent ORM SqlAlchemyModel used by internal API."""
 
     id: int
+    dataset_id: Optional[int]
+    extra: dict
     source_task_id: Optional[str]
     source_dag_id: Optional[str]
     source_run_id: Optional[str]
-    extra: Optional[dict]
-    source_map_index: int
+    source_map_index: Optional[int]
     timestamp: datetime
-    dataset: DatasetPydantic
+    dataset: Optional[DatasetPydantic]
 
-    class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
-
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

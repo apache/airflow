@@ -23,6 +23,8 @@ from airflow.exceptions import AirflowSkipException
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
 
 def test_xcom_map(dag_maker, session):
     results = set()
@@ -41,7 +43,7 @@ def test_xcom_map(dag_maker, session):
     # The function passed to "map" is *NOT* a task.
     assert set(dag.task_dict) == {"push", "pull"}
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push".
     decision = dr.task_instance_scheduling_decisions(session=session)
@@ -79,17 +81,17 @@ def test_xcom_map_transform_to_none(dag_maker, session):
 
         pull.expand(value=push().map(c_to_none))
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
 
     # Run "pull". This should automatically convert "c" to None.
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
     assert results == {"a", "b", None}
 
 
@@ -113,24 +115,24 @@ def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
 
         pull.expand_kwargs(push().map(c_to_none))
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
 
     # Prepare to run "pull"...
     decision = dr.task_instance_scheduling_decisions(session=session)
     tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
 
     # The first two "pull" tis should also succeed.
-    tis[("pull", 0)].run()
-    tis[("pull", 1)].run()
+    tis[("pull", 0)].run(session=session)
+    tis[("pull", 1)].run(session=session)
 
     # But the third one fails because the map() result cannot be used as kwargs.
     with pytest.raises(ValueError) as ctx:
-        tis[("pull", 2)].run()
+        tis[("pull", 2)].run(session=session)
     assert str(ctx.value) == "expand_kwargs() expects a list[dict], not list[None]"
 
     assert [tis[("pull", i)].state for i in range(3)] == [
@@ -158,12 +160,12 @@ def test_xcom_map_error_fails_task(dag_maker, session):
 
         pull.expand_kwargs(push().map(does_not_work_with_c))
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # The "push" task should not fail.
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
     assert [ti.state for ti in decision.schedulable_tis] == [TaskInstanceState.SUCCESS]
 
     # Prepare to run "pull"...
@@ -171,12 +173,12 @@ def test_xcom_map_error_fails_task(dag_maker, session):
     tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
 
     # The first two "pull" tis should also succeed.
-    tis[("pull", 0)].run()
-    tis[("pull", 1)].run()
+    tis[("pull", 0)].run(session=session)
+    tis[("pull", 1)].run(session=session)
 
     # But the third one (for "c") will fail.
     with pytest.raises(ValueError) as ctx:
-        tis[("pull", 2)].run()
+        tis[("pull", 2)].run(session=session)
     assert str(ctx.value) == "nope"
 
     assert [tis[("pull", i)].state for i in range(3)] == [
@@ -211,22 +213,22 @@ def test_xcom_map_raise_to_skip(dag_maker, session):
 
         collect(value=forward.expand_kwargs(push().map(skip_c)))
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
 
     # Run "forward". This should automatically skip "c".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
 
     # Now "collect" should only get "a" and "b".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
     assert result == ["a", "b"]
 
 
@@ -246,17 +248,20 @@ def test_xcom_map_nest(dag_maker, session):
         converted = push().map(lambda v: v * 2).map(lambda v: {"value": v})
         pull.expand_kwargs(converted)
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push".
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
+
+    session.flush()
+    session.commit()
 
     # Now "pull" should apply the mapping functions in order.
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
-        ti.run()
+        ti.run(session=session)
     assert results == {"aa", "bb", "cc"}
 
 
@@ -286,7 +291,7 @@ def test_xcom_map_zip_nest(dag_maker, session):
 
         pull.expand(value=combined.map(convert_zipped))
 
-    dr = dag_maker.create_dagrun()
+    dr = dag_maker.create_dagrun(session=session)
 
     # Run "push_letters" and "push_numbers".
     decision = dr.task_instance_scheduling_decisions(session=session)

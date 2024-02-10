@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from opsgenie_sdk import (
     AlertApi,
     ApiClient,
@@ -33,6 +35,7 @@ from airflow.hooks.base import BaseHook
 class OpsgenieAlertHook(BaseHook):
     """
     This hook allows you to post alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This hook sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -60,7 +63,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def _get_api_key(self) -> str:
         """
-        Get the API key from the connection
+        Get the API key from the connection.
 
         :return: API key
         """
@@ -69,7 +72,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def get_conn(self) -> AlertApi:
         """
-        Get the underlying AlertApi client
+        Get the underlying AlertApi client.
 
         :return: AlertApi client
         """
@@ -77,7 +80,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def create_alert(self, payload: dict | None = None) -> SuccessResponse:
         """
-        Create an alert on Opsgenie
+        Create an alert on Opsgenie.
 
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
@@ -101,7 +104,7 @@ class OpsgenieAlertHook(BaseHook):
         **kwargs: dict | None,
     ) -> SuccessResponse:
         """
-        Close an alert in Opsgenie
+        Close an alert in Opsgenie.
 
         :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
         :param identifier_type: Type of the identifier that is provided as an in-line parameter.
@@ -135,7 +138,7 @@ class OpsgenieAlertHook(BaseHook):
         source: str | None = None,
     ) -> SuccessResponse:
         """
-        Delete an alert in Opsgenie
+        Delete an alert in Opsgenie.
 
         :param identifier: Identifier of alert which could be alert id, tiny id or alert alias.
         :param identifier_type: Type of the identifier that is provided as an in-line parameter.
@@ -155,3 +158,11 @@ class OpsgenieAlertHook(BaseHook):
         except OpenApiException as e:
             self.log.exception("Exception when calling AlertApi->delete_alert: %s\n", e)
             raise e
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Opsgenie connection."""
+        return {
+            "hidden_fields": ["port", "schema", "login", "extra"],
+            "relabeling": {"password": "Opsgenie API Key"},
+        }

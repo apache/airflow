@@ -68,7 +68,6 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.folder_id = folder_id
         self.file_name = file_name

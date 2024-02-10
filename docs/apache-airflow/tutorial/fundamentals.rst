@@ -82,7 +82,7 @@ of default parameters that we can use when creating tasks.
     :end-before: [END default_args]
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:`airflow.models.BaseOperator` documentation.
+refer to the :py:class:`airflow.models.baseoperator.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -146,8 +146,11 @@ The precedence rules for a task are as follows:
 2.  Values that exist in the ``default_args`` dictionary
 3.  The operator's default value, if one exists
 
-A task must include or inherit the arguments ``task_id`` and ``owner``,
-otherwise Airflow will raise an exception.
+.. note::
+    A task must include or inherit the arguments ``task_id`` and ``owner``,
+    otherwise Airflow will raise an exception. A fresh install of Airflow will
+    have a default value of 'airflow' set for ``owner``, so you only really need
+    to worry about ensuring ``task_id`` has a value.
 
 Templating with Jinja
 ---------------------
@@ -298,7 +301,7 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # initialize the database tables
-    airflow db init
+    airflow db migrate
 
     # print the list of active DAGs
     airflow dags list
@@ -400,4 +403,4 @@ Here are a few things you might want to do next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
-    - Skip to the the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - Skip to the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more

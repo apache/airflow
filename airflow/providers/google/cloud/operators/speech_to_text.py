@@ -21,8 +21,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.cloud.speech_v1.types import RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
@@ -31,6 +29,9 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.speech_v1.types import RecognitionConfig
+
     from airflow.utils.context import Context
 
 
@@ -122,4 +123,4 @@ class CloudSpeechToTextRecognizeSpeechOperator(GoogleCloudBaseOperator):
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )
-        return MessageToDict(response)
+        return MessageToDict(response._pb)

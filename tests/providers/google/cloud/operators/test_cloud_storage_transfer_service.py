@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 from copy import deepcopy
 from datetime import date, time
 from unittest import mock
@@ -115,6 +114,10 @@ VALID_TRANSFER_JOB_BASE: dict = {
     SCHEDULE: SCHEDULE_DICT,
     TRANSFER_SPEC: {GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME, PATH: DESTINATION_PATH}},
 }
+VALID_TRANSFER_JOB_JINJA = deepcopy(VALID_TRANSFER_JOB_BASE)
+VALID_TRANSFER_JOB_JINJA[NAME] = "{{ dag.dag_id }}"
+VALID_TRANSFER_JOB_JINJA_RENDERED = deepcopy(VALID_TRANSFER_JOB_JINJA)
+VALID_TRANSFER_JOB_JINJA_RENDERED[NAME] = "TestGcpStorageTransferJobCreateOperator"
 VALID_TRANSFER_JOB_GCS = deepcopy(VALID_TRANSFER_JOB_BASE)
 VALID_TRANSFER_JOB_GCS[TRANSFER_SPEC].update(deepcopy(SOURCE_GCS))
 VALID_TRANSFER_JOB_AWS = deepcopy(VALID_TRANSFER_JOB_BASE)
@@ -220,10 +223,10 @@ class TestTransferJobValidator:
     @pytest.mark.parametrize(
         "transfer_spec",
         [
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items(), SOURCE_HTTP.items())),
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items())),
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_HTTP.items())),
-            dict(itertools.chain(SOURCE_GCS.items(), SOURCE_HTTP.items())),
+            {**SOURCE_AWS, **SOURCE_GCS, **SOURCE_HTTP},  # type: ignore[arg-type]
+            {**SOURCE_AWS, **SOURCE_GCS},
+            {**SOURCE_AWS, **SOURCE_HTTP},  # type: ignore[arg-type]
+            {**SOURCE_GCS, **SOURCE_HTTP},  # type: ignore[arg-type]
         ],
     )
     def test_verify_data_source(self, transfer_spec):
@@ -324,21 +327,26 @@ class TestGcpStorageTransferJobCreateOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "body, excepted",
+        [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
+    )
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
-    def test_templates(self, _, create_task_instance_of_operator):
-        dag_id = "TestGcpStorageTransferJobCreateOperator_test_templates"
+    def test_templates(self, _, create_task_instance_of_operator, body, excepted):
+        dag_id = "TestGcpStorageTransferJobCreateOperator"
         ti = create_task_instance_of_operator(
             CloudDataTransferServiceCreateJobOperator,
             dag_id=dag_id,
-            body={"description": "{{ dag.dag_id }}"},
+            body=body,
             gcp_conn_id="{{ dag.dag_id }}",
             aws_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
         ti.render_templates()
-        assert dag_id == getattr(ti.task, "body")[DESCRIPTION]
+        assert excepted == getattr(ti.task, "body")
         assert dag_id == getattr(ti.task, "gcp_conn_id")
         assert dag_id == getattr(ti.task, "aws_conn_id")
 
@@ -370,6 +378,7 @@ class TestGcpStorageTransferJobUpdateOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -411,6 +420,7 @@ class TestGcpStorageTransferJobDeleteOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -464,6 +474,7 @@ class TestGpcStorageTransferOperationsGetOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -513,6 +524,7 @@ class TestGcpStorageTransferOperationListOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -552,6 +564,7 @@ class TestGcpStorageTransferOperationsPauseOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -606,6 +619,7 @@ class TestGcpStorageTransferOperationsResumeOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -660,6 +674,7 @@ class TestGcpStorageTransferOperationsCancelOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -711,6 +726,7 @@ class TestS3ToGoogleCloudStorageTransferOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -824,7 +840,6 @@ class TestS3ToGoogleCloudStorageTransferOperator:
         )
 
         with pytest.raises(AirflowException) as ctx:
-
             operator = CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,
@@ -864,6 +879,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -931,7 +947,6 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_execute_delete_job_after_completion(self, mock_transfer_hook):
-
         operator = CloudDataTransferServiceGCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=GCS_BUCKET_NAME,
@@ -954,9 +969,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_execute_should_throw_ex_when_delete_job_without_wait(self, mock_transfer_hook):
-
         with pytest.raises(AirflowException) as ctx:
-
             operator = CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,

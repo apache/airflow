@@ -21,11 +21,9 @@ from unittest.mock import patch
 
 import pytest
 from asana import Client
-from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.asana.hooks.asana import AsanaHook
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
 class TestAsanaHook:
@@ -224,41 +222,14 @@ class TestAsanaHook:
         expected_merged_params = {"workspace": "2"}
         assert hook._merge_project_parameters({"workspace": "2"}) == expected_merged_params
 
-    def test__ensure_prefixes_removal(self):
-        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = "airflow.providers.asana.hooks.asana._ensure_prefixes"
-        if not object_exists(path):
-            raise Exception(
-                "You must remove this test. It only exists to "
-                "remind us to remove decorator `_ensure_prefixes`."
-            )
-
-        if get_provider_min_airflow_version("apache-airflow-providers-asana") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from AsanaHook."
-                " The functionality is now taken care of by providers manager."
-            )
-
-    def test__ensure_prefixes(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
-        """
-        assert list(AsanaHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "password",
-            "extra__asana__workspace",
-            "extra__asana__project",
-        ]
-
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__asana__workspace=abc&extra__asana__project=abc",
                 id="prefix",
             ),
-            param("a://?workspace=abc&project=abc", id="no-prefix"),
+            pytest.param("a://?workspace=abc&project=abc", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):

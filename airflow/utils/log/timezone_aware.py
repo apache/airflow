@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import logging
 
-import pendulum
+from airflow.utils import timezone
 
 
 class TimezoneAware(logging.Formatter):
-    """
-    Override `default_time_format`, `default_msec_format` and `formatTime` to specify utc offset.
-    utc offset is the matter, without it, time conversion could be wrong.
-    With this Formatter, `%(asctime)s` will be formatted containing utc offset. (ISO 8601)
-    (e.g. 2022-06-12T13:00:00.123+0000)
+    """Override time-formatting methods to include UTC offset.
+
+    Since Airflow parses the logs to perform time conversion, UTC offset is
+    critical information. This formatter ensures ``%(asctime)s`` is formatted
+    containing the offset in ISO 8601, e.g. ``2022-06-12T13:00:00.123+0000``.
     """
 
     default_time_format = "%Y-%m-%dT%H:%M:%S"
@@ -34,16 +34,13 @@ class TimezoneAware(logging.Formatter):
     default_tz_format = "%z"
 
     def formatTime(self, record, datefmt=None):
-        """
-        Returns the creation time of the specified LogRecord in ISO 8601 date and time format
-        in the local time zone.
-        """
-        dt = pendulum.from_timestamp(record.created, tz=pendulum.local_timezone())
-        if datefmt:
-            s = dt.strftime(datefmt)
-        else:
-            s = dt.strftime(self.default_time_format)
+        """Format time in record.
 
+        This returns the creation time of the specified LogRecord in ISO 8601
+        date and time format in the local time zone.
+        """
+        dt = timezone.from_timestamp(record.created, tz="local")
+        s = dt.strftime(datefmt or self.default_time_format)
         if self.default_msec_format:
             s = self.default_msec_format % (s, record.msecs)
         if self.default_tz_format:

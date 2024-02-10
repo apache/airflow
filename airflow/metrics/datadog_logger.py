@@ -22,16 +22,20 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
-    ListValidator,
     validate_stat,
 )
 
 if TYPE_CHECKING:
     from datadog import DogStatsd
+
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.validators import (
+        ListValidator,
+    )
 
 log = logging.getLogger(__name__)
 

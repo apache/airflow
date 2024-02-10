@@ -177,6 +177,14 @@ const getStatusBackgroundColor = (color: string, hasNote: boolean) =>
     ? `linear-gradient(-135deg, ${Color(color).hex()}60 5px, ${color} 0);`
     : color;
 
+const toSentenceCase = (camelCase: string): string => {
+  if (camelCase) {
+    const result = camelCase.replace(/([A-Z])/g, " $1");
+    return result[0].toUpperCase() + result.substring(1).toLowerCase();
+  }
+  return "";
+};
+
 export {
   hoverDelay,
   finalStatesMap,
@@ -188,4 +196,5 @@ export {
   getDagRunLabel,
   getStatusBackgroundColor,
   useOffsetTop,
+  toSentenceCase,
 };

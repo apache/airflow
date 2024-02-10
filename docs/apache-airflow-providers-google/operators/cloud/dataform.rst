@@ -120,6 +120,19 @@ To get a Workflow Invocation you can use:
     :start-after: [START howto_operator_get_workflow_invocation]
     :end-before: [END howto_operator_get_workflow_invocation]
 
+Query Workflow Invocation Action
+--------------------------------
+
+To query Workflow Invocation Actions you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataform.DataformQueryWorkflowInvocationActionsOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataform/example_dataform.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_query_workflow_invocation_actions]
+    :end-before: [END howto_operator_query_workflow_invocation_actions]
+
 Cancel Workflow Invocation
 --------------------------
 

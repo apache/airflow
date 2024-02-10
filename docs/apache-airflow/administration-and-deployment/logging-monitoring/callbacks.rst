@@ -29,6 +29,13 @@ For example, you may wish to alert when certain tasks have failed, or have the l
     As such, task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
     execute callback functions.
 
+.. warning::
+
+    Callback functions are executed after tasks are completed.
+    Errors in callback functions will show up in scheduler logs rather than task logs.
+    By default, scheduler logs do not show up in the UI and instead can be found in
+    ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+
 Callback Types
 --------------
 
@@ -42,6 +49,10 @@ Name                                        Description
 ``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
 ``on_execute_callback``                     Invoked right before the task begins executing.
+``on_skipped_callback``                     Invoked when the task is :ref:`running <concepts:task-instances>` and  AirflowSkipException raised.
+                                            Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
+                                            decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+                                            is never scheduled.
 =========================================== ================================================================
 
 
@@ -76,8 +87,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         on_success_callback=None,
         on_failure_callback=task_failure_alert,
         tags=["example"],
-    ) as dag:
-
+    ):
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")
         task3 = EmptyOperator(task_id="task3", on_success_callback=[dag_success_alert])
@@ -87,3 +97,5 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
     to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
+
+Full list of variables available in ``context`` in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.pyi>`_.

@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.datacatalog import (
     DataCatalogClient,
     Entry,
@@ -31,7 +30,6 @@ from google.cloud.datacatalog import (
     TagTemplate,
     TagTemplateField,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 from airflow.providers.google.cloud.links.datacatalog import (
@@ -42,6 +40,9 @@ from airflow.providers.google.cloud.links.datacatalog import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 

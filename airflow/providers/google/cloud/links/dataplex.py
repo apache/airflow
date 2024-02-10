@@ -35,7 +35,7 @@ DATAPLEX_LAKE_LINK = (
 
 
 class DataplexTaskLink(BaseGoogleLink):
-    """Helper class for constructing Dataplex Task link"""
+    """Helper class for constructing Dataplex Task link."""
 
     name = "Dataplex Task"
     key = "task_conf"
@@ -59,7 +59,7 @@ class DataplexTaskLink(BaseGoogleLink):
 
 
 class DataplexTasksLink(BaseGoogleLink):
-    """Helper class for constructing Dataplex Tasks link"""
+    """Helper class for constructing Dataplex Tasks link."""
 
     name = "Dataplex Tasks"
     key = "tasks_conf"
@@ -82,7 +82,7 @@ class DataplexTasksLink(BaseGoogleLink):
 
 
 class DataplexLakeLink(BaseGoogleLink):
-    """Helper class for constructing Dataplex Lake link"""
+    """Helper class for constructing Dataplex Lake link."""
 
     name = "Dataplex Lake"
     key = "dataplex_lake_key"

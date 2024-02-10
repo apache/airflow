@@ -16,15 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from openlineage.client.run import Dataset
 
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator, SageMakerTrainingOperator
+from airflow.providers.amazon.aws.triggers.sagemaker import (
+    SageMakerTrigger,
+)
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["ResourceConfig", "InstanceCount"],
@@ -77,7 +83,7 @@ class TestSageMakerTrainingOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2 in EXPECTED_INTEGER_FIELDS:
             assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "describe_training_job")
@@ -113,3 +119,119 @@ class TestSageMakerTrainingOperator:
         }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+    @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator.defer")
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_training_job_with_log",
+        return_value=(
+            LogState.JOB_COMPLETE,
+            {
+                "TrainingJobStatus": "Completed",
+                "ResourceConfig": {"InstanceCount": 1},
+                "TrainingEndTime": datetime(2023, 5, 15),
+                "TrainingStartTime": datetime(2023, 5, 16),
+            },
+            50,
+        ),
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_training_job",
+        return_value={
+            "TrainingJobStatus": "Completed",
+            "ResourceConfig": {"InstanceCount": 1},
+            "TrainingEndTime": datetime(2023, 5, 15),
+            "TrainingStartTime": datetime(2023, 5, 16),
+        },
+    )
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_operator_complete_before_defer(
+        self,
+        mock_training,
+        mock_describe_training_job,
+        mock_describe_training_job_with_log,
+        mock_defer,
+    ):
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.deferrable = True
+        self.sagemaker.wait_for_completion = True
+        self.sagemaker.check_if_job_exists = False
+
+        self.sagemaker.execute(context=None)
+        assert not mock_defer.called
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_training_job_with_log",
+        return_value=(
+            LogState.WAIT_IN_PROGRESS,
+            {
+                "TrainingJobStatus": "Training",
+                "ResourceConfig": {"InstanceCount": 1},
+                "TrainingEndTime": datetime(2023, 5, 15),
+                "TrainingStartTime": datetime(2023, 5, 16),
+            },
+            50,
+        ),
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_training_job",
+        return_value={
+            "TrainingJobStatus": "Training",
+            "ResourceConfig": {"InstanceCount": 1},
+            "TrainingEndTime": datetime(2023, 5, 15),
+            "TrainingStartTime": datetime(2023, 5, 16),
+        },
+    )
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_operator_defer(
+        self,
+        mock_training,
+        mock_describe_training_job,
+        mock_describe_training_job_with_log,
+    ):
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.deferrable = True
+        self.sagemaker.wait_for_completion = True
+        self.sagemaker.check_if_job_exists = False
+        self.sagemaker.print_log = False
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.sagemaker.execute(context=None)
+        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+
+    @mock.patch.object(
+        SageMakerHook,
+        "describe_training_job",
+        return_value={
+            "InputDataConfig": [
+                {
+                    "DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}},
+                }
+            ],
+            "ModelArtifacts": {"S3ModelArtifacts": "s3://model-bucket/model-path"},
+        },
+    )
+    @mock.patch.object(
+        SageMakerHook,
+        "create_training_job",
+        return_value={
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        },
+    )
+    @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
+    def test_execute_openlineage_data(self, mock_exists, mock_training, mock_desc):
+        self.sagemaker.execute(None)
+        assert self.sagemaker.get_openlineage_facets_on_complete(None) == OperatorLineage(
+            inputs=[Dataset(namespace="s3://input-bucket", name="input-path")],
+            outputs=[Dataset(namespace="s3://model-bucket", name="model-path")],
+        )

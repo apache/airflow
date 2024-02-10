@@ -17,7 +17,7 @@
 
 
 Configuration Reference
-=======================
+.......................
 
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
@@ -33,78 +33,20 @@ that you run airflow components on is synchronized (for example using ntpd) othe
 "forbidden" errors when the logs are accessed.
 
 .. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+    For more information see :doc:`/howto/set-config`.
 
-.. contents:: Sections:
-   :local:
-   :depth: 1
 
-.. jinja:: config_ctx
+Provider-specific configuration options
+---------------------------------------
 
-    {% for section_name, section in configs.items() %}
+Some of the providers have their own configuration options, you will find details of their configuration
+in the provider's documentation.
 
-    .. _config:{{ section_name }}:
+You can find all the provider configuration in
+:doc:`configurations specific for provider packages <apache-airflow-providers:core-extensions/configurations>`
 
-    [{{ section_name }}]
-    {{ "=" * (section_name|length + 2) }}
+Airflow configuration options
+-----------------------------
 
-    {% if 'renamed' in section %}
-    *Renamed in version {{ section['renamed']['version'] }}, previous name was {{ section['renamed']['previous_name'] }}*
-    {% endif %}
 
-    {% if section["description"] %}
-    {{ section["description"] }}
-    {% endif %}
-
-    {% for option_name, option in section["options"].items() %}
-
-    .. _config:{{ section_name }}__{{ option_name }}:
-
-    {{ option_name }}
-    {{ "-" * option_name|length }}
-
-    {% if option["version_added"] %}
-    .. versionadded:: {{ option["version_added"] }}
-    {% endif %}
-
-    {% if option["description"] %}
-    {{ option["description"] }}
-    {% endif %}
-
-    {% if option.get("see_also") %}
-    .. seealso:: {{ option["see_also"] }}
-    {% endif %}
-
-    :Type: {{ option["type"] }}
-    :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
-    {% if option.get("sensitive") %}
-    :Environment Variables:
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
-
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_CMD``
-
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_SECRET``
-    {% else %}
-    :Environment Variable: ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
-    {% endif %}
-    {% if option["example"] %}
-    :Example:
-        ``{{ option["example"] }}``
-    {% endif %}
-
-    {% endfor %}
-
-    {% if section_name in deprecated_options %}
-
-    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section_name].items() %}
-    .. _config:{{ section_name }}__{{ deprecated_option_name }}:
-
-    {{ deprecated_option_name }} (Deprecated)
-    {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
-
-    .. deprecated:: {{ since_version }}
-       The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
-    {% endfor %}
-    {% endif %}
-
-    {% endfor %}
+.. include:: ../exts/includes/sections-and-options.rst

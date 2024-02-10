@@ -21,10 +21,9 @@ from __future__ import annotations
 
 import datetime
 import os
-from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateLakeOperator,
     DataplexCreateTaskOperator,
@@ -33,26 +32,28 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexGetTaskOperator,
     DataplexListTasksOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSensor
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "project_id")
 
 DAG_ID = "example_dataplex"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 SPARK_FILE_NAME = "spark_example_pi.py"
-CURRENT_FOLDER = Path(__file__).parent
-FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / SPARK_FILE_NAME)
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-LAKE_ID = f"test-lake-{ENV_ID}"
+LAKE_ID = f"test-lake-dataplex-{ENV_ID}"
 REGION = "us-central1"
 
-SERVICE_ACC = os.environ.get("GCP_DATAPLEX_SERVICE_ACC")
+SERVICE_ACC = f"{PROJECT_ID}@appspot.gserviceaccount.com"
 
 SPARK_FILE_FULL_PATH = f"gs://{BUCKET_NAME}/{SPARK_FILE_NAME}"
 DATAPLEX_TASK_ID = f"test-task-{ENV_ID}"
@@ -76,22 +77,23 @@ EXAMPLE_LAKE_BODY = {
 # [END howto_dataplex_lake_configuration]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",
     tags=["example", "dataplex"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=FILE_LOCAL_PATH,
-        dst=SPARK_FILE_NAME,
-        bucket=BUCKET_NAME,
+    sync_bucket = GCSSynchronizeBucketsOperator(
+        task_id="sync_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object=SPARK_FILE_NAME,
+        destination_bucket=BUCKET_NAME,
+        destination_object=SPARK_FILE_NAME,
+        recursive=True,
     )
     # [START howto_dataplex_create_lake_operator]
     create_lake = DataplexCreateLakeOperator(
@@ -186,7 +188,7 @@ with models.DAG(
     chain(
         # TEST SETUP
         create_bucket,
-        upload_file,
+        sync_bucket,
         # TEST BODY
         create_lake,
         create_dataplex_task,

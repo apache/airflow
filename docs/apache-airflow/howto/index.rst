@@ -45,9 +45,9 @@ configuring an Airflow environment.
     export-more-env-vars
     connection
     variable
+    setup-and-teardown
     run-behind-proxy
     run-with-systemd
-    use-test-config
     define-extra-link
     email-config
     dynamic-dag-generation

@@ -32,7 +32,7 @@ class DagRunNotBackfillDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
-        Determines if the DagRun is valid for scheduling from scheduler.
+        Determine if the DagRun is valid for scheduling from scheduler.
 
         :param ti: the task instance to get the dependency status for
         :param session: database session

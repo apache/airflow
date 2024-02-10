@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -28,7 +28,9 @@ from airflow.api_connexion.schemas.common_schema import (
 )
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.operator import Operator
+
+if TYPE_CHECKING:
+    from airflow.models.operator import Operator
 
 
 class TaskSchema(Schema):

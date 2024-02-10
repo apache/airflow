@@ -17,12 +17,19 @@
 
 from __future__ import annotations
 
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from typing import TYPE_CHECKING, Any
+
+from airflow.metrics.protocols import Timer
 from airflow.typing_compat import Protocol
+
+if TYPE_CHECKING:
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
 
 
 class StatsLogger(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
+
+    instance: StatsLogger | NoStatsLogger | None = None
 
     @classmethod
     def incr(
@@ -31,7 +38,7 @@ class StatsLogger(Protocol):
         count: int = 1,
         rate: int | float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Increment stat."""
 
@@ -42,7 +49,7 @@ class StatsLogger(Protocol):
         count: int = 1,
         rate: int | float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Decrement stat."""
 
@@ -54,7 +61,7 @@ class StatsLogger(Protocol):
         rate: int | float = 1,
         delta: bool = False,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Gauge stat."""
 
@@ -64,7 +71,7 @@ class StatsLogger(Protocol):
         stat: str,
         dt: DeltaType | None,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Stats timing."""
 

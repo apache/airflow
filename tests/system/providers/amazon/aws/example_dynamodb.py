@@ -20,19 +20,24 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
+# TODO: FIXME The argument types here seems somewhat tricky to fix
+# mypy: disable-error-code="arg-type"
+
 DAG_ID = "example_dynamodbvaluesensor"
 sys_test_context_task = SystemTestContextBuilder().build()
 
+PK_ATTRIBUTE_NAME = "PK"
+SK_ATTRIBUTE_NAME = "SK"
 TABLE_ATTRIBUTES = [
-    {"AttributeName": "PK", "AttributeType": "S"},
-    {"AttributeName": "SK", "AttributeType": "S"},
+    {"AttributeName": PK_ATTRIBUTE_NAME, "AttributeType": "S"},
+    {"AttributeName": SK_ATTRIBUTE_NAME, "AttributeType": "S"},
 ]
 TABLE_KEY_SCHEMA = [
     {"AttributeName": "PK", "KeyType": "HASH"},
@@ -50,15 +55,15 @@ def create_table(table_name: str):
         KeySchema=TABLE_KEY_SCHEMA,
         ProvisionedThroughput=TABLE_THROUGHPUT,
     )
-    boto3.client("dynamodb").get_waiter("table_exists").wait()
+    boto3.client("dynamodb").get_waiter("table_exists").wait(TableName=table_name)
     table.put_item(Item={"PK": "Test", "SK": "2022-07-12T11:11:25-0400", "Value": "Testing"})
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_table(table_name: str):
-    ddb = boto3.resource("dynamodb")
-    ddb.delete_table(TableName=table_name)
-    boto3.client("dynamodb").get_waiter("table_not_exists").wait()
+    client = boto3.client("dynamodb")
+    client.delete_table(TableName=table_name)
+    client.get_waiter("table_not_exists").wait(TableName=table_name)
 
 
 with DAG(
@@ -72,30 +77,41 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     table_name = f"{env_id}-dynamodb-table"
     create_table = create_table(table_name=table_name)
+    delete_table = delete_table(table_name)
 
-    # [START howto_sensor_dynamodb]
+    # [START howto_sensor_dynamodb_value]
     dynamodb_sensor = DynamoDBValueSensor(
         task_id="waiting_for_dynamodb_item_value",
-        poke_interval=30,
-        timeout=120,
-        soft_fail=False,
-        retries=10,
-        table_name="AirflowSensorTest",
-        partition_key_name="PK",
+        table_name=table_name,
+        partition_key_name=PK_ATTRIBUTE_NAME,
         partition_key_value="Test",
-        sort_key_name="SK",
+        sort_key_name=SK_ATTRIBUTE_NAME,
         sort_key_value="2022-07-12T11:11:25-0400",
         attribute_name="Value",
         attribute_value="Testing",
     )
-    # [END howto_sensor_dynamodb]
+    # [END howto_sensor_dynamodb_value]
+
+    # [START howto_sensor_dynamodb_any_value]
+    dynamodb_sensor_any_value = DynamoDBValueSensor(
+        task_id="waiting_for_dynamodb_item_any_value",
+        table_name=table_name,
+        partition_key_name=PK_ATTRIBUTE_NAME,
+        partition_key_value="Test",
+        sort_key_name=SK_ATTRIBUTE_NAME,
+        sort_key_value="2022-07-12T11:11:25-0400",
+        attribute_name="Value",
+        attribute_value=["Foo", "Testing", "Bar"],
+    )
+    # [END howto_sensor_dynamodb_any_value]
 
     chain(
         # TEST SETUP
         test_context,
-        # TEST BODY
         create_table,
+        # TEST BODY
         dynamodb_sensor,
+        dynamodb_sensor_any_value,
         # TEST TEARDOWN
         delete_table,
     )

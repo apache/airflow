@@ -28,6 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
+import TaskName from "src/dag/TaskName";
 
 export interface CustomNodeProps {
   label: string;
@@ -42,6 +43,10 @@ export interface CustomNodeProps {
   onToggleCollapse: () => void;
   isOpen?: boolean;
   isActive?: boolean;
+  setupTeardownType?: "setup" | "teardown";
+  labelStyle?: string;
+  style?: string;
+  isZoomedOut: boolean;
 }
 
 export const BaseNode = ({
@@ -58,6 +63,10 @@ export const BaseNode = ({
     onToggleCollapse,
     isOpen,
     isActive,
+    setupTeardownType,
+    labelStyle,
+    style,
+    isZoomedOut,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { onSelect } = useSelection();
@@ -65,6 +74,7 @@ export const BaseNode = ({
 
   if (!task) return null;
 
+  const bg = isOpen ? "blackAlpha.50" : "white";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -74,7 +84,22 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
-  const bg = isOpen ? "blackAlpha.50" : "white";
+  let operatorTextColor = "";
+  let operatorBG = "";
+  if (style) {
+    [, operatorBG] = style.split(":");
+  }
+
+  if (labelStyle) {
+    [, operatorTextColor] = labelStyle.split(":");
+  }
+  if (!operatorTextColor || operatorTextColor === "#000;")
+    operatorTextColor = "gray.500";
+
+  const nodeBorderColor =
+    instance?.state && stateColors[instance.state]
+      ? `${stateColors[instance.state]}.400`
+      : "gray.400";
 
   return (
     <Tooltip
@@ -89,10 +114,15 @@ export const BaseNode = ({
       openDelay={hoverDelay}
     >
       <Box
-        borderRadius={5}
-        borderWidth={1}
-        borderColor={isSelected ? "blue.400" : "gray.400"}
-        bg={isSelected ? "blue.50" : bg}
+        borderRadius={isZoomedOut ? 10 : 5}
+        borderWidth={(isSelected ? 4 : 2) * (isZoomedOut ? 3 : 1)}
+        borderColor={nodeBorderColor}
+        bg={
+          !task.children?.length && operatorBG
+            ? // Fade the operator color to clash less with the task instance status
+              `color-mix(in srgb, ${operatorBG.replace(";", "")} 80%, white)`
+            : bg
+        }
         height={`${height}px`}
         width={`${width}px`}
         cursor={latestDagRunId ? "cursor" : "default"}
@@ -107,48 +137,48 @@ export const BaseNode = ({
             });
           }
         }}
+        px={isZoomedOut ? 1 : 2}
+        mt={isZoomedOut ? -2 : 0}
       >
-        <Flex
-          justifyContent="space-between"
-          width={width}
-          p={2}
-          flexWrap="wrap"
-        >
-          <Flex flexDirection="column">
-            <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
-              {taskName}
-            </Text>
+        <TaskName
+          label={taskName}
+          isOpen={isOpen}
+          isGroup={!!childCount}
+          onToggle={(e) => {
+            e.stopPropagation();
+            onToggleCollapse();
+          }}
+          setupTeardownType={setupTeardownType}
+          fontWeight="bold"
+          isZoomedOut={isZoomedOut}
+          mt={isZoomedOut ? -2 : 0}
+          noOfLines={2}
+        />
+        {!isZoomedOut && (
+          <>
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="sm">
+                <Text ml={2} color="gray.500" fontWeight={400} fontSize="md">
                   {instance.state}
                 </Text>
               </Flex>
             )}
             {task?.operator && (
-              <Text color="gray.500" fontWeight={400} fontSize="md">
+              <Text
+                noOfLines={1}
+                maxWidth={`calc(${width}px - 12px)`}
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                color={operatorTextColor}
+                px={1}
+              >
                 {task.operator}
               </Text>
             )}
-          </Flex>
-          {!!childCount && (
-            <Text
-              color="blue.600"
-              cursor="pointer"
-              // Increase the target area to expand/collapse a group
-              p={3}
-              m={-3}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleCollapse();
-              }}
-            >
-              {isOpen ? "- " : "+ "}
-              {childCount} tasks
-            </Text>
-          )}
-        </Flex>
+          </>
+        )}
       </Box>
     </Tooltip>
   );

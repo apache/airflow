@@ -18,15 +18,17 @@
 """This module contains a Google Cloud Speech Hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudSpeechToTextHook(GoogleBaseHook):
@@ -59,7 +61,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: SpeechClient | None = None
 
     def get_conn(self) -> SpeechClient:
         """
@@ -80,7 +82,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         timeout: float | None = None,
     ):
         """
-        Recognizes audio input
+        Recognizes audio input.
 
         :param config: information to the recognizer that specifies how to process the request.
             https://googleapis.github.io/google-cloud-python/latest/speech/gapic/v1/types.html#google.cloud.speech_v1.types.RecognitionConfig
@@ -92,6 +94,11 @@ class CloudSpeechToTextHook(GoogleBaseHook):
             Note that if retry is specified, the timeout applies to each individual attempt.
         """
         client = self.get_conn()
+        if isinstance(config, dict):
+            config = RecognitionConfig(config)
+        if isinstance(audio, dict):
+            audio = RecognitionAudio(audio)
+
         response = client.recognize(config=config, audio=audio, retry=retry, timeout=timeout)
         self.log.info("Recognised speech: %s", response)
         return response

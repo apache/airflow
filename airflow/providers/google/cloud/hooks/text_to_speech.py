@@ -18,10 +18,9 @@
 """This module contains a Google Cloud Text to Speech Hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1 import TextToSpeechClient
 from google.cloud.texttospeech_v1.types import (
     AudioConfig,
@@ -32,6 +31,9 @@ from google.cloud.texttospeech_v1.types import (
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudTextToSpeechHook(GoogleBaseHook):
@@ -76,7 +78,6 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         :return: Google Cloud Text to Speech client object.
         """
         if not self._client:
-
             self._client = TextToSpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
         return self._client
@@ -91,7 +92,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> SynthesizeSpeechResponse:
         """
-        Synthesizes text input
+        Synthesizes text input.
 
         :param input_data: text input to be synthesized. See more:
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesisInput
@@ -107,8 +108,15 @@ class CloudTextToSpeechHook(GoogleBaseHook):
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
         """
         client = self.get_conn()
+
+        if isinstance(input_data, dict):
+            input_data = SynthesisInput(input_data)
+        if isinstance(voice, dict):
+            voice = VoiceSelectionParams(voice)
+        if isinstance(audio_config, dict):
+            audio_config = AudioConfig(audio_config)
         self.log.info("Synthesizing input: %s", input_data)
 
         return client.synthesize_speech(
-            input_=input_data, voice=voice, audio_config=audio_config, retry=retry, timeout=timeout
+            input=input_data, voice=voice, audio_config=audio_config, retry=retry, timeout=timeout
         )

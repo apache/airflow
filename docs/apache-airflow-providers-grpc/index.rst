@@ -19,22 +19,32 @@
 ``apache-airflow-providers-grpc``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/grpc>
+    Connection types <connections/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/grpc/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -45,6 +55,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -57,7 +68,7 @@ Package apache-airflow-providers-grpc
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.1.0
+Release: 3.5.0
 
 Provider package
 ----------------
@@ -75,13 +86,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-========================  ===================
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+
+========================  ==================
 PIP package               Version required
-========================  ===================
-``apache-airflow``        ``>=2.3.0``
-``google-auth``           ``>=1.0.0, <3.0.0``
+========================  ==================
+``apache-airflow``        ``>=2.6.0``
+``google-auth``           ``>=1.0.0,<3.0.0``
 ``google-auth-httplib2``  ``>=0.0.1``
 ``grpcio``                ``>=1.15.0``
-========================  ===================
-
-.. include:: ../../airflow/providers/grpc/CHANGELOG.rst
+========================  ==================

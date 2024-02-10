@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "waiters": {
+    "batch_job_complete": {
+      "delay": 300,
+      "operation": "DescribeJobs",
+      "maxAttempts": 100,
+      "description": "Wait until job is SUCCEEDED",
+      "acceptors": [
+        {
+          "argument": "jobs[].status",
+          "expected": "SUCCEEDED",
+          "matcher": "pathAll",
+          "state": "success"
+        },
+        {
+          "argument": "jobs[].status",
+          "expected": "FAILED",
+          "matcher": "pathAll",
+          "state": "failure"
+        }
+      ]
+    },
+
+    "compute_env_ready": {
+      "delay": 30,
+      "operation": "DescribeComputeEnvironments",
+      "maxAttempts": 100,
+      "acceptors": [
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "VALID",
+          "matcher": "pathAll",
+          "state": "success"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "INVALID",
+          "matcher": "pathAny",
+          "state": "failure"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "DELETED",
+          "matcher": "pathAny",
+          "state": "failure"
+        }
+      ]
+    }
+  }
+}

@@ -19,10 +19,15 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.atlassian.jira.operators.jira import JiraOperator
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(name="jira_client_for_test")
@@ -59,6 +64,22 @@ class TestJiraOperator:
         assert jira_operator.jira_method_args == {}
         assert jira_operator.result_processor is None
         assert jira_operator.get_jira_resource_method is None
+
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
+    def test_project_issue_count(self, jira_mock):
+        jira_mock.return_value.get_project_issues_count.return_value = 10
+
+        jira_ticket_search_operator = JiraOperator(
+            task_id="get-issue-count",
+            jira_method="get_project_issues_count",
+            jira_method_args={"project": "ABC"},
+            dag=self.dag,
+        )
+
+        jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        assert jira_mock.called
+        assert jira_mock.return_value.get_project_issues_count.called
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):

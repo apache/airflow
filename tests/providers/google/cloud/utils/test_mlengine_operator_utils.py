@@ -77,7 +77,6 @@ def get_metric_fn_and_keys():
 
 
 METRIC_FN, METRIC_KEYS = get_metric_fn_and_keys()
-METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 METRIC_KEYS_EXPECTED = ",".join(METRIC_KEYS)
 
 
@@ -113,6 +112,11 @@ class TestMlengineOperatorUtils:
 
         mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
+
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
@@ -155,6 +159,11 @@ class TestMlengineOperatorUtils:
         mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
         assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
@@ -193,6 +202,11 @@ class TestMlengineOperatorUtils:
         mock_dataflow.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
         assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
@@ -212,6 +226,7 @@ class TestMlengineOperatorUtils:
         assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
         assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
 
+    @pytest.mark.db_test
     @mock.patch.object(GCSHook, "download")
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")

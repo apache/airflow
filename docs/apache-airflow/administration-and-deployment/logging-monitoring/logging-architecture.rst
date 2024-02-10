@@ -26,9 +26,15 @@ Airflow supports a variety of logging and monitoring mechanisms as shown below.
 
 By default, Airflow supports logging into the local file system. These include logs from the Web server, the Scheduler, and the Workers running tasks. This is suitable for development environments and for quick debugging.
 
-For cloud deployments, Airflow also has handlers contributed by the Community for logging to cloud storage such as AWS, Google Cloud, and Azure.
+For cloud deployments, Airflow also has task handlers contributed by the Community for
+logging to cloud storage such as AWS, Google Cloud, and Azure.
 
-The logging settings and options can be specified in the Airflow Configuration file, which as usual needs to be available to all the Airflow process: Web server, Scheduler, and Workers.
+The logging settings and options can be specified in the Airflow Configuration file,
+which as usual needs to be available to all the Airflow process: Web server, Scheduler, and Workers.
+
+You can customize the logging settings for each of the Airflow components by specifying the logging settings
+in the Airflow Configuration file, or for advanced configuration by using
+:doc:`advanced features </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`.
 
 For production deployments, we recommend using FluentD to capture logs and send it to destinations such as ElasticSearch or Splunk.
 

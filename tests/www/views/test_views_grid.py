@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pendulum
 import pytest
 from dateutil.tz import UTC
@@ -25,7 +27,6 @@ from airflow.datasets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -36,6 +37,11 @@ from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 DAG_ID = "test"
 
@@ -156,6 +162,27 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
+def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs):
+    for uri_params, expected_run_types, expected_run_states in [
+        ("run_state=success&run_state=queued", ["scheduled"], ["success"]),
+        ("run_state=running&run_state=failed", ["scheduled"], ["running"]),
+        ("run_type=scheduled&run_type=manual", ["scheduled", "scheduled"], ["success", "running"]),
+        ("run_type=backfill&run_type=manual", [], []),
+        ("run_state=running&run_type=failed&run_type=backfill&run_type=manual", [], []),
+        (
+            "run_state=running&run_type=failed&run_type=scheduled&run_type=backfill&run_type=manual",
+            ["scheduled"],
+            ["running"],
+        ),
+    ]:
+        resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
+        assert resp.status_code == 200, resp.json
+        actual_run_types = list(map(lambda x: x["run_type"], resp.json["dag_runs"]))
+        actual_run_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
+        assert actual_run_types == expected_run_types
+        assert actual_run_states == expected_run_states
+
+
 # Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
@@ -238,6 +265,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "instances": [
                         {
                             "run_id": "run_1",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "note": None,
@@ -247,6 +275,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "note": None,
@@ -270,6 +299,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_1",
                                     "mapped_states": {"success": 3},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": "success",
@@ -278,6 +308,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_2",
                                     "mapped_states": {"no_status": 3},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": None,
@@ -297,12 +328,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "end_date": None,
                             "run_id": "run_1",
                             "mapped_states": {"success": 3},
+                            "queued_dttm": None,
                             "start_date": None,
                             "state": "success",
                             "task_id": "mapped_task_group",
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "state": None,
@@ -323,6 +356,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_1",
                                     "mapped_states": {"success": 4},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": "success",
@@ -331,6 +365,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_2",
                                     "mapped_states": {"no_status": 2, "running": 1, "success": 1},
+                                    "queued_dttm": None,
                                     "start_date": "2021-07-01T01:00:00+00:00",
                                     "end_date": "2021-07-01T01:02:03+00:00",
                                     "state": "running",
@@ -348,12 +383,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                         {
                             "end_date": None,
                             "run_id": "run_1",
+                            "queued_dttm": None,
                             "start_date": None,
                             "state": "success",
                             "task_id": "group",
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": "2021-07-01T01:00:00+00:00",
                             "end_date": "2021-07-01T01:02:03+00:00",
                             "state": "running",

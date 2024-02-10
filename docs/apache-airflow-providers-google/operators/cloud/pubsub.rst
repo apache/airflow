@@ -31,7 +31,7 @@ By decoupling senders and receivers Google Cloud PubSub allows developers to com
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:PubSubCreateTopicOperator:
 
@@ -87,6 +87,14 @@ and pass them through XCom.
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_sensor]
     :end-before: [END howto_operator_gcp_pubsub_pull_message_with_sensor]
+
+Also for this action you can use sensor in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/pubsub/example_pubsub_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_pubsub_pull_message_with_async_sensor]
+    :end-before: [END howto_operator_gcp_pubsub_pull_message_with_async_sensor]
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/pubsub/example_pubsub.py
     :language: python

@@ -66,7 +66,8 @@ be used. Make sure that with those credentials, you can read and write the logs.
   the logs. For security reasons, limiting the access of the log reader to only allow log reading and writing is
   an important security measure.
 
-By using the ``logging_config_class`` option you can get :ref:`advanced features <write-logs-advanced>` of
+By using the ``logging_config_class`` option you can get
+:ref:`advanced features <write-logs-advanced>` of
 this handler. Details are available in the handler's documentation -
 :class:`~airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler`.
 

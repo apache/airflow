@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
-from numpy import nan
-from pytest import param
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -50,6 +50,7 @@ class TestSalesforceHook:
 
         assert self.salesforce_hook.conn.return_value is not None
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_password_auth(self, mock_salesforce):
         """
@@ -97,6 +98,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_direct_session_access(self, mock_salesforce):
         """
@@ -148,6 +150,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_jwt_auth(self, mock_salesforce):
         """
@@ -196,6 +199,7 @@ class TestSalesforceHook:
             privatekey=extras["private_key"],
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_ip_filtering_auth(self, mock_salesforce):
         """
@@ -240,6 +244,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_default_to_none(self, mock_salesforce):
         """
@@ -338,8 +343,8 @@ class TestSalesforceHook:
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
     @patch(
-        "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [nan, nan, {"foo": "bar"}]}),
+        "pandas.DataFrame.from_records",
+        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [np.nan, np.nan, {"foo": "bar"}]}),
     )
     def test_write_object_to_file_csv(self, mock_data_frame):
         mock_data_frame.return_value.to_csv = Mock()
@@ -360,7 +365,7 @@ class TestSalesforceHook:
         return_value={"fields": [{"name": "field_1", "type": "date"}]},
     )
     @patch(
-        "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
+        "pandas.DataFrame.from_records",
         return_value=pd.DataFrame({"test": [1, 2, 3], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03"]}),
     )
     def test_write_object_to_file_json_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
@@ -383,7 +388,7 @@ class TestSalesforceHook:
 
     @patch("airflow.providers.salesforce.hooks.salesforce.time.time", return_value=1.23)
     @patch(
-        "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
+        "pandas.DataFrame.from_records",
         return_value=pd.DataFrame({"test": [1, 2, 3]}),
     )
     def test_write_object_to_file_ndjson_with_record_time(self, mock_data_frame, mock_time):
@@ -416,8 +421,10 @@ class TestSalesforceHook:
         return_value={"fields": [{"name": "field_1", "type": "date"}]},
     )
     @patch(
-        "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03"]}),
+        "pandas.DataFrame.from_records",
+        return_value=pd.DataFrame(
+            {"test": [1, 2, 3, 4], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"]}
+        ),
     )
     def test_object_to_df_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
         obj_name = "obj_name"
@@ -429,12 +436,13 @@ class TestSalesforceHook:
 
         mock_describe_object.assert_called_once_with(obj_name)
         pd.testing.assert_frame_equal(
-            data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
+            data_frame,
+            pd.DataFrame({"test": [1, 2, 3, 4], "field_1": [1.546301e09, 1.546387e09, 1.546474e09, np.nan]}),
         )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.time.time", return_value=1.23)
     @patch(
-        "airflow.providers.salesforce.hooks.salesforce.pd.DataFrame.from_records",
+        "pandas.DataFrame.from_records",
         return_value=pd.DataFrame({"test": [1, 2, 3]}),
     )
     def test_object_to_df_with_record_time(self, mock_data_frame, mock_time):
@@ -457,11 +465,11 @@ class TestSalesforceHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain",
                 id="prefix",
             ),
-            param("a://?security_token=token&domain=domain", id="no-prefix"),
+            pytest.param("a://?security_token=token&domain=domain", id="no-prefix"),
         ],
     )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -484,7 +492,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -513,7 +521,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch(

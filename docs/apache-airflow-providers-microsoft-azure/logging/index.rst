@@ -26,30 +26,33 @@ this process will fail.
 
 Follow the steps below to enable Azure Blob Storage logging:
 
-#. Airflow's logging system requires a custom ``.py`` file to be located in the :envvar:`PYTHONPATH`, so that it's importable from Airflow. Start by creating a directory to store the config file, ``$AIRFLOW_HOME/config`` is recommended.
-#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file created in ``Step 2``.
-#. Customize the following portions of the template:
+To enable this feature, ``airflow.cfg`` must be configured as in this
+example:
 
-    .. code-block:: ini
+.. code-block:: ini
 
-        # wasb buckets should start with "wasb" just to help Airflow select correct handler
-        REMOTE_BASE_LOG_FOLDER = 'wasb://<container_name>@<storage_account>.blob.core.windows.net'
+    [logging]
+    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
+    # Users must supply an Airflow connection id that provides access to the storage
+    # location. If remote_logging is set to true, see UPDATING.md for additional
+    # configuration requirements.
+    remote_logging = True
+    remote_base_log_folder = wasb-base-folder/path/to/logs
+    remote_wasb_log_container = my-container
 
-        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
-        LOGGING_CONFIG = ...
-
-
-#. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
-
-#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
-
-    .. code-block:: ini
-
-        [logging]
-        remote_logging = True
-        logging_config_class = log_config.LOGGING_CONFIG
-        remote_log_conn_id = <name of the Azure Blob Storage connection>
-
+#. Install the provider package with ``pip install apache-airflow-providers-microsoft-azure``
+#. Ensure :ref:`connection <howto/connection:wasb>` is already setup with read and write access to Azure Blob Storage in the ``remote_wasb_log_container`` container and path ``remote_base_log_folder``.
+#. Setup the above configuration values. Please note that the ``remote_base_log_folder`` should start with ``wasb`` to select the correct handler as shown above and the container should already exist.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you have defined.
+#. Verify that logs are showing up for newly executed tasks in the container at the specified base path you have defined.
+#. Verify that the Azure Blob Storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
+
+.. code-block:: none
+
+    *** Found remote logs:
+    ***   * https://my-container.blob.core.windows.net/wasb-base-folder/path/to/logs/dag_id=tutorial_dag/run_id=manual__2023-07-22T22:22:25.891267+00:00/task_id=load/attempt=1.log
+    [2023-07-23, 03:52:47] {taskinstance.py:1144} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2023-07-22T22:22:25.891267+00:00 [queued]>
+    [2023-07-23, 03:52:47] {taskinstance.py:1144} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: tutorial_dag.load manual__2023-07-22T22:22:25.891267+00:00 [queued]>
+    [2023-07-23, 03:52:47] {taskinstance.py:1346} INFO - Starting attempt 1 of 3
+
+**Note** that the path to the remote log file is listed in the second line.

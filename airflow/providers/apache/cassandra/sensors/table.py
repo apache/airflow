@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensor that check the existence
-of a table in a Cassandra cluster.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -42,9 +38,9 @@ class CassandraTableSensor(BaseSensorOperator):
     For example, if you want to wait for a table called 't' to be created
     in a keyspace 'k', instantiate it as follows:
 
-    >>> cassandra_sensor = CassandraTableSensor(table="k.t",
-    ...                                         cassandra_conn_id="cassandra_default",
-    ...                                         task_id="cassandra_sensor")
+    >>> cassandra_sensor = CassandraTableSensor(
+    ...     table="k.t", cassandra_conn_id="cassandra_default", task_id="cassandra_sensor"
+    ... )
 
     :param table: Target Cassandra table.
         Use dot notation to target a specific keyspace.

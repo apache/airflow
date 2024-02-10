@@ -29,10 +29,11 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class DebugExecutor(BaseExecutor):
@@ -60,25 +61,22 @@ class DebugExecutor(BaseExecutor):
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
-        """The method is replaced by custom trigger_task implementation."""
+        """Replace the method with a custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True
         while self.tasks_to_run:
             ti = self.tasks_to_run.pop(0)
             if self.fail_fast and not task_succeeded:
-                self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
-                ti.set_state(State.UPSTREAM_FAILED)
-                self.change_state(ti.key, State.UPSTREAM_FAILED)
-                continue
-
-            if self._terminated.is_set():
-                self.log.info("Executor is terminated! Stopping %s to %s", ti.key, State.FAILED)
-                ti.set_state(State.FAILED)
-                self.change_state(ti.key, State.FAILED)
-                continue
-
-            task_succeeded = self._run_task(ti)
+                self.log.info("Setting %s to %s", ti.key, TaskInstanceState.UPSTREAM_FAILED)
+                ti.set_state(TaskInstanceState.UPSTREAM_FAILED)
+                self.change_state(ti.key, TaskInstanceState.UPSTREAM_FAILED)
+            elif self._terminated.is_set():
+                self.log.info("Executor is terminated! Stopping %s to %s", ti.key, TaskInstanceState.FAILED)
+                ti.set_state(TaskInstanceState.FAILED)
+                self.fail(ti.key)
+            else:
+                task_succeeded = self._run_task(ti)
 
     def _run_task(self, ti: TaskInstance) -> bool:
         self.log.debug("Executing task: %s", ti)
@@ -86,12 +84,12 @@ class DebugExecutor(BaseExecutor):
         try:
             params = self.tasks_params.pop(ti.key, {})
             ti.run(job_id=ti.job_id, **params)
-            self.change_state(key, State.SUCCESS)
+            self.success(key)
             return True
         except Exception as e:
-            ti.set_state(State.FAILED)
-            self.change_state(key, State.FAILED)
-            self.log.exception("Failed to execute task: %s.", str(e))
+            ti.set_state(TaskInstanceState.FAILED)
+            self.fail(key)
+            self.log.exception("Failed to execute task: %s.", e)
             return False
 
     def queue_task_instance(
@@ -147,14 +145,14 @@ class DebugExecutor(BaseExecutor):
     def end(self) -> None:
         """Set states of queued tasks to UPSTREAM_FAILED marking them as not executed."""
         for ti in self.tasks_to_run:
-            self.log.info("Setting %s to %s", ti.key, State.UPSTREAM_FAILED)
-            ti.set_state(State.UPSTREAM_FAILED)
-            self.change_state(ti.key, State.UPSTREAM_FAILED)
+            self.log.info("Setting %s to %s", ti.key, TaskInstanceState.UPSTREAM_FAILED)
+            ti.set_state(TaskInstanceState.UPSTREAM_FAILED)
+            self.change_state(ti.key, TaskInstanceState.UPSTREAM_FAILED)
 
     def terminate(self) -> None:
         self._terminated.set()
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         self.log.debug("Popping %s from executor task queue.", key)
         self.running.remove(key)
         self.event_buffer[key] = state, info

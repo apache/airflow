@@ -59,6 +59,9 @@ Extra (optional)
     * ``timeout``: The SMTP connection creation timeout in seconds. Default is 30.
     * ``disable_tls``: By default the SMTP connection is created in TLS mode. Set to false to disable tls mode.
     * ``retry_limit``: How many attempts to connect to the server before raising an exception. Default is 5.
+    * ``ssl_context``: Can be "default" or "none". Only valid when SSL is used. The "default" context provides a balance between security and compatibility, "none" is not recommended
+      as it disables validation of certificates and allow MITM attacks, and is only needed in case your certificates are wrongly configured in your system. If not specified, defaults are taken from the
+      "smtp_provider", "ssl_context" configuration with the fallback to "email". "ssl_context" configuration. If none of it is specified, "default" is used.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class Neo4jOperator(BaseOperator):
     """
-    Executes sql code in a specific Neo4j database
+    Executes sql code in a specific Neo4j database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -46,7 +46,7 @@ class Neo4jOperator(BaseOperator):
         *,
         sql: str,
         neo4j_conn_id: str = "neo4j_default",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

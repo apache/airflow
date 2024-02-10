@@ -59,7 +59,6 @@ class PigOperator(BaseOperator):
         pig_properties: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig

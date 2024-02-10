@@ -16,45 +16,38 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-import boto3
-
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
     EcsTaskDefinitionStates,
     EcsTaskStates,
 )
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
+    import boto3
+
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID: str = "aws_default"
 
-
-def _check_failed(current_state, target_state, failure_states):
+def _check_failed(current_state, target_state, failure_states, soft_fail: bool) -> None:
     if (current_state != target_state) and (current_state in failure_states):
-        raise AirflowException(
-            f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
-        )
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+        message = f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
+        if soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
-class EcsBaseSensor(BaseSensorOperator):
+class EcsBaseSensor(AwsBaseSensor[EcsHook]):
     """Contains general sensor behavior for Elastic Container Service."""
 
-    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
-
-    @cached_property
-    def hook(self) -> EcsHook:
-        """Create and return an EcsHook."""
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+    aws_hook_class = EcsHook
 
     @cached_property
     def client(self) -> boto3.client:
@@ -64,8 +57,7 @@ class EcsBaseSensor(BaseSensorOperator):
 
 class EcsClusterStateSensor(EcsBaseSensor):
     """
-    Polls the cluster state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the cluster state until it reaches a terminal state; raises AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -77,7 +69,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
          Success State. (Default: "FAILED" or "INACTIVE")
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -96,15 +88,14 @@ class EcsClusterStateSensor(EcsBaseSensor):
         cluster_state = EcsClusterStates(self.hook.get_cluster_state(cluster_name=self.cluster_name))
 
         self.log.info("Cluster state: %s, waiting for: %s", cluster_state, self.target_state)
-        _check_failed(cluster_state, self.target_state, self.failure_states)
+        _check_failed(cluster_state, self.target_state, self.failure_states, self.soft_fail)
 
         return cluster_state == self.target_state
 
 
 class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     """
-    Polls the task definition state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll task definition until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -116,7 +107,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     :param target_state: Success state to watch for. (Default: "ACTIVE")
     """
 
-    template_fields: Sequence[str] = ("task_definition", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("task_definition", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -143,14 +134,13 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
         )
 
         self.log.info("Task Definition state: %s, waiting for: %s", task_definition_state, self.target_state)
-        _check_failed(task_definition_state, self.target_state, [self.failure_states])
+        _check_failed(task_definition_state, self.target_state, [self.failure_states], self.soft_fail)
         return task_definition_state == self.target_state
 
 
 class EcsTaskStateSensor(EcsBaseSensor):
     """
-    Polls the task state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the task state until it reaches a terminal state; raises AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -163,7 +153,7 @@ class EcsTaskStateSensor(EcsBaseSensor):
          the Success State. (Default: "STOPPED")
     """
 
-    template_fields: Sequence[str] = ("cluster", "task", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("cluster", "task", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -184,5 +174,5 @@ class EcsTaskStateSensor(EcsBaseSensor):
         task_state = EcsTaskStates(self.hook.get_task_state(cluster=self.cluster, task=self.task))
 
         self.log.info("Task state: %s, waiting for: %s", task_state, self.target_state)
-        _check_failed(task_state, self.target_state, self.failure_states)
+        _check_failed(task_state, self.target_state, self.failure_states, self.soft_fail)
         return task_state == self.target_state

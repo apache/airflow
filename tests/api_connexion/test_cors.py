@@ -23,6 +23,8 @@ import pytest
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 
+pytestmark = pytest.mark.db_test
+
 
 class BaseTestAuth:
     @pytest.fixture(autouse=True)

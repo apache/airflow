@@ -63,7 +63,7 @@ appropriate `--backend` flag is used. This is done in
 `backend-<BACKEND>.yml` docker-compose file.
 
 This volume stays until it is manually deleted or until
-`./breeze stop` command is called. The `./breeze stop` command
+`breeze down` command is called. The `breeze down` command
 stops all the containers and removes all the volumes, in order
 to provide an easy way to start breeze environment from
 scratch.

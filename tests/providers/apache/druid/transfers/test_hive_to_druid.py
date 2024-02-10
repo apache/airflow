@@ -24,7 +24,6 @@ from airflow.providers.apache.druid.transfers.hive_to_druid import HiveToDruidOp
 
 
 class TestDruidHook:
-
     # To debug the large json diff
     maxDiff = None
 

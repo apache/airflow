@@ -67,7 +67,7 @@ DLP_POSSIBLE_INFO_TYPES_LIST_LINK = (
 
 
 class CloudDLPDeidentifyTemplatesListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Deidentify Templates List"
     key = "cloud_dlp_deidentify_templates_list_key"
@@ -89,7 +89,7 @@ class CloudDLPDeidentifyTemplatesListLink(BaseGoogleLink):
 
 
 class CloudDLPDeidentifyTemplateDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Deidentify Template Details"
     key = "cloud_dlp_deidentify_template_details_key"
@@ -113,7 +113,7 @@ class CloudDLPDeidentifyTemplateDetailsLink(BaseGoogleLink):
 
 
 class CloudDLPJobTriggersListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Job Triggers List"
     key = "cloud_dlp_job_triggers_list_key"
@@ -135,7 +135,7 @@ class CloudDLPJobTriggersListLink(BaseGoogleLink):
 
 
 class CloudDLPJobTriggerDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Job Triggers Details"
     key = "cloud_dlp_job_trigger_details_key"
@@ -159,7 +159,7 @@ class CloudDLPJobTriggerDetailsLink(BaseGoogleLink):
 
 
 class CloudDLPJobsListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Jobs List"
     key = "cloud_dlp_jobs_list_key"
@@ -181,7 +181,7 @@ class CloudDLPJobsListLink(BaseGoogleLink):
 
 
 class CloudDLPJobDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Job Details"
     key = "cloud_dlp_job_details_key"
@@ -205,7 +205,7 @@ class CloudDLPJobDetailsLink(BaseGoogleLink):
 
 
 class CloudDLPInspectTemplatesListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Inspect Templates List"
     key = "cloud_dlp_inspect_templates_list_key"
@@ -227,7 +227,7 @@ class CloudDLPInspectTemplatesListLink(BaseGoogleLink):
 
 
 class CloudDLPInspectTemplateDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Inspect Template Details"
     key = "cloud_dlp_inspect_template_details_key"
@@ -251,7 +251,7 @@ class CloudDLPInspectTemplateDetailsLink(BaseGoogleLink):
 
 
 class CloudDLPInfoTypesListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Info Types List"
     key = "cloud_dlp_info_types_list_key"
@@ -273,7 +273,7 @@ class CloudDLPInfoTypesListLink(BaseGoogleLink):
 
 
 class CloudDLPInfoTypeDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Info Type Details"
     key = "cloud_dlp_info_type_details_key"
@@ -297,7 +297,7 @@ class CloudDLPInfoTypeDetailsLink(BaseGoogleLink):
 
 
 class CloudDLPPossibleInfoTypesListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Data Loss Prevention link"""
+    """Helper class for constructing Cloud Data Loss Prevention link."""
 
     name = "Cloud DLP Possible Info Types List"
     key = "cloud_dlp_possible_info_types_list_key"

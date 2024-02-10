@@ -19,10 +19,18 @@
 ``apache-airflow-providers-trino``
 ==================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -31,6 +39,7 @@ Content
     Connection types <connections>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -38,11 +47,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/trino/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -54,6 +65,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -66,7 +78,7 @@ Package apache-airflow-providers-trino
 `Trino <https://trino.io/>`__
 
 
-Release: 5.0.0
+Release: 5.6.1
 
 Provider package
 ----------------
@@ -84,12 +96,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.3.0``
+``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``pandas``                               ``>=0.17.1``
+``pandas``                               ``>=1.2.5``
 ``trino``                                ``>=0.318.0``
 =======================================  ==================
 
@@ -106,12 +120,13 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-trino[common.sql]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_          ``google``
-============================================================================================================  ==============
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_            ``google``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Downloading official packages
 -----------------------------
@@ -119,7 +134,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-trino 5.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-trino 5.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.0.0-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/trino/CHANGELOG.rst
+* `The apache-airflow-providers-trino 5.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-trino-5.6.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-trino 5.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_trino-5.6.1-py3-none-any.whl.sha512>`__)

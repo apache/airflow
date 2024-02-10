@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import re
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 import oracledb
+from deprecated import deprecated
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -31,9 +32,17 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    reason="Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class OracleOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Oracle database.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
     :param sql: the sql code to be executed. Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
@@ -56,12 +65,6 @@ class OracleOperator(SQLExecuteQueryOperator):
 
     def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:
         super().__init__(conn_id=oracle_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
 
 
 class OracleStoredProcedureOperator(BaseOperator):

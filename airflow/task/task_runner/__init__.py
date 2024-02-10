@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
-from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+    from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
 log = logging.getLogger(__name__)
 

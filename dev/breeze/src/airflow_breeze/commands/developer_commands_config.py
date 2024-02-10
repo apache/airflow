@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Basic developer commands",
+    "name": "Developer commands",
     "commands": [
         "start-airflow",
         "static-checks",
         "build-docs",
-        "stop",
+        "down",
         "shell",
         "exec",
         "compile-www-assets",
@@ -32,51 +32,147 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
+                "--integration",
+                "--standalone-dag-processor",
+                "--database-isolation",
+            ],
+        },
+        {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
                 "--backend",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
                 "--db-reset",
-                "--max-time",
+            ],
+        },
+        {
+            "name": "Build CI image (before entering shell)",
+            "options": [
                 "--github-repository",
+                "--builder",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
+                "--max-time",
             ],
         },
     ],
     "breeze shell": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
-                "--backend",
-                "--postgres-version",
-                "--mysql-version",
-                "--mssql-version",
                 "--integration",
-                "--forward-credentials",
-                "--db-reset",
-                "--github-repository",
+                "--standalone-dag-processor",
+                "--database-isolation",
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Docker Compose project management",
             "options": [
-                "--install-selected-providers",
-                "--use-airflow-version",
-                "--airflow-constraints-reference",
-                "--platform",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Scripts execution",
+            "options": [
+                "--quiet",
+                "--skip-image-upgrade-check",
+                "--warn-image-upgrade-needed",
+                "--skip-environment-initialization",
+                "--tty",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
+                "--backend",
+                "--postgres-version",
+                "--mysql-version",
+                "--db-reset",
+            ],
+        },
+        {
+            "name": "Choose executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
+            ],
+        },
+        {
+            "name": "Build CI image (before entering shell)",
+            "options": [
                 "--force-build",
+                "--platform",
                 "--image-tag",
+                "--github-repository",
+                "--builder",
+            ],
+        },
+        {
+            "name": "Mounting the sources and volumes",
+            "options": [
                 "--mount-sources",
                 "--include-mypy-volume",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
+                "--airflow-extras",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
+                "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
+            ],
+        },
+        {
+            "name": "Upgrading/downgrading selected packages",
+            "options": [
+                "--upgrade-boto",
+                "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
+            ],
+        },
+        {
+            "name": "DB test flags",
+            "options": [
+                "--run-db-tests-only",
+                "--skip-db-tests",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
                 "--max-time",
+                "--verbose-commands",
             ],
         },
     ],
@@ -85,57 +181,105 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Compile www assets flag",
             "options": [
                 "--dev",
+                "--force-clean",
             ],
         }
     ],
     "breeze start-airflow": [
         {
-            "name": "Basic flags",
+            "name": "Execution mode",
             "options": [
                 "--python",
+                "--platform",
+                "--integration",
+                "--standalone-dag-processor",
+                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
+            ],
+        },
+        {
+            "name": "Docker Compose selection and cleanup",
+            "options": [
+                "--project-name",
+                "--restart",
+                "--docker-host",
+            ],
+        },
+        {
+            "name": "Database",
+            "options": [
                 "--backend",
-                "--platform",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
-                "--integration",
-                "--forward-credentials",
                 "--db-reset",
-                "--github-repository",
+            ],
+        },
+        {
+            "name": "Choosing executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
             ],
         },
         {
             "name": "Asset compilation options",
             "options": [
-                "--skip-asset-compilation",
+                "--skip-assets-compilation",
                 "--dev-mode",
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Build CI image (before entering shell)",
             "options": [
-                "--use-airflow-version",
-                "--airflow-constraints-reference",
-                "--airflow-extras",
-                "--use-packages-from-dist",
-                "--package-format",
                 "--force-build",
                 "--image-tag",
+                "--github-repository",
+                "--builder",
+            ],
+        },
+        {
+            "name": "Mounting the sources and volumes",
+            "options": [
                 "--mount-sources",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
+            "options": [
+                "--airflow-constraints-location",
+                "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
+                "--airflow-extras",
+                "--airflow-skip-constraints",
+                "--install-selected-providers",
+                "--package-format",
+                "--providers-constraints-location",
+                "--providers-constraints-mode",
+                "--providers-constraints-reference",
+                "--providers-skip-constraints",
+                "--use-airflow-version",
+                "--use-packages-from-dist",
+            ],
+        },
+        {
+            "name": "Other options",
+            "options": [
+                "--forward-credentials",
             ],
         },
     ],
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
     ],
-    "breeze stop": [
+    "breeze down": [
         {
-            "name": "Stop flags",
+            "name": "Down flags",
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
+                "--project-name",
             ],
         },
     ],
@@ -146,10 +290,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--docs-only",
                 "--spellcheck-only",
                 "--clean-build",
-                "--for-production",
                 "--one-pass-only",
                 "--package-filter",
+                "--include-not-ready-providers",
+                "--include-removed-providers",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -158,12 +304,29 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
+                "--show-diff-on-failure",
+                "--initialize-environment",
+                "--max-initialization-attempts",
+            ],
+        },
+        {
+            "name": "Selecting files to run the checks on",
+            "options": [
                 "--file",
                 "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
                 "--commit-ref",
+                "--last-commit",
+                "--only-my-changes",
+            ],
+        },
+        {
+            "name": "Building image before running checks",
+            "options": [
+                "--skip-image-upgrade-check",
+                "--force-build",
+                "--image-tag",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],

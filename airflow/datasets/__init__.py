@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from typing import Any, ClassVar
 from urllib.parse import urlsplit
 
@@ -23,7 +24,7 @@ import attr
 
 
 @attr.define()
-class Dataset:
+class Dataset(os.PathLike):
     """A Dataset is used for marking data dependencies between workflows."""
 
     uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
@@ -42,3 +43,6 @@ class Dataset:
         parsed = urlsplit(uri)
         if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")
+
+    def __fspath__(self):
+        return self.uri

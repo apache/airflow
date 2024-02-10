@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 def safe_load(stream: bytes | str | BinaryIO | TextIO) -> Any:
-    """Like yaml.safe_load, but use the C libyaml for speed where we can"""
+    """Like yaml.safe_load, but use the C libyaml for speed where we can."""
     # delay import until use.
     from yaml import load as orig
 
@@ -47,7 +47,7 @@ def safe_load(stream: bytes | str | BinaryIO | TextIO) -> Any:
 
 
 def dump(data: Any, **kwargs) -> str:
-    """Like yaml.safe_dump, but use the C libyaml for speed where we can"""
+    """Like yaml.safe_dump, but use the C libyaml for speed where we can."""
     # delay import until use.
     from yaml import dump as orig
 

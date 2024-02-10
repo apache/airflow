@@ -22,10 +22,9 @@ import { useQuery } from "react-query";
 import ELK, { ElkShape, ElkExtendedEdge } from "elkjs";
 
 import { getMetaValue } from "src/utils";
-import type { DepEdge, DepNode } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
-
 import { getTextWidth } from "src/utils/graph";
+
+import type { NodeType, DepEdge, DepNode } from "src/types";
 
 interface DatasetDependencies {
   edges: DepEdge[];

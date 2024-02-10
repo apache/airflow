@@ -24,7 +24,7 @@ from airflow.www.session import AirflowDatabaseSessionInterface, AirflowSecureCo
 
 
 def init_airflow_session_interface(app):
-    """Set airflow session interface"""
+    """Set airflow session interface."""
     config = app.config.copy()
     selected_backend = conf.get("webserver", "SESSION_BACKEND")
     # A bit of a misnomer - normally cookies expire whenever the browser is closed

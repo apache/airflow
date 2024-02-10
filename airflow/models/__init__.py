@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow models"""
+"""Airflow models."""
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
@@ -59,12 +59,10 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
-    import airflow.jobs.job
     import airflow.models.dagwarning
     import airflow.models.dataset
     import airflow.models.serialized_dag
     import airflow.models.tasklog
-    import airflow.www.fab_security.sqla.models
 
 
 def __getattr__(name):
@@ -86,13 +84,14 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
     "DagPickle": "airflow.models.dagpickle",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
+    "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
     "ImportError": "airflow.models.errors",
     "Log": "airflow.models.log",
@@ -116,12 +115,14 @@ if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
     from airflow.models.dagpickle import DagPickle
     from airflow.models.dagrun import DagRun
+    from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
     from airflow.models.errors import ImportError
     from airflow.models.log import Log

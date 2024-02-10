@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import boto3
-from moto import mock_redshift
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -42,7 +42,7 @@ class TestRedshiftHook:
         if not client.describe_clusters()["Clusters"]:
             raise ValueError("AWS not properly mocked")
 
-    @mock_redshift
+    @mock_aws
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
         self._create_clusters()
         hook = AwsBaseHook(aws_conn_id="aws_default", client_type="redshift")
@@ -51,7 +51,7 @@ class TestRedshiftHook:
         clusters = client_from_hook.describe_clusters()["Clusters"]
         assert len(clusters) == 2
 
-    @mock_redshift
+    @mock_aws
     def test_restore_from_cluster_snapshot_returns_dict_with_cluster_data(self):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id="aws_default")
@@ -61,7 +61,7 @@ class TestRedshiftHook:
             == "test_cluster_3"
         )
 
-    @mock_redshift
+    @mock_aws
     def test_delete_cluster_returns_a_dict_with_cluster_data(self):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id="aws_default")
@@ -69,7 +69,7 @@ class TestRedshiftHook:
         cluster = hook.delete_cluster("test_cluster_2")
         assert cluster is not None
 
-    @mock_redshift
+    @mock_aws
     def test_create_cluster_snapshot_returns_snapshot_data(self):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id="aws_default")
@@ -77,14 +77,14 @@ class TestRedshiftHook:
         snapshot = hook.create_cluster_snapshot("test_snapshot_2", "test_cluster")
         assert snapshot is not None
 
-    @mock_redshift
+    @mock_aws
     def test_cluster_status_returns_cluster_not_found(self):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id="aws_default")
         status = hook.cluster_status("test_cluster_not_here")
         assert status == "cluster_not_found"
 
-    @mock_redshift
+    @mock_aws
     def test_cluster_status_returns_available_cluster(self):
         self._create_clusters()
         hook = RedshiftHook(aws_conn_id="aws_default")

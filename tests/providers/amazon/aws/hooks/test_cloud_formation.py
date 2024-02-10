@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import json
 
-from moto import mock_cloudformation
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
 
+@mock_aws
 class TestCloudFormationHook:
-    def setup_method(self):
+    def setup_method(self, _):
         self.hook = CloudFormationHook(aws_conn_id="aws_default")
 
     def create_stack(self, stack_name):
@@ -60,11 +61,9 @@ class TestCloudFormationHook:
             },
         )
 
-    @mock_cloudformation
     def test_get_conn_returns_a_boto3_connection(self):
         assert self.hook.get_conn().describe_stacks() is not None
 
-    @mock_cloudformation
     def test_get_stack_status(self):
         stack_name = "my_test_get_stack_status_stack"
 
@@ -75,7 +74,6 @@ class TestCloudFormationHook:
         stack_status = self.hook.get_stack_status(stack_name=stack_name)
         assert stack_status == "CREATE_COMPLETE", "Incorrect stack status returned."
 
-    @mock_cloudformation
     def test_create_stack(self):
         stack_name = "my_test_create_stack_stack"
         self.create_stack(stack_name)
@@ -89,7 +87,6 @@ class TestCloudFormationHook:
         stack = matching_stacks[0]
         assert stack["StackStatus"] == "CREATE_COMPLETE", "Stack should be in status CREATE_COMPLETE"
 
-    @mock_cloudformation
     def test_delete_stack(self):
         stack_name = "my_test_delete_stack_stack"
         self.create_stack(stack_name)

@@ -20,13 +20,16 @@ import json
 import logging
 import os
 import re
+from contextlib import contextmanager
 from io import StringIO
+from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
 from google.auth.environment_vars import CREDENTIALS
+from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
@@ -51,6 +54,31 @@ ACCOUNT_2_SAME_PROJECT = "account_2@project_id.iam.gserviceaccount.com"
 ACCOUNT_3_ANOTHER_PROJECT = "account_3@another_project_id.iam.gserviceaccount.com"
 ANOTHER_PROJECT_ID = "another_project_id"
 CRED_PROVIDER_LOGGER_NAME = "airflow.providers.google.cloud.utils.credentials_provider._CredentialProvider"
+
+
+@pytest.fixture
+def assert_no_logs(caplog):
+    """
+    Helper fixture for assert if any log message for the specific logger captured.
+
+    This is workaround for fix issue with asyncio in ``test_disable_logging``, see:
+        - https://github.com/apache/airflow/pull/26871
+        - https://github.com/apache/airflow/pull/26973
+        - https://github.com/apache/airflow/pull/36453
+    """
+
+    @contextmanager
+    def wrapper(level: str, logger: str):
+        with caplog.at_level(level=level, logger=logger):
+            caplog.clear()
+            yield
+        if records := list(filter(lambda lr: lr[0] == logger, caplog.record_tuples)):
+            msg = f"Did not expect any log message from logger={logger!r} but got:"
+            for log_record in records:
+                msg += f"\n * logger name: {log_record[0]!r}, level: {log_record[1]}, msg: {log_record[2]!r}"
+            raise AssertionError(msg)
+
+    return wrapper
 
 
 class TestHelper:
@@ -128,6 +156,7 @@ class TestProvideGcpConnAndCredentials:
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
 
+@pytest.mark.db_test
 class TestGetGcpCredentialsAndProjectId:
     test_scopes = _DEFAULT_SCOPES
     test_key_file = "KEY_PATH.json"
@@ -141,7 +170,7 @@ class TestGetGcpCredentialsAndProjectId:
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
         assert (
-            "Getting connection using `google.auth.default()` since no key file is defined for hook."
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         ) in caplog.messages
 
     @mock.patch("google.auth.default")
@@ -268,6 +297,45 @@ class TestGetGcpCredentialsAndProjectId:
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
         assert "Getting connection using JSON Dict" in caplog.messages
 
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_file(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(
+            level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME
+        ), NamedTemporaryFile() as temp_file:
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file=temp_file.name)
+        mock_load_credentials_from_file.assert_called_once_with(temp_file.name, scopes=None)
+        assert mock_load_credentials_from_file.return_value == result
+        assert (
+            f"Getting connection using credential configuration file: `{temp_file.name}`" in caplog.messages
+        )
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_dict(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file={"type": "external_account"})
+        mock_load_credentials_from_file.assert_called_once()
+        assert mock_load_credentials_from_file.return_value == result
+        assert "Getting connection using credential configuration dict." in caplog.messages
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_string(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file='{"type": "external_account"}')
+        mock_load_credentials_from_file.assert_called_once()
+        assert mock_load_credentials_from_file.return_value == result
+        assert "Getting connection using credential configuration string." in caplog.messages
+
+    def test_get_credentials_using_credential_config_invalid_string(self, caplog):
+        with pytest.raises(DefaultCredentialsError), caplog.at_level(
+            level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME
+        ):
+            caplog.clear()
+            get_credentials_and_project_id(credential_config_file="invalid json}}}}")
+        assert "Getting connection using credential configuration string." in caplog.messages
+
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch("google.oauth2.service_account.Credentials.from_service_account_info")
     @mock.patch("airflow.providers.google.cloud.utils.credentials_provider._SecretManagerClient")
@@ -322,32 +390,26 @@ class TestGetGcpCredentialsAndProjectId:
     @mock.patch(
         "google.oauth2.service_account.Credentials.from_service_account_file",
     )
-    def test_disable_logging(self, mock_default, mock_info, mock_file, caplog):
+    def test_disable_logging(self, mock_default, mock_info, mock_file, assert_no_logs):
         """Test disable logging in ``get_credentials_and_project_id``"""
 
         # assert no logs
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(disable_logging=True)
-            assert not caplog.record_tuples
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(
                 keyfile_dict={"private_key": "PRIVATE_KEY"},
                 disable_logging=True,
             )
-            assert not caplog.record_tuples
 
         # assert no debug logs emitted from get_credentials_and_project_id
-        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
-            caplog.clear()
+        with assert_no_logs(level="DEBUG", logger=CRED_PROVIDER_LOGGER_NAME):
             get_credentials_and_project_id(
                 key_path="KEY.json",
                 disable_logging=True,
             )
-            assert not caplog.record_tuples
 
 
 class TestGetScopes:

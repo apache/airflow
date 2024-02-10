@@ -67,7 +67,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         self.ensure_utc = ensure_utc
 
     def query(self):
-        """Queries mysql and returns a cursor to the results."""
+        """Query mysql and returns a cursor to the results."""
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         conn = mysql.get_conn()
         cursor = conn.cursor()
@@ -94,8 +94,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
 
     def convert_type(self, value, schema_type: str, **kwargs):
         """
-        Takes a value from MySQLdb, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery.
+        Take a value from MySQLdb and convert it to a value safe for JSON/Google Cloud Storage/BigQuery.
 
         * Datetimes are converted to `str(value)` (`datetime.isoformat(' ')`)
           strings.

@@ -33,7 +33,7 @@
 1. Save Summary to MySQL
 
 ***Screenshot:***
-<img src="http://i.imgur.com/rRpSO12.png" width="99%"/>
+<img src="http://i.imgur.com/rRpSO12.png" width="99%" alt="Twitter DAG screenshot"/>
 
 ***Example Structure:*** In this example dag, we are collecting tweets for four users account or twitter handle. Each twitter handle has two channels, incoming tweets and outgoing tweets. Hence, in this example, by running the fetch_tweet task, we should have eight output files. For better management, each of the eight output files should be saved with the yesterday's date (we are collecting tweets from yesterday), i.e. toTwitter_A_2016-03-21.csv. We are using two kinds of operators (BashOperator and HiveOperator) along with task-decorated functions. However, for this example only the Python scripts are stored externally. Hence this example DAG only has the following directory structure:
 

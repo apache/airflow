@@ -118,7 +118,7 @@ This does, however, place some requirements on the Database.
 Database Requirements
 """""""""""""""""""""
 
-The short version is that users of PostgreSQL 10+ or MySQL 8+ are all ready to go -- you can start running as
+The short version is that users of PostgreSQL 12+ or MySQL 8.0+ are all ready to go -- you can start running as
 many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
 using a different database please read on.
 
@@ -134,8 +134,8 @@ UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
-- PostgreSQL 10+
-- MySQL 8+
+- PostgreSQL 12+
+- MySQL 8.0+
 
 .. warning::
 
@@ -144,16 +144,11 @@ The following databases are fully supported and provide an "optimal" experience:
   Without these features, running multiple schedulers is not supported and deadlock errors have been reported. MariaDB
   10.6.0 and following may work appropriately with multiple schedulers, but this has not been tested.
 
-.. warning::
-
-  MySQL 5.x does not support ``SKIP LOCKED`` or ``NOWAIT``, and additionally is more prone to deciding
-  queries are deadlocked, so running with more than a single scheduler on MySQL 5.x is not supported or
-  recommended.
-
 .. note::
 
-  Microsoft SQLServer has not been tested with HA.
+  Microsoft SQL Server has not been tested with HA.
 
+.. _fine-tuning-scheduler:
 
 Fine-tuning your Scheduler performance
 --------------------------------------
@@ -253,8 +248,7 @@ There are several areas of resource usage that you should pay attention to:
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
   that if you have even medium size Postgres-based Airflow installation, the best solution is to use
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
-  supports PGBouncer out-of-the-box. For MsSQL we have not yet worked out the best practices as support
-  for MsSQL is still experimental.
+  supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
   Python DAG files. Since Schedulers triggers such parsing continuously, when you have a lot of DAGs,
   the processing might take a lot of CPU. You can mitigate it by increasing the
@@ -367,11 +361,12 @@ However, you can also look at other non-performance-related scheduler configurat
   The scheduler will list and sort the DAG files to decide the parsing order.
 
 - :ref:`config:scheduler__max_tis_per_query`
-  The batch size of queries in the scheduling main loop. If this is too high, SQL query
-  performance may be impacted by complexity of query predicate, and/or excessive locking.
+  The batch size of queries in the scheduling main loop. This should not be greater than
+  ``core.parallelism``. If this is too high then SQL query performance may be impacted by
+  complexity of query predicate, and/or excessive locking.
 
   Additionally, you may hit the maximum allowable query length for your db.
-  Set this to 0 for no limit (not advised).
+  Set this to 0 to use the value of ``core.parallelism``.
 
 - :ref:`config:scheduler__min_file_process_interval`
   Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every

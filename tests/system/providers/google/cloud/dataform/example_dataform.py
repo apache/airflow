@@ -25,7 +25,8 @@ from datetime import datetime
 
 from google.cloud.dataform_v1beta1 import WorkflowInvocation
 
-from airflow import models
+from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
     DataformCreateCompilationResultOperator,
@@ -38,6 +39,7 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformGetWorkflowInvocationOperator,
     DataformInstallNpmPackagesOperator,
     DataformMakeDirectoryOperator,
+    DataformQueryWorkflowInvocationActionsOperator,
     DataformRemoveDirectoryOperator,
     DataformRemoveFileOperator,
     DataformWriteFileOperator,
@@ -54,9 +56,10 @@ DAG_ID = "example_dataform"
 REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
 WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
+DATAFORM_SCHEMA_NAME = f"schema_{DAG_ID}_{ENV_ID}"
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -90,6 +93,7 @@ with models.DAG(
         workspace_id=WORKSPACE_ID,
         package_name=f"dataform_package_{ENV_ID}",
         without_installation=True,
+        dataform_schema_name=DATAFORM_SCHEMA_NAME,
     )
     # [END howto_initialize_workspace]
 
@@ -179,6 +183,18 @@ with models.DAG(
     )
     # [END howto_operator_get_workflow_invocation]
 
+    # [START howto_operator_query_workflow_invocation_actions]
+    query_workflow_invocation_actions = DataformQueryWorkflowInvocationActionsOperator(
+        task_id="query-workflow-invocation-actions",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workflow_invocation_id=(
+            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+        ),
+    )
+    # [END howto_operator_query_workflow_invocation_actions]
+
     create_workflow_invocation_for_cancel = DataformCreateWorkflowInvocationOperator(
         task_id="create-workflow-invocation-for-cancel",
         project_id=PROJECT_ID,
@@ -250,6 +266,13 @@ with models.DAG(
     )
     # [END howto_operator_remove_directory]
 
+    delete_dataset = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset",
+        dataset_id=DATAFORM_SCHEMA_NAME,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # [START howto_operator_delete_workspace]
     delete_workspace = DataformDeleteWorkspaceOperator(
         task_id="delete-workspace",
@@ -281,6 +304,7 @@ with models.DAG(
         >> get_compilation_result
         >> create_workflow_invocation
         >> get_workflow_invocation
+        >> query_workflow_invocation_actions
         >> create_workflow_invocation_async
         >> is_workflow_invocation_done
         >> create_workflow_invocation_for_cancel
@@ -289,6 +313,7 @@ with models.DAG(
         >> write_test_file
         >> remove_test_file
         >> remove_test_directory
+        >> delete_dataset
         >> delete_workspace
         >> delete_repository
     )

@@ -26,9 +26,14 @@ import { Flex, Box, Tooltip, Text, VStack, useTheme } from "@chakra-ui/react";
 import { useContainerRef } from "src/context/containerRef";
 import Time from "src/components/Time";
 import type { SelectionProps } from "src/dag/useSelection";
-import { hoverDelay, getStatusBackgroundColor } from "src/utils";
+import {
+  hoverDelay,
+  getStatusBackgroundColor,
+  getDagRunLabel,
+} from "src/utils";
 import RunTypeIcon from "src/components/RunTypeIcon";
 
+import { useGridData } from "src/api";
 import DagRunTooltip from "./Tooltip";
 import type { RunWithDuration } from ".";
 
@@ -51,7 +56,7 @@ const DagRunBar = ({
   isSelected,
   onSelect,
 }: Props) => {
-  const { runType, runId, duration, state, executionDate } = run;
+  const { runType, runId, duration, state } = run;
   const containerRef = useContainerRef();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
@@ -86,6 +91,10 @@ const DagRunBar = ({
     inverseIndex === 4 || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
 
   const color = stateColors[state];
+  const {
+    data: { ordering },
+  } = useGridData();
+  const dagRun = run;
 
   return (
     <Box
@@ -159,7 +168,10 @@ const DagRunBar = ({
             transform="rotate(-30deg) translateX(28px)"
             mt="-23px !important"
           >
-            <Time dateTime={executionDate} format="MMM DD, HH:mm" />
+            <Time
+              dateTime={getDagRunLabel({ dagRun, ordering })}
+              format="MMM DD, HH:mm"
+            />
           </Text>
           <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
         </VStack>

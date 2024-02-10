@@ -23,10 +23,10 @@
 {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
 {{- if semverCompare ">=2.6.0" .Values.airflowVersion }}
 {{- if .Values.triggerer.enabled }}
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-triggerer
+  name: {{ include "airflow.fullname" . }}-triggerer
   labels:
     tier: airflow
     component: triggerer

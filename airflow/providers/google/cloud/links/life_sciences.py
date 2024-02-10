@@ -28,7 +28,7 @@ LIFESCIENCES_LIST_LINK = BASE_LINK + "/pipelines?project={project_id}"
 
 
 class LifeSciencesLink(BaseGoogleLink):
-    """Helper class for constructing Life Sciences List link"""
+    """Helper class for constructing Life Sciences List link."""
 
     name = "Life Sciences"
     key = "lifesciences_key"

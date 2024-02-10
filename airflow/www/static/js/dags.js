@@ -320,6 +320,7 @@ function getDagIds({ activeDagsOnly = false } = {}) {
     dagIds = dagIds.filter(":checked");
   }
   dagIds = dagIds
+    // eslint-disable-next-line func-names
     .map(function () {
       return $(this).data("dag-id");
     })

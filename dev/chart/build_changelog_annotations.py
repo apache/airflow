@@ -88,28 +88,21 @@ section = ""
 with open("chart/RELEASE_NOTES.rst") as f:
     for line in f:
         line = line.strip()
-        if not line:
-            continue
-        if line.startswith("Airflow Helm Chart"):
+        if not line or line.startswith(('"""', "----", "^^^^")):
+            pass
+        elif line.startswith("Airflow Helm Chart"):
             # We only want to get annotations for the "latest" release
             if in_first_release:
                 break
             in_first_release = True
-            continue
-        if line.startswith('"""') or line.startswith("----") or line.startswith("^^^^"):
-            continue
-
         # Make sure we get past "significant features" before we actually start keeping track
-        if not past_significant_changes:
+        elif not past_significant_changes:
             if line == "New Features":
                 section = line
                 past_significant_changes = True
-            continue
-
-        if not line.startswith("- "):
+        elif not line.startswith("- "):
             section = line
-            continue
-
-        description, pr = parse_line(line)
-        if description:
-            print_entry(section, description, pr)
+        else:
+            description, pr = parse_line(line)
+            if description:
+                print_entry(section, description, pr)

@@ -19,19 +19,17 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 import time_machine
 import yaml
-from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
-from moto import mock_eks
+from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
-from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
     InvalidRequestException,
@@ -54,7 +52,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from ..utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -95,6 +93,11 @@ from ..utils.eks_test_utils import (
     region_matches_partition,
 )
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from moto.core.exceptions import AWSError
+
 
 @pytest.fixture(scope="function")
 def cluster_builder():
@@ -125,13 +128,9 @@ def cluster_builder():
     def _execute(count: int = 1, minimal: bool = True) -> tuple[EksHook, ClusterTestDataFactory]:
         return eks_hook, ClusterTestDataFactory(count=count, minimal=minimal)
 
-    mock_eks().start()
-    eks_hook = EksHook(
-        aws_conn_id=DEFAULT_CONN_ID,
-        region_name=REGION,
-    )
-    yield _execute
-    mock_eks().stop()
+    with mock_aws():
+        eks_hook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
+        yield _execute
 
 
 @pytest.fixture(scope="function")
@@ -231,7 +230,7 @@ class TestEksHooks:
     # in the list at initialization, which means the mock
     # decorator must be used manually in this one case.
     ###
-    @mock_eks
+    @mock_aws
     def test_list_clusters_returns_empty_by_default(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
 
@@ -271,7 +270,8 @@ class TestEksHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
+                name=generated_test_data.existing_cluster_name,
+                **dict(ClusterInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -418,7 +418,7 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result)
 
-    @mock_eks
+    @mock_aws
     def test_create_nodegroup_throws_exception_when_cluster_not_found(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
@@ -825,7 +825,7 @@ class TestEksHooks:
 
         assert_result_matches_expected_list(result, expected_result)
 
-    @mock_eks
+    @mock_aws
     def test_create_fargate_profile_throws_exception_when_cluster_not_found(self) -> None:
         eks_hook: EksHook = EksHook(aws_conn_id=DEFAULT_CONN_ID, region_name=REGION)
         non_existent_cluster_name: str = NON_EXISTING_CLUSTER_NAME
@@ -1157,7 +1157,7 @@ class TestEksHooks:
         "selectors, expected_message, expected_result",
         selector_formatting_test_cases,
     )
-    @mock_eks
+    @mock_aws
     def test_create_fargate_selectors(self, cluster_builder, selectors, expected_message, expected_result):
         client, generated_test_data = cluster_builder()
         cluster_name: str = generated_test_data.existing_cluster_name
@@ -1166,15 +1166,15 @@ class TestEksHooks:
 
         test_inputs = dict(
             deepcopy(
-                # Required Constants
-                [POD_EXECUTION_ROLE_ARN]
-                # Required Variables
-                + [
+                [
+                    # Required Constants
+                    POD_EXECUTION_ROLE_ARN,
+                    # Required Variables
                     (ClusterAttributes.CLUSTER_NAME, cluster_name),
                     (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                    # Test Case Values
+                    (FargateProfileAttributes.SELECTORS, selectors),
                 ]
-                # Test Case Values
-                + [(FargateProfileAttributes.SELECTORS, selectors)]
             )
         )
 
@@ -1194,6 +1194,8 @@ class TestEksHooks:
 
 
 class TestEksHook:
+    python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
+
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
         "aws_conn_id, region_name, expected_args",
@@ -1202,32 +1204,37 @@ class TestEksHook:
                 "test-id",
                 "test-region",
                 [
-                    "-m",
-                    "airflow.providers.amazon.aws.utils.eks_get_token",
-                    "--region-name",
-                    "test-region",
-                    "--aws-conn-id",
-                    "test-id",
-                    "--cluster-name",
-                    "test-cluster",
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args=" --region-name test-region --aws-conn-id test-id",
+                    ),
                 ],
             ],
             [
                 None,
                 "test-region",
                 [
-                    "-m",
-                    "airflow.providers.amazon.aws.utils.eks_get_token",
-                    "--region-name",
-                    "test-region",
-                    "--cluster-name",
-                    "test-cluster",
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args=" --region-name test-region",
+                    ),
                 ],
             ],
             [
                 None,
                 None,
-                ["-m", "airflow.providers.amazon.aws.utils.eks_get_token", "--cluster-name", "test-cluster"],
+                [
+                    "-c",
+                    COMMAND.format(
+                        python_executable=python_executable,
+                        eks_cluster_name="test-cluster",
+                        args="",
+                    ),
+                ],
             ],
         ],
     )
@@ -1267,8 +1274,7 @@ class TestEksHook:
                             "exec": {
                                 "apiVersion": "client.authentication.k8s.io/v1alpha1",
                                 "args": expected_args,
-                                "command": sys.executable,
-                                "env": [{"name": "AIRFLOW__LOGGING__LOGGING_LEVEL", "value": "FATAL"}],
+                                "command": "sh",
                                 "interactiveMode": "Never",
                             }
                         },
@@ -1328,7 +1334,7 @@ def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test
 
 
 def assert_client_error_exception_thrown(
-    expected_exception: type[AWSError], expected_msg: str, raised_exception: ExceptionInfo
+    expected_exception: type[AWSError], expected_msg: str, raised_exception: pytest.ExceptionInfo
 ) -> None:
     """
     Asserts that the raised exception is of the expected type
@@ -1347,7 +1353,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlsplit(value)
+    result = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

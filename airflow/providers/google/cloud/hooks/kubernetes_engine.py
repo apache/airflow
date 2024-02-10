@@ -18,7 +18,7 @@
 """
 This module contains a Google Kubernetes Engine Hook.
 
-.. spelling::
+.. spelling:word-list::
 
     gapic
     enums
@@ -28,14 +28,13 @@ from __future__ import annotations
 import contextlib
 import json
 import time
-import warnings
-from typing import Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Sequence
 
-import google.auth.credentials
+from deprecated import deprecated
 from gcloud.aio.auth import Token
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
@@ -44,14 +43,13 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerC
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
-from kubernetes_asyncio.client.models import V1Pod
 from kubernetes_asyncio.config.kube_config import FileOrData
 from urllib3.exceptions import HTTPError
 
 from airflow import version
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_generator_deprecated import PodDefaults
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -59,12 +57,16 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
 
+if TYPE_CHECKING:
+    import google.auth.credentials
+    from google.api_core.retry import Retry
+    from kubernetes_asyncio.client.models import V1Pod
+
 OPERATIONAL_POLL_INTERVAL = 15
 
 
 class GKEHook(GoogleBaseHook):
-    """
-    Hook for managing Google Kubernetes Engine cluster APIs.
+    """Google Kubernetes Engine cluster APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -90,42 +92,45 @@ class GKEHook(GoogleBaseHook):
         self.location = location
 
     def get_cluster_manager_client(self) -> ClusterManagerClient:
-        """Returns ClusterManagerClient."""
+        """Create or get a ClusterManagerClient."""
         if self._client is None:
             self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason=(
+            "The get_conn method has been deprecated. "
+            "You should use the get_cluster_manager_client method."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn(self) -> container_v1.ClusterManagerClient:
-        warnings.warn(
-            "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            DeprecationWarning,
-        )
         return self.get_cluster_manager_client()
 
     # To preserve backward compatibility
     # TODO: remove one day
+    @deprecated(
+        reason="The get_client method has been deprecated. You should use the get_conn method.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_client(self) -> ClusterManagerClient:
-        warnings.warn(
-            "The get_client method has been deprecated. You should use the get_conn method.",
-            DeprecationWarning,
-        )
         return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:
-        """
-        Given an operation, continuously fetches the status from Google Cloud until either
-        completion or an error occurring
+        """Continuously fetch the status from Google Cloud.
 
-        :param operation: The Operation to wait for
-        :param project_id: Google Cloud project ID
-        :return: A new, updated operation fetched from Google Cloud
+        This is done until the given operation completes, or raises an error.
+
+        :param operation: The Operation to wait for.
+        :param project_id: Google Cloud project ID.
+        :return: A new, updated operation fetched from Google Cloud.
         """
         self.log.info("Waiting for OPERATION_NAME %s", operation.name)
         time.sleep(OPERATIONAL_POLL_INTERVAL)
         while operation.status != Operation.Status.DONE:
-            if operation.status == Operation.Status.RUNNING or operation.status == Operation.Status.PENDING:
+            if operation.status in (Operation.Status.RUNNING, Operation.Status.PENDING):
                 time.sleep(OPERATIONAL_POLL_INTERVAL)
             else:
                 raise exceptions.GoogleCloudError(f"Operation has failed with status: {operation.status}")
@@ -134,8 +139,7 @@ class GKEHook(GoogleBaseHook):
         return operation
 
     def get_operation(self, operation_name: str, project_id: str | None = None) -> Operation:
-        """
-        Fetches the operation from Google Cloud
+        """Get an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch
         :param project_id: Google Cloud project ID
@@ -150,8 +154,7 @@ class GKEHook(GoogleBaseHook):
 
     @staticmethod
     def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
-        """
-        Append labels to provided Cluster Protobuf
+        """Append labels to provided Cluster Protobuf.
 
         Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
          airflow version string follows semantic versioning spec: x.y.z).
@@ -175,24 +178,23 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | None:
-        """
-        Deletes the cluster, including the Kubernetes endpoint and all
-        worker nodes. Firewalls and routes that were configured during
-        cluster creation are also deleted. Other Google Compute Engine
-        resources that might be in use by the cluster (e.g. load balancer
-        resources) will not be deleted if they were not present at the
-        initial create time.
+        """Deletes the cluster, the Kubernetes endpoint, and all worker nodes.
 
-        :param name: The name of the cluster to delete
-        :param project_id: Google Cloud project ID
-        :param wait_to_complete: A boolean value which makes method to sleep while
-            operation of deletion is not finished.
+        Firewalls and routes that were configured during cluster creation are
+        also deleted. Other Google Compute Engine resources that might be in use
+        by the cluster (e.g. load balancer resources) will not be deleted if
+        they were not present at the initial create time.
+
+        :param name: The name of the cluster to delete.
+        :param project_id: Google Cloud project ID.
+        :param wait_to_complete: If *True*, wait until the deletion is finished
+            before returning.
         :param retry: Retry object used to determine when/if to retry requests.
             If None is specified, requests will not be retried.
-        :param timeout: The amount of time, in seconds, to wait for the request to
-            complete. Note that if retry is specified, the timeout applies to each
-            individual attempt.
-        :return: The full url to the delete operation if successful, else None
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. Note that if retry is specified, the timeout applies to
+            each individual attempt.
+        :return: The full url to the delete operation if successful, else None.
         """
         self.log.info("Deleting (project_id=%s, location=%s, cluster_id=%s)", project_id, self.location, name)
 
@@ -219,26 +221,27 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | Cluster:
-        """
-        Creates a cluster, consisting of the specified number and type of Google Compute
-        Engine instances.
+        """Create a cluster.
+
+        This should consist of the specified number, and the type of Google
+        Compute Engine instances.
 
         :param cluster: A Cluster protobuf or dict. If dict is provided, it must
             be of the same form as the protobuf message
-            :class:`google.cloud.container_v1.types.Cluster`
-        :param project_id: Google Cloud project ID
-        :param wait_to_complete: A boolean value which makes method to sleep while
-            operation of creation is not finished.
+            :class:`google.cloud.container_v1.types.Cluster`.
+        :param project_id: Google Cloud project ID.
+        :param wait_to_complete: A boolean value which makes method to sleep
+            while operation of creation is not finished.
         :param retry: A retry object (``google.api_core.retry.Retry``) used to
-            retry requests.
-            If None is specified, requests will not be retried.
-        :param timeout: The amount of time, in seconds, to wait for the request to
-            complete. Note that if retry is specified, the timeout applies to each
-            individual attempt.
-        :return: The full url to the new, or existing, cluster
-        :raises:
-            ParseError: On JSON parsing problems when trying to convert dict
-            AirflowException: cluster is not dict type nor Cluster proto type
+            retry requests. If None is specified, requests will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. Note that if retry is specified, the timeout applies to
+            each individual attempt.
+        :return: The full url to the new, or existing, cluster.
+        :raises ParseError: On JSON parsing problems when trying to convert
+            dict.
+        :raises AirflowException: cluster is not dict type nor Cluster proto
+            type.
         """
         if isinstance(cluster, dict):
             cluster = Cluster.from_json(json.dumps(cluster))
@@ -273,17 +276,15 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Cluster:
-        """
-        Gets details of specified cluster
+        """Get details of specified cluster.
 
-        :param name: The name of the cluster to retrieve
-        :param project_id: Google Cloud project ID
-        :param retry: A retry object used to retry requests. If None is specified,
-            requests will not be retried.
-        :param timeout: The amount of time, in seconds, to wait for the request to
-            complete. Note that if retry is specified, the timeout applies to each
-            individual attempt.
-        :return: google.cloud.container_v1.types.Cluster
+        :param name: The name of the cluster to retrieve.
+        :param project_id: Google Cloud project ID.
+        :param retry: A retry object used to retry requests. If None is
+            specified, requests will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request
+            to complete. Note that if retry is specified, the timeout applies to
+            each individual attempt.
         """
         self.log.info(
             "Fetching cluster (project_id=%s, location=%s, cluster_name=%s)",
@@ -300,7 +301,7 @@ class GKEHook(GoogleBaseHook):
 
 
 class GKEAsyncHook(GoogleBaseAsyncHook):
-    """Hook implemented with usage of asynchronous client of GKE."""
+    """Asynchronous client of GKE."""
 
     sync_hook_class = GKEHook
 
@@ -331,8 +332,7 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         operation_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
-        """
-        Fetches the operation from Google Cloud.
+        """Fetch an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch.
         :param project_id: Google Cloud project ID.
@@ -347,19 +347,26 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         )
 
 
-class GKEPodHook(GoogleBaseHook):
-    """Hook for managing Google Kubernetes Engine pod APIs."""
+class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
+    """Google Kubernetes Engine pod APIs."""
 
     def __init__(
         self,
         cluster_url: str,
         ssl_ca_cert: str,
-        *args,
+        disable_tcp_keepalive: bool | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
+        self.disable_tcp_keepalive = disable_tcp_keepalive
 
     @cached_property
     def api_client(self) -> client.ApiClient:
@@ -373,14 +380,35 @@ class GKEPodHook(GoogleBaseHook):
     def is_in_cluster(self) -> bool:
         return False
 
-    @staticmethod
-    def get_xcom_sidecar_container_image():
-        """Returns the xcom sidecar image that defined in the connection"""
-        return PodDefaults.SIDECAR_CONTAINER.image
+    def get_namespace(self):
+        """Get the namespace configured by the Airflow connection."""
+
+    def _get_namespace(self):
+        """For compatibility with KubernetesHook. Deprecated; do not use."""
+
+    def get_xcom_sidecar_container_image(self):
+        """Get the xcom sidecar image defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
+
+    def get_xcom_sidecar_container_resources(self):
+        """Get the xcom sidecar resources defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
+        configuration.refresh_api_key_hook = self._refresh_api_key_hook
+
+        if self.disable_tcp_keepalive is not True:
+            _enable_tcp_keepalive()
+
         return client.ApiClient(configuration)
+
+    def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
+        configuration.api_key = {"authorization": self._get_token(self.get_credentials())}
 
     def _get_config(self) -> client.configuration.Configuration:
         configuration = client.Configuration(
@@ -404,8 +432,7 @@ class GKEPodHook(GoogleBaseHook):
         return creds.token
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """
-        Gets pod's object.
+        """Get a pod object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
@@ -417,11 +444,10 @@ class GKEPodHook(GoogleBaseHook):
 
 
 class GKEPodAsyncHook(GoogleBaseAsyncHook):
-    """
-    Hook for managing Google Kubernetes Engine pods APIs in asynchronous way.
+    """Google Kubernetes Engine pods APIs asynchronously.
 
     :param cluster_url: The URL pointed to the cluster.
-    :param ssl_ca_cert: SSL certificate that is used for authentication to the pod.
+    :param ssl_ca_cert: SSL certificate used for authentication to the pod.
     """
 
     sync_hook_class = GKEPodHook
@@ -431,17 +457,19 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         self,
         cluster_url: str,
         ssl_ca_cert: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
-    ):
-
+    ) -> None:
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
-
-        kwargs.update(
+        super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
         )
-        super().__init__(**kwargs)
 
     @contextlib.asynccontextmanager
     async def get_conn(self, token: Token) -> async_client.ApiClient:  # type: ignore[override]
@@ -475,30 +503,31 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         return configuration
 
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
-        """
-        Gets pod's object.
+        """Get a pod object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
-                v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
-                    name=name,
-                    namespace=namespace,
-                )
-            return pod
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token:
+                async with self.get_conn(token) as connection:
+                    v1_api = async_client.CoreV1Api(connection)
+                    pod: V1Pod = await v1_api.read_namespaced_pod(
+                        name=name,
+                        namespace=namespace,
+                    )
+                return pod
 
     async def delete_pod(self, name: str, namespace: str):
-        """
-        Deletes pod's object.
+        """Delete a pod.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
+                token
+            ) as connection:
                 try:
                     v1_api = async_client.CoreV1Api(connection)
                     await v1_api.delete_namespaced_pod(
@@ -512,16 +541,20 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
                         raise
 
     async def read_logs(self, name: str, namespace: str):
-        """
-        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
-        timestamp to track the logs after the execution of the pod is completed. The method is used for async
-        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+        """Read logs inside the pod while starting containers inside.
+
+        All the logs will be outputted with its timestamp to track the logs
+        after the execution of the pod is completed. The method is used for
+        async output of the logs only in the pod failed it execution or the task
+        was cancelled by the user.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+            async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
+                token
+            ) as connection:
                 try:
                     v1_api = async_client.CoreV1Api(connection)
                     logs = await v1_api.read_namespaced_pod_log(

@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 class LocalFilesystemToGCSOperator(BaseOperator):
     """
-    Uploads a file or list of files to Google Cloud Storage.
-    Optionally can compress the file for upload.
+    Uploads a file or list of files to Google Cloud Storage; optionally can compress the file for upload.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -87,7 +86,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        """Uploads a file or list of files to Google Cloud Storage"""
+        """Uploads a file or list of files to Google Cloud Storage."""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

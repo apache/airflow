@@ -18,35 +18,29 @@
 Prerequisites
 -------------
 
-Starting with Airflow 2.3.0, Airflow is tested with:.
+Airflow™ is tested with:
 
-* Python: 3.7, 3.8, 3.9, 3.10
+* Python: 3.8, 3.9, 3.10, 3.11
 
 * Databases:
 
-  * PostgreSQL: 11, 12, 13, 14, 15
-  * MySQL: 5.7, 8
+  * PostgreSQL: 12, 13, 14, 15, 16
+  * MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
-  * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.23, 1.24, 1.25, 1.26
+* Kubernetes: 1.25, 1.26, 1.27, 1.28
 
-The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
+The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depend
 wildly on the deployment options you have
 
 .. warning::
 
-  Despite big similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
+  Despite significant similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
   There are known problems (for example index handling) between MariaDB and MySQL and we do not test
   our migration scripts nor application execution on Maria DB. We know there were people who used
   MariaDB for Airflow and that cause a lot of operational headache for them so we strongly discourage
-  attempts of using MariaDB as a backend and users cannot expect any community support for it
+  attempts to use MariaDB as a backend and users cannot expect any community support for it
   because the number of users who tried to use MariaDB for Airflow is very small.
-
-.. warning::
-
-  MySQL 5.x versions are unable to or have limitations with
-  running multiple schedulers -- please see: :doc:`/administration-and-deployment/scheduler`.
 
 .. warning::
   SQLite is used in Airflow tests. Do not use it in production. We recommend
@@ -55,11 +49,12 @@ wildly on the deployment options you have
 
 .. warning::
 
-  Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
-  tested on fairly modern Linux Distros and recent versions of MacOS.
+  Airflow™ currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+  tested on fairly modern Linux Distros that our contributors use and recent versions of MacOS.
   On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
   The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__
   but it is not a high priority. You should only use Linux-based distros as "Production" execution environment
   as this is the only environment that is supported. The only distro that is used in our CI tests and that
   is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-  ``Debian Bullseye``.
+  ``Debian Bookworm``. We also build ``Debian Bullseye`` images in Airflow 2.8 but we do not use them for
+  CI tests and they will be dropped in Airflow 2.9.

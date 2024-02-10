@@ -24,12 +24,12 @@ from __future__ import annotations
 # [START tutorial]
 # [START import_module]
 import json
-from textwrap import dedent
+import textwrap
 
 import pendulum
 
 # The DAG object; we'll need this to instantiate a DAG
-from airflow import DAG
+from airflow.models.dag import DAG
 
 # Operators; we need this to operate!
 from airflow.operators.python import PythonOperator
@@ -94,7 +94,7 @@ with DAG(
         task_id="extract",
         python_callable=extract,
     )
-    extract_task.doc_md = dedent(
+    extract_task.doc_md = textwrap.dedent(
         """\
     #### Extract task
     A simple Extract task to get data ready for the rest of the data pipeline.
@@ -107,7 +107,7 @@ with DAG(
         task_id="transform",
         python_callable=transform,
     )
-    transform_task.doc_md = dedent(
+    transform_task.doc_md = textwrap.dedent(
         """\
     #### Transform task
     A simple Transform task which takes in the collection of order data from xcom
@@ -120,7 +120,7 @@ with DAG(
         task_id="load",
         python_callable=load,
     )
-    load_task.doc_md = dedent(
+    load_task.doc_md = textwrap.dedent(
         """\
     #### Load task
     A simple Load task which takes in the result of the Transform task, by reading it

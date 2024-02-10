@@ -20,7 +20,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from google.cloud.speech_v1 import RecognitionAudio, RecognitionConfig
+
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
@@ -43,11 +45,11 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 # [END howto_operator_text_to_speech_api_arguments]
 
 # [START howto_operator_speech_to_text_api_arguments]
-CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
-AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILE_NAME}"}
+CONFIG = RecognitionConfig({"encoding": "LINEAR16", "language_code": "en_US"})
+AUDIO = RecognitionAudio({"uri": f"gs://{BUCKET_NAME}/{FILE_NAME}"})
 # [END howto_operator_speech_to_text_api_arguments]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

@@ -103,9 +103,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class GcpFieldSanitizerException(AirflowException):
-    """Thrown when sanitizer finds unexpected field type in the path
-    (other than dict or array).
-    """
+    """Thrown when sanitizer finds unexpected field type in the path (other than dict or array)."""
 
 
 class GcpBodyFieldSanitizer(LoggingMixin):

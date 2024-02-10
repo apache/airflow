@@ -23,13 +23,12 @@ import type { ElkExtendedEdge } from "elkjs";
 
 import type { SelectionProps } from "src/dag/useSelection";
 import { getTask } from "src/utils";
-import type { Task, TaskInstance } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
+import type { Task, TaskInstance, NodeType } from "src/types";
 
 import type { CustomNodeProps } from "./Node";
 
 interface FlattenNodesProps {
-  children: NodeType[];
+  children?: NodeType[];
   selected: SelectionProps;
   groups: Task;
   latestDagRunId: string;
@@ -37,6 +36,7 @@ interface FlattenNodesProps {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isZoomedOut: boolean;
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -49,13 +49,17 @@ export const flattenNodes = ({
   openGroupIds,
   parent,
   hoveredTaskState,
+  isZoomedOut,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
+  let edges: ElkExtendedEdge[] = [];
+  if (!children) return { nodes, edges };
   const parentNode = parent ? { parentNode: parent.id } : undefined;
+
   children.forEach((node) => {
     let instance: TaskInstance | undefined;
     const group = getTask({ taskId: node.id, task: groups });
-    if (!node.id.includes("join_id") && selected.runId) {
+    if (!node.id.endsWith("join_id") && selected.runId) {
       instance = group?.instances.find((ti) => ti.runId === selected.runId);
     }
     const isSelected = node.id === selected.taskId && !!instance;
@@ -74,12 +78,13 @@ export const flattenNodes = ({
         isSelected,
         latestDagRunId,
         isActive,
+        isZoomedOut,
         onToggleCollapse: () => {
           let newGroupIds = [];
           if (!node.value.isOpen) {
-            newGroupIds = [...openGroupIds, node.value.label];
+            newGroupIds = [...openGroupIds, node.id];
           } else {
-            newGroupIds = openGroupIds.filter((g) => g !== node.value.label);
+            newGroupIds = openGroupIds.filter((g) => g !== node.id);
           }
           onToggleGroups(newGroupIds);
         },
@@ -97,10 +102,14 @@ export const flattenNodes = ({
       ...parentNode,
     };
 
+    if (node.edges) {
+      edges = [...edges, ...node.edges];
+    }
+
     nodes.push(newNode);
 
     if (node.children) {
-      const childNodes = flattenNodes({
+      const { nodes: childNodes, edges: childEdges } = flattenNodes({
         children: node.children,
         selected,
         groups,
@@ -109,22 +118,27 @@ export const flattenNodes = ({
         openGroupIds,
         parent: newNode,
         hoveredTaskState,
+        isZoomedOut,
       });
       nodes = [...nodes, ...childNodes];
+      edges = [...edges, ...childEdges];
     }
   });
-  return nodes;
+  return {
+    nodes,
+    edges,
+  };
 };
 
 export const nodeColor = ({
-  data: { height, width, instance, childCount, isActive },
+  data: { height, width, instance, isActive, isOpen },
 }: ReactFlowNode<CustomNodeProps>) => {
   let opacity = "90";
   let color = "#cccccc";
   if (!height || !width) return "";
-  if (instance?.state && !childCount)
+  if (instance?.state && !isOpen)
     color = Color(stateColors[instance.state]).hex();
-  if (childCount) opacity = "50";
+  if (isOpen) opacity = "50";
   if (!isActive) opacity = "21";
 
   return `${color}${opacity}`;
@@ -132,13 +146,18 @@ export const nodeColor = ({
 
 export const nodeStrokeColor = (
   { data: { isSelected } }: ReactFlowNode<CustomNodeProps>,
-  colors: any
+  colors: Record<string, string>
 ) => (isSelected ? colors.blue[500] : "");
 
+interface Edge extends ElkExtendedEdge {
+  parentNode?: string;
+}
+
 interface BuildEdgesProps {
-  edges?: ElkExtendedEdge[];
+  edges?: Edge[];
   nodes: ReactFlowNode<CustomNodeProps>[];
   selectedTaskId?: string | null;
+  isZoomedOut?: boolean;
 }
 
 // Format edge data to what react-flow needs to render successfully
@@ -146,6 +165,7 @@ export const buildEdges = ({
   edges = [],
   nodes,
   selectedTaskId,
+  isZoomedOut,
 }: BuildEdgesProps) =>
   edges
     .map((edge) => ({
@@ -156,42 +176,25 @@ export const buildEdges = ({
       type: "custom",
     }))
     .map((e) => {
-      const sourceIds = e.source.split(".");
-      const targetIds = e.target.split(".");
       const isSelected =
         selectedTaskId &&
         (e.source === selectedTaskId || e.target === selectedTaskId);
 
-      if (
-        sourceIds.length === targetIds.length &&
-        sourceIds[0] === targetIds[0]
-      ) {
-        let parentIds =
-          sourceIds.length > targetIds.length ? sourceIds : targetIds;
-
-        if (e.target.endsWith("_join_id") && e.source.endsWith("_join_id")) {
-          /** edges between join ids are positioned absolutely,
-           * other edges are positioned relative to their parent */
-          parentIds = [];
-        } else {
-          // remove the last node
-          parentIds.pop();
-        }
-        let parentX = 0;
-        let parentY = 0;
-
-        nodes
-          .filter((n) => parentIds.some((p) => p === n.data.label))
-          .forEach((p) => {
-            parentX += p.position.x;
-            parentY += p.position.y;
-          });
-
+      if (e.data.rest?.parentNode) {
+        const parentNode = nodes.find((n) => n.id === e.data.rest.parentNode);
+        const parentX =
+          parentNode?.positionAbsolute?.x || parentNode?.position.x || 0;
+        const parentY =
+          parentNode?.positionAbsolute?.y || parentNode?.position.y || 0;
         return {
           ...e,
           data: {
             rest: {
+              isZoomedOut,
               ...e.data.rest,
+              labels: e.data.rest.labels?.map((l) =>
+                l.x && l.y ? { ...l, x: l.x + parentX, y: l.y + parentY } : l
+              ),
               isSelected,
               sections: e.data.rest.sections.map((s) => ({
                 ...s,
@@ -219,6 +222,7 @@ export const buildEdges = ({
           rest: {
             ...e.data.rest,
             isSelected,
+            isZoomedOut,
           },
         },
       };

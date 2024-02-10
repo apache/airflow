@@ -21,8 +21,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator,
@@ -58,7 +58,7 @@ from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
 
 # [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]
-from google.cloud.vision import enums  # isort:skip
+from google.cloud.vision_v1 import Feature  # isort:skip
 
 # [END howto_operator_vision_enums_import]
 
@@ -93,7 +93,7 @@ reference_image = ReferenceImage(uri=VISION_IMAGE_URL)
 # [START howto_operator_vision_annotate_image_request]
 annotate_image_request = {
     "image": {"source": {"image_uri": VISION_IMAGE_URL}},
-    "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
+    "features": [{"type_": Feature.Type.LOGO_DETECTION}],
 }
 # [END howto_operator_vision_annotate_image_request]
 
@@ -106,14 +106,13 @@ BUCKET_NAME_SRC = "cloud-samples-data"
 # Path to the data inside the public bucket
 PATH_SRC = "vision/ocr/sign.jpg"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vision"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
     )
@@ -121,7 +120,7 @@ with models.DAG(
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=PATH_SRC,
+        source_object=[PATH_SRC],
         destination_bucket=BUCKET_NAME,
         destination_object=FILE_NAME,
     )

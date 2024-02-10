@@ -56,13 +56,11 @@ def main() -> int:
         count_changes = 0
         path = Path(file_string)
         text = path.read_text()
-        for index in range(len(matches)):
-            current_match = matches[index]
-            text, new_count_changes = current_match.subn(REPLACEMENTS[index].replacement, text)
+        for match, spec in zip(matches, REPLACEMENTS):
+            text, new_count_changes = match.subn(spec.replacement, text)
             if new_count_changes:
                 console.print(
-                    f"[yellow] Performed {new_count_changes} replacements "
-                    f"of {REPLACEMENTS[index].description}[/]: {path}"
+                    f"[yellow] Performed {new_count_changes} replacements of {spec.description}[/]: {path}"
                 )
             count_changes += new_count_changes
         if count_changes:

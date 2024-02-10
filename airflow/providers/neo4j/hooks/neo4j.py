@@ -18,13 +18,15 @@
 """This module allows to connect to a Neo4j database."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class Neo4jHook(BaseHook):
@@ -48,10 +50,7 @@ class Neo4jHook(BaseHook):
         self.client: Driver | None = None
 
     def get_conn(self) -> Driver:
-        """
-        Function that initiates a new Neo4j connection
-        with username, password and database schema.
-        """
+        """Function that initiates a new Neo4j connection with username, password and database schema."""
         if self.client is not None:
             return self.client
 
@@ -69,6 +68,7 @@ class Neo4jHook(BaseHook):
     def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
         """
         Function to determine that relevant driver based on extras.
+
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
         :param uri: uri string for connection.
@@ -82,7 +82,8 @@ class Neo4jHook(BaseHook):
 
     def get_uri(self, conn: Connection) -> str:
         """
-        Build the uri based on extras
+        Build the uri based on extras.
+
         - Default - uses bolt scheme(bolt://)
         - neo4j_scheme - neo4j://
         - certs_self_signed - neo4j+ssc://
@@ -110,8 +111,7 @@ class Neo4jHook(BaseHook):
 
     def run(self, query) -> list[Any]:
         """
-        Function to create a neo4j session
-        and execute the query in the session.
+        Function to create a neo4j session and execute the query in the session.
 
         :param query: Neo4j query
         :return: Result

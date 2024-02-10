@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Web HDFS"""
+"""Hook for Web HDFS."""
 from __future__ import annotations
 
 import logging
@@ -41,7 +41,7 @@ if _kerberos_security_mode:
 
 
 class AirflowWebHDFSHookException(AirflowException):
-    """Exception specific for WebHDFS hook"""
+    """Exception specific for WebHDFS hook."""
 
 
 class WebHDFSHook(BaseHook):
@@ -52,14 +52,20 @@ class WebHDFSHook(BaseHook):
     :param proxy_user: The user used to authenticate.
     """
 
-    def __init__(self, webhdfs_conn_id: str = "webhdfs_default", proxy_user: str | None = None):
+    conn_type = "webhdfs"
+    conn_name_attr = "webhdfs_conn_id"
+    default_conn_name = "webhdfs_default"
+    hook_name = "Apache WebHDFS"
+
+    def __init__(self, webhdfs_conn_id: str = default_conn_name, proxy_user: str | None = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user
 
     def get_conn(self) -> Any:
         """
-        Establishes a connection depending on the security mode set via config or environment variable.
+        Establish a connection depending on the security mode set via config or environment variable.
+
         :return: a hdfscli InsecureClient or KerberosClient object.
         """
         connection = self._find_valid_server()
@@ -133,11 +139,11 @@ class WebHDFSHook(BaseHook):
     def load_file(
         self, source: str, destination: str, overwrite: bool = True, parallelism: int = 1, **kwargs: Any
     ) -> None:
-        r"""
-        Uploads a file to HDFS.
+        """
+        Upload a file to HDFS.
 
         :param source: Local path to file or folder.
-            If it's a folder, all the files inside of it will be uploaded.
+            If it's a folder, all the files inside it will be uploaded.
             .. note:: This implies that folders empty of files will not be created remotely.
 
         :param destination: PTarget HDFS path.
@@ -153,3 +159,15 @@ class WebHDFSHook(BaseHook):
             hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
         )
         self.log.debug("Uploaded file %s to %s", source, destination)
+
+    def read_file(self, filename: str) -> bytes:
+        """Read a file from HDFS.
+
+        :param filename: The path of the file to read.
+        :return: File content as a raw string
+        """
+        conn = self.get_conn()
+
+        with conn.read(filename) as reader:
+            content = reader.read()
+        return content

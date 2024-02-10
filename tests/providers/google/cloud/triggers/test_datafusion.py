@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from unittest import mock
 
 import pytest
 
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.google.cloud.utils.compat import async_mock
 
 HOOK_STATUS_STR = "airflow.providers.google.cloud.hooks.datafusion.DataFusionAsyncHook.get_pipeline_status"
 CLASSPATH = "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger"
@@ -36,6 +36,7 @@ PROJECT_ID = "test_project_id"
 PIPELINE_NAME = "shrubberyPipeline"
 PIPELINE = {"test": "pipeline"}
 PIPELINE_ID = "test_pipeline_id"
+PIPELINE_TYPE = "batch"
 INSTANCE_URL = "http://datafusion.instance.com"
 NAMESPACE = "TEST_NAMESPACE"
 RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
@@ -50,6 +51,7 @@ def trigger():
         namespace=NAMESPACE,
         pipeline_name=PIPELINE_NAME,
         pipeline_id=PIPELINE_ID,
+        pipeline_type=PIPELINE_TYPE,
         poll_interval=TEST_POLL_INTERVAL,
         gcp_conn_id=TEST_GCP_PROJECT_ID,
     )
@@ -68,12 +70,13 @@ class TestDataFusionStartPipelineTrigger:
             "namespace": NAMESPACE,
             "pipeline_name": PIPELINE_NAME,
             "pipeline_id": PIPELINE_ID,
+            "pipeline_type": PIPELINE_TYPE,
             "gcp_conn_id": TEST_GCP_PROJECT_ID,
             "success_states": None,
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STATUS_STR)
+    @mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_on_success_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):
@@ -89,7 +92,7 @@ class TestDataFusionStartPipelineTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STATUS_STR)
+    @mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_running_should_execute_successfully(
         self, mock_pipeline_status, trigger, caplog
     ):
@@ -112,7 +115,7 @@ class TestDataFusionStartPipelineTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STATUS_STR)
+    @mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_error_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):
@@ -126,7 +129,7 @@ class TestDataFusionStartPipelineTrigger:
         assert TriggerEvent({"status": "error", "message": "error"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch(HOOK_STATUS_STR)
+    @mock.patch(HOOK_STATUS_STR)
     async def test_start_pipeline_trigger_exception_should_execute_successfully(
         self, mock_pipeline_status, trigger
     ):

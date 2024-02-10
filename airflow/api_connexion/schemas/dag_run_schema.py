@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 from typing import NamedTuple
 
-from marshmallow import fields, post_dump, pre_load, validate
+from marshmallow import ValidationError, fields, post_dump, pre_load, validate, validates_schema
 from marshmallow.schema import Schema
 from marshmallow.validate import Range
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
@@ -69,8 +69,8 @@ class DAGRunSchema(SQLAlchemySchema):
     state = DagStateField(dump_only=True)
     external_trigger = auto_field(dump_default=True, dump_only=True)
     conf = ConfObject()
-    data_interval_start = auto_field(dump_only=True)
-    data_interval_end = auto_field(dump_only=True)
+    data_interval_start = auto_field(validate=validate_istimezone)
+    data_interval_end = auto_field(validate=validate_istimezone)
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
     note = auto_field(dump_only=False)
@@ -108,8 +108,28 @@ class DAGRunSchema(SQLAlchemySchema):
     @post_dump
     def autofill(self, data, **kwargs):
         """Populate execution_date from logical_date for compatibility."""
+        ret_data = {}
         data["execution_date"] = data["logical_date"]
-        return data
+        if self.context.get("fields"):
+            ret_fields = self.context.get("fields")
+            for ret_field in ret_fields:
+                if ret_field not in data:
+                    raise ValueError(f"{ret_field} not in DAGRunSchema")
+                ret_data[ret_field] = data[ret_field]
+        else:
+            ret_data = data
+
+        return ret_data
+
+    @validates_schema
+    def validate_data_interval_dates(self, data, **kwargs):
+        data_interval_start_exists = data.get("data_interval_start") is not None
+        data_interval_end_exists = data.get("data_interval_end") is not None
+
+        if data_interval_start_exists != data_interval_end_exists:
+            raise ValidationError(
+                "Both 'data_interval_start' and 'data_interval_end' must be specified together"
+            )
 
 
 class SetDagRunStateFormSchema(Schema):

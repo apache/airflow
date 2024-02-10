@@ -29,7 +29,7 @@ OK_STATUS_CODE = 202
 
 class OpenFaasHook(BaseHook):
     """
-    Interact with OpenFaaS to query, deploy, invoke and update function
+    Interact with OpenFaaS to query, deploy, invoke and update function.
 
     :param function_name: Name of the function, Defaults to None
     :param conn_id: openfaas connection to use, Defaults to open_faas_default
@@ -52,7 +52,7 @@ class OpenFaasHook(BaseHook):
         return conn
 
     def deploy_function(self, overwrite_function_if_exist: bool, body: dict[str, Any]) -> None:
-        """Deploy OpenFaaS function"""
+        """Deploy OpenFaaS function."""
         if overwrite_function_if_exist:
             self.log.info("Function already exist %s going to update", self.function_name)
             self.update_function(body)
@@ -68,7 +68,7 @@ class OpenFaasHook(BaseHook):
                 self.log.info("Function deployed %s", self.function_name)
 
     def invoke_async_function(self, body: dict[str, Any]) -> None:
-        """Invoking function asynchronously"""
+        """Invoking function asynchronously."""
         url = self.get_conn().host + self.INVOKE_ASYNC_FUNCTION + self.function_name
         self.log.info("Invoking function asynchronously %s", url)
         response = requests.post(url, body)
@@ -79,7 +79,7 @@ class OpenFaasHook(BaseHook):
             raise AirflowException("failed to invoke function")
 
     def invoke_function(self, body: dict[str, Any]) -> None:
-        """Invoking function synchronously, will block until function completes and returns"""
+        """Invoking function synchronously, will block until function completes and returns."""
         url = self.get_conn().host + self.INVOKE_FUNCTION + self.function_name
         self.log.info("Invoking function synchronously %s", url)
         response = requests.post(url, body)
@@ -92,7 +92,7 @@ class OpenFaasHook(BaseHook):
             raise AirflowException("failed to invoke function")
 
     def update_function(self, body: dict[str, Any]) -> None:
-        """Update OpenFaaS function"""
+        """Update OpenFaaS function."""
         url = self.get_conn().host + self.UPDATE_FUNCTION
         self.log.info("Updating function %s", url)
         response = requests.put(url, body)
@@ -104,7 +104,7 @@ class OpenFaasHook(BaseHook):
             self.log.info("Function was updated")
 
     def does_function_exist(self) -> bool:
-        """Whether OpenFaaS function exists or not"""
+        """Whether OpenFaaS function exists or not."""
         url = self.get_conn().host + self.GET_FUNCTION + self.function_name
 
         response = requests.get(url)

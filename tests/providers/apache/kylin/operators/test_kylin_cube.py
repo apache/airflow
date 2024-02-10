@@ -37,8 +37,8 @@ class TestKylinCubeOperator:
         "project": "learn_kylin",
         "cube": "kylin_sales_cube",
         "command": "build",
-        "start_time": datetime(2012, 1, 2, 0, 0).strftime("%s") + "000",
-        "end_time": datetime(2012, 1, 3, 0, 0).strftime("%s") + "000",
+        "start_time": str(int(datetime(2012, 1, 2, 0, 0).timestamp() * 1000)),
+        "end_time": str(int(datetime(2012, 1, 3, 0, 0).timestamp() * 1000)),
     }
     cube_command = [
         "fullbuild",
@@ -147,6 +147,7 @@ class TestKylinCubeOperator:
         with pytest.raises(AirflowException):
             operator.execute(None)
 
+    @pytest.mark.db_test
     def test_render_template(self):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",

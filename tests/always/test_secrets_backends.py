@@ -30,6 +30,8 @@ from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_connections, clear_db_variables
 
+pytestmark = pytest.mark.db_test
+
 
 class SampleConn:
     def __init__(self, conn_id, variation: str):

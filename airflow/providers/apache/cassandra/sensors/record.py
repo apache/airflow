@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensor that check the existence
-of a record in a Cassandra cluster.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -42,10 +38,12 @@ class CassandraRecordSensor(BaseSensorOperator):
     primary keys 'p1' and 'p2' to be populated in keyspace 'k' and table 't',
     instantiate it as follows:
 
-    >>> cassandra_sensor = CassandraRecordSensor(table="k.t",
-    ...                                          keys={"p1": "v1", "p2": "v2"},
-    ...                                          cassandra_conn_id="cassandra_default",
-    ...                                          task_id="cassandra_sensor")
+    >>> cassandra_sensor = CassandraRecordSensor(
+    ...     table="k.t",
+    ...     keys={"p1": "v1", "p2": "v2"},
+    ...     cassandra_conn_id="cassandra_default",
+    ...     task_id="cassandra_sensor",
+    ... )
 
     :param table: Target Cassandra table.
         Use dot notation to target a specific keyspace.

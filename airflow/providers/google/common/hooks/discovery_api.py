@@ -53,10 +53,12 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
         api_service_name: str,
         api_version: str,
         gcp_conn_id: str = "google_cloud_default",
+        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
+            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_service_name = api_service_name
@@ -64,7 +66,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
 
     def get_conn(self) -> Resource:
         """
-        Creates an authenticated api client for the given api service name and credentials.
+        Create an authenticated api client for the given api service name and credentials.
 
         :return: the authenticated api service.
         """
@@ -82,8 +84,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
 
     def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
         """
-        Creates a dynamic API call to any Google API registered in Google's API Client Library
-        and queries it.
+        Create a dynamic API call to any Google API registered in Google's API Client Library and queries it.
 
         :param endpoint: The client libraries path to the api call's executing method.
             For example: 'analyticsreporting.reports.batchGet'

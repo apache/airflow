@@ -15,29 +15,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud Vertex AI hook.
-
-.. spelling::
-
-    jsonl
-    codepoints
-    aiplatform
-    gapic
-"""
+"""This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceClient
-from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
 
 class BatchPredictionJobHook(GoogleBaseHook):
@@ -85,7 +79,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         return obj["name"].rpartition("/")[-1]
 
     def cancel_batch_prediction_job(self) -> None:
-        """Cancel BatchPredictionJob"""
+        """Cancel BatchPredictionJob."""
         if self._batch_prediction_job:
             self._batch_prediction_job.cancel()
 
@@ -114,6 +108,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
         sync: bool = True,
+        create_request_timeout: float | None = None,
+        batch_size: int | None = None,
     ) -> BatchPredictionJob:
         """
         Create a batch prediction job.
@@ -207,6 +203,14 @@ class BatchPredictionJobHook(GoogleBaseHook):
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
+        :param create_request_timeout: Optional. The timeout for the create request in seconds.
+        :param batch_size: Optional. The number of the records (e.g. instances)
+            of the operation given in each batch
+            to a machine replica. Machine type, and size of a single record should be considered
+            when setting this parameter, higher value speeds up the batch operation's execution,
+            but too high value will result in a whole batch not fitting in a machine's memory,
+            and the whole operation will fail.
+            The default value is same as in the aiplatform's BatchPredictionJob.
         """
         self._batch_prediction_job = BatchPredictionJob.create(
             job_display_name=job_display_name,
@@ -232,6 +236,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
             credentials=self.get_credentials(),
             encryption_spec_key_name=encryption_spec_key_name,
             sync=sync,
+            create_request_timeout=create_request_timeout,
+            batch_size=batch_size,
         )
         return self._batch_prediction_job
 
@@ -279,7 +285,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
-        Gets a BatchPredictionJob
+        Gets a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

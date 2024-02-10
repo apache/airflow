@@ -34,7 +34,7 @@ Airflow 1.10 was the last release series to support Python 2. Airflow 2.0.0
 requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8.
 Python 3.9 support was added from Airflow 2.1.2.
 
-Airflow 2.3.0 dropped support for Python 3.6. It's tested with Python 3.7, 3.8, 3.9 and 3.10.
+Airflow 2.3.0 dropped support for Python 3.6. It's tested with Python 3.7, 3.8, 3.9, 3.10.
 
 If you have a specific task that still requires Python 2 then you can use the ``@task.virtualenv``, ``@task.docker`` or ``@task.kubernetes`` decorators for this.
 
@@ -171,7 +171,7 @@ by using the ``| default`` Jinja filter as shown below.
 Much like the ``KubernetesExecutor``, the ``KubernetesPodOperator`` will no longer take Airflow custom classes and will
 instead expect either a pod_template yaml file, or ``kubernetes.client.models`` objects.
 
-The one notable exception is that we will continue to support the ``airflow.kubernetes.secret.Secret`` class.
+The one notable exception is that we will continue to support the ``airflow.providers.cncf.kubernetes.secret.Secret`` class.
 
 Whereas previously a user would import each individual class to build the pod as so:
 
@@ -218,7 +218,7 @@ Now the user can use the ``kubernetes.client.models`` class as a single point of
 .. code-block:: python
 
     from kubernetes.client import models as k8s
-    from airflow.kubernetes.secret import Secret
+    from airflow.providers.cncf.kubernetes.secret import Secret
 
 
     configmaps = ["test-configmap-1", "test-configmap-2"]
@@ -280,7 +280,7 @@ now represented as ``can_read`` on ``DAG:example_dag_id``.
 There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.x) which allows the role to access
 all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access the ``DAGs`` view.
 
-*As part of running ``airflow db upgrade``, existing permissions will be migrated for you.*
+*As part of running ``airflow db migrate``, existing permissions will be migrated for you.*
 
 When DAGs are initialized with the ``access_control`` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
 
@@ -541,7 +541,7 @@ At this point, just follow the standard Airflow version upgrade process:
   * Please note that you may have to uninstall the backport providers before installing the new providers, if you are installing using pip. This would not apply if you are installing using an Airflow Docker image with a set of specified requirements, where the change automatically gets a fresh set of modules.
   * You can read more about providers at :doc:`apache-airflow-providers:index`.
 
-* Upgrade the Airflow meta database using ``airflow db upgrade``.
+* Migrate the Airflow meta database using ``airflow db migrate``.
 
   * The above command may be unfamiliar, since it is shown using the Airflow 2.0 CLI syntax.
   * The database upgrade may modify the database schema as needed and also map the existing data to be compliant with the update database schema.
@@ -1062,7 +1062,7 @@ Old command                                          New command
 ``airflow flower [-ba, --basic_auth]``               ``airflow celery flower [-A, --basic-auth]``
 ==================================================== ====================================================
 
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
+For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_case>`_ instead of `snake_case <https://en.wikipedia.org/wiki/Snake_case>`_
 
 ================================== ===================================
 Old option                         New option

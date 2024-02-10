@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
 
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
-from airflow.utils.context import Context, context_merge
+from airflow.utils.context import context_merge
 from airflow.utils.operator_helpers import determine_kwargs
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PythonSensor(BaseSensorOperator):

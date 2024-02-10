@@ -35,7 +35,7 @@ class LineageBackend:
         context: dict | None = None,
     ):
         """
-        Sends lineage metadata to a backend.
+        Send lineage metadata to a backend.
 
         :param operator: the operator executing a transformation on the inlets and outlets
         :param inlets: the inlets to this operator

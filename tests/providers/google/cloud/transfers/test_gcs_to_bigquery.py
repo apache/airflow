@@ -22,8 +22,20 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import pytest
-from google.cloud.bigquery import DEFAULT_RETRY
+from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
+from openlineage.client.facet import (
+    ColumnLineageDatasetFacet,
+    ColumnLineageDatasetFacetFieldsAdditional,
+    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
+    DocumentationDatasetFacet,
+    ExternalQueryRunFacet,
+    SchemaDatasetFacet,
+    SchemaField,
+    SymlinksDatasetFacet,
+    SymlinksDatasetFacetIdentifiers,
+)
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
@@ -37,9 +49,13 @@ from airflow.utils.types import DagRunType
 TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
 TEST_BUCKET = "test-bucket"
+TEST_FOLDER = "test-folder"
+TEST_OBJECT_NO_WILDCARD = "file.extension"
+TEST_OBJECT_WILDCARD = "file_*.extension"
 PROJECT_ID = "test-project"
 DATASET = "dataset"
 TABLE = "table"
+JOB_PROJECT_ID = "job-project-id"
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
 MAX_ID_KEY = "id"
 TEST_DATASET_LOCATION = "US"
@@ -58,7 +74,21 @@ TEST_SOURCE_OBJECTS = "test/objects/test.csv"
 TEST_SOURCE_OBJECTS_JSON = "test/objects/test.json"
 LABELS = {"k1": "v1"}
 DESCRIPTION = "Test Description"
-
+TEST_TABLE: Table = Table.from_api_repr(
+    {
+        "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
+        "description": DESCRIPTION,
+        "schema": {
+            "fields": [
+                {"name": "field1", "type": "STRING", "description": "field1 description"},
+                {"name": "field2", "type": "INTEGER"},
+            ]
+        },
+    }
+)
+TEST_EMPTY_TABLE: Table = Table.from_api_repr(
+    {"tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE}}
+)
 job_id = "123456"
 hash_ = "hash"
 pytest.real_job_id = f"{job_id}_{hash_}"
@@ -85,6 +115,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             max_id_key=MAX_ID_KEY,
             external_table=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         result = operator.execute(context=MagicMock())
@@ -93,7 +124,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -123,7 +154,7 @@ class TestGCSToBigQueryOperator:
                     "schemaUpdateOptions": [],
                 }
             },
-            project_id=hook.return_value.project_id,
+            project_id=JOB_PROJECT_ID,
         )
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
@@ -145,6 +176,7 @@ class TestGCSToBigQueryOperator:
             max_id_key=MAX_ID_KEY,
             write_disposition=WRITE_DISPOSITION,
             external_table=False,
+            project_id=JOB_PROJECT_ID,
         )
 
         result = operator.execute(context=MagicMock())
@@ -172,7 +204,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             ),
@@ -184,7 +216,7 @@ class TestGCSToBigQueryOperator:
                         "schemaUpdateOptions": [],
                     }
                 },
-                project_id=hook.return_value.project_id,
+                project_id=JOB_PROJECT_ID,
             ),
         ]
 
@@ -208,6 +240,7 @@ class TestGCSToBigQueryOperator:
                 max_id_key=MAX_ID_KEY,
                 write_disposition=WRITE_DISPOSITION,
                 external_table=False,
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute(context=MagicMock())
 
@@ -233,7 +266,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             ),
@@ -245,7 +278,7 @@ class TestGCSToBigQueryOperator:
                         "schemaUpdateOptions": [],
                     }
                 },
-                project_id=hook.return_value.project_id,
+                project_id=JOB_PROJECT_ID,
             ),
         ]
 
@@ -269,13 +302,14 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             external_table=True,
             labels=LABELS,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": LABELS,
@@ -316,6 +350,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             external_table=False,
             labels=LABELS,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -342,7 +377,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -368,13 +403,14 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             description=DESCRIPTION,
             external_table=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -416,6 +452,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             external_table=False,
             description=DESCRIPTION,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -441,7 +478,7 @@ class TestGCSToBigQueryOperator:
                         fieldDelimiter=",",
                     ),
                 },
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 location=None,
                 job_id=pytest.real_job_id,
                 timeout=None,
@@ -467,6 +504,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             external_table=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -474,7 +512,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -515,6 +553,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             external_table=False,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -545,7 +584,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -569,6 +608,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             external_table=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -576,7 +616,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -615,6 +655,7 @@ class TestGCSToBigQueryOperator:
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             write_disposition=WRITE_DISPOSITION,
             external_table=False,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -645,7 +686,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -672,6 +713,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             external_table=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -679,7 +721,7 @@ class TestGCSToBigQueryOperator:
         bq_hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -723,6 +765,7 @@ class TestGCSToBigQueryOperator:
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             write_disposition=WRITE_DISPOSITION,
             external_table=False,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -746,7 +789,7 @@ class TestGCSToBigQueryOperator:
                         "encoding": "UTF-8",
                     }
                 },
-                project_id=bq_hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 location=None,
                 job_id=pytest.real_job_id,
                 timeout=None,
@@ -774,6 +817,7 @@ class TestGCSToBigQueryOperator:
             destination_project_dataset_table=TEST_EXPLICIT_DEST,
             external_table=True,
             autodetect=None,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -781,7 +825,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -820,6 +864,7 @@ class TestGCSToBigQueryOperator:
             write_disposition=WRITE_DISPOSITION,
             autodetect=None,
             external_table=False,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -842,7 +887,7 @@ class TestGCSToBigQueryOperator:
                         "encoding": "UTF-8",
                     }
                 },
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 location=None,
                 job_id=pytest.real_job_id,
                 timeout=None,
@@ -870,6 +915,7 @@ class TestGCSToBigQueryOperator:
                 max_id_key=MAX_ID_KEY,
                 write_disposition=WRITE_DISPOSITION,
                 external_table=False,
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute(context=MagicMock())
 
@@ -890,6 +936,7 @@ class TestGCSToBigQueryOperator:
                 max_id_key=MAX_ID_KEY,
                 write_disposition=WRITE_DISPOSITION,
                 external_table=False,
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute(context=MagicMock())
 
@@ -912,6 +959,7 @@ class TestGCSToBigQueryOperator:
                 max_id_key=MAX_ID_KEY,
                 write_disposition=WRITE_DISPOSITION,
                 external_table=False,
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute(context=MagicMock())
 
@@ -942,6 +990,7 @@ class TestGCSToBigQueryOperator:
                 external_table=False,
                 autodetect=False,
                 source_format="incorrect",
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute(context=MagicMock())
 
@@ -973,6 +1022,7 @@ class TestGCSToBigQueryOperator:
             max_id_key=MAX_ID_KEY,
             external_table=True,
             autodetect=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         result = operator.execute(context=MagicMock())
@@ -981,7 +1031,7 @@ class TestGCSToBigQueryOperator:
         bq_hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -1010,7 +1060,7 @@ class TestGCSToBigQueryOperator:
                     "schemaUpdateOptions": [],
                 }
             },
-            project_id=bq_hook.return_value.project_id,
+            project_id=JOB_PROJECT_ID,
         )
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
@@ -1041,6 +1091,7 @@ class TestGCSToBigQueryOperator:
             max_id_key=MAX_ID_KEY,
             external_table=False,
             autodetect=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         result = operator.execute(context=MagicMock())
@@ -1067,7 +1118,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=bq_hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             ),
@@ -1079,7 +1130,7 @@ class TestGCSToBigQueryOperator:
                         "schemaUpdateOptions": [],
                     }
                 },
-                project_id=bq_hook.return_value.project_id,
+                project_id=JOB_PROJECT_ID,
             ),
         ]
 
@@ -1104,6 +1155,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS_INT,
             external_table=False,
             autodetect=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
@@ -1129,7 +1181,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=JOB_PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -1156,13 +1208,14 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS_INT,
             external_table=True,
             autodetect=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         operator.execute(context=MagicMock())
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=JOB_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -1184,6 +1237,353 @@ class TestGCSToBigQueryOperator:
                 },
             },
         )
+
+    @pytest.mark.parametrize(
+        ("source_object", "expected_dataset_name"),
+        (
+            (f"{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}", f"{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}"),
+            (TEST_OBJECT_NO_WILDCARD, TEST_OBJECT_NO_WILDCARD),
+            (f"{TEST_FOLDER}/{TEST_OBJECT_WILDCARD}", TEST_FOLDER),
+            (f"{TEST_OBJECT_WILDCARD}", "/"),
+            (f"{TEST_FOLDER}/*", TEST_FOLDER),
+        ),
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_gcs_dataset_name(
+        self, hook, source_object, expected_dataset_name
+    ):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[source_object],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        expected_symlink = SymlinksDatasetFacet(
+            identifiers=[
+                SymlinksDatasetFacetIdentifiers(
+                    namespace=f"gs://{TEST_BUCKET}",
+                    name=source_object,
+                    type="file",
+                )
+            ]
+        )
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 1
+        assert lineage.inputs[0].name == expected_dataset_name
+        if "*" in source_object:
+            assert lineage.inputs[0].facets.get("symlink")
+            assert lineage.inputs[0].facets.get("symlink") == expected_symlink
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_gcs_multiple_uris(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[
+                TEST_OBJECT_NO_WILDCARD,
+                TEST_OBJECT_WILDCARD,
+                f"{TEST_FOLDER}1/{TEST_OBJECT_NO_WILDCARD}",
+                f"{TEST_FOLDER}2/{TEST_OBJECT_WILDCARD}",
+            ],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 4
+        assert lineage.inputs[0].name == TEST_OBJECT_NO_WILDCARD
+        assert lineage.inputs[1].name == "/"
+        assert lineage.inputs[1].facets.get("symlink") == SymlinksDatasetFacet(
+            identifiers=[
+                SymlinksDatasetFacetIdentifiers(
+                    namespace=f"gs://{TEST_BUCKET}",
+                    name=TEST_OBJECT_WILDCARD,
+                    type="file",
+                )
+            ]
+        )
+        assert lineage.inputs[2].name == f"{TEST_FOLDER}1/{TEST_OBJECT_NO_WILDCARD}"
+        assert lineage.inputs[3].name == f"{TEST_FOLDER}2"
+        assert lineage.inputs[3].facets.get("symlink") == SymlinksDatasetFacet(
+            identifiers=[
+                SymlinksDatasetFacetIdentifiers(
+                    namespace=f"gs://{TEST_BUCKET}",
+                    name=f"{TEST_FOLDER}2/{TEST_OBJECT_WILDCARD}",
+                    type="file",
+                )
+            ]
+        )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_bq_dataset(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
+
+        expected_output_dataset_facets = {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaField(name="field1", type="STRING", description="field1 description"),
+                    SchemaField(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": ColumnLineageDatasetFacet(
+                fields={
+                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
+                            )
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                }
+            ),
+        }
+
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[TEST_OBJECT_NO_WILDCARD],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0] == Dataset(
+            namespace="bigquery",
+            name=TEST_EXPLICIT_DEST,
+            facets=expected_output_dataset_facets,
+        )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_bq_dataset_multiple_gcs_uris(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
+
+        expected_output_dataset_facets = {
+            "schema": SchemaDatasetFacet(
+                fields=[
+                    SchemaField(name="field1", type="STRING", description="field1 description"),
+                    SchemaField(name="field2", type="INTEGER"),
+                ]
+            ),
+            "documentation": DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": ColumnLineageDatasetFacet(
+                fields={
+                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
+                            ),
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name="/", field="field1"
+                            ),
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
+                            ),
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name="/", field="field2"
+                            ),
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                }
+            ),
+        }
+
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[TEST_OBJECT_NO_WILDCARD, TEST_OBJECT_WILDCARD],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0] == Dataset(
+            namespace="bigquery",
+            name=TEST_EXPLICIT_DEST,
+            facets=expected_output_dataset_facets,
+        )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_empty_table(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
+
+        expected_output_dataset_facets = {
+            "schema": SchemaDatasetFacet(fields=[]),
+            "documentation": DocumentationDatasetFacet(description=""),
+            "columnLineage": ColumnLineageDatasetFacet(fields={}),
+        }
+
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[TEST_OBJECT_NO_WILDCARD, TEST_OBJECT_WILDCARD],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0] == Dataset(
+            namespace="bigquery",
+            name=TEST_EXPLICIT_DEST,
+            facets=expected_output_dataset_facets,
+        )
+        assert lineage.inputs[0] == Dataset(
+            namespace=f"gs://{TEST_BUCKET}",
+            name=TEST_OBJECT_NO_WILDCARD,
+            facets={"schema": SchemaDatasetFacet(fields=[])},
+        )
+        assert lineage.inputs[1] == Dataset(
+            namespace=f"gs://{TEST_BUCKET}",
+            name="/",
+            facets={
+                "schema": SchemaDatasetFacet(fields=[]),
+                "symlink": SymlinksDatasetFacet(
+                    identifiers=[
+                        SymlinksDatasetFacetIdentifiers(
+                            namespace=f"gs://{TEST_BUCKET}",
+                            name=TEST_OBJECT_WILDCARD,
+                            type="file",
+                        )
+                    ]
+                ),
+            },
+        )
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_get_openlineage_facets_on_complete_full_table_multiple_gcs_uris(self, hook):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=pytest.real_job_id, error_result=False)
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_client.return_value.get_table.return_value = TEST_TABLE
+        hook.return_value.generate_job_id.return_value = pytest.real_job_id
+
+        schema_facet = SchemaDatasetFacet(
+            fields=[
+                SchemaField(name="field1", type="STRING", description="field1 description"),
+                SchemaField(name="field2", type="INTEGER"),
+            ]
+        )
+
+        expected_input_wildcard_dataset_facets = {
+            "schema": schema_facet,
+            "symlink": SymlinksDatasetFacet(
+                identifiers=[
+                    SymlinksDatasetFacetIdentifiers(
+                        namespace=f"gs://{TEST_BUCKET}",
+                        name=TEST_OBJECT_WILDCARD,
+                        type="file",
+                    )
+                ]
+            ),
+        }
+        expected_input_no_wildcard_dataset_facets = {"schema": schema_facet}
+
+        expected_output_dataset_facets = {
+            "schema": schema_facet,
+            "documentation": DocumentationDatasetFacet(description="Test Description"),
+            "columnLineage": ColumnLineageDatasetFacet(
+                fields={
+                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field1"
+                            ),
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name="/", field="field1"
+                            ),
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name=TEST_OBJECT_NO_WILDCARD, field="field2"
+                            ),
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=f"gs://{TEST_BUCKET}", name="/", field="field2"
+                            ),
+                        ],
+                        transformationType="IDENTITY",
+                        transformationDescription="identical",
+                    ),
+                }
+            ),
+        }
+
+        operator = GCSToBigQueryOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=[TEST_OBJECT_NO_WILDCARD, TEST_OBJECT_WILDCARD],
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 1
+        assert lineage.outputs[0] == Dataset(
+            namespace="bigquery", name=TEST_EXPLICIT_DEST, facets=expected_output_dataset_facets
+        )
+
+        assert lineage.inputs[0] == Dataset(
+            namespace=f"gs://{TEST_BUCKET}",
+            name=TEST_OBJECT_NO_WILDCARD,
+            facets=expected_input_no_wildcard_dataset_facets,
+        )
+        assert lineage.inputs[1] == Dataset(
+            namespace=f"gs://{TEST_BUCKET}", name="/", facets=expected_input_wildcard_dataset_facets
+        )
+        assert lineage.run_facets == {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=pytest.real_job_id, source="bigquery")
+        }
+        assert lineage.job_facets == {}
 
 
 class TestAsyncGCSToBigQueryOperator:
@@ -1208,6 +1608,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(TaskDeferred) as exc:
@@ -1233,11 +1634,13 @@ class TestAsyncGCSToBigQueryOperator:
                 external_table=False,
                 autodetect=True,
                 deferrable=True,
+                project_id=JOB_PROJECT_ID,
             )
             operator.execute_complete(
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    @pytest.mark.db_test
     def test_execute_logging_without_external_table_async_should_execute_successfully(self):
         """
         Asserts that logging occurs as expected.
@@ -1253,6 +1656,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(
@@ -1286,6 +1690,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(TaskDeferred):
@@ -1326,6 +1731,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(TaskDeferred):
@@ -1334,7 +1740,7 @@ class TestAsyncGCSToBigQueryOperator:
         hook.return_value.get_job.assert_called_once_with(
             location=TEST_DATASET_LOCATION,
             job_id=pytest.real_job_id,
-            project_id=hook.return_value.project_id,
+            project_id=JOB_PROJECT_ID,
         )
 
         job._begin.assert_called_once_with()
@@ -1365,6 +1771,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(AirflowException) as exc:
@@ -1381,7 +1788,7 @@ class TestAsyncGCSToBigQueryOperator:
         hook.return_value.get_job.assert_called_once_with(
             location=TEST_DATASET_LOCATION,
             job_id=pytest.real_job_id,
-            project_id=hook.return_value.project_id,
+            project_id=JOB_PROJECT_ID,
         )
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
@@ -1406,6 +1813,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(TaskDeferred):
@@ -1437,7 +1845,7 @@ class TestAsyncGCSToBigQueryOperator:
                             schema={"fields": SCHEMA_FIELDS},
                         ),
                     },
-                    project_id=bq_hook.return_value.project_id,
+                    project_id=JOB_PROJECT_ID,
                     location=None,
                     job_id=pytest.real_job_id,
                     timeout=None,
@@ -1452,7 +1860,7 @@ class TestAsyncGCSToBigQueryOperator:
                             "schemaUpdateOptions": [],
                         }
                     },
-                    project_id=bq_hook.return_value.project_id,
+                    project_id=JOB_PROJECT_ID,
                 ),
             ]
 
@@ -1482,6 +1890,7 @@ class TestAsyncGCSToBigQueryOperator:
             external_table=False,
             autodetect=True,
             deferrable=True,
+            project_id=JOB_PROJECT_ID,
         )
 
         with pytest.raises(TaskDeferred):
@@ -1512,7 +1921,7 @@ class TestAsyncGCSToBigQueryOperator:
                             encoding="UTF-8",
                         ),
                     },
-                    project_id=bq_hook.return_value.project_id,
+                    project_id=JOB_PROJECT_ID,
                     location=None,
                     job_id=pytest.real_job_id,
                     timeout=None,
@@ -1527,7 +1936,7 @@ class TestAsyncGCSToBigQueryOperator:
                             "schemaUpdateOptions": [],
                         }
                     },
-                    project_id=bq_hook.return_value.project_id,
+                    project_id=JOB_PROJECT_ID,
                 ),
             ]
 

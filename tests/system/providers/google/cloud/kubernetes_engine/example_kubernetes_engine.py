@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
@@ -42,7 +42,7 @@ CLUSTER_NAME = f"cluster-name-test-build-{ENV_ID}"
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
@@ -67,7 +67,7 @@ with models.DAG(
         image="perl",
         name="test-pod",
         in_cluster=False,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
     )
 
     # [START howto_operator_gke_start_pod_xcom]
@@ -82,7 +82,7 @@ with models.DAG(
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="test-pod-xcom",
         in_cluster=False,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
     )
     # [END howto_operator_gke_start_pod_xcom]
 

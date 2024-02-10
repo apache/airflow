@@ -31,6 +31,11 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
@@ -61,6 +66,7 @@ Read messages from an Amazon SQS queue
 
 To read messages from an Amazon SQS queue until exhausted use the
 :class:`~airflow.providers.amazon.aws.sensors.sqs.SqsSensor`
+This sensor can also be run in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
     :language: python

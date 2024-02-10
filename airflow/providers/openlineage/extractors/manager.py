@@ -17,14 +17,36 @@
 from __future__ import annotations
 
 import os
+from contextlib import suppress
+from typing import TYPE_CHECKING, Iterator
 
+from airflow.configuration import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
+from airflow.providers.openlineage.extractors.bash import BashExtractor
+from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
+from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from airflow.models import Operator
+
+
+def try_import_from_string(string):
+    with suppress(ImportError):
+        return import_string(string)
+
+
+def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
+    if PythonExtractor is not None:
+        yield PythonExtractor
+    if BashExtractor is not None:
+        yield BashExtractor
 
 
 class ExtractorManager(LoggingMixin):
@@ -37,18 +59,20 @@ class ExtractorManager(LoggingMixin):
 
         # Comma-separated extractors in OPENLINEAGE_EXTRACTORS variable.
         # Extractors should implement BaseExtractor
-        from airflow.utils.module_loading import import_string
+        for extractor in _iter_extractor_types():
+            for operator_class in extractor.get_operator_classnames():
+                self.extractors[operator_class] = extractor
 
-        # TODO: use airflow config with OL backup
-        env_extractors = os.getenv("OPENLINEAGE_EXTRACTORS")
-        if env_extractors is not None:
+        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
+        # skip either when it's empty string or None
+        if env_extractors:
             for extractor in env_extractors.split(";"):
-                extractor: type[BaseExtractor] = import_string(extractor.strip())
+                extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
                 for operator_class in extractor.get_operator_classnames():
                     self.extractors[operator_class] = extractor
 
-    def add_extractor(self, operator: str, extractor: type[BaseExtractor]):
-        self.extractors[operator] = extractor
+    def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
+        self.extractors[operator_class] = extractor
 
     def extract_metadata(self, dagrun, task, complete: bool = False, task_instance=None) -> OperatorLineage:
         extractor = self._get_extractor(task)
@@ -70,6 +94,7 @@ class ExtractorManager(LoggingMixin):
                     task_metadata = extractor.extract()
 
                 self.log.debug("Found task metadata for operation %s: %s", task.task_id, str(task_metadata))
+                task_metadata = self.validate_task_metadata(task_metadata)
                 if task_metadata:
                     if (not task_metadata.inputs) and (not task_metadata.outputs):
                         self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
@@ -77,7 +102,7 @@ class ExtractorManager(LoggingMixin):
                     return task_metadata
 
             except Exception as e:
-                self.log.exception(
+                self.log.warning(
                     "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
                 )
         else:
@@ -90,7 +115,7 @@ class ExtractorManager(LoggingMixin):
                         unknownItems=[
                             UnknownOperatorInstance(
                                 name=task.task_type,
-                                properties={attr: value for attr, value in task.__dict__.items()},
+                                properties=get_filtered_unknown_operator_keys(task),
                             )
                         ]
                     )
@@ -103,13 +128,12 @@ class ExtractorManager(LoggingMixin):
 
         return OperatorLineage()
 
-    def _get_extractor_class(self, clazz: type) -> type[BaseExtractor] | None:
-        name = clazz.__name__
-        if name in self.extractors:
-            return self.extractors[name]
+    def get_extractor_class(self, task: Operator) -> type[BaseExtractor] | None:
+        if task.task_type in self.extractors:
+            return self.extractors[task.task_type]
 
         def method_exists(method_name):
-            method = getattr(clazz, method_name, None)
+            method = getattr(task, method_name, None)
             if method:
                 return callable(method)
 
@@ -119,11 +143,11 @@ class ExtractorManager(LoggingMixin):
             return self.default_extractor
         return None
 
-    def _get_extractor(self, task) -> BaseExtractor | None:
+    def _get_extractor(self, task: Operator) -> BaseExtractor | None:
         # TODO: Re-enable in Extractor PR
         # self.instantiate_abstract_extractors(task)
-        extractor = self._get_extractor_class(task.task_type)
-        self.log.debug("extractor for %s is %s", task.__class__, extractor)
+        extractor = self.get_extractor_class(task)
+        self.log.debug("extractor for %s is %s", task.task_type, extractor)
         if extractor:
             return extractor(task)
         return None
@@ -134,7 +158,8 @@ class ExtractorManager(LoggingMixin):
         inlets: list,
         outlets: list,
     ):
-        self.log.debug("Manually extracting lineage metadata from inlets and outlets")
+        if inlets or outlets:
+            self.log.debug("Manually extracting lineage metadata from inlets and outlets")
         for i in inlets:
             d = self.convert_to_ol_dataset(i)
             if d:
@@ -146,8 +171,9 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj):
-        from airflow.lineage.entities import Table
         from openlineage.client.run import Dataset
+
+        from airflow.lineage.entities import Table
 
         if isinstance(obj, Dataset):
             return obj
@@ -158,4 +184,16 @@ class ExtractorManager(LoggingMixin):
                 facets={},
             )
         else:
+            return None
+
+    def validate_task_metadata(self, task_metadata) -> OperatorLineage | None:
+        try:
+            return OperatorLineage(
+                inputs=task_metadata.inputs,
+                outputs=task_metadata.outputs,
+                run_facets=task_metadata.run_facets,
+                job_facets=task_metadata.job_facets,
+            )
+        except AttributeError:
+            self.log.warning("Extractor returns non-valid metadata: %s", task_metadata)
             return None

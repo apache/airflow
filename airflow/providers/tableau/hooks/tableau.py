@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import time
-import warnings
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from deprecated import deprecated
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
-from tableauserverclient.server import Auth
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from tableauserverclient.server import Auth
 
 
 def parse_boolean(val: str) -> str | bool:
@@ -48,6 +50,7 @@ class TableauJobFailedException(AirflowException):
 class TableauJobFinishCode(Enum):
     """
     The finish code indicates the status of the job.
+
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
     """
 
@@ -118,13 +121,18 @@ class TableauHook(BaseHook):
         )
         return self.server.auth.sign_in(tableau_auth)
 
-    def _auth_via_token(self) -> Auth.contextmgr:
-        """The method is deprecated. Please, use the authentication via password instead."""
-        warnings.warn(
+    @deprecated(
+        reason=(
             "Authentication via personal access token is deprecated. "
-            "Please, use the password authentication to avoid inconsistencies.",
-            DeprecationWarning,
-        )
+            "Please, use the password authentication to avoid inconsistencies."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def _auth_via_token(self) -> Auth.contextmgr:
+        """Authenticate via personal access token.
+
+        This method is deprecated. Please, use the authentication via password instead.
+        """
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
             personal_access_token=self.conn.extra_dejson["personal_access_token"],
@@ -135,6 +143,7 @@ class TableauHook(BaseHook):
     def get_all(self, resource_name: str) -> Pager:
         """
         Get all items of the given resource.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
 
         :param resource_name: The name of the resource to paginate.
@@ -150,6 +159,7 @@ class TableauHook(BaseHook):
     def get_job_status(self, job_id: str) -> TableauJobFinishCode:
         """
         Get the current state of a defined Tableau Job.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.
@@ -159,8 +169,7 @@ class TableauHook(BaseHook):
 
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
         """
-        Wait until the current state of a defined Tableau Job is equal
-        to target_state or different from PENDING.
+        Wait until the current state of a defined Tableau Job is target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
         :param target_state: Enum that describe the Tableau job's target state

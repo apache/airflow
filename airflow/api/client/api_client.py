@@ -60,12 +60,13 @@ class Client:
         """Get all pools."""
         raise NotImplementedError()
 
-    def create_pool(self, name, slots, description):
+    def create_pool(self, name, slots, description, include_deferred):
         """Create a pool.
 
         :param name: pool name
         :param slots: pool slots amount
         :param description: pool description
+        :param include_deferred: include deferred tasks in pool calculations
         """
         raise NotImplementedError()
 
@@ -79,6 +80,7 @@ class Client:
     def get_lineage(self, dag_id: str, execution_date: str):
         """
         Return the lineage information for the dag on this execution date.
+
         :param dag_id:
         :param execution_date:
         :return:

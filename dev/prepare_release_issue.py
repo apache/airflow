@@ -169,7 +169,7 @@ def get_changes(
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
-    return [get_change_from_line(line) for line in change_strings.split("\n")]
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
 def render_template(
@@ -179,7 +179,7 @@ def render_template(
     keep_trailing_newline: bool = False,
 ) -> str:
     """
-    Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :param autoescape: Whether to autoescape HTML
@@ -212,13 +212,12 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = list(pull_requests.keys())
-    pr_list.sort()
-    user_logins: dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
+    pr_list = sorted(pull_requests.keys())
+    user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
-    all_user_logins = "@" + " @".join(all_users)
+    all_user_logins = " ".join(f"@{u}" for u in all_users)
     content = render_template(
         template_name="ISSUE",
         context={
@@ -267,13 +266,10 @@ def generate_issue_content(
     pull_requests: dict[int, PullRequestOrIssue] = {}
     linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
     users: dict[int, set[str]] = defaultdict(lambda: set())
-    count_prs = len(prs)
-    if limit_pr_count:
-        count_prs = limit_pr_count
+    count_prs = limit_pr_count or len(prs)
     with Progress(console=console) as progress:
         task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
-        for i in range(count_prs):
-            pr_number = prs[i]
+        for pr_number in prs[:count_prs]:
             progress.console.print(
                 f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
             )
@@ -301,7 +297,7 @@ def generate_issue_content(
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
             if pr.body:
-                body = pr.body.replace("\n", " ").replace("\r", " ")
+                body = " ".join(pr.body.splitlines())
                 linked_issue_numbers = {
                     int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                 }

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
@@ -38,8 +39,8 @@ airflow_version = "1.10.0"
 def upgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
-        conn.execute("SET time_zone = '+00:00'")
-        cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
+        conn.execute(text("SET time_zone = '+00:00'"))
+        cur = conn.execute(text("SELECT @@explicit_defaults_for_timestamp"))
         res = cur.fetchall()
         if res[0][0] == 0:
             raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
@@ -145,7 +146,7 @@ def upgrade():
         # we try to be database agnostic, but not every db (e.g. sqlserver)
         # supports per session time zones
         if conn.dialect.name == "postgresql":
-            conn.execute("set timezone=UTC")
+            conn.execute(text("set timezone=UTC"))
 
         op.alter_column(
             table_name="chart",
@@ -281,7 +282,7 @@ def upgrade():
 def downgrade():
     conn = op.get_bind()
     if conn.dialect.name == "mysql":
-        conn.execute("SET time_zone = '+00:00'")
+        conn.execute(text("SET time_zone = '+00:00'"))
         op.alter_column(table_name="chart", column_name="last_modified", type_=mysql.DATETIME(fsp=6))
 
         op.alter_column(
@@ -374,7 +375,7 @@ def downgrade():
         # we try to be database agnostic, but not every db (e.g. sqlserver)
         # supports per session time zones
         if conn.dialect.name == "postgresql":
-            conn.execute("set timezone=UTC")
+            conn.execute(text("set timezone=UTC"))
 
         op.alter_column(table_name="chart", column_name="last_modified", type_=sa.DateTime())
 

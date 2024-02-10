@@ -36,6 +36,7 @@ Helm Chart for Apache Airflow
     using-additional-containers
     customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
+    Extending the Chart<extending-the-chart>
 
 .. toctree::
     :hidden:
@@ -67,9 +68,9 @@ Features
 
 * Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
-* Supported database backend: ``PostgresSQL``, ``MySQL``
+* Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgreSQL and PgBouncer with a battle-tested configuration
+* ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
 * Monitoring:
 
    * StatsD/Prometheus metrics for Airflow
@@ -155,3 +156,31 @@ To run database migrations with Argo CD automatically, you will need to add:
 This will run database migrations every time there is a ``Sync`` event in Argo CD. While it is not ideal to run the migrations on every sync, it is a trade-off that allows them to be run automatically.
 
 If you use the Celery(Kubernetes)Executor with the built-in Redis, it is recommended that you set up a static Redis password either by supplying ``redis.passwordSecretName`` and ``redis.data.brokerUrlSecretName`` or ``redis.password``.
+
+
+Naming Conventions
+------------------
+
+For new installations it is highly recommended to start using standard naming conventions.
+It is not enabled by default as this may cause unexpected behaviours on existing installations. However you can enable it using ``useStandardNaming``:
+
+.. code-block:: yaml
+
+    useStandardNaming: true
+
+For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
+
+This won't delete existing PVCs for logs used by StatefulSets/Deployments, but it will recreate them with brand new PVCs.
+If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
+deployment. Depending on what storage backend/class you're using this procedure may vary. If you don't mind starting
+with fresh logs/redis volumes, you can just delete the old persistent volume claims, for example:
+
+.. code-block:: bash
+
+    kubectl delete pvc -n airflow logs-gta-triggerer-0
+    kubectl delete pvc -n airflow logs-gta-worker-0
+    kubectl delete pvc -n airflow redis-db-gta-redis-0
+
+.. note::
+
+    If you do not change ``useStandardNaming`` or ``fullnameOverride`` after upgrade, you can proceed as usual and no unexpected behaviours will be presented.

@@ -20,4 +20,8 @@ from __future__ import annotations
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 
+"""
+:meta private:
+"""
+
 __all__ = ["BaseExtractor", "OperatorLineage", "ExtractorManager"]

@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
     """
-    Export entities from Google Cloud Datastore to Cloud Storage
+    Export entities from Google Cloud Datastore to Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -142,7 +142,7 @@ class CloudDatastoreExportEntitiesOperator(GoogleCloudBaseOperator):
 
 class CloudDatastoreImportEntitiesOperator(GoogleCloudBaseOperator):
     """
-    Import entities from Cloud Storage to Google Cloud Datastore
+    Import entities from Cloud Storage to Google Cloud Datastore.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

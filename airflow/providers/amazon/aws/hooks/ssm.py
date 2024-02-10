@@ -25,6 +25,7 @@ from airflow.utils.types import NOTSET, ArgNotSet
 class SsmHook(AwsBaseHook):
     """
     Interact with Amazon Systems Manager (SSM).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("ssm") <SSM.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -40,8 +41,7 @@ class SsmHook(AwsBaseHook):
 
     def get_parameter_value(self, parameter: str, default: str | ArgNotSet = NOTSET) -> str:
         """
-        Returns the value of the provided Parameter or an optional default.
-        If value exists, and it is encrypted, then decrypt and mask them for loggers.
+        Return the provided Parameter or an optional default; if it is encrypted, then decrypt and mask.
 
         .. seealso::
             - :external+boto3:py:meth:`SSM.Client.get_parameter`

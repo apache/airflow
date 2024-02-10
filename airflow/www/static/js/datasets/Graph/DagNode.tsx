@@ -33,6 +33,7 @@ import {
   useTheme,
 } from "@chakra-ui/react";
 import { MdOutlineAccountTree } from "react-icons/md";
+
 import { useContainerRef } from "src/context/containerRef";
 import { getMetaValue } from "src/utils";
 
@@ -41,7 +42,7 @@ const DagNode = ({
   isHighlighted,
 }: {
   dagId: string;
-  isHighlighted: boolean;
+  isHighlighted?: boolean;
 }) => {
   const { colors } = useTheme();
   const containerRef = useContainerRef();
@@ -63,7 +64,7 @@ const DagNode = ({
           alignItems="center"
         >
           <MdOutlineAccountTree size="16px" />
-          <Text>{dagId}</Text>
+          <Text ml={2}>{dagId}</Text>
         </Flex>
       </PopoverTrigger>
       <Portal containerRef={containerRef}>

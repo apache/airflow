@@ -21,6 +21,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+from openlineage.client.facet import (
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    LifecycleStateChangeDatasetFacetPreviousIdentifier,
+)
+from openlineage.client.run import Dataset
+
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
     GCSCreateBucketOperator,
@@ -125,6 +132,14 @@ class TestGCSDeleteObjectsOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_empty_list_of_objects(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=[])
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
+        mock_hook.return_value.delete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:4]
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
@@ -156,17 +171,72 @@ class TestGCSDeleteObjectsOperator:
             any_order=True,
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook):
+        bucket_url = f"gs://{TEST_BUCKET}"
+        expected_inputs = [
+            Dataset(
+                namespace=bucket_url,
+                name="folder/a.txt",
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name="folder/a.txt",
+                        ),
+                    )
+                },
+            ),
+            Dataset(
+                namespace=bucket_url,
+                name="b.txt",
+                facets={
+                    "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
+                        lifecycleStateChange=LifecycleStateChange.DROP.value,
+                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                            namespace=bucket_url,
+                            name="b.txt",
+                        ),
+                    )
+                },
+            ),
+        ]
+
+        operator = GCSDeleteObjectsOperator(
+            task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=["folder/a.txt", "b.txt"]
+        )
+
+        operator.execute(None)
+
+        lineage = operator.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 0
+        assert lineage.inputs == expected_inputs
+
 
 class TestGoogleCloudStorageListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_execute(self, mock_hook):
+    def test_execute__delimiter(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
         operator = GCSListObjectsOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
         files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
-            bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
+            bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER, match_glob=None
+        )
+        assert sorted(files) == sorted(MOCK_FILES)
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute__match_glob(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        operator = GCSListObjectsOperator(
+            task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
+        )
+        files = operator.execute(context=mock.MagicMock())
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
         )
         assert sorted(files) == sorted(MOCK_FILES)
 
@@ -176,7 +246,6 @@ class TestGCSFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook, mock_subprocess, mock_tempfile):
-
         source_bucket = TEST_BUCKET
         source_object = "test.txt"
         destination_bucket = TEST_BUCKET + "-dest"
@@ -231,6 +300,31 @@ class TestGCSFileTransformOperator:
             object_name=destination_object,
             filename=destination,
         )
+
+    def test_get_openlineage_facets_on_start(self):
+        expected_input = Dataset(
+            namespace=f"gs://{TEST_BUCKET}",
+            name="folder/a.txt",
+        )
+        expected_output = Dataset(
+            namespace=f"gs://{TEST_BUCKET}2",
+            name="b.txt",
+        )
+
+        operator = GCSFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object="folder/a.txt",
+            destination_bucket=f"{TEST_BUCKET}2",
+            destination_object="b.txt",
+            transform_script="/path/to_script",
+        )
+
+        lineage = operator.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert len(lineage.outputs) == 1
+        assert lineage.inputs[0] == expected_input
+        assert lineage.outputs[0] == expected_output
 
 
 class TestGCSTimeSpanFileTransformOperatorDateInterpolation:
@@ -389,6 +483,91 @@ class TestGCSTimeSpanFileTransformOperator:
             ]
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_get_openlineage_facets_on_complete(self, mock_hook, mock_subprocess, mock_tempdir):
+        source_bucket = TEST_BUCKET
+        source_prefix = "source_prefix"
+
+        destination_bucket = TEST_BUCKET + "_dest"
+        destination_prefix = "destination_prefix"
+        destination = "destination"
+
+        file1 = "file1"
+        file2 = "file2"
+
+        timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
+        mock_dag = mock.Mock()
+        mock_dag.following_schedule = lambda x: x + timedelta(hours=1)
+        context = dict(
+            execution_date=timespan_start,
+            dag=mock_dag,
+            ti=mock.Mock(),
+        )
+
+        mock_tempdir.return_value.__enter__.side_effect = ["source", destination]
+        mock_hook.return_value.list_by_timespan.return_value = [
+            f"{source_prefix}/{file1}",
+            f"{source_prefix}/{file2}",
+        ]
+
+        mock_proc = mock.MagicMock()
+        mock_proc.returncode = 0
+        mock_proc.stdout.readline = lambda: b""
+        mock_proc.wait.return_value = None
+        mock_popen = mock.MagicMock()
+        mock_popen.return_value.__enter__.return_value = mock_proc
+
+        mock_subprocess.Popen = mock_popen
+        mock_subprocess.PIPE = "pipe"
+        mock_subprocess.STDOUT = "stdout"
+
+        op = GCSTimeSpanFileTransformOperator(
+            task_id=TASK_ID,
+            source_bucket=source_bucket,
+            source_prefix=source_prefix,
+            source_gcp_conn_id="",
+            destination_bucket=destination_bucket,
+            destination_prefix=destination_prefix,
+            destination_gcp_conn_id="",
+            transform_script="script.py",
+        )
+
+        with mock.patch.object(Path, "glob") as path_glob:
+            path_glob.return_value.__iter__.return_value = [
+                Path(f"{destination}/{file1}"),
+                Path(f"{destination}/{file2}"),
+            ]
+            op.execute(context=context)
+
+        expected_inputs = [
+            Dataset(
+                namespace=f"gs://{source_bucket}",
+                name=f"{source_prefix}/{file1}",
+            ),
+            Dataset(
+                namespace=f"gs://{source_bucket}",
+                name=f"{source_prefix}/{file2}",
+            ),
+        ]
+        expected_outputs = [
+            Dataset(
+                namespace=f"gs://{destination_bucket}",
+                name=f"{destination_prefix}/{file1}",
+            ),
+            Dataset(
+                namespace=f"gs://{destination_bucket}",
+                name=f"{destination_prefix}/{file2}",
+            ),
+        ]
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        assert len(lineage.inputs) == 2
+        assert len(lineage.outputs) == 2
+        assert lineage.inputs == expected_inputs
+        assert lineage.outputs == expected_outputs
+
 
 class TestGCSDeleteBucketOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -396,7 +575,9 @@ class TestGCSDeleteBucketOperator:
         operator = GCSDeleteBucketOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET)
 
         operator.execute(None)
-        mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
+        mock_hook.return_value.delete_bucket.assert_called_once_with(
+            bucket_name=TEST_BUCKET, force=True, user_project=None
+        )
 
 
 class TestGoogleCloudStorageSync:

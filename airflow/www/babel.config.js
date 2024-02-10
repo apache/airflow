@@ -17,7 +17,7 @@
  * under the License.
  */
 
-module.exports = function (api) {
+module.exports = (api) => {
   api.cache(true);
 
   const presets = [

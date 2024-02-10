@@ -97,6 +97,7 @@ function setUpZoomSupport() {
 }
 
 function setUpNodeHighlighting(focusItem = null) {
+  // eslint-disable-next-line func-names
   d3.selectAll("g.node").on("mouseover", function (d) {
     d3.select(this).selectAll("rect").style("stroke", highlightColor);
     highlightNodes(g.predecessors(d), upstreamColor, highlightStrokeWidth);
@@ -114,6 +115,7 @@ function setUpNodeHighlighting(focusItem = null) {
       });
   });
 
+  // eslint-disable-next-line func-names
   d3.selectAll("g.node").on("mouseout", function (d) {
     d3.select(this).selectAll("rect,circle").style("stroke", null);
     highlightNodes(g.predecessors(d), null, initialStrokeWidth);

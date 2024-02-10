@@ -22,11 +22,16 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchJobTrigger,
+)
+
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
@@ -41,7 +46,6 @@ RESPONSE_WITHOUT_FAILURES = {
 
 
 class TestBatchOperator:
-
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
 
@@ -59,6 +63,7 @@ class TestBatchOperator:
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
             parameters=None,
+            retry_strategy=None,
             container_overrides={},
             array_properties=None,
             aws_conn_id="airflow_test",
@@ -92,6 +97,7 @@ class TestBatchOperator:
         assert self.batch.hook.max_retries == self.MAX_RETRIES
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
+        assert self.batch.retry_strategy == {"attempts": 1}
         assert self.batch.container_overrides == {}
         assert self.batch.array_properties is None
         assert self.batch.node_overrides is None
@@ -115,9 +121,12 @@ class TestBatchOperator:
             "array_properties",
             "node_overrides",
             "parameters",
+            "retry_strategy",
             "waiters",
             "tags",
             "wait_for_completion",
+            "awslogs_enabled",
+            "awslogs_fetch_interval",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -137,6 +146,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -160,6 +170,7 @@ class TestBatchOperator:
             containerOverrides={},
             jobDefinition="hello-world",
             parameters={},
+            retryStrategy={"attempts": 1},
             tags={},
         )
 
@@ -226,6 +237,7 @@ class TestBatchOperator:
             "jobName": JOB_NAME,
             "jobDefinition": "hello-world",
             "parameters": {},
+            "retryStrategy": {"attempts": 1},
             "tags": {},
         }
         if override == "overrides":
@@ -235,7 +247,7 @@ class TestBatchOperator:
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
     def test_deprecated_override_param(self):
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             _ = BatchOperator(
                 task_id="task",
                 job_name=JOB_NAME,
@@ -255,6 +267,106 @@ class TestBatchOperator:
                 overrides={"a": "b"},
                 container_overrides={"a": "b"},
             )
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_if_deferrable_param_set(self, mock_client, mock_get_job_description):
+        mock_get_job_description.return_value = {"status": "SUBMITTED"}
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            batch.execute(self.mock_context)
+        assert isinstance(exc.value.trigger, BatchJobTrigger)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_failed_due_to_job_id_not_found(self, mock_client):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = {
+            "jobName": JOB_NAME,
+            "jobId": None,
+        }
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException) as exc:
+            batch.execute(self.mock_context)
+        assert "AWS Batch job - job_id was not found" in str(exc.value)
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_success_before_deferred(self, mock_client, mock_get_job_description):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
+        mock_get_job_description.return_value = {"status": "SUCCEEDED"}
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        assert batch.execute(self.mock_context) == JOB_ID
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_but_fail_before_deferred(self, mock_client, mock_get_job_description):
+        """Test that an AirflowException is raised if job_id is not set before deferral."""
+        mock_client.return_value.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
+        mock_get_job_description.return_value = {"status": "FAILED"}
+
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException) as exc:
+            batch.execute(self.mock_context)
+        assert f"Error while running job: {JOB_ID} is in FAILED state" in str(exc.value)
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch.object(BatchClientHook, "wait_for_job")
+    @mock.patch.object(BatchClientHook, "check_job_success")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobQueueLink.persist")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink.persist")
+    def test_monitor_job_with_logs(
+        self, job_definition_persist_mock, job_queue_persist_mock, check_mock, wait_mock, job_description_mock
+    ):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            awslogs_enabled=True,
+        )
+
+        batch.job_id = JOB_ID
+
+        batch.monitor_job(context=None)
+
+        job_description_mock.assert_called_with(job_id=JOB_ID)
+        job_definition_persist_mock.assert_called_once()
+        job_queue_persist_mock.assert_called_once()
+        wait_mock.assert_called_once()
+        assert len(wait_mock.call_args) == 2
 
 
 class TestBatchCreateComputeEnvironmentOperator:
@@ -281,3 +393,25 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
+
+    @mock.patch.object(BatchClientHook, "client")
+    def test_defer(self, client_mock):
+        client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
+
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id="task",
+            compute_environment_name="my_env_name",
+            environment_type="my_env_type",
+            state="my_state",
+            compute_resources={},
+            max_retries=123456,
+            poll_interval=456789,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(None)
+
+        assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
+        assert deferred.value.trigger.waiter_delay == 456789
+        assert deferred.value.trigger.attempts == 123456

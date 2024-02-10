@@ -1,0 +1,171 @@
+{
+    "Airflow": {
+        "actions": {
+            "Connection::DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection::POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection::PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Configuration::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Configuration"]
+                }
+            },
+            "Dag::DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag::POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag::PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dataset::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dataset"]
+                }
+            },
+            "Pool::DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool::POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool::PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Variable::DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable::POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable::PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "View::GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["View"]
+                }
+            }
+        },
+        "entityTypes": {
+            "Configuration": {},
+            "Connection": {},
+            "Dag": {},
+            "Dataset": {},
+            "Pool": {},
+            "Role": {},
+            "User": {
+                "memberOfTypes": [
+                    "Role"
+                ]
+            },
+            "Variable": {},
+            "View": {}
+        }
+    }
+}

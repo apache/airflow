@@ -16,16 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+import os
+from unittest import mock
+
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.www import _check_last_log
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -348,7 +354,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
     def _create_connections(self, count):
         return [
-            Connection(conn_id="TEST_CONN_ID" + str(i), conn_type="TEST_CONN_TYPE" + str(i))
+            Connection(conn_id=f"TEST_CONN_ID{i}", conn_type=f"TEST_CONN_TYPE{i}")
             for i in range(1, count + 1)
         ]
 
@@ -562,6 +568,20 @@ class TestPostConnection(TestConnectionEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
+    def test_post_should_respond_400_for_invalid_conn_id(self):
+        payload = {"connection_id": "****", "conn_type": "test_type"}
+        response = self.client.post(
+            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "The key '****' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
+
     def test_post_should_respond_409_already_exist(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type"}
         response = self.client.post(
@@ -589,6 +609,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
 
 class TestConnection(TestConnectionEndpoint):
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_respond_200(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
         response = self.client.post(
@@ -600,6 +621,13 @@ class TestConnection(TestConnectionEndpoint):
             "message": "Connection successfully tested",
         }
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_connection_env_is_cleaned_after_run(self):
+        payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
+        self.client.post("/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"})
+        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_post_should_respond_400_for_invalid_payload(self):
         payload = {
             "connection_id": "test-connection-id",
@@ -621,3 +649,14 @@ class TestConnection(TestConnectionEndpoint):
         )
 
         assert_401(response)
+
+    def test_should_respond_403_by_default(self):
+        payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
+        response = self.client.post(
+            "/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 403
+        assert response.text == (
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it."
+        )

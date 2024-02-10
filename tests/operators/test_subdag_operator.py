@@ -24,7 +24,9 @@ import pytest
 
 import airflow
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
@@ -32,6 +34,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -88,8 +92,8 @@ class TestSubDagOperator:
         subdag = DAG("parent.child", default_args=default_args)
 
         session = airflow.settings.Session()
-        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1)
-        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10)
+        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
+        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
         session.add(pool_1)
         session.add(pool_10)
         session.commit()
@@ -116,8 +120,8 @@ class TestSubDagOperator:
         subdag = DAG("parent.child", default_args=default_args)
 
         session = airflow.settings.Session()
-        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1)
-        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10)
+        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
+        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
         session.add(pool_1)
         session.add(pool_10)
         session.commit()
@@ -333,11 +337,18 @@ class TestSubDagOperator:
             for task, state in zip(dummy_subdag_tasks, states)
         ]
 
-        context = {"execution_date": DEFAULT_DATE, "dag_run": dag_run, "task": subdag_task}
+        context = {
+            "execution_date": DEFAULT_DATE,
+            "dag_run": dag_run,
+            "task": subdag_task,
+            "ti": mock.MagicMock(map_index=-1),
+        }
         subdag_task.post_execute(context)
 
         if skip_parent:
-            mock_skip.assert_called_once_with(context["dag_run"], context["execution_date"], [dummy_dag_task])
+            mock_skip.assert_called_once_with(
+                context["dag_run"], context["execution_date"], [dummy_dag_task], map_index=-1
+            )
         else:
             mock_skip.assert_not_called()
 

@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from trino.transaction import IsolationLevel
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -35,6 +35,13 @@ KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.Kerber
 TRINO_DBAPI_CONNECT = "airflow.providers.trino.hooks.trino.trino.dbapi.connect"
 JWT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication"
 CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication"
+
+
+@pytest.fixture()
+def jwt_token_file(tmp_path):
+    jwt_file = tmp_path / "jwt.json"
+    jwt_file.write_text('{"phony":"jwt"}')
+    yield jwt_file.__fspath__()
 
 
 class TestTrinoHookConn:
@@ -109,6 +116,43 @@ class TestTrinoHookConn:
         )
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
+
+    @patch(JWT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_jwt_file(self, mock_get_connection, mock_connect, mock_jwt_auth, jwt_token_file):
+        extras = {
+            "auth": "jwt",
+            "jwt__file": jwt_token_file,
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
+
+    @pytest.mark.parametrize(
+        "jwt_file, jwt_token, error_suffix",
+        [
+            pytest.param(True, True, "provided both", id="provided-both-params"),
+            pytest.param(False, False, "none of them provided", id="no-jwt-provided"),
+        ],
+    )
+    @patch(HOOK_GET_CONNECTION)
+    def test_exactly_one_jwt_token(
+        self, mock_get_connection, jwt_file, jwt_token, error_suffix, jwt_token_file
+    ):
+        error_match = f"When auth set to 'jwt'.*{error_suffix}"
+        extras = {"auth": "jwt"}
+        if jwt_file:
+            extras["jwt__file"] = jwt_token_file
+        if jwt_token:
+            extras["jwt__token"] = "TEST_JWT_TOKEN"
+
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        with pytest.raises(ValueError, match=error_match):
+            TrinoHook().get_conn()
 
     @patch(CERT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
@@ -195,6 +239,14 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, verify=expected_verify)
 
+    @patch(HOOK_GET_CONNECTION)
+    @patch(TRINO_DBAPI_CONNECT)
+    def test_get_conn_timezone(self, mock_connect, mock_get_connection):
+        extras = {"timezone": "Asia/Jerusalem"}
+        self.set_get_connection_return_value(mock_get_connection, extra=json.dumps(extras))
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, timezone="Asia/Jerusalem")
+
     @staticmethod
     def set_get_connection_return_value(mock_get_connection, extra=None, password=None):
         mocked_connection = Connection(
@@ -204,7 +256,13 @@ class TestTrinoHookConn:
 
     @staticmethod
     def assert_connection_called_with(
-        mock_connect, http_headers=mock.ANY, auth=None, verify=True, session_properties=None, client_tags=None
+        mock_connect,
+        http_headers=mock.ANY,
+        auth=None,
+        verify=True,
+        session_properties=None,
+        client_tags=None,
+        timezone=None,
     ):
         mock_connect.assert_called_once_with(
             catalog="hive",
@@ -220,6 +278,7 @@ class TestTrinoHookConn:
             verify=verify,
             session_properties=session_properties,
             client_tags=client_tags,
+            timezone=timezone,
         )
 
 
