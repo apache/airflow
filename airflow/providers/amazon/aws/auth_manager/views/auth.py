@@ -71,7 +71,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
     @expose("/login_callback", methods=("GET", "POST"))
     def login_callback(self):
         """
-        Callback where the user is redirected to after successful login.
+        Redirect the user to this callback after successful login.
 
         CSRF protection needs to be disabled otherwise the callback won't work.
         """
