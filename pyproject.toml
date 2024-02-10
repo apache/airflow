@@ -579,7 +579,7 @@ apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
   "pandas>=1.2.5",
-  "pyhive[hive-pure-sasl]>=0.7.0",
+  "pyhive[hive_pure_sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
 apache-impala = [ # source: airflow/providers/apache/impala/provider.yaml
