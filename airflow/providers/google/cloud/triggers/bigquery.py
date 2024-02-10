@@ -68,7 +68,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryInsertJobTrigger arguments and classpath."""
+        """Serialize BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger",
             {
@@ -83,7 +83,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -119,7 +119,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
     """BigQueryCheckTrigger run on the trigger worker."""
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryCheckTrigger arguments and classpath."""
+        """Serialize BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger",
             {
@@ -134,7 +134,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -193,7 +193,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         self.as_dict = as_dict
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryInsertJobTrigger arguments and classpath."""
+        """Serialize BigQueryInsertJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger",
             {
@@ -209,7 +209,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent with response data."""
+        """Get current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -307,7 +307,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         self.ignore_zero = ignore_zero
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryCheckTrigger arguments and classpath."""
+        """Serialize BigQueryCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger",
             {
@@ -326,7 +326,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -452,7 +452,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         self.tolerance = tolerance
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryValueCheckTrigger arguments and classpath."""
+        """Serialize BigQueryValueCheckTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger",
             {
@@ -470,7 +470,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
@@ -536,7 +536,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryTableExistenceTrigger arguments and classpath."""
+        """Serialize BigQueryTableExistenceTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger",
             {
@@ -623,7 +623,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
         self.partition_id = partition_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BigQueryTablePartitionExistenceTrigger arguments and classpath."""
+        """Serialize BigQueryTablePartitionExistenceTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger",
             {

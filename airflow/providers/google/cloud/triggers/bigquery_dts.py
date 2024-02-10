@@ -66,7 +66,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.bigquery_dts.BigQueryDataTransferRunTrigger",
             {

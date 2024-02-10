@@ -64,7 +64,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def get_conn(self) -> Any:
         """
-        Retrieves the connection to Google Drive.
+        Retrieve the connection to Google Drive.
 
         :return: Google Drive services object.
         """
@@ -132,7 +132,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def get_media_request(self, file_id: str) -> HttpRequest:
         """
-        Returns a get_media http request to a Google Drive object.
+        Return a get_media http request to a Google Drive object.
 
         :param file_id: The Google Drive file id
         :return: request
@@ -145,7 +145,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> bool:
         """
-        Checks to see if a file exists within a Google Drive folder.
+        Check to see if a file exists within a Google Drive folder.
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
@@ -162,7 +162,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def _get_file_info(self, file_id: str):
         """
-        Returns Google API file_info object containing id, name, parents in the response.
+        Return Google API file_info object containing id, name, parents in the response.
 
         https://developers.google.com/drive/api/v3/reference/files/get
 
@@ -183,7 +183,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def _resolve_file_path(self, file_id: str) -> str:
         """
-        Returns the full Google Drive path for given file_id.
+        Return the full Google Drive path for given file_id.
 
         :param file_id: The id of a file in Google Drive
         :return: Google Drive full path for a file
@@ -211,7 +211,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> dict:
         """
-        Returns the file id of a Google Drive file.
+        Return the file id of a Google Drive file.
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
@@ -264,7 +264,7 @@ class GoogleDriveHook(GoogleBaseHook):
         show_full_target_path: bool = True,
     ) -> str:
         """
-        Uploads a file that is available locally to a Google Drive service.
+        Upload a file that is available locally to a Google Drive service.
 
         :param local_location: The path where the file is available.
         :param remote_location: The path where the file will be send
