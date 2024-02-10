@@ -38,6 +38,9 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
 
+# commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
+NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
+
 
 def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
@@ -587,7 +590,7 @@ def test_expected_output_pull_request_main(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
@@ -687,7 +690,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
     stderr = SelectiveChecks(
         files=files,
         github_event=GithubEvents.PULL_REQUEST,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -819,7 +822,7 @@ def test_expected_output_full_tests_needed(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
         default_branch=default_branch,
@@ -942,7 +945,7 @@ def test_expected_output_pull_request_v2_7(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="v2-7-stable",
@@ -1110,7 +1113,7 @@ def test_expected_output_pull_request_target(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST_TARGET,
         pr_labels=(),
         default_branch="main",
@@ -1199,7 +1202,7 @@ def test_expected_output_push(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PUSH,
         pr_labels=pr_labels,
         default_branch=default_branch,
@@ -1436,7 +1439,7 @@ def test_upgrade_to_newer_dependencies(
 def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
@@ -1461,7 +1464,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
@@ -1708,7 +1711,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
     stderr = str(
         SelectiveChecks(
             files=files,
-            commit_ref="HEAD",
+            commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
         )
@@ -1742,7 +1745,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=(),
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=labels,
         default_branch="main",
@@ -1830,7 +1833,7 @@ def test_mypy_matches(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         default_branch=default_branch,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
@@ -1878,7 +1881,7 @@ def test_pr_labels(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         default_branch="main",
         github_actor=github_actor,
         github_event=GithubEvents.PULL_REQUEST,
