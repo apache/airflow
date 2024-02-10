@@ -113,7 +113,10 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^dev/breeze",
             r"^dev/.*\.py$",
             r"^Dockerfile",
-            r"^scripts",
+            r"^scripts/ci/docker-compose",
+            r"^scripts/ci/kubernetes",
+            r"^scripts/docker",
+            r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
