@@ -81,7 +81,7 @@ def _load_credentials_from_file(
     filename: str, target_audience: str | None
 ) -> google_auth_credentials.Credentials | None:
     """
-    Loads credentials from a file.
+    Load credentials from a file.
 
     The credentials file must be a service account key or a stored authorized user credential.
 
@@ -129,7 +129,7 @@ def _load_credentials_from_file(
 def _get_explicit_environ_credentials(
     target_audience: str | None,
 ) -> google_auth_credentials.Credentials | None:
-    """Gets credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable."""
+    """Get credentials from the GOOGLE_APPLICATION_CREDENTIALS environment variable."""
     explicit_file = os.environ.get(environment_vars.CREDENTIALS)
 
     if explicit_file is None:
@@ -145,7 +145,7 @@ def _get_explicit_environ_credentials(
 def _get_gcloud_sdk_credentials(
     target_audience: str | None,
 ) -> google_auth_credentials.Credentials | None:
-    """Gets the credentials and project ID from the Cloud SDK."""
+    """Get the credentials and project ID from the Cloud SDK."""
     from google.auth import _cloud_sdk  # type: ignore[attr-defined]
 
     # Check if application default credentials exist.
@@ -162,7 +162,7 @@ def _get_gcloud_sdk_credentials(
 def _get_gce_credentials(
     target_audience: str | None, request: google.auth.transport.Request | None = None
 ) -> google_auth_credentials.Credentials | None:
-    """Gets credentials and project ID from the GCE Metadata Service."""
+    """Get credentials and project ID from the GCE Metadata Service."""
     # Ping requires a transport, but we want application default credentials
     # to require no arguments. So, we'll use the _http_client transport which
     # uses http.client. This is only acceptable because the metadata server
@@ -191,7 +191,7 @@ def _get_gce_credentials(
 def get_default_id_token_credentials(
     target_audience: str | None, request: google.auth.transport.Request = None
 ) -> google_auth_credentials.Credentials:
-    """Gets the default ID Token credentials for the current environment.
+    """Get the default ID Token credentials for the current environment.
 
     `Application Default Credentials`_ provides an easy way to obtain credentials to call Google APIs for
     server-to-server or local applications.
