@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Any
 from datetime import timedelta
 from airflow.configuration import conf
-
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -30,12 +29,13 @@ from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook, QueryType
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+XCOM_WEBLINK_KEY="web_link"
 
 class YQLink(BaseOperatorLink):
     name = "Yandex Query"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-        return XCom.get_value(key="web_link", ti_key=ti_key) or "https://yq.cloud.yandex.ru"
+        return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
 
 
 class YQExecuteQueryOperator(SQLExecuteQueryOperator):
@@ -75,8 +75,9 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         self.service_account_id = service_account_id
 
         self.hook: YQHook | None = None
+        self.query_id: str | None
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> Any:
         self.hook = YQHook(
             yandex_conn_id=self.connection_id,
             default_folder_id=self.folder_id,
@@ -84,20 +85,22 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
             default_service_account_id=self.service_account_id
         )
 
-        self.hook.start_execute_query(self.type, self.sql, self.name, self.description)
+        self.query_id = self.hook.create_query(
+            query_type=self.type,
+            query_text=self.sql,
+            name=self.name,
+            description=self.description
+        )
 
-        #  pass to YQLink
-        web_link = f"https://yq.cloud.yandex.ru/folders/{self.folder_id}/ide/queries/{self.hook.query_id}"
-        context["ti"].xcom_push(key="web_link", value=web_link)
+        # pass to YQLink
+        web_link = self.hook.compose_query_web_link(self.query_id)
+        context["ti"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)
 
-        self.hook.wait_for_query_to_complete(self.execution_timeout)
-        return self.hook.get_query_result(self.hook.query_id)
+        results = self.hook.wait_results(self.query_id)
+        # forget query to avoid 'stop_query' in on_kill
+        self.query_id = None
+        return results
 
-    def on_kill(self):
-        if self.hook is not None:
-            self.hook.stop_current_query()
-
-    @staticmethod
-    def to_dataframe(data):
-        column_names = [column["name"] for column in data["columns"]]
-        return pd.DataFrame(data["rows"], columns= column_names)
+    def on_kill(self) -> None:
+        if self.hook is not None and self.query_id is not None:
+            self.hook.stop_query(self.query_id)

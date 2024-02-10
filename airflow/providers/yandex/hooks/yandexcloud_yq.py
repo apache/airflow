@@ -22,14 +22,15 @@ from enum import Enum
 import logging
 import requests
 import time
+from typing import Any
 import jwt
 
 # These two lines enable debugging at httplib level (requests->urllib3->http.client)
 # You will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
 # The only thing missing will be the response.body which is not logged.
 
-import http.client as http_client
-http_client.HTTPConnection.debuglevel = 1
+import http.client
+http.client.HTTPConnection.debuglevel = 1
 
 # You must initialize logging, otherwise you'll not see debug output.
 logging.basicConfig()
@@ -39,8 +40,9 @@ requests_log.setLevel(logging.DEBUG)
 requests_log.propagate = True
 
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+from airflow.providers.yandex.hooks.http_client import YQHttpClientConfig, YQHttpClient
 from airflow.exceptions import AirflowException
-
+from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
 class QueryType(Enum):
     ANALYTICS = 1
@@ -48,135 +50,50 @@ class QueryType(Enum):
 
 class YQHook(YandexCloudBaseHook):
     """
-    A base hook for Yandex.Cloud Data Proc.
-
-    :param yandex_conn_id: The connection ID to use when fetching connection info.
+    A hook for Yandex Query
     """
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.query_id: str | None = None
+        config = YQHttpClientConfig(
+            token=self.get_iam_token(),
+            project=self.default_folder_id,
+            user_agent=provider_user_agent()
+        )
 
+        self.client: YQHttpClient = YQHttpClient(config=config)
 
-    def start_execute_query(self, query_type: QueryType, query_text: str|None,  name: str|None=None, description: str | None = None) -> str:
+    def close(self):
+        self.client.close()
+
+    def create_query(self, query_text: str|None, name: str|None=None, description: str | None = None, query_type: QueryType = QueryType.ANALYTICS) -> str:
         type = "ANALYTICS" if query_type == QueryType.ANALYTICS else "STREAMING"
+        
+        return self.client.create_query(
+            name=name,
+            type=type,
+            query_text=query_text,
+            description=description
+        )
 
-        with YQHook.create_session(self.get_iam_token()) as session:
-            data = {
-                "name": name,
-                "type": type,
-                "text": query_text,
-                "description": description
-            }
+    def stop_query(self, query_id: str) -> None:
+        self.stop_query(query_id)
 
-            self.log.info(f"folder={self.default_folder_id}")
-            response = session.post(f"https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries?project={self.default_folder_id}", json=data)
-            response.raise_for_status()
+    def get_query(self, query_id: str) -> Any:
+        return self.client.get_query(query_id)
 
-            self.query_id = response.json()["id"]
+    def get_query_status(self, query_id: str) -> str:
+        return self.client.get_query_status(query_id)
 
-        return self.query_id
+    def wait_results(self, query_id: str) -> Any:
+        result_set_count = self.client.wait_query_to_succeed(
+            query_id,
+            execution_timeout=timedelta(minutes=30),
+            stop_on_timeout=True
+        )
 
-    def wait_for_query_to_complete(self, execution_timeout: timedelta):
-        try:
-            return self.wait_results(self.query_id, execution_timeout)
-        except TimeoutError:
-            self.stop_query(self.query_id)
-            raise
-
-    def get_query_result(self, query_id):
-        self.log.info(f"get_query_result query_id={query_id}")
-        query_info = self.get_queryinfo(query_id)
-        if query_info["status"] == "FAILED":
-            issues = query_info["issues"]
-            raise RuntimeError("Query failed", issues=issues)
-
-        result_set_count = len(query_info["result_sets"])
-        self.log.debug(f"result set count {result_set_count}")
-
-        query_results = self.query_results(query_id, result_set_count)
-        self.log.debug(query_results)
-        return query_results
-
-    def query_results(self, query_id:str, result_set_count:int)->object:
-        results = list()
-        limit = 1000
-        offset = 0
-
-        iam_token = self.get_iam_token()
-        with YQHook.create_session(iam_token) as session:
-            for result_index in range(0, result_set_count):
-                columns = None
-                rows = []
-                while True:
-                    print(f"limit={limit} offset={offset}")
-                    response = session.get(f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}/results/{result_index}?project={self.default_folder_id}&limit={limit}&offset={offset}')
-                    response.raise_for_status()
-
-                    qresults = response.json()
-                    print(qresults)
-                    if columns is None:
-                        columns = qresults["columns"]
-
-                    rows.extend( qresults["rows"])
-                    if len(qresults["rows"]) != limit:
-                        break
-                    else:
-                        offset += limit
-
-                results.append({"rows":rows, "columns": columns})
-
-        if len(results) == 1:
-            return results[0]
-        else:
-            return results
-
-    def stop_current_query(self)->None:
-        self.stop_query(self.query_id)
-
-    def get_queryinfo(self, query_id:str)->object:
-        iam_token = self.get_iam_token()
-        with YQHook.create_session(iam_token) as session:
-            response = session.get(f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}?project={self.default_folder_id}')
-            response.raise_for_status()
-
-            return response.json()
-
-    def stop_query(self, query_id:str)->None:
-        iam_token = self.get_iam_token()
-        with YQHook.create_session(iam_token) as session:
-            session.get(f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}/stop?project={self.default_folder_id}')
-
-    def get_query_status(self, query_id:str)->str:
-        iam_token = self.get_iam_token()
-        with YQHook.create_session(iam_token) as session:
-            response = session.get(f'https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/{query_id}/status?project={self.default_folder_id}')
-            response.raise_for_status()
-            status = response.json()["status"]
-            return status
-
-    @staticmethod
-    def get_request_url_header_params(iam_token: str|None=None)->dict[str,str]:
-        headers = {}
-        if iam_token is not None:
-            headers['Authorization'] = f"Bearer {iam_token}"
-
-        return headers
-
-    def wait_results(self, query_id:str, execution_timeout: timedelta)->str:
-        execution_timeout = execution_timeout if execution_timeout is not None else timedelta(minutes=30)
-
-        start = datetime.now()
-        while True:
-            if datetime.now() > start + execution_timeout:
-                raise TimeoutError("Query execution timeout")
-
-            status = self.get_query_status(query_id)
-            if status not in ["RUNNING", "PENDING"]:
-                return status
-
-            time.sleep(2)
+        return self.client.get_query_all_result_sets(query_id=query_id, result_set_count=result_set_count)
 
     def get_iam_token(self) -> str:
         if "oauth" in self.credentials:
@@ -185,33 +102,36 @@ class YQHook(YandexCloudBaseHook):
             return YQHook._resolve_service_account_key(self.credentials["service_account_key"])
         raise AirflowException(f"Unknown credentials type {self.credentials.keys()}")
 
+    def compose_query_web_link(self, query_id:str):
+        return self.client.compose_query_web_link(query_id)
+    
     @staticmethod
     def _resolve_service_account_key(sa_info) -> str:
-        session = YQHook.create_session()
+        with YQHook.create_session() as session:
+            api = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
+            now = int(time.time())
+            payload = {
+                'aud': api,
+                'iss': sa_info["service_account_id"],
+                'iat': now,
+                'exp': now + 360
+            }
 
-        api = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
-        now = int(time.time())
-        payload = {
-            'aud': api,
-            'iss': sa_info["service_account_id"],
-            'iat': now,
-            'exp': now + 360
-        }
+            encoded_token = jwt.encode(
+                payload,
+                sa_info["private_key"],
+                algorithm='PS256',
+                headers={'kid': sa_info["id"]}
+            )
 
-        encoded_token = jwt.encode(
-            payload,
-            sa_info["private_key"],
-            algorithm='PS256',
-            headers={'kid': sa_info["id"]})
+            data = {"jwt": encoded_token}
+            iam_response = session.post(api, json=data)
+            iam_response.raise_for_status()
 
-        data = {"jwt": encoded_token}
-        iam_response = session.post(api, json=data)
-        iam_response.raise_for_status()
-
-        return iam_response.json()["iamToken"]
+            return iam_response.json()["iamToken"]
 
     @staticmethod
-    def create_session(iam_token: str | None = None) -> requests.Session:
+    def create_session() -> requests.Session:
         session = requests.Session()
         session.verify = False
         session.timeout = 20
@@ -227,10 +147,6 @@ class YQHook(YandexCloudBaseHook):
             'https://',
             requests.adapters.HTTPAdapter(max_retries=retry)
         )
-
-        headers = YQHook.get_request_url_header_params(iam_token)
-        for k, v in headers.items():
-            session.headers[k] = v
 
         return session
     
