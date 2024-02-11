@@ -76,7 +76,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-microsoft-azure
+apache-airflow-providers-microsoft-azure package
 ------------------------------------------------------
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -87,15 +87,15 @@ Release: 9.0.0
 Provider package
 ----------------
 
-This is a provider package for ``microsoft.azure`` provider. All classes for this provider package
-are in ``airflow.providers.microsoft.azure`` python package.
+This package is for the ``microsoft.azure`` provider.
+All classes for this package are included in the ``airflow.providers.microsoft.azure`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-microsoft-azure``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-microsoft-azure``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -127,6 +127,7 @@ PIP package                       Version required
 ``azure-mgmt-datafactory``        ``>=2.0.0``
 ``azure-mgmt-containerregistry``  ``>=8.0.0``
 ``azure-mgmt-containerinstance``  ``>=9.0.0``
+``packaging``                     ``>=22.0``
 ================================  ==================
 
 Cross provider package dependencies

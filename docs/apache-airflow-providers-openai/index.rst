@@ -56,6 +56,7 @@
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -64,7 +65,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-openai
+apache-airflow-providers-openai package
 ------------------------------------------------------
 
 `OpenAI <https://platform.openai.com/docs/introduction>`__
@@ -75,15 +76,15 @@ Release: 1.1.0
 Provider package
 ----------------
 
-This is a provider package for ``openai`` provider. All classes for this provider package
-are in ``airflow.providers.openai`` python package.
+This package is for the ``openai`` provider.
+All classes for this package are included in the ``airflow.providers.openai`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-openai``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-openai``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -95,4 +96,5 @@ PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.6.0``
 ``openai[datalib]``  ``>=1.0``
+``packaging``        ``>=22.0``
 ===================  ==================

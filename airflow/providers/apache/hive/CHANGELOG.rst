@@ -37,6 +37,11 @@ Breaking changes
 * Remove the ability of specify a proxy user as an ``owner`` or ``login`` or ``as_param`` in the connection. Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_user`` to HiveHook will do the job.
 
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix pyhive hive_pure_sasl extra name (#37323)``
+   * ``D401 Support in Providers (simple) (#37258)``
+   * `` Simplify hive client connection (#37043)``
+
 6.4.2
 .....
 

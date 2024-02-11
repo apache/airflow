@@ -63,7 +63,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-hashicorp
+apache-airflow-providers-hashicorp package
 ------------------------------------------------------
 
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
@@ -74,15 +74,15 @@ Release: 3.6.2
 Provider package
 ----------------
 
-This is a provider package for ``hashicorp`` provider. All classes for this provider package
-are in ``airflow.providers.hashicorp`` python package.
+This package is for the ``hashicorp`` provider.
+All classes for this package are included in the ``airflow.providers.hashicorp`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-hashicorp``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-hashicorp``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -94,6 +94,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``hvac``            ``>=1.1.0``
+``packaging``       ``>=22.0``
 ==================  ==================
 
 Cross provider package dependencies

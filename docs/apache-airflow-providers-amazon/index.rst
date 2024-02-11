@@ -79,7 +79,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-amazon
+apache-airflow-providers-amazon package
 ------------------------------------------------------
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -90,15 +90,15 @@ Release: 8.17.0
 Provider package
 ----------------
 
-This is a provider package for ``amazon`` provider. All classes for this provider package
-are in ``airflow.providers.amazon`` python package.
+This package is for the ``amazon`` provider.
+All classes for this package are included in the ``airflow.providers.amazon`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-amazon``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-amazon``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -120,6 +120,7 @@ PIP package                              Version required
 ``sqlalchemy_redshift``                  ``>=0.8.6``
 ``asgiref``
 ``PyAthena``                             ``>=3.0.10``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

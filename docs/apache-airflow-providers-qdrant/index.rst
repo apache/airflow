@@ -95,4 +95,5 @@ PIP package         Version required
 ==================  ==================
 ``qdrant_client``   ``>=1.7.0``
 ``apache-airflow``  ``>=2.7.0``
+``packaging``       ``>=22.0``
 ==================  ==================

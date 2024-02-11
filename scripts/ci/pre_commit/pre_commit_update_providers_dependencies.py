@@ -339,6 +339,7 @@ if __name__ == "__main__":
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
         ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
+        ALL_DEPENDENCIES[provider]["deps"].append("packaging>=22.0")
         ALL_DEPENDENCIES[provider]["devel-deps"].extend(provider_yaml_content.get("devel-dependencies") or [])
         STATES[provider] = provider_yaml_content["state"]
     if warnings:

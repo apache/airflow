@@ -24,7 +24,7 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 state: ready
-source-date-epoch: 1705912222
+source-date-epoch: 1707666298
 
 versions:
   - 1.1.2

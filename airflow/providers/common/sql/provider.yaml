@@ -22,7 +22,7 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1705912001
+source-date-epoch: 1707666255
 versions:
   - 1.10.1
   - 1.10.0

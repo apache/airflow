@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-sqlite
+apache-airflow-providers-sqlite package
 ------------------------------------------------------
 
 `SQLite <https://www.sqlite.org/>`__
@@ -82,15 +82,15 @@ Release: 3.7.0
 Provider package
 ----------------
 
-This is a provider package for ``sqlite`` provider. All classes for this provider package
-are in ``airflow.providers.sqlite`` python package.
+This package is for the ``sqlite`` provider.
+All classes for this package are included in the ``airflow.providers.sqlite`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-sqlite``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-sqlite``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -102,6 +102,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

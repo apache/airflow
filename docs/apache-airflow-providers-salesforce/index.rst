@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-salesforce
+apache-airflow-providers-salesforce package
 ------------------------------------------------------
 
 `Salesforce <https://www.salesforce.com/>`__
@@ -82,15 +82,15 @@ Release: 5.6.2
 Provider package
 ----------------
 
-This is a provider package for ``salesforce`` provider. All classes for this provider package
-are in ``airflow.providers.salesforce`` python package.
+This package is for the ``salesforce`` provider.
+All classes for this package are included in the ``airflow.providers.salesforce`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-salesforce``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-salesforce``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -103,4 +103,5 @@ PIP package            Version required
 ``apache-airflow``     ``>=2.6.0``
 ``simple-salesforce``  ``>=1.0.0``
 ``pandas``             ``>=1.2.5``
+``packaging``          ``>=22.0``
 =====================  ==================

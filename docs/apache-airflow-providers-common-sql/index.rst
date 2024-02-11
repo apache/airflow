@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-common-sql
+apache-airflow-providers-common-sql package
 ------------------------------------------------------
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
@@ -81,15 +81,15 @@ Release: 1.10.1
 Provider package
 ----------------
 
-This is a provider package for ``common.sql`` provider. All classes for this provider package
-are in ``airflow.providers.common.sql`` python package.
+This package is for the ``common.sql`` provider.
+All classes for this package are included in the ``airflow.providers.common.sql`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-common-sql``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-common-sql``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -101,6 +101,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``sqlparse``        ``>=0.4.2``
+``packaging``       ``>=22.0``
 ==================  ==================
 
 Cross provider package dependencies

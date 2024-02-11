@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-drill
+apache-airflow-providers-apache-drill package
 ------------------------------------------------------
 
 `Apache Drill <https://drill.apache.org/>`__.
@@ -81,15 +81,15 @@ Release: 2.6.0
 Provider package
 ----------------
 
-This is a provider package for ``apache.drill`` provider. All classes for this provider package
-are in ``airflow.providers.apache.drill`` python package.
+This package is for the ``apache.drill`` provider.
+All classes for this package are included in the ``airflow.providers.apache.drill`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-drill``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-drill``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -102,6 +102,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``sqlalchemy-drill``                     ``>=1.1.0``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

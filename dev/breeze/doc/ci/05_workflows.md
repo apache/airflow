@@ -85,7 +85,7 @@ CI/CD scripts or changes to the CI/CD workflows). In this case the PR is
 run in the context of the "apache/airflow" repository and has WRITE
 access to the GitHub Container Registry.
 
-When the PR changes important files (for example `generated/provider_depdencies.json` or
+When the PR changes important files (for example `generated/provider_dependencies.json` or
 `pyproject.toml`), the PR is run in "upgrade to newer dependencies" mode - where instead
 of using constraints to build images, attempt is made to upgrade all dependencies to latest
 versions and build images with them. This way we check how Airflow behaves when the

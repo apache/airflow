@@ -22,7 +22,7 @@ description: |
     `Asana <https://asana.com/>`__
 
 state: ready
-source-date-epoch: 1703288118
+source-date-epoch: 1707666247
 versions:
   - 2.4.1
   - 2.4.0

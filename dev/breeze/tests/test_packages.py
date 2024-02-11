@@ -165,6 +165,7 @@ def test_get_install_requirements():
         == """
     "apache-airflow>=2.6.0",
     "asana>=0.10,<4.0.0",
+    "packaging>=22.0",
 """.strip()
     )
 

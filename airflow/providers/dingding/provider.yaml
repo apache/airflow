@@ -22,7 +22,7 @@ description: |
     `DingTalk <https://www.dingtalk.com/>`__
 
 state: ready
-source-date-epoch: 1703288128
+source-date-epoch: 1707666260
 versions:
   - 3.4.0
   - 3.3.0

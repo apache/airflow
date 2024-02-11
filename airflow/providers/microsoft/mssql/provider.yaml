@@ -22,7 +22,7 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 state: ready
-source-date-epoch: 1703288147
+source-date-epoch: 1707666282
 versions:
   - 3.6.0
   - 3.5.0

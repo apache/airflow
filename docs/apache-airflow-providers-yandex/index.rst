@@ -73,10 +73,12 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-yandex
+apache-airflow-providers-yandex package
 ------------------------------------------------------
 
-Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
+This package is for Yandex, including:
+
+    - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
 Release: 3.8.0
@@ -84,15 +86,15 @@ Release: 3.8.0
 Provider package
 ----------------
 
-This is a provider package for ``yandex`` provider. All classes for this provider package
-are in ``airflow.providers.yandex`` python package.
+This package is for the ``yandex`` provider.
+All classes for this package are included in the ``airflow.providers.yandex`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-yandex``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-yandex``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -104,4 +106,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``yandexcloud``     ``>=0.228.0``
+``packaging``       ``>=22.0``
 ==================  ==================

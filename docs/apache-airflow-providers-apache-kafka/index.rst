@@ -76,26 +76,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-kafka
+apache-airflow-providers-apache-kafka package
 ------------------------------------------------------
 
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.4.0
+Release: 1.3.1
 
 Provider package
 ----------------
 
-This is a provider package for ``apache.kafka`` provider. All classes for this provider package
-are in ``airflow.providers.apache.kafka`` python package.
+This package is for the ``apache.kafka`` provider.
+All classes for this package are included in the ``airflow.providers.apache.kafka`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-kafka``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-kafka``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -108,4 +108,5 @@ PIP package          Version required
 ``apache-airflow``   ``>=2.6.0``
 ``asgiref``
 ``confluent-kafka``  ``>=1.8.2``
+``packaging``        ``>=22.0``
 ===================  ==================

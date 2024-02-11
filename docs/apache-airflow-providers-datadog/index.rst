@@ -62,7 +62,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-datadog
+apache-airflow-providers-datadog package
 ------------------------------------------------------
 
 `Datadog <https://www.datadoghq.com/>`__
@@ -73,15 +73,15 @@ Release: 3.5.1
 Provider package
 ----------------
 
-This is a provider package for ``datadog`` provider. All classes for this provider package
-are in ``airflow.providers.datadog`` python package.
+This package is for the ``datadog`` provider.
+All classes for this package are included in the ``airflow.providers.datadog`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-datadog``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-datadog``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -93,4 +93,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``datadog``         ``>=0.14.0``
+``packaging``       ``>=22.0``
 ==================  ==================

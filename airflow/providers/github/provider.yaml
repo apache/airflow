@@ -29,7 +29,7 @@ dependencies:
   - PyGithub!=1.58
 
 state: ready
-source-date-epoch: 1703288136
+source-date-epoch: 1707666268
 versions:
   - 2.5.1
   - 2.5.0

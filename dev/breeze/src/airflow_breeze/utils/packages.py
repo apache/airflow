@@ -22,6 +22,7 @@ import json
 import os
 import subprocess
 import sys
+from copy import copy
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
@@ -218,7 +219,9 @@ def get_not_ready_provider_ids() -> list[str]:
 
 def get_provider_requirements(provider_id: str) -> list[str]:
     package_metadata = get_provider_packages_metadata().get(provider_id)
-    return package_metadata["dependencies"] if package_metadata else []
+    deps = copy(package_metadata["dependencies"]) if package_metadata else []
+    deps.append("packaging>=22.0")
+    return deps
 
 
 @lru_cache

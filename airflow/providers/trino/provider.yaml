@@ -22,7 +22,7 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1705912304
+source-date-epoch: 1707666320
 versions:
   - 5.6.1
   - 5.6.0

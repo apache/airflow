@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-dingding
+apache-airflow-providers-dingding package
 ------------------------------------------------------
 
 `DingTalk <https://www.dingtalk.com/>`__
@@ -81,15 +81,15 @@ Release: 3.4.0
 Provider package
 ----------------
 
-This is a provider package for ``dingding`` provider. All classes for this provider package
-are in ``airflow.providers.dingding`` python package.
+This package is for the ``dingding`` provider.
+All classes for this package are included in the ``airflow.providers.dingding`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-dingding``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-dingding``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -101,6 +101,7 @@ PIP package                        Version required
 =================================  ==================
 ``apache-airflow``                 ``>=2.6.0``
 ``apache-airflow-providers-http``
+``packaging``                      ``>=22.0``
 =================================  ==================
 
 Cross provider package dependencies

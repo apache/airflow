@@ -55,7 +55,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-exasol
+apache-airflow-providers-exasol package
 ------------------------------------------------------
 
 `Exasol <https://www.exasol.com/>`__
@@ -66,15 +66,15 @@ Release: 4.4.2
 Provider package
 ----------------
 
-This is a provider package for ``exasol`` provider. All classes for this provider package
-are in ``airflow.providers.exasol`` python package.
+This package is for the ``exasol`` provider.
+All classes for this package are included in the ``airflow.providers.exasol`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-exasol``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-exasol``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -88,6 +88,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``pyexasol``                             ``>=0.5.1``
 ``pandas``                               ``>=1.2.5``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

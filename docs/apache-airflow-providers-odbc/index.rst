@@ -57,7 +57,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-odbc
+apache-airflow-providers-odbc package
 ------------------------------------------------------
 
 `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
@@ -68,15 +68,15 @@ Release: 4.4.1
 Provider package
 ----------------
 
-This is a provider package for ``odbc`` provider. All classes for this provider package
-are in ``airflow.providers.odbc`` python package.
+This package is for the ``odbc`` provider.
+All classes for this package are included in the ``airflow.providers.odbc`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-odbc``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-odbc``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -89,6 +89,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``pyodbc``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

@@ -23,7 +23,7 @@
 #
 from __future__ import annotations
 
-import packaging.version
+from packaging.version import Version
 
 __all__ = ["__version__"]
 
@@ -34,9 +34,7 @@ try:
 except ImportError:
     from airflow.version import version as airflow_version
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.6.0"
-):
+if Version(Version(airflow_version).base_version) < Version("2.6.0"):
     raise RuntimeError(
         f"The package `apache-airflow-providers-telegram:{__version__}` needs Apache Airflow 2.6.0+"
     )

@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-http
+apache-airflow-providers-http package
 ------------------------------------------------------
 
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
@@ -82,15 +82,15 @@ Release: 4.9.0
 Provider package
 ----------------
 
-This is a provider package for ``http`` provider. All classes for this provider package
-are in ``airflow.providers.http`` python package.
+This package is for the ``http`` provider.
+All classes for this package are included in the ``airflow.providers.http`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-http``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-http``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -103,6 +103,7 @@ PIP package            Version required
 ``apache-airflow``     ``>=2.6.0``
 ``requests``           ``>=2.26.0``
 ``requests_toolbelt``
-``aiohttp``
+``aiohttp``            ``>=3.9.2``
 ``asgiref``
+``packaging``          ``>=22.0``
 =====================  ==================

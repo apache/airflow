@@ -72,26 +72,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-opsgenie
+apache-airflow-providers-opsgenie package
 ------------------------------------------------------
 
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
 
 
-Release: 5.6.0
+Release: 5.5.0
 
 Provider package
 ----------------
 
-This is a provider package for ``opsgenie`` provider. All classes for this provider package
-are in ``airflow.providers.opsgenie`` python package.
+This package is for the ``opsgenie`` provider.
+All classes for this package are included in the ``airflow.providers.opsgenie`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-opsgenie``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-opsgenie``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -103,4 +103,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``opsgenie-sdk``    ``>=2.1.5``
+``packaging``       ``>=22.0``
 ==================  ==================

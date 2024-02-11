@@ -73,7 +73,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-pgvector
+apache-airflow-providers-pgvector package
 ------------------------------------------------------
 
 `pgvector <https://github.com/pgvector/pgvector>`__
@@ -84,15 +84,15 @@ Release: 1.1.0
 Provider package
 ----------------
 
-This is a provider package for ``pgvector`` provider. All classes for this provider package
-are in ``airflow.providers.pgvector`` python package.
+This package is for the ``pgvector`` provider.
+All classes for this package are included in the ``airflow.providers.pgvector`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-pgvector``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-pgvector``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -105,6 +105,7 @@ PIP package                            Version required
 ``apache-airflow``                     ``>=2.6.0``
 ``apache-airflow-providers-postgres``  ``>=5.7.1``
 ``pgvector``                           ``>=0.2.3``
+``packaging``                          ``>=22.0``
 =====================================  ==================
 
 Cross provider package dependencies

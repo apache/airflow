@@ -22,7 +22,7 @@ description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
 state: ready
-source-date-epoch: 1703288154
+source-date-epoch: 1707666291
 versions:
   - 3.4.0
   - 3.3.0
