@@ -21,7 +21,7 @@ import abc
 import enum
 import logging
 import sys
-from io import IOBase
+from io import TextIOBase
 from logging import Handler, StreamHandler
 from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, cast
 
@@ -147,18 +147,27 @@ class ExternalLoggingMixin:
 
 # We have to ignore typing errors here because Python I/O classes are a mess, and they do not
 # have the same type hierarchy defined as the `typing.IO` - they violate Liskov Substitution Principle
-# While it is ok to make your class derive from IOBase (and its good thing to do as they provide
+# While it is ok to make your class derive from TextIOBase (and its good thing to do as they provide
 # base implementation for IO-implementing classes, it's impossible to make them work with
 # IO generics (and apparently it has not even been intended)
 # See more: https://giters.com/python/typeshed/issues/6077
-class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
+class StreamLogWriter(TextIOBase, IO[str]):  # type: ignore[misc]
     """
     Allows to redirect stdout and stderr to logger.
 
-    :param log: The log level method to write to, ie. log.debug, log.warning
+    :param logger: The logging.Logger instance to write to
+    :param level: The log level method to write to, ie. logging.DEBUG, logging.WARNING
     """
 
-    encoding: None = None
+    encoding = "None"
+
+    @property
+    def mode(self):
+        return "w"
+
+    @property
+    def name(self):
+        return "<logger>"
 
     def __init__(self, logger, level):
         self.logger = logger
@@ -193,11 +202,14 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
         :param message: message to log
         """
-        if not message.endswith("\n"):
-            self._buffer += message
-        else:
-            self._buffer += message.rstrip()
+        newline = message.endswith("\n")
+        result = message.rstrip() if newline else message
+
+        self._buffer += result
+        if newline:
             self.flush()
+
+        return len(result)
 
     def flush(self):
         """Ensure all logging output has been flushed."""
