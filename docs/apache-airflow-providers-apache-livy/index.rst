@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-livy
+apache-airflow-providers-apache-livy package
 ------------------------------------------------------
 
 `Apache Livy <https://livy.apache.org/>`__
@@ -81,15 +81,15 @@ Release: 3.7.1
 Provider package
 ----------------
 
-This is a provider package for ``apache.livy`` provider. All classes for this provider package
-are in ``airflow.providers.apache.livy`` python package.
+This package is for the ``apache.livy`` provider.
+All classes for this package are included in the ``airflow.providers.apache.livy`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-livy``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-livy``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -101,8 +101,9 @@ PIP package                        Version required
 =================================  ==================
 ``apache-airflow``                 ``>=2.6.0``
 ``apache-airflow-providers-http``
-``aiohttp``
+``aiohttp``                        ``>=3.9.2``
 ``asgiref``
+``packaging``                      ``>=22.0``
 =================================  ==================
 
 Cross provider package dependencies

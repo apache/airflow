@@ -22,7 +22,7 @@ description: |
     `MySQL <https://www.mysql.com/>`__
 
 state: ready
-source-date-epoch: 1705912175
+source-date-epoch: 1707666287
 versions:
   - 5.5.2
   - 5.5.1

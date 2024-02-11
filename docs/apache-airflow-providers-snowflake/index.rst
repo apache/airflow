@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-snowflake
+apache-airflow-providers-snowflake package
 ------------------------------------------------------
 
 `Snowflake <https://www.snowflake.com/>`__
@@ -82,15 +82,15 @@ Release: 5.3.0
 Provider package
 ----------------
 
-This is a provider package for ``snowflake`` provider. All classes for this provider package
-are in ``airflow.providers.snowflake`` python package.
+This package is for the ``snowflake`` provider.
+All classes for this package are included in the ``airflow.providers.snowflake`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-snowflake``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-snowflake``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -104,6 +104,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``snowflake-connector-python``           ``>=2.7.8``
 ``snowflake-sqlalchemy``                 ``>=1.1.0``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

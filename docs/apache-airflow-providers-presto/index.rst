@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-presto
+apache-airflow-providers-presto package
 ------------------------------------------------------
 
 `Presto <https://prestodb.io/>`__
@@ -81,15 +81,15 @@ Release: 5.4.1
 Provider package
 ----------------
 
-This is a provider package for ``presto`` provider. All classes for this provider package
-are in ``airflow.providers.presto`` python package.
+This package is for the ``presto`` provider.
+All classes for this package are included in the ``airflow.providers.presto`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-presto``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-presto``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -103,6 +103,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``presto-python-client``                 ``>=0.8.4``
 ``pandas``                               ``>=1.2.5``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

@@ -65,26 +65,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-tabular
+apache-airflow-providers-tabular package
 ------------------------------------------------------
 
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.5.0
+Release: 1.4.1
 
 Provider package
 ----------------
 
-This is a provider package for ``tabular`` provider. All classes for this provider package
-are in ``airflow.providers.tabular`` python package.
+This package is for the ``tabular`` provider.
+All classes for this package are included in the ``airflow.providers.tabular`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-tabular``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-tabular``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -95,4 +95,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
+``packaging``       ``>=22.0``
 ==================  ==================

@@ -62,26 +62,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-ssh
+apache-airflow-providers-ssh package
 ------------------------------------------------------
 
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 3.11.0
+Release: 3.10.0
 
 Provider package
 ----------------
 
-This is a provider package for ``ssh`` provider. All classes for this provider package
-are in ``airflow.providers.ssh`` python package.
+This package is for the ``ssh`` provider.
+All classes for this package are included in the ``airflow.providers.ssh`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-ssh``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-ssh``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -94,4 +94,5 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.6.0``
 ``paramiko``        ``>=2.6.0``
 ``sshtunnel``       ``>=0.3.2``
+``packaging``       ``>=22.0``
 ==================  ==================

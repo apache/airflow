@@ -51,7 +51,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-celery
+apache-airflow-providers-celery package
 ------------------------------------------------------
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
@@ -62,15 +62,15 @@ Release: 3.5.2
 Provider package
 ----------------
 
-This is a provider package for ``celery`` provider. All classes for this provider package
-are in ``airflow.providers.celery`` python package.
+This package is for the ``celery`` provider.
+All classes for this package are included in the ``airflow.providers.celery`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-celery``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-celery``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -84,6 +84,7 @@ PIP package         Version required
 ``celery``          ``>=5.3.0,!=5.3.2,!=5.3.3,<6``
 ``flower``          ``>=1.0.0``
 ``google-re2``      ``>=1.0``
+``packaging``       ``>=22.0``
 ==================  ==============================
 
 Cross provider package dependencies

@@ -64,7 +64,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-oracle
+apache-airflow-providers-oracle package
 ------------------------------------------------------
 
 `Oracle <https://www.oracle.com/en/database/>`__
@@ -75,15 +75,15 @@ Release: 3.9.1
 Provider package
 ----------------
 
-This is a provider package for ``oracle`` provider. All classes for this provider package
-are in ``airflow.providers.oracle`` python package.
+This package is for the ``oracle`` provider.
+All classes for this package are included in the ``airflow.providers.oracle`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-oracle``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-oracle``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -96,6 +96,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``oracledb``                             ``>=1.0.0``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

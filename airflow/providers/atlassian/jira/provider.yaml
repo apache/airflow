@@ -22,7 +22,7 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/software/jira/>`__
 
 state: ready
-source-date-epoch: 1705911955
+source-date-epoch: 1707666248
 versions:
   - 2.5.1
   - 2.5.0

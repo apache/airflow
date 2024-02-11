@@ -22,7 +22,7 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 state: ready
-source-date-epoch: 1703288143
+source-date-epoch: 1707666278
 versions:
   - 4.2.1
   - 4.2.0

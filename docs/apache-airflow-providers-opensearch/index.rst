@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-opensearch
+apache-airflow-providers-opensearch package
 ------------------------------------------------------
 
 `OpenSearch <https://opensearch.org/>`__
@@ -81,15 +81,15 @@ Release: 1.1.1
 Provider package
 ----------------
 
-This is a provider package for ``opensearch`` provider. All classes for this provider package
-are in ``airflow.providers.opensearch`` python package.
+This package is for the ``opensearch`` provider.
+All classes for this package are included in the ``airflow.providers.opensearch`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-opensearch``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-opensearch``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -101,4 +101,5 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``opensearch-py``   ``>=2.2.0``
+``packaging``       ``>=22.0``
 ==================  ==================

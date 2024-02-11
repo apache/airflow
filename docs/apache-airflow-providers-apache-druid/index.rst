@@ -70,7 +70,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-druid
+apache-airflow-providers-apache-druid package
 ------------------------------------------------------
 
 `Apache Druid <https://druid.apache.org/>`__.
@@ -81,15 +81,15 @@ Release: 3.8.0
 Provider package
 ----------------
 
-This is a provider package for ``apache.druid`` provider. All classes for this provider package
-are in ``airflow.providers.apache.druid`` python package.
+This package is for the ``apache.druid`` provider.
+All classes for this package are included in the ``airflow.providers.apache.druid`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-druid``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-druid``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -102,6 +102,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``pydruid``                              ``>=0.4.1``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

@@ -63,26 +63,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-pinot
+apache-airflow-providers-apache-pinot package
 ------------------------------------------------------
 
 `Apache Pinot <https://pinot.apache.org/>`__
 
 
-Release: 4.4.0
+Release: 4.3.0
 
 Provider package
 ----------------
 
-This is a provider package for ``apache.pinot`` provider. All classes for this provider package
-are in ``airflow.providers.apache.pinot`` python package.
+This package is for the ``apache.pinot`` provider.
+All classes for this package are included in the ``airflow.providers.apache.pinot`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-pinot``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-pinot``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -95,6 +95,7 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``pinotdb``                              ``>0.4.7``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies
@@ -122,5 +123,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-pinot 4.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.4.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-pinot 4.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.4.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-pinot 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-pinot-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-pinot 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_pinot-4.3.0-py3-none-any.whl.sha512>`__)

@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-mysql
+apache-airflow-providers-mysql package
 ------------------------------------------------------
 
 `MySQL <https://www.mysql.com/>`__
@@ -82,15 +82,15 @@ Release: 5.5.2
 Provider package
 ----------------
 
-This is a provider package for ``mysql`` provider. All classes for this provider package
-are in ``airflow.providers.mysql`` python package.
+This package is for the ``mysql`` provider.
+All classes for this package are included in the ``airflow.providers.mysql`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-mysql``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-mysql``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -104,6 +104,7 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``mysqlclient``                          ``>=1.3.6``
 ``mysql-connector-python``               ``>=8.0.29``
+``packaging``                            ``>=22.0``
 =======================================  ==================
 
 Cross provider package dependencies

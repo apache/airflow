@@ -73,7 +73,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-common-io
+apache-airflow-providers-common-io package
 ------------------------------------------------------
 
 ``Common IO Provider``
@@ -84,15 +84,15 @@ Release: 1.2.0
 Provider package
 ----------------
 
-This is a provider package for ``common.io`` provider. All classes for this provider package
-are in ``airflow.providers.common.io`` python package.
+This package is for the ``common.io`` provider.
+All classes for this package are included in the ``airflow.providers.common.io`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-common-io``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-common-io``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -103,6 +103,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.8.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.8.0``
+``packaging``       ``>=22.0``
 ==================  ==================
 
 Cross provider package dependencies

@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-databricks
+apache-airflow-providers-databricks package
 ------------------------------------------------------
 
 `Databricks <https://databricks.com/>`__
@@ -82,15 +82,15 @@ Release: 6.1.0
 Provider package
 ----------------
 
-This is a provider package for ``databricks`` provider. All classes for this provider package
-are in ``airflow.providers.databricks`` python package.
+This package is for the ``databricks`` provider.
+All classes for this package are included in the ``airflow.providers.databricks`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-databricks``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-databricks``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -104,7 +104,8 @@ PIP package                              Version required
 ``apache-airflow-providers-common-sql``  ``>=1.10.0``
 ``requests``                             ``>=2.27,<3``
 ``databricks-sql-connector``             ``>=2.0.0,!=2.9.0,<3.0.0``
-``aiohttp``                              ``>=3.6.3,<4``
+``aiohttp``                              ``>=3.9.2,<4``
+``packaging``                            ``>=22.0``
 =======================================  ==========================
 
 Cross provider package dependencies
