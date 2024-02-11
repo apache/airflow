@@ -66,9 +66,8 @@ class FacebookAdsReportingHook(BaseHook):
         self,
         facebook_conn_id: str = default_conn_name,
         api_version: str | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.facebook_conn_id = facebook_conn_id
         self.api_version = api_version
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]

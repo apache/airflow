@@ -95,7 +95,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `<TESTING.rst#airflow-integration-tests>`_.
+as described in `<../../../contributing-docs/testing/integration-tests.rst>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one
@@ -125,5 +125,6 @@ For automation scripts, you can export the ``ANSWER`` variable (and set it to
 
   export ANSWER="yes"
 
+------
 
 Next step: Follow the `Developer tasks <03_developer_tasks.rst>`_ guide to learn how to use Breeze for regular development tasks.

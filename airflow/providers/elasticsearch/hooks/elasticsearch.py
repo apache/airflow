@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
 
+from deprecated import deprecated
 from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -138,6 +138,10 @@ class ElasticsearchSQLHook(DbApiHook):
         return uri
 
 
+@deprecated(
+    reason="Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
@@ -146,12 +150,6 @@ class ElasticsearchHook(ElasticsearchSQLHook):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
         super().__init__(*args, **kwargs)
 
 
@@ -164,8 +162,8 @@ class ElasticsearchPythonHook(BaseHook):
                                 Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
     """
 
-    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
+        super().__init__()
         self.hosts = hosts
         self.es_conn_args = es_conn_args or {}
 

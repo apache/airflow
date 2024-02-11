@@ -19,10 +19,11 @@
 from __future__ import annotations
 
 import time
-import warnings
 from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -132,18 +133,24 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
     if operator.wait_for_termination:
-        operator.defer(
-            trigger=DatabricksExecutionTrigger(
-                run_id=operator.run_id,
-                databricks_conn_id=operator.databricks_conn_id,
-                polling_period_seconds=operator.polling_period_seconds,
-                retry_limit=operator.databricks_retry_limit,
-                retry_delay=operator.databricks_retry_delay,
-                retry_args=operator.databricks_retry_args,
-                run_page_url=run_page_url,
-            ),
-            method_name=DEFER_METHOD_NAME,
-        )
+        run_info = hook.get_run(operator.run_id)
+        run_state = RunState(**run_info["state"])
+        if not run_state.is_terminal:
+            operator.defer(
+                trigger=DatabricksExecutionTrigger(
+                    run_id=operator.run_id,
+                    databricks_conn_id=operator.databricks_conn_id,
+                    polling_period_seconds=operator.polling_period_seconds,
+                    retry_limit=operator.databricks_retry_limit,
+                    retry_delay=operator.databricks_retry_delay,
+                    retry_args=operator.databricks_retry_args,
+                    run_page_url=run_page_url,
+                ),
+                method_name=DEFER_METHOD_NAME,
+            )
+        else:
+            if run_state.is_successful:
+                log.info("%s completed successfully.", operator.task_id)
 
 
 def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
@@ -556,17 +563,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
         _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
+@deprecated(
+    reason=(
+        "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
+        "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` "
+        "with `deferrable=True` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
     """Deferrable version of ``DatabricksSubmitRunOperator``."""
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
-            "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` with "
-            "`deferrable=True` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, *args, **kwargs)
 
     def execute(self, context):
@@ -836,15 +844,16 @@ class DatabricksRunNowOperator(BaseOperator):
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
 
+@deprecated(
+    reason=(
+        "`DatabricksRunNowDeferrableOperator` has been deprecated. "
+        "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` "
+        "with `deferrable=True` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
     """Deferrable version of ``DatabricksRunNowOperator``."""
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "`DatabricksRunNowDeferrableOperator` has been deprecated. "
-            "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` with "
-            "`deferrable=True` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, *args, **kwargs)

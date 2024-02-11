@@ -218,6 +218,7 @@ pip-wheel-metadata
 
 # Generated UI licenses
 3rd-party-licenses/LICENSES-ui.txt
+licenses/LICENSES-ui.txt
 
 # Packaged breeze on Windows
 /breeze.exe

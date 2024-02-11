@@ -105,11 +105,11 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.22.8
+    tag: v0.26.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bullseye
+    tag: 7-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
@@ -790,6 +790,7 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  enabled: true
   #  hostAliases for the scheduler pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1150,6 +1151,7 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  enabled: true
   # Add custom annotations to the webserver configmap
   configMapAnnotations: {}
   #  hostAliases for the webserver pod

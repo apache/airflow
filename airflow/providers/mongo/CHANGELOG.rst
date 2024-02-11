@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Introduced the allow_insecure flag in the extras field of for the MongoDB connection. This flag allows users to control
+whether insecure connections are permitted when using SSL encryption. By default, the allow_insecure flag is
+set to False. This means that when SSL encryption is enabled (ssl=True), insecure connections are not allowed unless
+explicitly specified by the user.
+
 3.6.0
 .....
 
@@ -34,7 +45,6 @@ Features
 ~~~~~~~~
 
 * ``Switch to 'mongo_conn_id' argument into the MongoHook constructor (#36896)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -43,6 +53,9 @@ Features
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 3.5.0
 .....

@@ -52,6 +52,7 @@ const mockNode: NodeProps<CustomNodeProps> = {
     latestDagRunId: "run_id",
     onToggleCollapse: () => {},
     isActive: true,
+    isZoomedOut: false,
   },
   selected: false,
   zIndex: 0,
@@ -109,7 +110,6 @@ describe("Test Graph Node", () => {
 
     expect(getByText("success")).toBeInTheDocument();
     expect(getByText("task_id")).toBeInTheDocument();
-    expect(getByText("+ 5 tasks")).toBeInTheDocument();
   });
 
   test("Renders normal task correctly", async () => {

@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 7.14.0
 ......
 
-Latest change: 2024-01-20
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`dd627d7f46 <https://github.com/apache/airflow/commit/dd627d7f4605d2918395b7e9ca9baaa62c9724d4>`_  2024-01-26   ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
+`d78a114aa0 <https://github.com/apache/airflow/commit/d78a114aa05bee0e02a09a43056827a03180844a>`_  2024-01-23   ``Increase tenacity wait in read_pod_logs (#36955)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `43d192543e <https://github.com/apache/airflow/commit/43d192543ee2faff8954b5052c9a68494ef79867>`_  2024-01-20   ``Template field support for configmaps in the KubernetesPodOperator (#36922)``
 `6dc53524a5 <https://github.com/apache/airflow/commit/6dc53524a50d38c9b74e83562cab6f2c63818de5>`_  2024-01-20   ``Create a generic callbacks class for KubernetesPodOperator (#35714)``
 `d3b4a91135 <https://github.com/apache/airflow/commit/d3b4a9113502a0f50669408e89f70947e4f3e87a>`_  2024-01-20   ``fix: Avoid retrying after KubernetesPodOperator has been marked as failed (#36749)``

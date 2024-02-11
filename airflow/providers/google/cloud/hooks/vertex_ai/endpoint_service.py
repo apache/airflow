@@ -47,7 +47,7 @@ class EndpointServiceHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_endpoint_service_client(self, region: str | None = None) -> EndpointServiceClient:
-        """Returns EndpointServiceClient."""
+        """Return EndpointServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -58,7 +58,7 @@ class EndpointServiceHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -67,12 +67,12 @@ class EndpointServiceHook(GoogleBaseHook):
 
     @staticmethod
     def extract_endpoint_id(obj: dict) -> str:
-        """Returns unique id of the endpoint."""
+        """Return unique id of the endpoint."""
         return obj["name"].rpartition("/")[-1]
 
     @staticmethod
     def extract_deployed_model_id(obj: dict) -> str:
-        """Returns unique id of the deploy model."""
+        """Return unique id of the deploy model."""
         return obj["deployed_model"]["id"]
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -87,7 +87,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Creates an Endpoint.
+        Create an Endpoint.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -124,7 +124,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes an Endpoint.
+        Delete an Endpoint.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -210,7 +210,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Endpoint:
         """
-        Gets an Endpoint.
+        Get an Endpoint.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -247,7 +247,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListEndpointsPager:
         """
-        Lists Endpoints in a Location.
+        List Endpoints in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -352,7 +352,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Endpoint:
         """
-        Updates an Endpoint.
+        Update an Endpoint.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

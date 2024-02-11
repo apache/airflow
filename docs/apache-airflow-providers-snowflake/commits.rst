@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.3.0
 .....
 
-Latest change: 2024-01-18
+Latest change: 2024-01-22
 
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `27dc7e80df <https://github.com/apache/airflow/commit/27dc7e80df3ecf5aa61718334f32a1d128b0125c>`_  2024-01-18   ``Optimize 'SnowflakeSqlApiOperator' execution in deferrable mode (#36850)``
 `6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
 `3dc99d8a28 <https://github.com/apache/airflow/commit/3dc99d8a285aaadeb83797e691c9f6ec93ff9c93>`_  2024-01-08   ``feat: Add openlineage support for CopyFromExternalStageToSnowflakeOperator (#36535)``

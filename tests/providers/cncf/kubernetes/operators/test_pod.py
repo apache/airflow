@@ -179,7 +179,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.arguments
         assert dag_id == ti.task.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == ti.task.configmaps[0]
+        assert dag_id == ti.task.env_from[0].config_map_ref.name
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
@@ -2049,8 +2049,13 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     # assert that it does not push the xcom
     ti_mock.xcom_push.assert_not_called()
 
-    # assert that the xcom are not extracted
-    mock_extract_xcom.assert_not_called()
+    if do_xcom_push:
+        # assert that the xcom are not extracted if do_xcom_push is Fale
+        mock_extract_xcom.assert_called_once()
+    else:
+        # but that it is extracted when do_xcom_push is true because the sidecare
+        # needs to be terminated
+        mock_extract_xcom.assert_not_called()
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3

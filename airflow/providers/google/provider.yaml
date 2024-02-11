@@ -93,7 +93,8 @@ dependencies:
   - gcsfs>=2023.10.0
   - google-ads>=22.1.0
   - google-analytics-admin
-  - google-api-core>=2.11.0
+  # Google-api-core 2.16.0 back-compat issue: https://github.com/googleapis/python-api-core/issues/576
+  - google-api-core>=2.11.0,!=2.16.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
@@ -976,6 +977,9 @@ triggers:
   - integration-name: Google Cloud
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_batch
+  - integration-name: Google Vertex AI
+    python-modules:
+      - airflow.providers.google.cloud.triggers.vertex_ai
 
 transfers:
   - source-integration-name: Presto

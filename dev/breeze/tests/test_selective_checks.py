@@ -38,6 +38,9 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
 
+# commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
+NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
+
 
 def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
@@ -426,7 +429,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("pyproject.toml",),
+                ("generated/provider_dependencies.json",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
                     "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
@@ -587,9 +590,107 @@ def test_expected_output_pull_request_main(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, commit_ref, expected_outputs",
+    [
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
+                {
+                    "full-tests-needed": "false",
+                },
+                id="No full tests needed when pyproject.toml changes in insignificant way",
+            )
+        ),
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when only dependencies change in pyproject.toml",
+            )
+        ),
+        (
+            pytest.param(
+                ("pyproject.toml",),
+                "c381fdaff42bbda480eee70fb15c5b26a2a3a77d",
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when build-system changes in pyproject.toml",
+            )
+        ),
+    ],
+)
+def test_full_test_needed_when_pyproject_toml_changes(
+    files: tuple[str, ...], commit_ref: str, expected_outputs: dict[str, str]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=commit_ref,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs",
+    [
+        (
+            pytest.param(
+                ("scripts/ci/pre_commit/file.sh",),
+                {
+                    "full-tests-needed": "false",
+                },
+                id="No full tests needed when pre-commit scripts change",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/docker-compose/test.yml",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when docker-compose changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/ci/kubernetes/some_file.txt",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when ci/kubernetes changes",
+            )
+        ),
+        (
+            pytest.param(
+                ("scripts/in_container/script.sh",),
+                {
+                    "full-tests-needed": "true",
+                },
+                id="Full tests needed when in_container script changes",
+            )
+        ),
+    ],
+)
+def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        github_event=GithubEvents.PULL_REQUEST,
+        commit_ref=NEUTRAL_COMMIT,
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
@@ -698,7 +799,7 @@ def test_expected_output_pull_request_main(
                     "docs-build": "true",
                     "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
-                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers",
+                    "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always BranchExternalPython "
@@ -721,7 +822,7 @@ def test_expected_output_full_tests_needed(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
         default_branch=default_branch,
@@ -744,9 +845,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "false",
                 "docs-list-as-string": None,
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,"
-                "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
-                "mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
@@ -773,9 +871,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,"
-                "check-provider-yaml-valid,identity,lint-helm-chart,"
-                "mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -806,7 +901,6 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "true",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -835,7 +929,6 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
                 "CLI Core ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW",
                 "needs-mypy": "true",
@@ -852,7 +945,7 @@ def test_expected_output_pull_request_v2_7(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="v2-7-stable",
@@ -1020,7 +1113,7 @@ def test_expected_output_pull_request_target(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST_TARGET,
         pr_labels=(),
         default_branch="main",
@@ -1066,7 +1159,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers",
+                "skip-pre-commits": "check-airflow-provider-compatibility,check-extra-packages-references,check-provider-yaml-valid,identity,lint-helm-chart,mypy-core,mypy-dev,mypy-docs,mypy-providers,validate-operators-init",
                 "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "API Always BranchExternalPython BranchPythonVenv "
@@ -1109,7 +1202,7 @@ def test_expected_output_push(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PUSH,
         pr_labels=pr_labels,
         default_branch=default_branch,
@@ -1157,7 +1250,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs, pr_labels",
+    "files, expected_outputs, pr_labels, commit_ref",
     [
         pytest.param(
             ("airflow/models/dag.py",),
@@ -1165,7 +1258,18 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "false",
             },
             (),
+            None,
             id="Regular source changed",
+        ),
+        pytest.param(
+            ("pyproject.toml",),
+            {
+                "upgrade-to-newer-dependencies": "false",
+            },
+            (),
+            # In this commit only ruff configuration changed
+            "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
+            id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
             ("pyproject.toml",),
@@ -1173,7 +1277,17 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             (),
-            id="pyproject.toml changed",
+            "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
+            id="pyproject.toml changed with optional dependencies changed",
+        ),
+        pytest.param(
+            ("pyproject.toml",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            (),
+            "74baebe5e774ac575fe3a49291996473b1daa789",
+            id="pyproject.toml changed with core dependencies changed",
         ),
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
@@ -1181,6 +1295,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "false",
             },
             (),
+            None,
             id="Provider.yaml changed",
         ),
         pytest.param(
@@ -1189,6 +1304,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             (),
+            "None",
             id="Generated provider_dependencies changed",
         ),
         pytest.param(
@@ -1197,16 +1313,20 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
                 "upgrade-to-newer-dependencies": "true",
             },
             ("upgrade to newer dependencies",),
+            None,
             id="Regular source changed",
         ),
     ],
 )
 def test_upgrade_to_newer_dependencies(
-    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str, ...]
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
+    pr_labels: tuple[str, ...],
+    commit_ref: str | None,
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=commit_ref,
         github_event=GithubEvents.PULL_REQUEST,
         default_branch="main",
         pr_labels=pr_labels,
@@ -1319,7 +1439,7 @@ def test_upgrade_to_newer_dependencies(
 def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
@@ -1344,7 +1464,7 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="main",
@@ -1581,7 +1701,7 @@ def test_runs_on(
             id="No migrations",
         ),
         pytest.param(
-            ("airflow/migrations/test_sql", "aiflow/test.py"),
+            ("airflow/migrations/test_sql", "airflow/test.py"),
             True,
             id="With migrations",
         ),
@@ -1591,7 +1711,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
     stderr = str(
         SelectiveChecks(
             files=files,
-            commit_ref="HEAD",
+            commit_ref=NEUTRAL_COMMIT,
             github_event=GithubEvents.PULL_REQUEST,
             default_branch="main",
         )
@@ -1625,7 +1745,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs: dict[str, str]):
     stderr = SelectiveChecks(
         files=(),
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=labels,
         default_branch="main",
@@ -1713,8 +1833,57 @@ def test_mypy_matches(
 ):
     stderr = SelectiveChecks(
         files=files,
-        commit_ref="HEAD",
+        commit_ref=NEUTRAL_COMMIT,
         default_branch=default_branch,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs, github_actor, pr_labels",
+    [
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "false",
+                "runs-on": '["ubuntu-22.04"]',
+            },
+            "",
+            (),
+            id="Regular pr",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "true",
+                "runs-on": '["self-hosted", "Linux", "X64"]',
+            },
+            "potiuk",
+            (),
+            id="Committer regular PR",
+        ),
+        pytest.param(
+            ("README.md",),
+            {
+                "is-committer-build": "false",
+                "runs-on": '["self-hosted", "Linux", "X64"]',
+            },
+            "potiuk",
+            ("non committer build",),
+            id="Committer regular PR - forcing non-committer build",
+        ),
+    ],
+)
+def test_pr_labels(
+    files: tuple[str, ...], expected_outputs: dict[str, str], github_actor: str, pr_labels: tuple[str, ...]
+):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        default_branch="main",
+        github_actor=github_actor,
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
     )

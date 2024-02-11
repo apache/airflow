@@ -23,6 +23,7 @@ import pytest
 
 from airflow.decorators import setup, task, teardown
 from airflow.models.baseoperator import BaseOperator
+from airflow.operators.empty import EmptyOperator
 
 pytestmark = pytest.mark.db_test
 
@@ -215,3 +216,118 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
             ValueError, match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown."
         ):
             m.operator.is_setup = True
+
+
+class TestDependencyMixin:
+    def test_set_upstream(self, dag_maker):
+        with dag_maker("test_set_upstream"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_d << op_c << op_b << op_a
+
+        assert [op_a] == op_b.upstream_list
+        assert [op_b] == op_c.upstream_list
+        assert [op_c] == op_d.upstream_list
+
+    def test_set_downstream(self, dag_maker):
+        with dag_maker("test_set_downstream"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_a >> op_b >> op_c >> op_d
+
+        assert [op_a] == op_b.upstream_list
+        assert [op_b] == op_c.upstream_list
+        assert [op_c] == op_d.upstream_list
+
+    def test_set_upstream_list(self, dag_maker):
+        with dag_maker("test_set_upstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            [op_d, op_c << op_b] << op_a
+
+        assert [op_a] == op_b.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert [op_b] == op_c.upstream_list
+
+    def test_set_downstream_list(self, dag_maker):
+        with dag_maker("test_set_downstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_a >> [op_b >> op_c, op_d]
+
+        assert [] == op_b.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert {op_a, op_b} == set(op_c.upstream_list)
+
+    def test_set_upstream_inner_list(self, dag_maker):
+        with dag_maker("test_set_upstream_inner_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+        with pytest.raises(AttributeError) as e_info:
+            [op_d << [op_c, op_b]] << op_a
+
+        assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
+
+        assert [] == op_b.upstream_list
+        assert [] == op_c.upstream_list
+        assert {op_b, op_c} == set(op_d.upstream_list)
+
+    def test_set_downstream_inner_list(self, dag_maker):
+        with dag_maker("test_set_downstream_inner_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b = EmptyOperator(task_id="b")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_a >> [[op_b, op_c] >> op_d]
+
+        assert [] == op_b.upstream_list
+        assert [] == op_c.upstream_list
+        assert {op_b, op_c, op_a} == set(op_d.upstream_list)
+
+    def test_set_upstream_list_subarray(self, dag_maker):
+        with dag_maker("test_set_upstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b_1 = EmptyOperator(task_id="b_1")
+            op_b_2 = EmptyOperator(task_id="b_2")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+        with pytest.raises(AttributeError) as e_info:
+            [op_d, op_c << [op_b_1, op_b_2]] << op_a
+
+        assert str(e_info.value) == "'list' object has no attribute 'update_relative'"
+
+        assert [] == op_b_1.upstream_list
+        assert [] == op_b_2.upstream_list
+        assert [] == op_d.upstream_list
+        assert {op_b_1, op_b_2} == set(op_c.upstream_list)
+
+    def test_set_downstream_list_subarray(self, dag_maker):
+        with dag_maker("test_set_downstream_list"):
+            op_a = EmptyOperator(task_id="a")
+            op_b_1 = EmptyOperator(task_id="b_1")
+            op_b_2 = EmptyOperator(task_id="b2")
+            op_c = EmptyOperator(task_id="c")
+            op_d = EmptyOperator(task_id="d")
+
+            op_a >> [[op_b_1, op_b_2] >> op_c, op_d]
+
+        assert [] == op_b_1.upstream_list
+        assert [] == op_b_2.upstream_list
+        assert [op_a] == op_d.upstream_list
+        assert {op_a, op_b_1, op_b_2} == set(op_c.upstream_list)

@@ -20,13 +20,8 @@
 Changelog
 ---------
 
-1.2.0
+1.1.2
 .....
-
-Features
-~~~~~~~~
-
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 
 Misc
 ~~~~
@@ -37,6 +32,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 1.1.1
 .....

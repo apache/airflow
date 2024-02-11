@@ -23,7 +23,7 @@ import subprocess
 import sys
 import warnings
 from contextlib import ExitStack, suppress
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -584,7 +584,7 @@ def frozen_sleep(monkeypatch):
 
     def fake_sleep(seconds):
         nonlocal traveller
-        utcnow = datetime.utcnow()
+        utcnow = datetime.now(tz=timezone.utc)
         if traveller is not None:
             traveller.stop()
         traveller = time_machine.travel(utcnow + timedelta(seconds=seconds))

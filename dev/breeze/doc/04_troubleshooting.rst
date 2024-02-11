@@ -155,4 +155,6 @@ issue. You may try running the below commands in the same terminal and then try 
     set HTTP_PROXY=null
     set HTTPS_PROXY=null
 
+----
+
 Next step: Follow the `Test commands <05_test_commands.rst>`_ guide to running tests using Breeze.

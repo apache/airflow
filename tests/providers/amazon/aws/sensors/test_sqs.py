@@ -21,7 +21,7 @@ import json
 from unittest import mock
 
 import pytest
-from moto import mock_sqs
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -80,7 +80,7 @@ class TestSqsSensor:
         assert sensor.hook._config is not None
         assert sensor.hook._config.read_timeout == 42
 
-    @mock_sqs
+    @mock_aws
     def test_poke_success(self, mocked_context):
         self.sqs_client.create_queue(QueueName=QUEUE_NAME)
         self.sqs_client.send_message(QueueUrl=QUEUE_URL, MessageBody="hello")
@@ -96,7 +96,7 @@ class TestSqsSensor:
         xcom_value = call_kwargs["value"]
         assert xcom_value[0]["Body"] == "hello"
 
-    @mock_sqs
+    @mock_aws
     def test_poke_no_message(self, mocked_context):
         self.sqs_client.create_queue(QueueName=QUEUE_NAME)
 
@@ -157,7 +157,7 @@ class TestSqsSensor:
         ]
         mocked_client.assert_has_calls(calls_receive_message)
 
-    @mock_sqs
+    @mock_aws
     def test_poke_message_invalid_filtering(self):
         self.sqs_client.create_queue(QueueName=QUEUE_NAME)
         self.sqs_client.send_message(QueueUrl=QUEUE_URL, MessageBody="hello")
@@ -386,7 +386,7 @@ class TestSqsSensor:
         sensor.poke(mocked_context)
         assert mocked_client.delete_message_batch.called is False
 
-    @mock_sqs
+    @mock_aws
     def test_poke_batch_messages(self, mocked_context):
         messages = ["hello", "brave", "world"]
         self.sqs_client.create_queue(QueueName=QUEUE_NAME)

@@ -230,7 +230,7 @@ class KubernetesPodOperator(BaseOperator):
         "volumes",
         "volume_mounts",
         "cluster_context",
-        "configmaps",
+        "env_from",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -309,16 +309,18 @@ class KubernetesPodOperator(BaseOperator):
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.startup_check_interval_seconds = startup_check_interval_seconds
-        self.env_vars = convert_env_vars(env_vars) if env_vars else []
+        env_vars = convert_env_vars(env_vars) if env_vars else []
+        self.env_vars = env_vars
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
         self.env_from = env_from or []
-        self.configmaps = configmaps
-        if self.configmaps:
-            self.env_from.extend([convert_configmap(c) for c in self.configmaps])
+        if configmaps:
+            self.env_from.extend([convert_configmap(c) for c in configmaps])
         self.ports = [convert_port(p) for p in ports] if ports else []
-        self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
-        self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
+        volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
+        self.volume_mounts = volume_mounts
+        volumes = [convert_volume(volume) for volume in volumes] if volumes else []
+        self.volumes = volumes
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
@@ -419,6 +421,10 @@ class KubernetesPodOperator(BaseOperator):
             elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
             elif isinstance(content, k8s.V1ConfigMapVolumeSource):
+                template_fields = ("name",)
+            elif isinstance(content, k8s.V1EnvFromSource):
+                template_fields = ("config_map_ref",)
+            elif isinstance(content, k8s.V1ConfigMapEnvSource):
                 template_fields = ("name",)
             else:
                 template_fields = None
@@ -677,6 +683,10 @@ class KubernetesPodOperator(BaseOperator):
                     message = f"{event['message']}\n{event['stack_trace']}"
                 else:
                     message = event["message"]
+                if self.do_xcom_push:
+                    # In the event of base container failure, we need to kill the xcom sidecar.
+                    # We disregard xcom output and do that here
+                    _ = self.extract_xcom(pod=pod)
                 raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully

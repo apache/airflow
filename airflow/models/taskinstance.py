@@ -410,6 +410,17 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
+
+    def _execute_callable(context, **execute_callable_kwargs):
+        try:
+            return execute_callable(context=context, **execute_callable_kwargs)
+        except SystemExit as e:
+            # Handle only successful cases here. Failure cases will be handled upper
+            # in the exception chain.
+            if e.code is not None and e.code != 0:
+                raise
+            return None
+
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
     if task_to_execute.execution_timeout:
@@ -427,12 +438,12 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute_callable(context=context, **execute_callable_kwargs)
+                result = _execute_callable(context=context, **execute_callable_kwargs)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = execute_callable(context=context, **execute_callable_kwargs)
+        result = _execute_callable(context=context, **execute_callable_kwargs)
     with create_session() as session:
         if task_to_execute.do_xcom_push:
             xcom_value = result
@@ -450,7 +461,7 @@ def _refresh_from_db(
     *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
-    Refreshes the task instance from the database based on the primary key.
+    Refresh the task instance from the database based on the primary key.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -520,7 +531,7 @@ def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None
 
 def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
-    Returns task instance tags.
+    Return task instance tags.
 
     :param task_instance: the task instance
 
@@ -932,7 +943,7 @@ def _get_previous_dagrun(
     session: Session | None = None,
 ) -> DagRun | None:
     """
-    The DagRun that ran before this task instance's DagRun.
+    Return the DagRun that ran prior to this task instance's DagRun.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -972,7 +983,7 @@ def _get_previous_execution_date(
     session: Session,
 ) -> pendulum.DateTime | None:
     """
-    The execution date from property previous_ti_success.
+    Get execution date from property previous_ti_success.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -1167,7 +1178,7 @@ def _get_previous_ti(
     state: DagRunState | None = None,
 ) -> TaskInstance | TaskInstancePydantic | None:
     """
-    The task instance for the task that ran before this task instance.
+    Get task instance for the task that ran before this task instance.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -1421,6 +1432,18 @@ class TaskInstance(Base, LoggingMixin):
         This is designed so that task logs end up in the right file.
         """
         return _get_try_number(task_instance=self)
+
+    @try_number.expression
+    def try_number(cls):
+        """
+        Return the expression to be used by SQLAlchemy when filtering on try_number.
+
+        This is required because the override in the get_try_number function causes
+        try_number values to be off by one when listing tasks in the UI.
+
+        :meta private:
+        """
+        return cls._try_number
 
     @try_number.setter
     def try_number(self, value: int) -> None:
@@ -2393,6 +2416,13 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
+            except SystemExit as e:
+                # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
+                # Therefore, here we must handle only error codes.
+                msg = f"Task failed due to SystemExit({e.code})"
+                self.handle_failure(msg, test_mode, context, session=session)
+                session.commit()
+                raise Exception(msg)
             finally:
                 Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
                 # Same metric with tagging
@@ -3227,7 +3257,6 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     @internal_api_call
-    @Sentry.enrich_errors
     @provide_session
     def _schedule_downstream_tasks(
         cls,

@@ -27,13 +27,18 @@
 Changelog
 ---------
 
-6.5.0
+7.0.0
 .....
 
-Features
-~~~~~~~~
 
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* Remove the ability of specify a proxy user as an ``owner`` or ``login`` or ``as_param`` in the connection. Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_user`` to HiveHook will do the job.
+
+
+6.4.2
+.....
 
 
 Bug Fixes
@@ -50,6 +55,9 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 6.4.1
 .....

@@ -592,11 +592,15 @@ database:
       description: |
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
-        in connection string.
-        See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
+        in connection string. This can be set by passing a dictionary containing the create engine parameters.
+        For more details about passing create engine parameters(keepalives variables, timeout etc)
+        in postgres db connection see
+        https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database
+        e.g connect_args={"timeout":30} can be defined in airflow_local_settings.py and
+        can be imported as shown below
       version_added: 2.3.0
       type: string
-      example: '{"timeout": 30}'
+      example: 'airflow_local_settings.connect_args'
       default: ~
     load_default_connections:
       description: |
@@ -1073,22 +1077,23 @@ metrics:
       example: ~
       default: "False"
     otel_host:
-      description: ~
+      description: |
+        Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
+        metrics and traces.
       version_added: 2.6.0
       type: string
       example: ~
       default: "localhost"
     otel_port:
       description: |
-        Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
-        metrics and traces
+        Specifies the port of the OpenTelemetry Collector that is listening to.
       version_added: 2.6.0
       type: string
       example: ~
       default: "8889"
     otel_prefix:
       description: |
-        Specifies the port of the OpenTelemetry Collector that is listening to
+        The prefix for the Airflow metrics.
       version_added: 2.6.0
       type: string
       example: ~
@@ -1096,14 +1101,14 @@ metrics:
     otel_interval_milliseconds:
       description: |
         Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
-        to the configured OpenTelemetry Collector
+        to the configured OpenTelemetry Collector.
       version_added: 2.6.0
       type: integer
       example: ~
       default: "60000"
     otel_debugging_on:
       description: |
-        If True, all metrics are also emitted to the console.  Defaults to False.
+        If True, all metrics are also emitted to the console. Defaults to False.
       version_added: 2.7.0
       type: string
       example: ~
@@ -1388,9 +1393,9 @@ webserver:
       default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
-        The base url of your website as airflow cannot guess what domain or
-        cname you are using. This is used in automated emails that
-        airflow sends to point links to the right web server
+        The base url of your website: Airflow cannot guess what domain or CNAME you are using.
+        This is used to create links in the Log Url column in the Browse - Task Instances menu,
+        as well as in any automated emails sent by Airflow that contain links to your webserver.
       version_added: ~
       type: string
       example: ~

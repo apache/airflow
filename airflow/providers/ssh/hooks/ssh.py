@@ -27,6 +27,7 @@ from select import select
 from typing import Any, Sequence
 
 import paramiko
+from deprecated import deprecated
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
@@ -95,7 +96,7 @@ class SSHHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for SSH connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -118,9 +119,8 @@ class SSHHook(BaseHook):
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
         ciphers: list[str] | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
@@ -283,7 +283,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens an SSH connection to the remote host."""
+        """Establish an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -366,14 +366,15 @@ class SSHHook(BaseHook):
         self.client = client
         return client
 
-    def __enter__(self) -> SSHHook:
-        warnings.warn(
+    @deprecated(
+        reason=(
             "The contextmanager of SSHHook is deprecated."
             "Please use get_conn() as a contextmanager instead."
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def __enter__(self) -> SSHHook:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -423,6 +424,15 @@ class SSHHook(BaseHook):
 
         return client
 
+    @deprecated(
+        reason=(
+            "SSHHook.create_tunnel is deprecated, Please "
+            "use get_tunnel() instead. But please note that the "
+            "order of the parameters have changed. "
+            "This method will be removed in Airflow 2.0"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
@@ -432,15 +442,6 @@ class SSHHook(BaseHook):
         :param remote_port: remote port number
         :param remote_host: remote host
         """
-        warnings.warn(
-            "SSHHook.create_tunnel is deprecated, Please"
-            "use get_tunnel() instead. But please note that the"
-            "order of the parameters have changed"
-            "This method will be removed in Airflow 2.0",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:

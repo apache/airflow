@@ -543,6 +543,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="qdrant_default",
+            conn_type="qdrant",
+            host="qdrant",
+            port=6333,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="redis_default",
             conn_type="redis",
             host="redis",

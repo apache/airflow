@@ -67,7 +67,7 @@ class TestBashOperator:
         """
         Test that env variables are exported correctly to the task bash environment.
         """
-        utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        utc_now = datetime.now(tz=timezone.utc)
         expected = (
             f"{expected_airflow_home}\n"
             "AWESOME_PYTHONPATH\n"

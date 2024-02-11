@@ -145,6 +145,31 @@ You can generate and use config as followed:
     :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
     :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
+Diagnose a cluster
+------------------
+Dataproc supports the collection of `cluster diagnostic information <https://cloud.google.com/dataproc/docs/support/diagnose-cluster-command#diagnostic_summary_and_archive_contents>`_
+like system, Spark, Hadoop, and Dataproc logs, cluster configuration files that can be used to troubleshoot a Dataproc cluster or job.
+It is important to note that this information can only be collected before the cluster is deleted.
+For more information about the available fields to pass when diagnosing a cluster, visit
+`Dataproc diagnose cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters/diagnose>`_
+
+To diagnose a Dataproc cluster use:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDiagnoseClusterOperator.``
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_diagnose.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_diagnose_cluster]
+    :end-before: [END how_to_cloud_dataproc_diagnose_cluster]
+
+You can also use deferrable mode in order to run the operator asynchronously:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_diagnose.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_diagnose_cluster_deferrable]
+    :end-before: [END how_to_cloud_dataproc_diagnose_cluster_deferrable]
+
 Update a cluster
 ----------------
 You can scale the cluster up or down by providing a cluster config and a updateMask.
@@ -175,6 +200,30 @@ You can use deferrable mode for this action in order to run the operator asynchr
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator_async]
     :end-before: [END how_to_cloud_dataproc_update_cluster_operator_async]
+
+Starting a cluster
+---------------------------
+
+To start a cluster you can use the
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStartClusterOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_start_cluster_operator]
+    :end-before: [END how_to_cloud_dataproc_start_cluster_operator]
+
+Stopping a cluster
+---------------------------
+
+To stop a cluster you can use the
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocStartClusterOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_start_stop.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_stop_cluster_operator]
+    :end-before: [END how_to_cloud_dataproc_stop_cluster_operator]
 
 Deleting a cluster
 ------------------

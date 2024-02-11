@@ -83,9 +83,6 @@ services:
         source: ../../../hooks
         target: /opt/airflow/hooks
       - type: bind
-        source: ../../../images
-        target: /opt/airflow/images
-      - type: bind
         source: ../../../logs
         target: /root/airflow/logs
       - type: bind
@@ -112,4 +109,7 @@ services:
       - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
+      - type: bind
+        source: ../../../hatch_build.py
+        target: /opt/airflow/hatch_build.py
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py

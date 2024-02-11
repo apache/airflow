@@ -26,6 +26,7 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
 
+from airflow.datasets import Dataset
 from airflow.io import _register_filesystems, get_fs
 from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
@@ -309,3 +310,11 @@ class TestFs:
         finally:
             # Reset the cache to avoid side effects
             _register_filesystems.cache_clear()
+
+    def test_dataset(self):
+        p = "s3"
+        f = "/tmp/foo"
+        i = Dataset(uri=f"{p}://{f}", extra={"foo": "bar"})
+        o = ObjectStoragePath(i)
+        assert o.protocol == p
+        assert o.path == f

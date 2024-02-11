@@ -72,8 +72,8 @@ class GoogleDataprepHook(BaseHook):
     conn_type = "dataprep"
     hook_name = "Google Dataprep"
 
-    def __init__(self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4", **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4") -> None:
+        super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
         self.api_version = api_version
         conn = self.get_connection(self.dataprep_conn_id)
@@ -123,7 +123,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def run_job_group(self, body_request: dict) -> dict[str, Any]:
         """
-        Creates a ``jobGroup``, which launches the specified job as the authenticated user.
+        Create a ``jobGroup``, which launches the specified job as the authenticated user.
 
         This performs the same action as clicking on the Run Job button in the application.
 
@@ -141,7 +141,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def create_flow(self, *, body_request: dict) -> dict:
         """
-        Creates flow.
+        Create flow.
 
         :param body_request: Body of the POST request to be sent.
             For more details check https://clouddataprep.com/documentation/api#operation/createFlow
@@ -190,7 +190,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def run_flow(self, *, flow_id: int, body_request: dict) -> dict:
         """
-        Runs the flow with the provided id copy of the provided flow id.
+        Run the flow with the provided id copy of the provided flow id.
 
         :param flow_id: ID of the flow to be copied
         :param body_request: Body of the POST request to be sent.
@@ -224,7 +224,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def create_imported_dataset(self, *, body_request: dict) -> dict:
         """
-        Creates imported dataset.
+        Create imported dataset.
 
         :param body_request: Body of the POST request to be sent.
             For more details check https://clouddataprep.com/documentation/api#operation/createImportedDataset
@@ -238,7 +238,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def create_wrangled_dataset(self, *, body_request: dict) -> dict:
         """
-        Creates wrangled dataset.
+        Create wrangled dataset.
 
         :param body_request: Body of the POST request to be sent.
             For more details check
@@ -253,7 +253,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def create_output_object(self, *, body_request: dict) -> dict:
         """
-        Creates output.
+        Create output.
 
         :param body_request: Body of the POST request to be sent.
             For more details check
@@ -268,7 +268,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def create_write_settings(self, *, body_request: dict) -> dict:
         """
-        Creates write settings.
+        Create write settings.
 
         :param body_request: Body of the POST request to be sent.
             For more details check
@@ -283,7 +283,7 @@ class GoogleDataprepHook(BaseHook):
     @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
     def delete_imported_dataset(self, *, dataset_id: int) -> None:
         """
-        Deletes imported dataset.
+        Delete imported dataset.
 
         :param dataset_id: ID of the imported dataset for removal.
         """

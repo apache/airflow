@@ -42,18 +42,32 @@ Bug Fixes
 
 * ``fix: Avoid retrying after KubernetesPodOperator has been marked as failed (#36749)``
 * ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Increase tenacity wait in read_pod_logs (#36955)``
+* ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
 
 Misc
 ~~~~
 
 * ``Change field type for kube_config (#36752)``
 * ``Changing wording in docstring for CNCF provider (#36547)``
+* ``Add support of Pendulum 3 (#36281)``
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In the case of Kube API exceeded quota errors, we have introduced the ``task_publish_max_retries``
+flag to control the re-queuing task behavior. Changed the default behavior from unlimited
+retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
+unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
+``task_publish_max_retries`` to any positive integer.
+
+* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
-   * ``Add support of Pendulum 3 (#36281)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 7.13.0
 ......

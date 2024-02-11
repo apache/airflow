@@ -22,7 +22,7 @@ import json
 from unittest import mock
 
 import pandas as pd
-from moto import mock_dynamodb
+from moto import mock_aws
 
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
 from airflow.models.dag import DAG
@@ -45,7 +45,7 @@ class TestHiveToDynamoDBOperator:
     def process_data(data, *args, **kwargs):
         return json.loads(data.to_json(orient="records"))
 
-    @mock_dynamodb
+    @mock_aws
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
@@ -54,7 +54,7 @@ class TestHiveToDynamoDBOperator:
         "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df",
         return_value=pd.DataFrame(data=[("1", "sid")], columns=["id", "name"]),
     )
-    @mock_dynamodb
+    @mock_aws
     def test_get_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(
@@ -84,7 +84,7 @@ class TestHiveToDynamoDBOperator:
         "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_pandas_df",
         return_value=pd.DataFrame(data=[("1", "sid"), ("1", "gupta")], columns=["id", "name"]),
     )
-    @mock_dynamodb
+    @mock_aws
     def test_pre_process_records_with_schema(self, mock_get_pandas_df):
         # this table needs to be created in production
         self.hook.get_conn().create_table(

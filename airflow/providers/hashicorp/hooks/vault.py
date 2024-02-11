@@ -125,7 +125,7 @@ class VaultHook(BaseHook):
         radius_port: int | None = None,
         **kwargs,
     ):
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
+        super().__init__()
         self.connection = self.get_connection(vault_conn_id)
 
         if not auth_type:

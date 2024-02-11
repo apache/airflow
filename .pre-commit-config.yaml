@@ -18,7 +18,7 @@
 default_stages: [commit, push]
 default_language_version:
   python: python3
-  node: 18.6.0
+  node: 21.6.1
 minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
@@ -33,7 +33,7 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md
+          ^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$|^.github/.*\.md|^tests/system/README.md$
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
@@ -172,15 +172,35 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.8.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
-        name: Update black versions everywhere
+        name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$
         additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: update-build-dependencies
+        name: Update build-dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
+        pass_filenames: false
+        require_serial: true
+      - id: update-chart-dependencies
+        name: Update chart dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
@@ -308,12 +328,9 @@ repos:
               ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
               ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
-              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$
@@ -325,7 +342,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.2.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -335,7 +352,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.2.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -439,7 +456,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
-        files: ^setup\.py$|^CONTRIBUTING\.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
+        files: ^setup\.py$|^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
@@ -612,7 +629,7 @@ repos:
           ^.pre-commit-config\.yaml$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^.*RELEASE_NOTES\.rst$|
-          ^CONTRIBUTORS_QUICK_START.rst$|
+          ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
           git
       - id: check-base-operator-partial-arguments
@@ -781,7 +798,7 @@ repos:
         files: ^airflow/www/
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21']
       - id: compile-www-assets-dev
         name: Compile www assets in dev mode (manual)
         language: node
@@ -790,7 +807,7 @@ repos:
         files: ^airflow/www/
         entry: ./scripts/ci/pre_commit/pre_commit_compile_www_assets_dev.py
         pass_filenames: false
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21']
       - id: check-providers-init-file-missing
         name: Provider init file is missing
         pass_filenames: false
@@ -818,7 +835,7 @@ repos:
         name: Sync integrations list with docs
         entry: ./scripts/ci/pre_commit/pre_commit_check_integrations_list.py
         language: python
-        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^TESTING.rst$
+        files: ^scripts/ci/docker-compose/integration-.*\.yml$|^contributing-docs/testing/integration_tests.rst$
         additional_dependencies: ['black==23.10.0', 'tabulate', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
         pass_filenames: false
@@ -1040,7 +1057,7 @@ repos:
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
-        additional_dependencies: ['yarn@1.22.19']
+        additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Check that unit tests do not inherit from unittest.TestCase

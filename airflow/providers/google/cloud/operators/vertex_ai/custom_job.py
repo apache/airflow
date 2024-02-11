@@ -445,9 +445,19 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         self,
         *,
         command: Sequence[str] = [],
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.command = command
 
     def execute(self, context: Context):
@@ -816,9 +826,19 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         *,
         python_package_gcs_uri: str,
         python_module_name: str,
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
@@ -1190,9 +1210,19 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         *,
         script_path: str,
         requirements: Sequence[str] | None = None,
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.requirements = requirements
         self.script_path = script_path
 
