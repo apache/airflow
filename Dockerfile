@@ -1406,7 +1406,7 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG PIP_CACHE_EPOCH="0"
+ARG PIP_CACHE_EPOCH="9"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
