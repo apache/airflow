@@ -178,7 +178,7 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | None:
-        """Deletes the cluster, the Kubernetes endpoint, and all worker nodes.
+        """Delete the cluster, the Kubernetes endpoint, and all worker nodes.
 
         Firewalls and routes that were configured during cluster creation are
         also deleted. Other Google Compute Engine resources that might be in use
