@@ -129,6 +129,8 @@ dependencies = [
     "python-dateutil>=2.3",
     "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
+    # Requests 3 if it will be released, will be heavily breaking.
+    "requests>=2.27.0,<3",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=12.4.4",
@@ -185,7 +187,7 @@ cgroups = [
     "cgroupspy>=0.2.2",
 ]
 deprecated-api = [
-    "requests>=2.26.0",
+    "requests>=2.27.0,<3",
 ]
 github-enterprise = [
     "apache-airflow[fab]",
@@ -340,7 +342,6 @@ devel-tests = [
     "coverage>=7.2",
     "pytest-asyncio>=0.23.5",
     "pytest-cov>=4.1.0",
-    "pytest-httpx>=0.21.3",
     "pytest-icdiff>=0.9",
     "pytest-instafail>=0.5.0",
     "pytest-mock>=3.12.0",
@@ -652,7 +653,7 @@ databricks = [ # source: airflow/providers/databricks/provider.yaml
   "aiohttp>=3.9.2, <4",
   "apache-airflow[common_sql]",
   "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
-  "requests>=2.27,<3",
+  "requests>=2.27.0,<3",
   # Devel dependencies for the databricks provider
   "deltalake>=0.12.0",
 ]
@@ -767,13 +768,13 @@ hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
 http = [ # source: airflow/providers/http/provider.yaml
   "aiohttp>=3.9.2",
   "asgiref",
-  "requests>=2.26.0",
+  "requests>=2.27.0,<3",
   "requests_toolbelt",
 ]
 imap = [] # source: airflow/providers/imap/provider.yaml
 influxdb = [ # source: airflow/providers/influxdb/provider.yaml
   "influxdb-client>=1.19.0",
-  "requests>=2.26.0",
+  "requests>=2.27.0,<3",
 ]
 jdbc = [ # source: airflow/providers/jdbc/provider.yaml
   "apache-airflow[common_sql]",
