@@ -1180,7 +1180,7 @@ COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
 COPY dev/airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/dev/airflow_pre_installed_providers.txt
-COPY dev/hatch_build.py ${AIRFLOW_SOURCES}/dev/hatch_build.py
+COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources
