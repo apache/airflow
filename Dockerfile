@@ -455,8 +455,9 @@ function install_airflow_dependencies_from_branch_tip() {
       ${ADDITIONAL_PIP_INSTALL_FLAGS} \
       "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
     common::install_pip_version
-    # Uninstall airflow to keep only the dependencies. In the future when planned https://github.com/pypa/pip/issues/11440
-    # is implemented in pip we might be able to use this flag and skip the remove step.
+    # Uninstall airflow and providers to keep only the dependencies. In the future when
+    # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
+    # flag and skip the remove step.
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     set +x
     echo
