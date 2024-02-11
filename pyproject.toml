@@ -416,8 +416,10 @@ all-dbs = [
     "apache-airflow[vertica]",
 ]
 devel = [
-    "apache-airflow[common.io]",
-    "apache-airflow[common.sql]",
+    "apache-airflow[celery]",
+    "apache-airflow[cncf-kubernetes]",
+    "apache-airflow[common-io]",
+    "apache-airflow[common-sql]",
     "apache-airflow[devel-debuggers]",
     "apache-airflow[devel-devscripts]",
     "apache-airflow[devel-duckdb]",
