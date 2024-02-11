@@ -26,7 +26,7 @@ description: |
 dependencies:
   - apache-airflow>=2.6.0
   - influxdb-client>=1.19.0
-  - requests>=2.26.0
+  - requests>=2.27.0,<3
 
 state: ready
 source-date-epoch: 1703288143
