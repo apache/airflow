@@ -1179,7 +1179,7 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
-COPY dev/airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/dev/airflow_pre_installed_providers.txt
+COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
 COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
 

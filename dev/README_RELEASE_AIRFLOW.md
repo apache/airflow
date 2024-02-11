@@ -782,7 +782,7 @@ git push -f apache constraints-X.Y.Z
    that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 
-3. In case the provider should also be installed in the image (it is part of ``dev/prod_image_installed_providers.txt``)
+3. In case the provider should also be installed in the image (it is part of ``prod_image_installed_providers.txt``)
    it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
 
 ```Dockerfile

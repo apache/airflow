@@ -34,8 +34,7 @@ log.setLevel(log_level)
 
 AIRFLOW_ROOT_PATH = Path(__file__).parent.resolve()
 GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
-DEV_DIR_PATH = AIRFLOW_ROOT_PATH / "dev"
-PREINSTALLED_PROVIDERS_FILE = DEV_DIR_PATH / "airflow_pre_installed_providers.txt"
+PREINSTALLED_PROVIDERS_FILE = AIRFLOW_ROOT_PATH / "airflow_pre_installed_providers.txt"
 DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
 PREINSTALLED_PROVIDER_IDS = [
     package.strip()
