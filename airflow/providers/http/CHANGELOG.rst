@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+4.9.1
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Added D401 support to http, smtp and sftp provider (#37303)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 4.9.0
 .....
 

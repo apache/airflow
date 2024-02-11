@@ -35,6 +35,23 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.0.0
+.....
+
+Latest change: 2024-02-10
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`6246eec96f <https://github.com/apache/airflow/commit/6246eec96fff15983e76c3810c0eb3e9555d7b1c>`_  2024-02-10   ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
+`e99487946a <https://github.com/apache/airflow/commit/e99487946a39849e078b52ac5b4a226359978254>`_  2024-02-10   ``The task is stuck in a queued state forever in case of pod launch errors  (#36882)``
+`9a529a8d43 <https://github.com/apache/airflow/commit/9a529a8d432c2ec568a361199c643557004291bb>`_  2024-02-10   ``Fix hanging KPO on deferrable task with do_xcom_push (#37300)``
+`f691adf710 <https://github.com/apache/airflow/commit/f691adf7105b687b6ba2885c8977607065856fd3>`_  2024-02-09   ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
+`7932958488 <https://github.com/apache/airflow/commit/7932958488761cd01cd94b7eea0c646dc41c3981>`_  2024-02-05   ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+`c36c4db3f7 <https://github.com/apache/airflow/commit/c36c4db3f723ccb43add4b562a1820dcae523753>`_  2024-01-29   ``Kubernetes version bump (#37040)``
+=================================================================================================  ===========  ======================================================================================
+
 7.14.0
 ......
 
@@ -43,6 +60,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `dd627d7f46 <https://github.com/apache/airflow/commit/dd627d7f4605d2918395b7e9ca9baaa62c9724d4>`_  2024-01-26   ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
 `d78a114aa0 <https://github.com/apache/airflow/commit/d78a114aa05bee0e02a09a43056827a03180844a>`_  2024-01-23   ``Increase tenacity wait in read_pod_logs (#36955)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``

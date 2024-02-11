@@ -64,26 +64,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-sftp
+apache-airflow-providers-sftp package
 ------------------------------------------------------
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 
-Release: 4.8.1
+Release: 4.9.0
 
 Provider package
 ----------------
 
-This is a provider package for ``sftp`` provider. All classes for this provider package
-are in ``airflow.providers.sftp`` python package.
+This package is for the ``sftp`` provider.
+All classes for this package are included in the ``airflow.providers.sftp`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-sftp``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-sftp``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -96,6 +96,7 @@ PIP package                       Version required
 ``apache-airflow``                ``>=2.6.0``
 ``apache-airflow-providers-ssh``  ``>=2.1.0``
 ``paramiko``                      ``>=2.8.0``
+``asyncssh``                      ``>=2.12.0``
 ================================  ==================
 
 Cross provider package dependencies
@@ -124,5 +125,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-sftp 4.8.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.8.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.8.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.8.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-sftp 4.8.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.8.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.8.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.8.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-sftp 4.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-sftp-4.9.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-sftp 4.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_sftp-4.9.0-py3-none-any.whl.sha512>`__)

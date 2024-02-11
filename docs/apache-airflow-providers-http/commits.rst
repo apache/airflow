@@ -35,6 +35,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.9.1
+.....
+
+Latest change: 2024-02-10
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bb414f0122 <https://github.com/apache/airflow/commit/bb414f012246aa9874e7c5e84388a1487bbd5bd3>`_  2024-02-10   ``Added D401 support to http, smtp and sftp provider (#37303)``
+`90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``
+`0c4210af62 <https://github.com/apache/airflow/commit/0c4210af62d2e514f37c5c973163c0748716ccff>`_  2024-01-31   ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+=================================================================================================  ===========  ==================================================================================
+
 4.9.0
 .....
 
@@ -43,6 +57,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `9596bbdafa <https://github.com/apache/airflow/commit/9596bbdafa0cbe7e3c7d7181c98fa241041db3af>`_  2024-01-23   ``Add deferrable implementation in HTTPSensor (#36904)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
