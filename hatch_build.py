@@ -32,7 +32,7 @@ log = logging.getLogger(__name__)
 log_level = logging.getLevelName(os.getenv("CUSTOM_AIRFLOW_BUILD_LOG_LEVEL", "INFO"))
 log.setLevel(log_level)
 
-AIRFLOW_ROOT_PATH = Path(__file__).parent.parent.resolve()
+AIRFLOW_ROOT_PATH = Path(__file__).parent.resolve()
 GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 DEV_DIR_PATH = AIRFLOW_ROOT_PATH / "dev"
 PREINSTALLED_PROVIDERS_FILE = DEV_DIR_PATH / "airflow_pre_installed_providers.txt"
@@ -84,7 +84,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
             run(cmd, cwd=work_dir.as_posix(), check=True, shell=True)
 
     def get_version_api(self) -> dict[str, Callable[..., str]]:
-        """Custom build target for standard package preparation."""
+        """Get custom build target for standard package preparation."""
         return {"standard": self.build_standard}
 
     def build_standard(self, directory: str, artifacts: Any, **build_data: Any) -> str:
@@ -149,7 +149,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
         """
-        This occurs immediately before each build.
+        Initialize hook immediately before each build.
 
         Any modifications to the build data will be seen by the build target.
         """

@@ -1221,13 +1221,13 @@ features = []
 path = "airflow/__init__.py"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
