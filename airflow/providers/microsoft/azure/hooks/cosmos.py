@@ -44,7 +44,7 @@ from airflow.providers.microsoft.azure.utils import (
 
 class AzureCosmosDBHook(BaseHook):
     """
-    Interacts with Azure CosmosDB.
+    Interact with Azure CosmosDB.
 
     login should be the endpoint uri, password should be the master key
     optionally, you can use the following extras to default these values
@@ -62,7 +62,7 @@ class AzureCosmosDBHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -86,7 +86,7 @@ class AzureCosmosDBHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -180,7 +180,7 @@ class AzureCosmosDBHook(BaseHook):
         return coll_name
 
     def does_collection_exist(self, collection_name: str, database_name: str) -> bool:
-        """Checks if a collection exists in CosmosDB."""
+        """Check if a collection exists in CosmosDB."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
@@ -205,7 +205,7 @@ class AzureCosmosDBHook(BaseHook):
         database_name: str | None = None,
         partition_key: str | None = None,
     ) -> None:
-        """Creates a new collection in the CosmosDB database."""
+        """Create a new collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
@@ -229,7 +229,7 @@ class AzureCosmosDBHook(BaseHook):
             )
 
     def does_database_exist(self, database_name: str) -> bool:
-        """Checks if a database exists in CosmosDB."""
+        """Check if a database exists in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
@@ -247,7 +247,7 @@ class AzureCosmosDBHook(BaseHook):
         return True
 
     def create_database(self, database_name: str) -> None:
-        """Creates a new database in CosmosDB."""
+        """Create a new database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
@@ -267,14 +267,14 @@ class AzureCosmosDBHook(BaseHook):
             self.get_conn().create_database(database_name)
 
     def delete_database(self, database_name: str) -> None:
-        """Deletes an existing database in CosmosDB."""
+        """Delete an existing database in CosmosDB."""
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
         self.get_conn().delete_database(database_name)
 
     def delete_collection(self, collection_name: str, database_name: str | None = None) -> None:
-        """Deletes an existing collection in the CosmosDB database."""
+        """Delete an existing collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 

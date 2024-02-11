@@ -49,7 +49,7 @@ class AzureContainerRegistryHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -67,7 +67,7 @@ class AzureContainerRegistryHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
