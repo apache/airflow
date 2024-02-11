@@ -1372,6 +1372,11 @@ ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
 # from eager-upgraded constraints by the CI builds
 ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 
+# By changing the epoch we can force reinstalling Airflow and pip all dependencies
+# It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
+ARG AIRFLOW_CI_BUILD_EPOCH="10"
+ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
+
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow and providers are uninstalled, only dependencies remain
