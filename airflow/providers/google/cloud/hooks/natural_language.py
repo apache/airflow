@@ -74,7 +74,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
     def get_conn(self) -> LanguageServiceClient:
         """
-        Retrieves connection to Cloud Natural Language service.
+        Retrieve connection to Cloud Natural Language service.
 
         :return: Cloud Natural Language service object
         """
@@ -92,7 +92,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
         """
-        Finds named entities in the text along with various properties.
+        Find named entities in the text along with various properties.
 
         Examples properties: entity types, salience, mentions for each entity, and others.
 

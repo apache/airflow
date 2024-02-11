@@ -683,6 +683,10 @@ class KubernetesPodOperator(BaseOperator):
                     message = f"{event['message']}\n{event['stack_trace']}"
                 else:
                     message = event["message"]
+                if self.do_xcom_push:
+                    # In the event of base container failure, we need to kill the xcom sidecar.
+                    # We disregard xcom output and do that here
+                    _ = self.extract_xcom(pod=pod)
                 raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully

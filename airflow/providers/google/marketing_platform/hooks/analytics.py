@@ -55,7 +55,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         return result
 
     def get_conn(self) -> Resource:
-        """Retrieves connection to Google Analytics 360."""
+        """Retrieve connection to Google Analytics 360."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -67,7 +67,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         return self._conn
 
     def list_accounts(self) -> list[dict[str, Any]]:
-        """Lists accounts list from Google Analytics 360."""
+        """List accounts list from Google Analytics 360."""
         self.log.info("Retrieving accounts list...")
         conn = self.get_conn()
         accounts = conn.management().accounts()
@@ -78,7 +78,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         self, account_id: str, web_property_id: str, web_property_ad_words_link_id: str
     ) -> dict[str, Any]:
         """
-        Returns a web property-Google Ads link to which the user has access.
+        Return a web property-Google Ads link to which the user has access.
 
         :param account_id: ID of the account which the given web property belongs to.
         :param web_property_id: Web property-Google Ads link UA-string.
@@ -102,7 +102,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
 
     def list_ad_words_links(self, account_id: str, web_property_id: str) -> list[dict[str, Any]]:
         """
-        Lists webProperty-Google Ads links for a given web property.
+        List webProperty-Google Ads links for a given web property.
 
         :param account_id: ID of the account which the given web property belongs to.
         :param web_property_id: Web property UA-string to retrieve the Google Ads links for.
@@ -125,7 +125,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         resumable_upload: bool = False,
     ) -> None:
         """
-        Uploads file to GA via the Data Import API.
+        Upload file to GA via the Data Import API.
 
         :param file_location: The path and name of the file to upload.
         :param account_id: The GA account Id to which the data upload belongs.
@@ -162,7 +162,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         delete_request_body: dict[str, Any],
     ) -> None:
         """
-        Deletes the uploaded data for a given account/property/dataset.
+        Delete the uploaded data for a given account/property/dataset.
 
         :param account_id: The GA account Id to which the data upload belongs.
         :param web_property_id: UA-string associated with the upload.

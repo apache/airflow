@@ -92,7 +92,7 @@ class SnowflakeHook(DbApiHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -114,7 +114,7 @@ class SnowflakeHook(DbApiHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         import json
 
         return {
@@ -273,7 +273,7 @@ class SnowflakeHook(DbApiHook):
         )
 
     def get_conn(self) -> SnowflakeConnection:
-        """Returns a snowflake.connection object."""
+        """Return a snowflake.connection object."""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
@@ -338,7 +338,7 @@ class SnowflakeHook(DbApiHook):
         return_last: bool = True,
         return_dictionaries: bool = False,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Runs a command or a list of commands.
+        """Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
         execute sequentially. The variable ``execution_info`` is returned so
@@ -454,7 +454,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """
-        Attempts to get current schema.
+        Attempt to get current schema.
 
         Usually ``SELECT CURRENT_SCHEMA();`` should work.
         However, apparently you may set ``database`` without ``schema``

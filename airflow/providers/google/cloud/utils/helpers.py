@@ -19,12 +19,12 @@ from __future__ import annotations
 
 
 def normalize_directory_path(source_object: str | None) -> str | None:
-    """Makes sure dir path ends with a slash."""
+    """Make sure dir path ends with a slash."""
     return source_object + "/" if source_object and not source_object.endswith("/") else source_object
 
 
 def resource_path_to_dict(resource_name: str) -> dict[str, str]:
-    """Converts a path-like GCP resource name into a dictionary.
+    """Convert a path-like GCP resource name into a dictionary.
 
     For example, the path `projects/my-project/locations/my-location/instances/my-instance` will be converted
     to a dict:

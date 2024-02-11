@@ -205,7 +205,7 @@ class SQLParser:
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> OperatorLineage:
-        """Parses SQL statement(s) and generates OpenLineage metadata.
+        """Parse SQL statement(s) and generate OpenLineage metadata.
 
         Generated OpenLineage metadata contains:
 
@@ -271,7 +271,7 @@ class SQLParser:
 
     @classmethod
     def normalize_sql(cls, sql: list[str] | str) -> str:
-        """Makes sure to return a semicolon-separated SQL statements."""
+        """Make sure to return a semicolon-separated SQL statement."""
         return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in cls.split_sql_string(sql))
 
     @classmethod
@@ -309,7 +309,7 @@ class SQLParser:
         database: str | None = None,
         sqlalchemy_engine: Engine | None = None,
     ) -> str:
-        """Creates SELECT statement to query information schema table."""
+        """Create SELECT statement to query information schema table."""
         tables_hierarchy = cls._get_tables_hierarchy(
             tables,
             normalize_name=normalize_name,
@@ -333,7 +333,7 @@ class SQLParser:
         is_cross_db: bool = False,
     ) -> TablesHierarchy:
         """
-        Creates a hierarchy of database -> schema -> table name.
+        Create a hierarchy of database -> schema -> table name.
 
         This helps to create simpler information schema query grouped by
         database and schema.
