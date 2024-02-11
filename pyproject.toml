@@ -147,7 +147,15 @@ dependencies = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    "universal-pathlib>=0.1.4",
+    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
+    # In 0.1. *It was not very well defined for extension, so the way how we use it for 0.1.*
+    # so we used a lot of private methods and attributes that were not defined in the interface
+    # an they are broken with version 0.2.0 which is much better suited for extension and supports
+    # Python 3.12. We should limit it, unti we migrate to 0.2.0
+    # See: https://github.com/fsspec/universal_pathlib/pull/173#issuecomment-1937090528
+    # This is prerequistite to make Airflow compatible with Python 3.12
+    # Tracked in https://github.com/apache/airflow/pull/36755
+    "universal-pathlib>=0.1.4,<0.2.0",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
@@ -1430,9 +1438,6 @@ combine-as-imports = true
 "airflow/providers/mysql/transfers/s3_to_mysql.py" = ["D401"]
 "airflow/providers/neo4j/hooks/neo4j.py" = ["D401"]
 "airflow/providers/openfaas/hooks/openfaas.py" = ["D401"]
-"airflow/providers/openlineage/plugins/adapter.py" = ["D401"]
-"airflow/providers/openlineage/sqlparser.py" = ["D401"]
-"airflow/providers/openlineage/utils/sql.py" = ["D401"]
 "airflow/providers/opensearch/hooks/opensearch.py" = ["D401"]
 "airflow/providers/opensearch/operators/opensearch.py" = ["D401"]
 "airflow/providers/oracle/hooks/oracle.py" = ["D401"]
@@ -1448,11 +1453,6 @@ combine-as-imports = true
 "airflow/providers/samba/hooks/samba.py" = ["D401"]
 "airflow/providers/samba/transfers/gcs_to_samba.py" = ["D401"]
 "airflow/providers/segment/hooks/segment.py" = ["D401"]
-"airflow/providers/slack/hooks/slack.py" = ["D401"]
-"airflow/providers/slack/hooks/slack_webhook.py" = ["D401"]
-"airflow/providers/slack/operators/slack.py" = ["D401"]
-"airflow/providers/tableau/hooks/tableau.py" = ["D401"]
-"airflow/providers/tableau/operators/tableau.py" = ["D401"]
 "airflow/providers/telegram/hooks/telegram.py" = ["D401"]
 "airflow/providers/telegram/operators/telegram.py" = ["D401"]
 "airflow/providers/trino/hooks/trino.py" = ["D401"]
