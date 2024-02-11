@@ -75,7 +75,7 @@ class ComputeEngineHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Retrieves connection to Google Compute Engine.
+        Retrieve connection to Google Compute Engine.
 
         :return: Google Compute Engine services object
         :rtype: dict
@@ -86,15 +86,15 @@ class ComputeEngineHook(GoogleBaseHook):
         return self._conn
 
     def get_compute_instance_template_client(self):
-        """Returns Compute Engine Instance Template Client."""
+        """Return Compute Engine Instance Template Client."""
         return InstanceTemplatesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_client(self):
-        """Returns Compute Engine Instance Client."""
+        """Return Compute Engine Instance Client."""
         return InstancesClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     def get_compute_instance_group_managers_client(self):
-        """Returns Compute Engine Instance Group Managers Client."""
+        """Return Compute Engine Instance Group Managers Client."""
         return InstanceGroupManagersClient(credentials=self.get_credentials(), client_info=self.client_info)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -108,7 +108,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Creates Instance Template using body specified.
+        Create Instance Template using body specified.
 
         Must be called with keyword arguments rather than positional.
 
@@ -160,7 +160,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes Instance Template.
+        Delete Instance Template.
 
         Deleting an Instance Template is permanent and cannot be undone. It is not
         possible to delete templates that are already in use by a managed instance
@@ -213,7 +213,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InstanceTemplate:
         """
-        Retrieves Instance Template by project_id and resource_id.
+        Retrieve Instance Template by project_id and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -263,7 +263,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Creates Instance using body specified.
+        Create Instance using body specified.
 
         Must be called with keyword arguments rather than positional.
 
@@ -337,7 +337,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Instance:
         """
-        Retrieves Instance by project_id and resource_id.
+        Retrieve Instance by project_id and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -439,7 +439,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
-        Starts an existing instance defined by project_id, zone and resource_id.
+        Start an existing instance defined by project_id, zone and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -465,7 +465,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def stop_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
-        Stops an instance defined by project_id, zone and resource_id.
+        Stop an instance defined by project_id, zone and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -491,7 +491,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> None:
         """
-        Sets machine type of an instance defined by project_id, zone and resource_id.
+        Set machine type of an instance defined by project_id, zone and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -532,7 +532,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Creates an Instance Group Managers using the body specified.
+        Create an Instance Group Managers using the body specified.
 
         After the group is created, instances in the group are created using the specified Instance Template.
         Must be called with keyword arguments rather than positional.
@@ -589,7 +589,7 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InstanceGroupManager:
         """
-        Retrieves Instance Group Manager by project_id, zone and resource_id.
+        Retrieve Instance Group Manager by project_id, zone and resource_id.
 
         Must be called with keyword arguments rather than positional.
 
@@ -737,7 +737,7 @@ class ComputeEngineHook(GoogleBaseHook):
         self, project_id: str, operation_name: str, zone: str | None = None
     ) -> None:
         """
-        Waits for the named operation to complete - checks status of the async call.
+        Wait for the named operation to complete - checks status of the async call.
 
         :param operation_name: name of the operation
         :param zone: optional region of the request (might be None for global operations)
@@ -793,7 +793,7 @@ class ComputeEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_info(self, zone: str, resource_id: str, project_id: str) -> dict[str, Any]:
         """
-        Gets instance information.
+        Get instance information.
 
         :param zone: Google Cloud zone where the Instance Group Manager exists
         :param resource_id: Name of the Instance Group Manager
