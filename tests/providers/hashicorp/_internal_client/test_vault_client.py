@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 from unittest.mock import mock_open, patch
 
@@ -544,6 +545,19 @@ class TestVaultClient:
         vault_client = _VaultClient(
             auth_type="token", token="s.7AU0I51yv1Q1lxOIg1F3ZRAS", url="http://localhost:8180", session=None
         )
+        client = vault_client.client
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
+        client.is_authenticated.assert_called_with()
+        assert "s.7AU0I51yv1Q1lxOIg1F3ZRAS" == client.token
+        assert 2 == vault_client.kv_engine_version
+        assert "secret" == vault_client.mount_point
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_token_in_env(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        os.environ["VAULT_TOKEN"] = "s.7AU0I51yv1Q1lxOIg1F3ZRAS"
+        vault_client = _VaultClient(auth_type="token", url="http://localhost:8180", session=None)
         client = vault_client.client
         mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=None)
         client.is_authenticated.assert_called_with()
