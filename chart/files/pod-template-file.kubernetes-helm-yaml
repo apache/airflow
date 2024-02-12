@@ -35,15 +35,16 @@ metadata:
     {{- if or (.Values.labels) (.Values.workers.labels) }}
       {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
-  {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
-    {{- if .Values.airflowPodAnnotations }}
-      {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+    cluster-autoscaler.kubernetes.io/safe-to-evict: {{ .Values.workers.safeToEvict | quote}}
+    {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
+      {{- if .Values.airflowPodAnnotations }}
+        {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+      {{- end }}
+      {{- if .Values.workers.podAnnotations }}
+        {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
+      {{- end }}
     {{- end }}
-    {{- if .Values.workers.podAnnotations }}
-      {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
-    {{- end }}
-  {{- end }}
 spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
   initContainers:
