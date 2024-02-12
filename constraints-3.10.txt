@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-11T23:46:47.332749
+# This constraints file was automatically generated on 2024-02-12T11:16:18.347972
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -159,6 +159,7 @@ apache-airflow-providers-pgvector==1.1.0
 apache-airflow-providers-pinecone==1.1.2
 apache-airflow-providers-postgres==5.10.0
 apache-airflow-providers-presto==5.4.1
+apache-airflow-providers-qdrant==1.0.0rc1
 apache-airflow-providers-redis==3.6.0
 apache-airflow-providers-salesforce==5.6.2
 apache-airflow-providers-samba==4.5.0
