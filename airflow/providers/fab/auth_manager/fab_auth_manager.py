@@ -97,7 +97,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
-    DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
@@ -116,6 +115,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
 _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.CLUSTER_ACTIVITY: RESOURCE_CLUSTER_ACTIVITY,
     AccessView.DOCS: RESOURCE_DOCS,
+    AccessView.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
     AccessView.JOBS: RESOURCE_JOB,
     AccessView.PLUGINS: RESOURCE_PLUGIN,
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
@@ -351,7 +351,7 @@ class FabAuthManager(BaseAuthManager):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next_url=kwargs["next_url"])
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
@@ -446,7 +446,7 @@ class FabAuthManager(BaseAuthManager):
 
     def _resource_name_for_dag(self, dag_id: str) -> str:
         """
-        Returns the FAB resource name for a DAG id.
+        Return the FAB resource name for a DAG id.
 
         :param dag_id: the DAG id
 

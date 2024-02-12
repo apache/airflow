@@ -151,15 +151,15 @@ extra ``--`` flag.
 
     breeze build-docs --spellcheck-only
 
-This process can take some time, so in order to make it shorter you can filter by package, using the flag
-``--package-filter <PACKAGE-NAME>``. The package name has to be one of the providers or ``apache-airflow``. For
-instance, for using it with Amazon, the command would be:
+This process can take some time, so in order to make it shorter you can filter by package, using package
+short ``provider id`` (might be multiple of them).
 
 .. code-block:: bash
 
-     breeze build-docs provider_id provider id
+     breeze build-docs <provider id> <provider id>
 
-or you can us package filter:
+or you can use package filter. The filters are glob pattern matching full
+package names and can be used to select more than one package with single filter.
 
 .. code-block:: bash
 

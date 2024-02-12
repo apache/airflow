@@ -137,6 +137,8 @@ def repack_deterministically(
                         arcname = entry
                         if prepend_path is not None:
                             arcname = os.path.normpath(os.path.join(prepend_path, arcname))
+                        if arcname.startswith("./"):
+                            arcname = arcname[2:]
                         tar_file.add(entry, filter=reset, recursive=False, arcname=arcname)
         os.rename(temp_file, dest_archive)
     return result

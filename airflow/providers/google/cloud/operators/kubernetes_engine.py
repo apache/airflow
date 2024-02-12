@@ -22,6 +22,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 
@@ -154,7 +155,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         return operation.self_link if operation is not None else None
 
     def execute_complete(self, context: Context, event: dict) -> str:
-        """Method to be executed after trigger job is done."""
+        """Execute after trigger job is done."""
         status = event["status"]
         message = event["message"]
 
@@ -308,14 +309,14 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def _body_field(self, field_name: str, default_value: Any = None) -> Any:
-        """Extracts the value of the given field name."""
+        """Extract the value of the given field name."""
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
         else:
             return getattr(self.body, field_name, default_value)
 
     def _alert_deprecated_body_fields(self) -> None:
-        """Generates warning messages if deprecated fields were used in the body."""
+        """Generate warning messages if deprecated fields were used in the body."""
         deprecated_body_fields_with_replacement = [
             ("initial_node_count", "node_pool.initial_node_count"),
             ("node_config", "node_pool.config"),
@@ -510,13 +511,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @staticmethod
+    @deprecated(
+        reason="Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_gke_config_file():
-        warnings.warn(
-            "The `get_gke_config_file` method is deprecated, "
-            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+        pass
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -543,12 +543,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
         return hook
 
     def execute(self, context: Context):
-        """Executes process of creating pod and executing provided command inside it."""
+        """Execute process of creating pod and executing provided command inside it."""
         self.fetch_cluster_info()
         return super().execute(context)
 
     def fetch_cluster_info(self) -> tuple[str, str | None]:
-        """Fetches cluster info for connecting to it."""
+        """Fetch cluster info for connecting to it."""
         cluster = self.cluster_hook.get_cluster(
             name=self.cluster_name,
             project_id=self.project_id,
@@ -562,7 +562,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         return self._cluster_url, self._ssl_ca_cert
 
     def invoke_defer_method(self):
-        """Method to easily redefine triggers which are being used in child classes."""
+        """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=GKEStartPodTrigger(

@@ -30,7 +30,7 @@ import warnings
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
 import dill
@@ -450,6 +450,20 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
         else:
             xcom_value = None
         if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
+            if task_to_execute.multiple_outputs:
+                if not isinstance(xcom_value, Mapping):
+                    raise AirflowException(
+                        f"Returned output was type {type(xcom_value)} "
+                        "expected dictionary for multiple_outputs"
+                    )
+                for key in xcom_value.keys():
+                    if not isinstance(key, str):
+                        raise AirflowException(
+                            "Returned dictionary keys must be strings when using "
+                            f"multiple_outputs, found {key} ({type(key)}) instead"
+                        )
+                for key, value in xcom_value.items():
+                    task_instance.xcom_push(key=key, value=value, session=session)
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session
@@ -461,7 +475,7 @@ def _refresh_from_db(
     *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
-    Refreshes the task instance from the database based on the primary key.
+    Refresh the task instance from the database based on the primary key.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -531,7 +545,7 @@ def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None
 
 def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
-    Returns task instance tags.
+    Return task instance tags.
 
     :param task_instance: the task instance
 
@@ -943,7 +957,7 @@ def _get_previous_dagrun(
     session: Session | None = None,
 ) -> DagRun | None:
     """
-    The DagRun that ran before this task instance's DagRun.
+    Return the DagRun that ran prior to this task instance's DagRun.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -983,7 +997,7 @@ def _get_previous_execution_date(
     session: Session,
 ) -> pendulum.DateTime | None:
     """
-    The execution date from property previous_ti_success.
+    Get execution date from property previous_ti_success.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -1178,7 +1192,7 @@ def _get_previous_ti(
     state: DagRunState | None = None,
 ) -> TaskInstance | TaskInstancePydantic | None:
     """
-    The task instance for the task that ran before this task instance.
+    Get task instance for the task that ran before this task instance.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -1432,6 +1446,18 @@ class TaskInstance(Base, LoggingMixin):
         This is designed so that task logs end up in the right file.
         """
         return _get_try_number(task_instance=self)
+
+    @try_number.expression
+    def try_number(cls):
+        """
+        Return the expression to be used by SQLAlchemy when filtering on try_number.
+
+        This is required because the override in the get_try_number function causes
+        try_number values to be off by one when listing tasks in the UI.
+
+        :meta private:
+        """
+        return cls._try_number
 
     @try_number.setter
     def try_number(self, value: int) -> None:

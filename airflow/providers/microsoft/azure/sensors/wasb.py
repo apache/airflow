@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
@@ -96,7 +97,7 @@ class WasbBlobSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -111,9 +112,18 @@ class WasbBlobSensor(BaseSensorOperator):
             raise AirflowException("Did not receive valid event from the triggerer")
 
 
+@deprecated(
+    reason=(
+        "Class `WasbBlobAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `WasbBlobSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class WasbBlobAsyncSensor(WasbBlobSensor):
     """
-    Polls asynchronously for the existence of a blob in a WASB container.
+    Poll asynchronously for the existence of a blob in a WASB container.
 
     This class is deprecated and will be removed in a future release.
 
@@ -129,20 +139,12 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
     """
 
     def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `WasbBlobAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `WasbBlobSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs, deferrable=True)
 
 
 class WasbPrefixSensor(BaseSensorOperator):
     """
-    Waits for blobs matching a prefix to arrive on Azure Blob Storage.
+    Wait for blobs matching a prefix to arrive on Azure Blob Storage.
 
     :param container_name: Name of the container.
     :param prefix: Prefix of the blob.
@@ -206,7 +208,7 @@ class WasbPrefixSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

@@ -172,15 +172,35 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.8.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
-        name: Update black versions everywhere
+        name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$
         additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: update-build-dependencies
+        name: Update build-dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
+        pass_filenames: false
+        require_serial: true
+      - id: update-chart-dependencies
+        name: Update chart dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
@@ -308,12 +328,9 @@ repos:
               ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
               ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
-              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$
@@ -325,7 +342,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.2.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -335,7 +352,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.2.1"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters

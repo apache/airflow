@@ -142,7 +142,7 @@ class CloudVisionHook(GoogleBaseHook):
 
     def get_conn(self) -> ProductSearchClient:
         """
-        Retrieves connection to Cloud Vision.
+        Retrieve a connection to Cloud Vision.
 
         :return: Google Cloud Vision client object.
         """

@@ -210,6 +210,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pinecone            | ``pip install 'apache-airflow[pinecone]'``          | Pinecone Operators and Hooks                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| qdrant              | ``pip install 'apache-airflow[qdrant]'``            | Qdrant Operators and Hooks                          |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | salesforce          | ``pip install 'apache-airflow[salesforce]'``        | Salesforce hook                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | sendgrid            | ``pip install 'apache-airflow[sendgrid]'``          | Send email using sendgrid                           |
@@ -405,7 +407,7 @@ to get minimal, complete test environment with usual tools and dependencies need
 | devel-all-dbs       | ``pip install -e '.[devel-all-dbs]'``               | Adds all libraries needed to test database providers                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | devel-all           | ``pip install -e '.[devel-all]'``                   | Everything needed for development including Hadoop, all devel extras,  |
-|                     |                                                     | all doc extras. Generally: all possible dependencies                   |
+|                     |                                                     | all doc extras. Generally: all possible dependencies except providers  |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | devel-ci            | ``pip install -e '.[devel-ci]'``                    | All dependencies required for CI tests (same as ``devel-all``)         |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+

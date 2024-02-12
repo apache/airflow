@@ -65,7 +65,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Retrieves the connection to Cloud Firestore.
+        Retrieve the connection to Cloud Firestore.
 
         :return: Google Cloud Firestore services object.
         """
@@ -86,7 +86,7 @@ class CloudFirestoreHook(GoogleBaseHook):
         self, body: dict, database_id: str = "(default)", project_id: str | None = None
     ) -> None:
         """
-        Starts a export with the specified configuration.
+        Start a export with the specified configuration.
 
         :param database_id: The Database ID.
         :param body: The request body.
@@ -110,7 +110,7 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the asynchronous call.
+        Wait for the named operation to complete - checks status of the asynchronous call.
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.

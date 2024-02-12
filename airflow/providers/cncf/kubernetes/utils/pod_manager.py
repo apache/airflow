@@ -22,7 +22,6 @@ import itertools
 import json
 import math
 import time
-import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
@@ -31,6 +30,7 @@ from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
 
 import pendulum
 import tenacity
+from deprecated import deprecated
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
@@ -187,6 +187,14 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         container_statuses = pod.status.container_statuses
         container_status = next((x for x in container_statuses if x.name == container_name), None)
         return container_status.state.terminated.message if container_status else None
+
+
+class PodLaunchTimeoutException(AirflowException):
+    """When pod does not leave the ``Pending`` phase within specified timeout."""
+
+
+class PodNotFoundException(AirflowException):
+    """Expected pod does not exist in kube-api."""
 
 
 class PodLogsConsumer:
@@ -371,13 +379,14 @@ class PodManager(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(startup_check_interval)
 
+    @deprecated(
+        reason=(
+            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead "
+            "with option `follow=True`."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
-        warnings.warn(
-            "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
-            "with option `follow=True`.",
-            category=AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
     def fetch_container_logs(

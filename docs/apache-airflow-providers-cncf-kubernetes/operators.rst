@@ -77,8 +77,8 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 Argument precedence
 ^^^^^^^^^^^^^^^^^^^
 
-When building the pod object, there may be overlap between KPO params, pod spec, template and airflow connection.
-In general, the order of precedence is KPO argument > full pod spec > pod template file > airflow connection.
+When KPO defines the pod object, there may be overlap between the :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` arguments.
+In general, the order of precedence is KPO field-specific arguments (e.g., ``secrets``, ``cmds``, ``affinity``), more general templates ``full_pod_spec``, ``pod_template_file``, ``pod_template_dict``,  and followed by ``V1Pod``, by default.
 
 For ``namespace``, if namespace is not provided via any of these methods, then we'll first try to
 get the current namespace (if the task is already running in kubernetes) and failing that we'll use
@@ -146,6 +146,14 @@ Also for this action you can use operator in the deferrable mode:
     :language: python
     :start-after: [START howto_operator_k8s_private_image_async]
     :end-before: [END howto_operator_k8s_private_image_async]
+
+Example to fetch and display container log periodically
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_async_log]
+    :end-before: [END howto_operator_async_log]
+
 
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
@@ -280,9 +288,9 @@ For further information, look at:
 SparkKubernetesOperator
 ==========================
 The :class:`~airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator` allows
-you to create and run spark job on a Kubernetes cluster. It is based on [ spark-on-k8s-operator ](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator)project.
+you to create and run spark job on a Kubernetes cluster. It is based on `spark-on-k8s-operator <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator>`__ project.
 
-This operator simplify the interface and accept different parameters to configure and run spark application on Kubernetes.
+This operator simplifies the interface and accepts different parameters to configure and run spark application on Kubernetes.
 Similar to the KubernetesOperator, we have added the logic to wait for a job after submission,
 manage error handling, retrieve logs from the driver pod and the ability to delete a spark job.
 It also supports out-of-the-box Kubernetes functionalities such as handling of volumes, config maps, secrets, etc.

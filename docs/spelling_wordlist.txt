@@ -7,6 +7,7 @@ Ack
 ack
 ackIds
 acknowledgement
+acks
 actionCard
 Acyclic
 acyclic
@@ -423,6 +424,7 @@ dbutils
 ddl
 de
 Debounce
+debuggability
 declaratively
 decomissioning
 Decrypt
@@ -632,6 +634,7 @@ fn
 fo
 followsa
 forecasted
+forkserver
 formatter
 formatters
 Formaturas
@@ -1080,6 +1083,7 @@ Oauth
 oauth
 Oauthlib
 objectORfile
+objectstorage
 observability
 od
 odbc
@@ -1266,6 +1270,8 @@ pythonic
 PythonOperator
 pythonpath
 pywinrm
+Qdrant
+qdrant
 qds
 Qingping
 Qplum

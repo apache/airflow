@@ -25,6 +25,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -263,13 +264,14 @@ class EksCreateClusterOperator(BaseOperator):
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     @property
-    def eks_hook(self):
-        warnings.warn(
+    @deprecated(
+        reason=(
             "`eks_hook` property is deprecated and will be removed in the future. "
-            "Please use `hook` property instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            "Please use `hook` property instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def eks_hook(self):
         return self.hook
 
     def execute(self, context: Context):

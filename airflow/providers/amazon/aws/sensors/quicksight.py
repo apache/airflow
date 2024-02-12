@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
@@ -80,24 +81,26 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
         return quicksight_ingestion_state == self.success_status
 
     @cached_property
+    @deprecated(
+        reason=(
+            "`QuickSightSensor.quicksight_hook` property is deprecated, "
+            "please use `QuickSightSensor.hook` property instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def quicksight_hook(self):
-        warnings.warn(
-            f"`{type(self).__name__}.quicksight_hook` property is deprecated, "
-            f"please use `{type(self).__name__}.hook` property instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.hook
 
     @cached_property
-    def sts_hook(self):
-        warnings.warn(
-            f"`{type(self).__name__}.sts_hook` property is deprecated and will be removed in the future. "
+    @deprecated(
+        reason=(
+            "`QuickSightSensor.sts_hook` property is deprecated and will be removed in the future. "
             "This property used for obtain AWS Account ID, "
-            f"please consider to use `{type(self).__name__}.hook.account_id` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
+            "please consider to use `QuickSightSensor.hook.account_id` instead"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
+    def sts_hook(self):
         from airflow.providers.amazon.aws.hooks.sts import StsHook
 
         return StsHook(aws_conn_id=self.aws_conn_id)

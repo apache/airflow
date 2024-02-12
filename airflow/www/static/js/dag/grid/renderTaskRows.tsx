@@ -24,7 +24,7 @@ import useSelection, { SelectionProps } from "src/dag/useSelection";
 import type { Task, DagRun } from "src/types";
 
 import StatusBox, { boxSize, boxSizePx } from "../StatusBox";
-import TaskName from "./TaskName";
+import TaskName from "../TaskName";
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
@@ -146,6 +146,8 @@ const Row = (props: RowProps) => {
         bg={isSelected ? "blue.100" : "inherit"}
         borderBottomWidth={1}
         borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
+        borderRightWidth="16px"
+        borderRightColor={isSelected ? "blue.100" : "transparent"}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"
@@ -170,7 +172,15 @@ const Row = (props: RowProps) => {
               label={task.label || task.id || ""}
               id={task.id || ""}
               isOpen={isOpen}
-              level={level}
+              ml={level * 4 + 4}
+              setupTeardownType={task.setupTeardownType}
+              mr={4}
+              fontWeight={
+                isGroup || (task.isMapped && !isParentMapped)
+                  ? "bold"
+                  : "normal"
+              }
+              noOfLines={1}
             />
           </Td>
         )}

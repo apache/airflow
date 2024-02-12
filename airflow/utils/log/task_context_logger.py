@@ -65,7 +65,7 @@ class TaskContextLogger:
 
     @staticmethod
     def _get_task_handler() -> FileTaskHandler | None:
-        """Returns the task handler that supports task context logging."""
+        """Return the task handler that supports task context logging."""
         handlers = [
             handler
             for handler in logging.getLogger("airflow.task").handlers

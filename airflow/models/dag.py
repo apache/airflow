@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Container,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -109,6 +110,7 @@ from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
     ContinuousTimetable,
@@ -595,6 +597,8 @@ class DAG(LoggingMixin):
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
+            if isinstance(timetable, DatasetOrTimeSchedule):
+                self.dataset_triggers = timetable.datasets
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
@@ -2624,15 +2628,25 @@ class DAG(LoggingMixin):
 
     def tree_view(self) -> None:
         """Print an ASCII tree representation of the DAG."""
+        for tmp in self._generate_tree_view():
+            print(tmp)
 
-        def get_downstream(task, level=0):
-            print((" " * level * 4) + str(task))
+    def _generate_tree_view(self) -> Generator[str, None, None]:
+        def get_downstream(task, level=0) -> Generator[str, None, None]:
+            yield (" " * level * 4) + str(task)
             level += 1
-            for t in task.downstream_list:
-                get_downstream(t, level)
+            for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
+                yield from get_downstream(tmp_task, level)
 
-        for t in self.roots:
-            get_downstream(t)
+        for t in sorted(self.roots, key=lambda x: x.task_id):
+            yield from get_downstream(t)
+
+    def get_tree_view(self) -> str:
+        """Return an ASCII tree representation of the DAG."""
+        rst = ""
+        for tmp in self._generate_tree_view():
+            rst += tmp + "\n"
+        return rst
 
     @property
     def task(self) -> TaskDecoratorCollection:

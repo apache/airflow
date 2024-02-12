@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 class AzureSynapseRunSparkBatchOperator(BaseOperator):
     """
-    Executes a Spark job on Azure Synapse.
+    Execute a Spark job on Azure Synapse.
 
     .. see also::
         For more information on how to use this operator, take a look at the guide:
@@ -121,13 +121,13 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
 
 
 class AzureSynapsePipelineRunLink(BaseOperatorLink):
-    """Constructs a link to monitor a pipeline run in Azure Synapse."""
+    """Construct a link to monitor a pipeline run in Azure Synapse."""
 
     name = "Monitor Pipeline Run"
 
     def get_fields_from_url(self, workspace_url):
         """
-        Extracts the workspace_name, subscription_id and resource_group from the Synapse workspace url.
+        Extract the workspace_name, subscription_id and resource_group from the Synapse workspace url.
 
         :param workspace_url: The workspace url.
         """
@@ -174,7 +174,7 @@ class AzureSynapsePipelineRunLink(BaseOperatorLink):
 
 class AzureSynapseRunPipelineOperator(BaseOperator):
     """
-    Executes a Synapse Pipeline.
+    Execute a Synapse Pipeline.
 
     :param pipeline_name: The name of the pipeline to execute.
     :param azure_synapse_conn_id: The Airflow connection ID for Azure Synapse.
@@ -266,7 +266,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
 
     def execute_complete(self, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

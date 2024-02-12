@@ -211,7 +211,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.2"
+AIRFLOW_PIP_VERSION = "24.0"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -1187,11 +1187,7 @@ def run_docs_publishing(
     output: Output | None,
 ) -> tuple[int, str]:
     builder = DocsPublisher(package_name=package_name, output=output, verbose=verbose)
-    builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
-    return (
-        0,
-        f"Docs published: {package_name}",
-    )
+    return builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
 
 PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
@@ -1207,6 +1203,9 @@ def run_publish_docs_in_parallel(
     debug_resources: bool,
 ):
     """Run docs publishing in parallel"""
+    success_entries = []
+    skipped_entries = []
+
     with ci_group("Publishing docs for packages"):
         all_params = [f"Publishing docs {package_name}" for package_name in package_list]
         with run_with_pool(
@@ -1230,14 +1229,23 @@ def run_publish_docs_in_parallel(
                 )
                 for index, package_name in enumerate(package_list)
             ]
-    check_async_run_results(
-        results=results,
-        success="All package documentation published.",
-        outputs=outputs,
-        include_success_outputs=include_success_outputs,
-        skip_cleanup=skip_cleanup,
-        summarize_on_ci=SummarizeAfter.NO_SUMMARY,
-    )
+
+            # Iterate over the results and collect success and skipped entries
+            for index, result in enumerate(results):
+                return_code, message = result.get()
+                if return_code == 0:
+                    success_entries.append(message)
+                else:
+                    skipped_entries.append(message)
+
+    get_console().print("[blue]Summary:\n")
+    get_console().print("[success]Packages published:")
+    for entry in success_entries:
+        get_console().print(f"[success]{entry}")
+    get_console().rule()
+    get_console().print("\n[warning]Packages skipped:")
+    for entry in skipped_entries:
+        get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
@@ -1254,9 +1262,9 @@ def run_publish_docs_in_parallel(
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
-    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
-    "the short hand names or the glob pattern matching the full package name. "
-    "The list of short hand names can be found in --help output",
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+    "several similarly named packages together.",
     type=str,
     multiple=True,
 )
@@ -1307,10 +1315,24 @@ def publish_docs(
             override_versioned=override_versioned,
         )
     else:
+        success_entries = []
+        skipped_entries = []
         for package_name in current_packages:
-            run_docs_publishing(
+            return_code, message = run_docs_publishing(
                 package_name, airflow_site_directory, override_versioned, verbose=get_verbose(), output=None
             )
+            if return_code == 0:
+                success_entries.append(message)
+            else:
+                skipped_entries.append(message)
+        get_console().print("[blue]Summary:\n")
+        get_console().print("[success]Packages published:")
+        for entry in success_entries:
+            get_console().print(f"[success]{entry}")
+        get_console().rule()
+        get_console().print("\n[warning]Packages skipped:")
+        for entry in skipped_entries:
+            get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(

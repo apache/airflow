@@ -208,7 +208,9 @@ https://helm.sh/docs/topics/provenance/. It can be used to verify integrity of t
 - Generate SHA512/ASC
 
 ```shell
-${AIRFLOW_REPO_ROOT}/dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
+pushd ${AIRFLOW_REPO_ROOT}/dist
+${AIRFLOW_REPO_ROOT}/dev/sign.sh airflow-*.tgz airflow-*-source.tar.gz
+popd
 ```
 
 - Move the artifacts to ASF dev dist repo, Generate convenience `index.yaml` & Publish them
@@ -686,7 +688,7 @@ between the two repositories to be able to build the documentation.
     ```shell
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
-    breeze build-docs --package-filter helm-chart --clean-build
+    breeze build-docs helm-chart --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -698,7 +700,7 @@ between the two repositories to be able to build the documentation.
 - Copy the documentation to the ``airflow-site`` repository.
 
     ```shell
-    breeze release-management publish-docs --package-filter helm-chart
+    breeze release-management publish-docs helm-chart
     ```
 
 - Update `index.yaml`

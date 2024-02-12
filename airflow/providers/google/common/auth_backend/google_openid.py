@@ -52,7 +52,7 @@ def create_client_session():
 
 
 def init_app(_):
-    """Initializes authentication."""
+    """Initialize authentication."""
 
 
 def _get_id_token_from_request(request) -> str | None:
@@ -110,7 +110,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication."""
+    """Act as a Decorator for function that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):

@@ -1316,80 +1316,9 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.dag_details", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/details")
-    @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @provide_session
-    def dag_details(self, dag_id, session: Session = NEW_SESSION):
+    def dag_details(self, dag_id):
         """Get Dag details."""
-        from airflow.models.dag import DagOwnerAttributes
-
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        title = "DAG Details"
-        root = request.args.get("root", "")
-
-        states = session.execute(
-            select(TaskInstance.state, sqla.func.count(TaskInstance.dag_id))
-            .where(TaskInstance.dag_id == dag_id)
-            .group_by(TaskInstance.state)
-        ).all()
-
-        active_runs = models.DagRun.find(dag_id=dag_id, state=DagRunState.RUNNING, external_trigger=False)
-
-        tags = session.scalars(select(models.DagTag).where(models.DagTag.dag_id == dag_id)).all()
-
-        # TODO: convert this to a relationship
-        owner_links = session.execute(select(DagOwnerAttributes).filter_by(dag_id=dag_id)).all()
-
-        attrs_to_avoid = [
-            "schedule_datasets",
-            "schedule_dataset_references",
-            "task_outlet_dataset_references",
-            "NUM_DAGS_PER_DAGRUN_QUERY",
-            "serialized_dag",
-            "tags",
-            "default_view",
-            "relative_fileloc",
-            "dag_id",
-            "description",
-            "max_active_runs",
-            "max_active_tasks",
-            "schedule_interval",
-            "owners",
-            "dag_owner_links",
-            "is_paused",
-        ]
-        attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
-        dag_model_attrs: list[tuple[str, Any]] = [
-            (attr_name, attr)
-            for attr_name, attr in (
-                (attr_name, getattr(dag_model, attr_name))
-                for attr_name in dir(dag_model)
-                if not attr_name.startswith("_") and attr_name not in attrs_to_avoid
-            )
-            if not callable(attr)
-        ]
-
-        return self.render_template(
-            "airflow/dag_details.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            dag_model=dag_model,
-            title=title,
-            root=root,
-            states=states,
-            State=State,
-            active_runs=active_runs,
-            tags=tags,
-            owner_links=owner_links,
-            dag_model_attrs=dag_model_attrs,
-        )
+        return redirect(url_for("Airflow.grid", dag_id=dag_id))
 
     @expose("/rendered-templates")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
@@ -2975,7 +2904,7 @@ class Airflow(AirflowBaseView):
                 for (date, count) in dates.items()
             )
 
-        now = DateTime.utcnow()
+        now = timezone.utcnow()
         data = {
             "dag_states": data_dag_states,
             "start_date": (dag.start_date or now).date().isoformat(),
@@ -3561,7 +3490,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.run_type, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.run_type)
             ).all()
@@ -3570,7 +3499,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.state, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.state)
             ).all()
@@ -3581,7 +3510,7 @@ class Airflow(AirflowBaseView):
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(TaskInstance.state)
             ).all()
@@ -4065,7 +3994,7 @@ class AirflowModelView(ModelView):
     @expose("/action_post", methods=["POST"])
     def action_post(self):
         """
-        Action method to handle multiple records selected from a list view.
+        Handle multiple records selected from a list view.
 
         Same implementation as
         https://github.com/dpgaspar/Flask-AppBuilder/blob/2c5763371b81cd679d88b9971ba5d1fc4d71d54b/flask_appbuilder/views.py#L677
@@ -5476,7 +5405,7 @@ class TaskInstanceModelView(AirflowModelView):
         "priority_weight",
         "queue",
         "queued_dttm",
-        "try_number",
+        "prev_attempted_tries",
         "pool",
         "queued_by_job_id",
         "external_executor_id",
@@ -5505,9 +5434,7 @@ class TaskInstanceModelView(AirflowModelView):
         "queued_by_job_id",
     ]
 
-    label_columns = {
-        "dag_run.execution_date": "Logical Date",
-    }
+    label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [
         "state",

@@ -101,6 +101,11 @@ class MockNamedTuple(NamedTuple):
     var2: str
 
 
+class CustomInt(int):
+    def __int__(self):
+        raise ValueError("Cannot cast to int")
+
+
 class TestBaseOperator:
     def test_expand(self):
         dummy = DummyClass(test_param=True)
@@ -828,11 +833,18 @@ def test_init_subclass_args():
 
 
 @pytest.mark.db_test
-def test_operator_retries_invalid(dag_maker):
+@pytest.mark.parametrize(
+    ("retries", "expected"),
+    [
+        pytest.param("foo", "'retries' type must be int, not str", id="string"),
+        pytest.param(CustomInt(10), "'retries' type must be int, not CustomInt", id="custom int"),
+    ],
+)
+def test_operator_retries_invalid(dag_maker, retries, expected):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
-            BaseOperator(task_id="test_illegal_args", retries="foo")
-    assert str(ctx.value) == "'retries' type must be int, not str"
+            BaseOperator(task_id="test_illegal_args", retries=retries)
+    assert str(ctx.value) == expected
 
 
 @pytest.mark.db_test

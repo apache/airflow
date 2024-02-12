@@ -407,14 +407,17 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
-    # Install latest set of dependencies using constraints. In case constraints were upgraded and there
-    # are conflicts, this might fail, but it should be fixed in the following installation steps
+    # Install latest set of dependencies - without constraints. This is to download a "base" set of
+    # dependencies that we can cache and reuse when installing airflow using constraints and latest
+    # pyproject.toml in the next step (when we install regular airflow).
     set -x
     pip install --root-user-action ignore \
       ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-      --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
+      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
     common::install_pip_version
+    # Uninstall airflow and providers to keep only the dependencies. In the future when
+    # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
+    # flag and skip the remove step.
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     set +x
     echo
@@ -462,7 +465,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3.2"
+            export AIRFLOW_PIP_VERSION="24.0"
         fi
     fi
 }
@@ -1009,7 +1012,7 @@ RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1060,7 +1063,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
-ARG AIRFLOW_EXTRAS="all"
+ARG AIRFLOW_EXTRAS="devel-ci"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
@@ -1070,9 +1073,9 @@ ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="6"
+ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ARG AIRFLOW_PIP_VERSION=23.3.2
+ARG AIRFLOW_PIP_VERSION=24.0
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1177,8 +1180,8 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
-COPY dev/airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/dev/airflow_pre_installed_providers.txt
-COPY dev/hatch_build.py ${AIRFLOW_SOURCES}/dev/hatch_build.py
+COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
+COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources

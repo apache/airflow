@@ -317,7 +317,7 @@ Running ``pipinstall -e .`` will install Airflow in editable mode, but all provi
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable
-mode with provider id as extra. You can see the list of provider's extras in the
+mode with ``provider id`` as extra (with ``-`` instead of ``.``) . You can see the list of provider's extras in the
 `extras reference <./docs/apache-airflow/extra-packages-ref.rst>`_.
 
 For example, if you want to develop Google provider, you can install it with:

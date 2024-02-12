@@ -312,8 +312,10 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v4
         with:
+          # Need to fetch all history for selective checks tests
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -336,11 +338,11 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 21
       - name: "Cache eslint"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: 'airflow/www/node_modules'
           key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/www/**/yarn.lock') }}
@@ -420,7 +422,7 @@ jobs:
         run: killall python || true  # just in case there is a webserver running in the background
         if: always()
       - name: "Upload python client packages"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-client-packages
           path: ./dist/apache_airflow_client-*
@@ -537,7 +539,7 @@ jobs:
             cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
           done
       - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: constraints
           path: ./files/constraints-*/constraints-*.txt
@@ -566,7 +568,7 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -582,6 +584,52 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
           RUFF_FORMAT: "github"
+
+  upgrade-check:
+    timeout-minutes: 45
+    name: "Upgrade checks"
+    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+    if: needs.build-info.outputs.canary-run == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # Install python from scratch. No cache used. We always want to have fresh version of everything
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "${{needs.build-info.outputs.default-python-version}}"
+      - name: "Install latest pre-commit"
+        run: pip install pre-commit
+      - name: "Autoupdate all pre-commits"
+        run: pre-commit autoupdate
+      - name: "Run automated upgrade for black"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-black-version
+        if: always()
+      - name: "Run automated upgrade for build dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-build-dependencies
+        if: always()
+      - name: "Run automated upgrade for chart dependencies"
+        run: >
+          pre-commit run
+          --all-files --show-diff-on-failure --color always --verbose
+          --hook-stage manual
+          update-chart-dependencies
+        if: always()
 
   # Runs static checks for groups of files in the repository in a single process without passing .
   # List of files
@@ -613,7 +661,7 @@ jobs:
         id: breeze
         if: needs.build-info.outputs.needs-mypy == 'true'
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -653,7 +701,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
@@ -662,7 +710,7 @@ jobs:
         uses: ./.github/actions/breeze
         id: breeze
       - name: Cache pre-commit envs
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
@@ -706,7 +754,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -721,25 +769,25 @@ jobs:
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
-        if: needs.build-info.outputs.full-tests-needed == 'true'
+        if: needs.build-info.outputs.canary-run == 'true'
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
@@ -770,7 +818,7 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -1056,7 +1104,8 @@ jobs:
           breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
           --skip-tag-signing --version 0.0.0 --version-suffix dev0
       - name: Generate GPG key for signing
-        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+        # Sometimes the key will be already added to the keyring, so we ignore the error
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default || true
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
@@ -1065,7 +1114,7 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Helm artifacts
           path: ./dist/airflow-*
@@ -1451,7 +1500,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-postgres"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1494,6 +1543,9 @@ jobs:
           breeze testing integration-tests --integration kafka
           breeze down
         if: needs.build-info.outputs.is-airflow-runner != 'true'
+      - name: "Integration Tests Postgres: Qdrant"
+        run: breeze testing integration-tests --integration qdrant
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.is-airflow-runner == 'true'
@@ -1523,7 +1575,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
-      JOB_ID: "integration"
+      JOB_ID: "integration-mysql"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1620,9 +1672,9 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "no-db-${{matrix.python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1659,7 +1711,7 @@ jobs:
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      JOB_ID: "no-db-pendulum-2-${{needs.build-info.outputs.default-python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       DOWNGRADE_PENDULUM: "true"
     if: needs.build-info.outputs.run-tests == 'true'
@@ -1708,7 +1760,7 @@ jobs:
         with:
           persist-credentials: false
       - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
       - name: "Summarize all warnings"
@@ -2099,7 +2151,7 @@ jobs:
         env:
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       - name: "Setup python"
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{needs.build-info.outputs.default-python-version}}
           cache: 'pip'
@@ -2182,7 +2234,7 @@ jobs:
           # Force more parallelism for pull even on public images
           PARALLELISM: 6
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ".build/.k8s-env"
           key: "\
@@ -2197,7 +2249,7 @@ jobs:
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
           VERBOSE: "false"
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -2205,7 +2257,7 @@ jobs:
           retention-days: 7
       - name: >
           Upload test resource logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure() || cancelled()
         with:
           name: k8s-test-resources-${{matrix.executor}}-${{matrix.use-standard-naming}}
@@ -2261,7 +2313,7 @@ jobs:
           persist-credentials: true
           fetch-depth: 0
       - name: "Download constraints from the constraints generated by build CI image"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./files
@@ -2318,7 +2370,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./dev/prod_image_installed_providers.txt
+          --package-list-file ./prod_image_installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"

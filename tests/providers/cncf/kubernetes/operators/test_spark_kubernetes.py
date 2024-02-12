@@ -25,6 +25,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pendulum
+import pytest
 import yaml
 from kubernetes.client import models as k8s
 
@@ -488,3 +489,18 @@ class TestSparkKubernetesOperator:
 
         assert op.launcher.body["spec"]["driver"]["tolerations"] == [toleration]
         assert op.launcher.body["spec"]["executor"]["tolerations"] == [toleration]
+
+
+@pytest.mark.db_test
+def test_template_body_templating(create_task_instance_of_operator):
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
+        template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        dag_id="test_template_body_templating_dag",
+        task_id="test_template_body_templating_task",
+        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+    )
+    ti.render_templates()
+    task: SparkKubernetesOperator = ti.task
+    assert task.template_body == {"spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}}
