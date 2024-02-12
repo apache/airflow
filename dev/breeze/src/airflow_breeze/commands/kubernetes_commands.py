@@ -1242,7 +1242,7 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
                 "K9S_EDITOR",
                 "-v",
                 f"{kubeconfig_file}:/root/.kube/config",
-                "quay.io/derailed/k9s",
+                "derailed/k9s",
                 "--namespace",
                 HELM_AIRFLOW_NAMESPACE,
                 *k9s_args,
