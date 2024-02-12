@@ -270,8 +270,7 @@ class BigQueryToGCSOperator(BaseOperator):
             job.result(timeout=self.result_timeout, retry=self.result_retry)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """
-        Callback for when the trigger fires - returns immediately.
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -284,7 +283,7 @@ class BigQueryToGCSOperator(BaseOperator):
         )
 
     def get_openlineage_facets_on_complete(self, task_instance):
-        """Implementing on_complete as we will include final BQ job id."""
+        """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
         from openlineage.client.facet import (

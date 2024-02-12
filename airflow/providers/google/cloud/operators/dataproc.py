@@ -541,7 +541,7 @@ class ClusterGenerator:
 
     def make(self):
         """
-        Helper method for easier migration.
+        Act as a helper method for easier migration.
 
         :return: Dict representing Dataproc cluster.
         """
@@ -859,7 +859,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1108,7 +1108,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1470,7 +1470,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1484,7 +1484,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         return job_id
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.dataproc_job_id:
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
@@ -1587,7 +1587,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1681,7 +1681,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1774,7 +1774,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1869,7 +1869,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1959,7 +1959,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         self.files = files
 
     def generate_job(self):
-        """Helper method for easier migration to `DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -2073,7 +2073,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         self.pyfiles = pyfiles
 
     def generate_job(self):
-        """Helper method for easier migration to :class:`DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to :class:`DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -2305,7 +2305,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2447,7 +2447,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2601,7 +2601,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         return self.job_id
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2757,7 +2757,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -2887,7 +2887,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -3085,7 +3085,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         return Batch.to_dict(result)
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
