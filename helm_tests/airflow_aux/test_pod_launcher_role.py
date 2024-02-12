@@ -53,18 +53,27 @@ class TestPodLauncher:
     @pytest.mark.parametrize(
         "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",
         [
-            (True, "namespace", "release-name-namespace-pod-launcher-role", "release-name-namespace-pod-launcher-rolebinding"),
-            (True, "other-ns", "release-name-other-ns-pod-launcher-role", "release-name-other-ns-pod-launcher-rolebinding"),
+            (
+                True,
+                "namespace",
+                "release-name-namespace-pod-launcher-role",
+                "release-name-namespace-pod-launcher-rolebinding",
+            ),
+            (
+                True,
+                "other-ns",
+                "release-name-other-ns-pod-launcher-role",
+                "release-name-other-ns-pod-launcher-rolebinding",
+            ),
             (False, "namespace", "release-name-pod-launcher-role", "release-name-pod-launcher-rolebinding"),
         ],
     )
-    def test_pod_launcher_rolebinding_multi_namespace(self, multiNamespaceMode, namespace, expectedRole, expectedRoleBinding):
+    def test_pod_launcher_rolebinding_multi_namespace(
+        self, multiNamespaceMode, namespace, expectedRole, expectedRoleBinding
+    ):
         docs = render_chart(
-            namespace = namespace,
-            values={
-                "webserver": {"allowPodLogReading": True},
-                "multiNamespaceMode": multiNamespaceMode
-            },
+            namespace=namespace,
+            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
         )
 
@@ -93,11 +102,8 @@ class TestPodLauncher:
     )
     def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
         docs = render_chart(
-            namespace = namespace,
-            values={
-                "webserver": {"allowPodLogReading": True},
-                "multiNamespaceMode": multiNamespaceMode
-            },
+            namespace=namespace,
+            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
             show_only=["templates/rbac/pod-launcher-role.yaml"],
         )
 
