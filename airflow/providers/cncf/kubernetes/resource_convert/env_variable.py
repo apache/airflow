@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 
 def convert_env_vars(env_vars) -> list[k8s.V1EnvVar]:
     """
-    Converts a dictionary of key:value into a list of env_vars.
+    Convert a dictionary of key:value into a list of env_vars.
 
     :param env_vars:
     :return:
