@@ -1127,23 +1127,6 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
-# dependency resolution and we do not need to limit the versions of the dependencies
-#
-# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
-# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
-# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
-# We should update it every time a new version of aiobotocore is released supporting 1.34
-#
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-ARG VERSION_SUFFIX_FOR_PYPI=""
-
-ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_branch_tip.sh \
@@ -1158,8 +1141,7 @@ COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_bra
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 RUN bash /scripts/docker/install_pip_version.sh; \
-    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
-          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
@@ -1183,6 +1165,23 @@ COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
 COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
 COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
+
+# Those are additional constraints that are needed for some extras but we do not want to
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+#
+# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
+# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
+# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
+# We should update it every time a new version of aiobotocore is released supporting 1.34
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ARG VERSION_SUFFIX_FOR_PYPI=""
+
+ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast
