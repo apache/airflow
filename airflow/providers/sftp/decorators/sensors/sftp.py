@@ -52,13 +52,14 @@ class _DecoratedSFTPSensor(SFTPSensor):
         task_id: str,
         **kwargs,
     ) -> None:
+        kwargs.pop("multiple_outputs")
         kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
 
 
 def sftp_sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskDecorator:
     """
-    Wraps a function into an Airflow operator.
+    Wrap a function into an Airflow operator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
     :param python_callable: Function to decorate
