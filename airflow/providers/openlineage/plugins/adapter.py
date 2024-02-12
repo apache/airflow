@@ -284,7 +284,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.START,
             eventTime=dag_run.start_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE, facets={"jobType": _JOB_TYPE_DAG}),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=self._build_run(
                 run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 job_name=dag_run.dag_id,
@@ -301,7 +301,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE, facets={"jobType": _JOB_TYPE_DAG}),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id)),
             inputs=[],
             outputs=[],
@@ -313,7 +313,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE, facets={"jobType": _JOB_TYPE_DAG}),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(
                 runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
