@@ -48,9 +48,6 @@ const Notes = ({ dagId, runId, taskId, mapIndex, initialValue }: Props) => {
   const canEdit = getMetaValue("can_edit") === "True";
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
-  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
-    canEdit ? [0] : []
-  );
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading } =
@@ -76,26 +73,12 @@ const Notes = ({ dagId, runId, taskId, mapIndex, initialValue }: Props) => {
     setEditMode(false);
   };
 
-  const toggleNotesPanel = () => {
-    if (accordionIndexes.includes(0)) {
-      setAccordionIndexes([]);
-    } else {
-      setAccordionIndexes([0]);
-    }
-  };
-
   useKeysPress(keyboardShortcutIdentifier.addOrEditNotes, () => {
     if (canEdit) {
-      // Notes index is 0
-      if (!accordionIndexes.includes(0)) {
-        setAccordionIndexes([0]);
-      }
       setEditMode(true);
       setTimeout(() => textAreaRef.current?.focus(), 100);
     }
   });
-
-  useKeysPress(keyboardShortcutIdentifier.viewNotes, toggleNotesPanel);
 
   return (
     <AccordionItem border="0">

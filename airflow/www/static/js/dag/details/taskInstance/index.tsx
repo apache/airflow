@@ -17,13 +17,15 @@
  * under the License.
  */
 
-import React, { useRef } from "react";
-import { Accordion, Box } from "@chakra-ui/react";
+import React, { useRef, useState } from "react";
+import { Accordion, Box, ExpandedIndex } from "@chakra-ui/react";
 
 import { useGridData, useTaskInstance, useTIAttrs } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
 import Notes from "src/dag/details/Notes";
+import { useKeysPress } from "src/utils/useKeysPress";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
@@ -74,6 +76,20 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     ? mappedTaskInstance
     : group?.instances.find((ti) => ti.runId === runId);
 
+  const [accordionIndexes, setAccordionIndexes] = useState([0]);
+
+  const toggleNotesPanel = () => {
+    if (!isGroupOrMappedTaskSummary) {
+      if (accordionIndexes.includes(1)) {
+        setAccordionIndexes(accordionIndexes.filter((i) => i !== 1));
+      } else {
+        setAccordionIndexes([...accordionIndexes, 1]);
+      }
+    }
+  };
+
+  useKeysPress(keyboardShortcutIdentifier.viewNotes, toggleNotesPanel);
+
   if (!group || !run || !instance) return null;
 
   const { executionDate } = run;
@@ -95,7 +111,13 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           operator={operator}
         />
       )}
-      <Accordion defaultIndex={[0]} allowMultiple>
+      <Accordion
+        index={accordionIndexes}
+        allowMultiple
+        onChange={(index: ExpandedIndex) =>
+          setAccordionIndexes(typeof index === "number" ? [index] : index)
+        }
+      >
         <Details instance={instance} group={group} />
         {!isGroupOrMappedTaskSummary && (
           <Notes

@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Box, Accordion } from "@chakra-ui/react";
 import { useGridData } from "src/api";
 import { getMetaValue, useOffsetTop } from "src/utils";
 import type { DagRun as DagRunType } from "src/types";
 import Notes from "src/dag/details/Notes";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
+import { useKeysPress } from "src/utils/useKeysPress";
 
 import DatasetTriggerEvents from "./DatasetTriggerEvents";
 import Details from "./Details";
@@ -41,6 +43,18 @@ const DagRun = ({ runId }: Props) => {
 
   const run = dagRuns.find((dr) => dr.runId === runId);
 
+  const [accordionIndexes, setAccordionIndexes] = useState([0]);
+
+  const toggleNotesPanel = () => {
+    if (accordionIndexes.includes(1)) {
+      setAccordionIndexes(accordionIndexes.filter((i) => i !== 1));
+    } else {
+      setAccordionIndexes([...accordionIndexes, 1]);
+    }
+  };
+
+  useKeysPress(keyboardShortcutIdentifier.viewNotes, toggleNotesPanel);
+
   if (!run) return null;
   const { runType, note } = run;
 
@@ -51,7 +65,13 @@ const DagRun = ({ runId }: Props) => {
       overflowY="auto"
       pb={4}
     >
-      <Accordion defaultIndex={[0]} allowMultiple>
+      <Accordion
+        defaultIndex={accordionIndexes}
+        allowMultiple
+        onChange={(index) =>
+          setAccordionIndexes(typeof index === "number" ? [index] : index)
+        }
+      >
         <Details run={run} />
         <Notes
           dagId={dagId}
