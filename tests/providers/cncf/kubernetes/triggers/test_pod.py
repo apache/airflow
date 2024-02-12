@@ -257,6 +257,7 @@ class TestKubernetesPodTrigger:
         trigger = KubernetesPodTrigger(
             pod_name=mock.ANY,
             pod_namespace=mock.ANY,
+            trigger_start_time=mock.ANY,
             base_container_name=mock.ANY,
             startup_timeout=5,
             poll_interval=1,
