@@ -651,6 +651,7 @@ cohere = [ # source: airflow/providers/cohere/provider.yaml
 ]
 common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
+  "more-itertools>=9.0.0",
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml

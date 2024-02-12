@@ -347,6 +347,7 @@
   "common.sql": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "more-itertools>=9.0.0",
       "sqlparse>=0.4.2"
     ],
     "devel-deps": [],
