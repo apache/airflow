@@ -57,7 +57,7 @@ def create_evaluate_ops(
     py_interpreter="python3",
 ) -> tuple[MLEngineStartBatchPredictionJobOperator, BeamRunPythonPipelineOperator, PythonOperator]:
     r"""
-    Creates Operators needed for model evaluation and returns.
+    Create Operators needed for model evaluation and returns.
 
     This function is deprecated. All the functionality of legacy MLEngine and new features are available
     on the Vertex AI platform.

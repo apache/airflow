@@ -66,7 +66,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
 
     def get_conn(self) -> Resource:
         """
-        Creates an authenticated api client for the given api service name and credentials.
+        Create an authenticated api client for the given api service name and credentials.
 
         :return: the authenticated api service.
         """
@@ -84,7 +84,7 @@ class GoogleDiscoveryApiHook(GoogleBaseHook):
 
     def query(self, endpoint: str, data: dict, paginate: bool = False, num_retries: int = 0) -> dict:
         """
-        Creates a dynamic API call to any Google API registered in Google's API Client Library and queries it.
+        Create a dynamic API call to any Google API registered in Google's API Client Library and queries it.
 
         :param endpoint: The client libraries path to the api call's executing method.
             For example: 'analyticsreporting.reports.batchGet'

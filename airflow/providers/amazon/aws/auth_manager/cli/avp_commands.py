@@ -80,7 +80,7 @@ def update_schema(args):
 
 
 def _get_client():
-    """Returns Amazon Verified Permissions client."""
+    """Return Amazon Verified Permissions client."""
     region_name = conf.get(CONF_SECTION_NAME, CONF_REGION_NAME_KEY)
     return boto3.client("verifiedpermissions", region_name=region_name)
 

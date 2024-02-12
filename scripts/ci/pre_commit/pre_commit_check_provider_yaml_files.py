@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -32,9 +33,10 @@ cmd_result = run_command_via_breeze_shell(
     warn_image_upgrade_needed=True,
     extra_env={"PYTHONWARNINGS": "default"},
 )
-if cmd_result.returncode != 0:
+if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
     console.print(
-        "[warning]\nIf you see strange stacktraces above, "
-        "run `breeze ci-image build --python 3.8` and try again."
+        "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+        "run this command:[/]\n"
     )
+    console.print("[magenta]breeze ci-image build --python 3.8 --upgrade-to-newer-dependencies[/]\n")
 sys.exit(cmd_result.returncode)

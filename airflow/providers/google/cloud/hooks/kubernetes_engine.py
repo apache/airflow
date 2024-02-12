@@ -178,7 +178,7 @@ class GKEHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
     ) -> Operation | None:
-        """Deletes the cluster, the Kubernetes endpoint, and all worker nodes.
+        """Delete the cluster, the Kubernetes endpoint, and all worker nodes.
 
         Firewalls and routes that were configured during cluster creation are
         also deleted. Other Google Compute Engine resources that might be in use
@@ -508,7 +508,7 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
             async with Token(scopes=self.scopes, service_file=service_file) as token:
                 async with self.get_conn(token) as connection:
                     v1_api = async_client.CoreV1Api(connection)
@@ -524,7 +524,7 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
             async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
                 token
             ) as connection:
@@ -551,7 +551,7 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
+        with await self.service_file_as_context() as service_file:  # type: ignore[attr-defined]
             async with Token(scopes=self.scopes, service_file=service_file) as token, self.get_conn(
                 token
             ) as connection:

@@ -312,6 +312,8 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v4
         with:
+          # Need to fetch all history for selective checks tests
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -1102,7 +1104,8 @@ jobs:
           breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
           --skip-tag-signing --version 0.0.0 --version-suffix dev0
       - name: Generate GPG key for signing
-        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+        # Sometimes the key will be already added to the keyring, so we ignore the error
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default || true
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
@@ -2367,7 +2370,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./dev/prod_image_installed_providers.txt
+          --package-list-file ./prod_image_installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"

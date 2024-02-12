@@ -23,6 +23,10 @@
 
 ``apache-airflow-providers-opensearch``
 
+
+Changelog
+---------
+
 1.1.1
 .....
 

@@ -62,7 +62,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         self.location = location
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes CloudBuildCreateBuildTrigger arguments and classpath."""
+        """Serialize CloudBuildCreateBuildTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger",
             {
@@ -76,7 +76,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current build execution status and yields a TriggerEvent."""
+        """Get current build execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:
