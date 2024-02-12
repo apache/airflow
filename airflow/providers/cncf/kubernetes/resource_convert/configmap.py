@@ -21,7 +21,7 @@ from kubernetes.client import models as k8s
 
 def convert_configmap(configmap_name) -> k8s.V1EnvFromSource:
     """
-    Converts a str into an k8s object.
+    Convert a str into an k8s object.
 
     :param configmap_name: config map name
     :return:
@@ -33,7 +33,7 @@ def convert_configmap_to_volume(
     configmap_info: dict[str, str],
 ) -> tuple[list[k8s.V1Volume], list[k8s.V1VolumeMount]]:
     """
-    Converts a dictionary of config_map_name and mount_path into k8s volume mount object and k8s volume.
+    Convert a dictionary of config_map_name and mount_path into k8s volume mount object and k8s volume.
 
     :param configmap_info: a dictionary of {config_map_name: mount_path}
     :return:
