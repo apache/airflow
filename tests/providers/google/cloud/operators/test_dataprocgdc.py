@@ -22,9 +22,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from dateutil import tz
+
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.dataprocgdc import (DataprocGDCSubmitSparkJobKrmOperator,
-                                                                  DataprocGdcCreateAppEnvironmentKrmOperator)
+from airflow.providers.google.cloud.operators.dataprocgdc import (
+    DataprocGDCSubmitSparkJobKrmOperator,
+    DataprocGdcCreateAppEnvironmentKrmOperator
+)
 
 
 class TestDataprocGDCSparkSubmitKrmOperator:
@@ -45,7 +48,8 @@ class TestDataprocGDCSparkSubmitKrmOperator:
         mock_stream.side_effect = [[{"object": object_mock}], []]
 
         op = DataprocGDCSubmitSparkJobKrmOperator(
-            task_id="task_id", application_file="application_file", watch=True)
+            task_id="task_id", application_file="application_file", watch=True
+        )
         operator_output = op.execute({})
 
         mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
@@ -71,16 +75,16 @@ class TestDataprocGDCSparkSubmitKrmOperator:
         )
 
         assert operator_output == {
-            "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}}
+            "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}
+        }
 
     @patch(
-        "airflow.providers.google.cloud.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill")
+        "airflow.providers.google.cloud.operators.dataprocgdc.DataprocGDCSubmitSparkJobKrmOperator.on_kill"
+    )
     @patch("airflow.providers.google.cloud.operators.dataprocgdc.Watch.stream")
     @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
     @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
-    def test_fail_spark_app(
-        self, mock_kubernetes_hook, mock_load_body_to_dict, mock_stream, mock_on_kill
-    ):
+    def test_fail_spark_app(self, mock_kubernetes_hook, mock_load_body_to_dict, mock_stream, mock_on_kill):
         mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
 
         mock_kubernetes_hook.return_value.create_custom_object.return_value = {
@@ -94,8 +98,9 @@ class TestDataprocGDCSparkSubmitKrmOperator:
         object_mock.last_timestamp = datetime(2024, 1, 1, 23, 59, 59, tzinfo=tz.tzutc())
 
         mock_stream.side_effect = [[{"object": object_mock}], []]
-        op = DataprocGDCSubmitSparkJobKrmOperator(task_id="task_id", application_file="application_file",
-                                                  watch=True)
+        op = DataprocGDCSubmitSparkJobKrmOperator(
+            task_id="task_id", application_file="application_file", watch=True
+        )
         with pytest.raises(AirflowException, match="Submission Failed"):
             op.execute({})
 
@@ -122,7 +127,8 @@ class TestDataprocGDCSparkSubmitKrmOperator:
             namespace="default",
         )
         assert operator_output == {
-            "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}}
+            "metadata": {"name": "spark-app", "creationTimestamp": "2024-01-01T00:00:00Z"}
+        }
 
     @patch("airflow.providers.google.cloud.operators.dataprocgdc._load_body_to_dict")
     @patch("airflow.providers.google.cloud.operators.dataprocgdc.KubernetesHook")
@@ -154,7 +160,9 @@ class TestDataprocGDCCreateAppEnvironmentKrmOperator:
         }
         mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
 
-        op = DataprocGdcCreateAppEnvironmentKrmOperator(task_id="task_id", application_file="application_file")
+        op = DataprocGdcCreateAppEnvironmentKrmOperator(
+            task_id="task_id", application_file="application_file"
+        )
         operator_output = op.execute({})
 
         mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
@@ -165,5 +173,5 @@ class TestDataprocGDCCreateAppEnvironmentKrmOperator:
             namespace="default",
         )
         assert operator_output == {
-            "metadata": {"name": "app-env", "creationTimestamp": "2024-01-01T00:00:00Z"}}
-
+            "metadata": {"name": "app-env", "creationTimestamp": "2024-01-01T00:00:00Z"}
+        }

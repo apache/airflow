@@ -576,6 +576,9 @@ operators:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.operators.dataproc
+  - integration-name: Google Dataproc GDC
+    python-modules:
+      - airflow.providers.google.cloud.operators.dataprocgdc
   - integration-name: Google Datastore
     python-modules:
       - airflow.providers.google.cloud.operators.datastore
@@ -708,6 +711,9 @@ sensors:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
+  - integration-name: Google Dataproc GDC
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataprocgdc
   - integration-name: Google Dataproc Metastore
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc_metastore

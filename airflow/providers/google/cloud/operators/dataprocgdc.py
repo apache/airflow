@@ -22,18 +22,19 @@ from __future__ import annotations
 
 import datetime
 from functools import cached_property
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
+
+from kubernetes.client import ApiException, CoreV1Api
+from kubernetes.watch import Watch
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import _load_body_to_dict
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from kubernetes.client import CoreV1Api, ApiException
-from kubernetes.watch import Watch
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
 
 if TYPE_CHECKING:
     from kubernetes.client.models import CoreV1EventList
+
     from airflow.utils.context import Context
 
 
@@ -70,19 +71,6 @@ class DataprocGDCSubmitSparkJobKrmOperator(BaseOperator):
         watch: bool = True,
         **kwargs,
     ) -> None:
-        """
-        Args:
-          application_file:
-          kubernetes_conn_id:
-          config_file:
-          cluster_context:
-          namespace:
-          api_group:
-          api_version:
-          in_cluster:
-          watch:
-          **kwargs:
-        """
         super().__init__(**kwargs)
         self.application_file = application_file
         self.kubernetes_conn_id = kubernetes_conn_id
@@ -101,7 +89,7 @@ class DataprocGDCSubmitSparkJobKrmOperator(BaseOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
-            cluster_context=self.cluster_context
+            cluster_context=self.cluster_context,
         )
         return hook
 
@@ -144,7 +132,7 @@ class DataprocGDCSubmitSparkJobKrmOperator(BaseOperator):
                     namespace=namespace,
                     query_kwargs={
                         "field_selector": f"involvedObject.kind=SparkApplication,involvedObject.name={name}"
-                    }
+                    },
                 )
 
                 response = self.hook.create_custom_object(
@@ -205,11 +193,8 @@ class DataprocGDCSubmitSparkJobKrmOperator(BaseOperator):
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
         self.hook.delete_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural=self.plural,
-            namespace=namespace,
-            name=name)
+            group=self.api_group, version=self.api_version, plural=self.plural, namespace=namespace, name=name
+        )
 
 
 class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
@@ -225,7 +210,7 @@ class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
     :param api_version: DPGDC api version
     """
 
-    template_fields: Sequence[str] = ("application_file")
+    template_fields: Sequence[str] = "application_file"
     template_ext: Sequence[str] = (".yaml", ".yml", ".json")
     ui_color = "#f4a460"
 
@@ -242,18 +227,6 @@ class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
         in_cluster: bool = False,
         **kwargs,
     ) -> None:
-        """
-        Args:
-          application_file:
-          kubernetes_conn_id:
-          config_file:
-          cluster_context:
-          namespace:
-          api_group:
-          api_version:
-          in_cluster:
-          **kwargs:
-        """
         super().__init__(**kwargs)
         self.application_file = application_file
         self.kubernetes_conn_id = kubernetes_conn_id
@@ -271,7 +244,7 @@ class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,
-            cluster_context=self.cluster_context
+            cluster_context=self.cluster_context,
         )
         return hook
 
@@ -284,7 +257,6 @@ class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
             body = _load_body_to_dict(self.application_file)
         else:
             body = self.application_file
-        name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
 
         response = self.hook.create_custom_object(
@@ -296,5 +268,6 @@ class DataprocGdcCreateAppEnvironmentKrmOperator(BaseOperator):
         )
 
         return response
+
 
 # TODO Implement DataprocGDC operator using OnePlatform APIs.

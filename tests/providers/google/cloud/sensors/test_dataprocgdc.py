@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
-import json
 
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -41,24 +41,25 @@ class TestDataprocGDCSparkSubmitKrmSensor:
             "uid": "9f825516-6e1a-4af1-8967-b05661e8fb08",
         },
         "spec": {
-            'properties': {
-                'spark.hadoop.fs.s3a.access.key': '***',
-                'spark.hadoop.fs.s3a.connection.ssl.enabled': 'false',
-                'spark.hadoop.fs.s3a.endpoint': '***',
-                'spark.hadoop.fs.s3a.path.style.access': 'true',
-                'spark.hadoop.fs.s3a.secret.key': '***'},
-            'pySparkApplicationConfig': {},
-            'sparkApplicationConfig': {
-                'args': ['100000'],
-                'jarFileUris': ['file:///usr/lib/spark/examples/jars/spark-examples.jar'],
-                'mainClass': 'org.apache.spark.examples.SparkPi'
+            "properties": {
+                "spark.hadoop.fs.s3a.access.key": "***",
+                "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+                "spark.hadoop.fs.s3a.endpoint": "***",
+                "spark.hadoop.fs.s3a.path.style.access": "true",
+                "spark.hadoop.fs.s3a.secret.key": "***",
             },
-            'sparkRApplicationConfig': {},
-            'sparkSqlApplicationConfig': {}
+            "pySparkApplicationConfig": {},
+            "sparkApplicationConfig": {
+                "args": ["100000"],
+                "jarFileUris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+                "mainClass": "org.apache.spark.examples.SparkPi",
+            },
+            "sparkRApplicationConfig": {},
+            "sparkSqlApplicationConfig": {},
         },
         "status": {
-            'imageUri': 'us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix',
-            'state': 'Succeeded'
+            "imageUri": "us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix",
+            "state": "Succeeded",
         },
     }
 
@@ -68,20 +69,29 @@ class TestDataprocGDCSparkSubmitKrmSensor:
         "metadata": {
             "name": "spark-pi-2024-02-24-1",
             "namespace": "default",
+            "resourceVersion": "455577",
+            "uid": "9f825516-6e1a-4af1-8967-b05661e8fb08",
         },
         "spec": {
-            'pySparkApplicationConfig': {},
-            'sparkApplicationConfig': {
-                'args': ['100000'],
-                'jarFileUris': ['file:///usr/lib/spark/examples/jars/spark-examples.jar'],
-                'mainClass': 'org.apache.spark.examples.SparkPi'
+            "properties": {
+                "spark.hadoop.fs.s3a.access.key": "***",
+                "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+                "spark.hadoop.fs.s3a.endpoint": "***",
+                "spark.hadoop.fs.s3a.path.style.access": "true",
+                "spark.hadoop.fs.s3a.secret.key": "***",
             },
-            'sparkRApplicationConfig': {},
-            'sparkSqlApplicationConfig': {}
+            "pySparkApplicationConfig": {},
+            "sparkApplicationConfig": {
+                "args": ["100000"],
+                "jarFileUris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+                "mainClass": "org.apache.spark.examples.SparkPi",
+            },
+            "sparkRApplicationConfig": {},
+            "sparkSqlApplicationConfig": {},
         },
         "status": {
-            'imageUri': 'us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix',
-            'state': 'Failed'
+            "imageUri": "us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix",
+            "state": "Failed",
         },
     }
 
@@ -91,30 +101,39 @@ class TestDataprocGDCSparkSubmitKrmSensor:
         "metadata": {
             "name": "spark-pi-2024-02-24-1",
             "namespace": "default",
+            "resourceVersion": "455577",
+            "uid": "9f825516-6e1a-4af1-8967-b05661e8fb08",
         },
         "spec": {
-            'pySparkApplicationConfig': {},
-            'sparkApplicationConfig': {
-                'args': ['100000'],
-                'jarFileUris': ['file:///usr/lib/spark/examples/jars/spark-examples.jar'],
-                'mainClass': 'org.apache.spark.examples.SparkPi'
+            "properties": {
+                "spark.hadoop.fs.s3a.access.key": "***",
+                "spark.hadoop.fs.s3a.connection.ssl.enabled": "false",
+                "spark.hadoop.fs.s3a.endpoint": "***",
+                "spark.hadoop.fs.s3a.path.style.access": "true",
+                "spark.hadoop.fs.s3a.secret.key": "***",
             },
-            'sparkRApplicationConfig': {},
-            'sparkSqlApplicationConfig': {}
+            "pySparkApplicationConfig": {},
+            "sparkApplicationConfig": {
+                "args": ["100000"],
+                "jarFileUris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
+                "mainClass": "org.apache.spark.examples.SparkPi",
+            },
+            "sparkRApplicationConfig": {},
+            "sparkSqlApplicationConfig": {},
         },
         "status": {
-            'imageUri': 'us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix',
-            'state': 'Running'
+            "imageUri": "us-central1-docker.pkg.dev/cloud-dataproc/dpgdce/spark:driver_log_fix",
+            "state": "Running",
         },
     }
 
     def setup_method(self):
-        db.merge_conn(
-            Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
+        db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
 
         args = {"owner": "airflow", "start_date": timezone.datetime(2024, 2, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 
+    @pytest.mark.db_test
     def test_init(self, mock_kubernetes_hook):
         sensor = DataprocGDCKrmSensor(task_id="task", application_name="application")
 
@@ -124,6 +143,7 @@ class TestDataprocGDCSparkSubmitKrmSensor:
 
         assert "hook" not in sensor.__dict__  # Cached property has not been accessed as part of construction.
 
+    @pytest.mark.db_test
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
@@ -140,6 +160,7 @@ class TestDataprocGDCSparkSubmitKrmSensor:
             version="v1alpha1",
         )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
@@ -168,6 +189,7 @@ class TestDataprocGDCSparkSubmitKrmSensor:
             version="v1alpha1",
         )
 
+    @pytest.mark.db_test
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_RUNNING_APPLICATION,

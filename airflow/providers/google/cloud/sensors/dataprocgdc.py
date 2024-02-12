@@ -19,13 +19,13 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
-from airflow.exceptions import AirflowSkipException
+from kubernetes import client
+
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
-from kubernetes import client
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -75,14 +75,12 @@ class DataprocGDCKrmSensor(BaseSensorOperator):
         if not self.attach_log:
             return
 
-        driver_pod_name = "{}-{}-{}".format("dp-spark", application_name, "driver")
+        driver_pod_name = f"dp-spark-{application_name}-driver"
 
         log_method = self.log.error if application_state in self.FAILURE_STATES else self.log.info
         try:
             log = ""
-            for line in self.hook.get_pod_logs(
-                driver_pod_name, namespace=self.namespace
-            ):
+            for line in self.hook.get_pod_logs(driver_pod_name, namespace=self.namespace):
                 log += line.decode()
             log_method(log)
         except client.rest.ApiException as e:
@@ -124,5 +122,6 @@ class DataprocGDCKrmSensor(BaseSensorOperator):
         else:
             self.log.info("Spark application is still in state: %s", application_state)
             return False
+
 
 # TODO : Add Sensor for DataProcGDC using OnePlatform API

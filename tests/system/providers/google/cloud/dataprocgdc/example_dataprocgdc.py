@@ -28,14 +28,9 @@ from airflow.providers.google.cloud.sensors.dataprocgdc import DataprocGDCKrmSen
 from airflow.providers.google.cloud.operators.dataprocgdc import (DataprocGDCSubmitSparkJobKrmOperator,
                                                                   DataprocGdcCreateAppEnvironmentKrmOperator)
 
-DAG_ID = 'example_dag_dpgdc-krm'
+DAG_ID = "example_dag_dpgdc-krm"
 
-with DAG(
-    DAG_ID,
-    schedule="@once",
-    catchup=False,
-    start_date=datetime(2024, 2, 5),
-    tags=['example', 'dataprocgdc']
+with DAG(DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5), tags=["example", "dataprocgdc"]
 
 ) as dag:
     submitSparkJobOperator = DataprocGDCSubmitSparkJobKrmOperator(
@@ -47,7 +42,7 @@ with DAG(
         namespace="default",
         kubernetes_conn_id="myk8s",
         do_xcom_push=True,
-        dag=dag
+        dag=dag,
     )
 
     createAppEnvOperator = DataprocGdcCreateAppEnvironmentKrmOperator(
@@ -59,7 +54,7 @@ with DAG(
         namespace="default",
         kubernetes_conn_id="myk8s",
         do_xcom_push=True,
-        dag=dag
+        dag=dag,
     )
 
     sensor = DataprocGDCKrmSensor(
@@ -69,5 +64,12 @@ with DAG(
         namespace="default",
         kubernetes_conn_id="myk8s",
         api_group="dataprocgdc.cloud.google.com",
-        api_version="v1alpha1"
+        api_version="v1alpha1",
     )
+
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
