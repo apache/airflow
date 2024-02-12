@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+10.15.0
+.......
+
+Features
+~~~~~~~~
+
+* ``add service_file support to GKEPodAsyncHook (#37081)``
+* ``Update GCP Dataproc ClusterGenerator to support GPU params (#37036)``
+* ``Create DataprocStartClusterOperator and DataprocStopClusterOperator (#36996)``
+* ``Implement deferrable mode for CreateHyperparameterTuningJobOperator (#36594)``
+* ``Enable '_enable_tcp_keepalive' functionality for GKEPodHook (#36999)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
+* ``Fix metadata override for ComputeEngineSSHHook (#37192)``
+* ``Fix assignment of template field in '__init__' in 'custom_job' (#36789)``
+* ``Fix location requirement in DataflowTemplatedJobStartOperator (#37069)``
+* ``Fix assignment of template field in '__init__' in 'CloudDataTransferServiceCreateJobOperator' (#36909)``
+* ``Fixed the hardcoded default namespace value for GCP Data Fusion links. (#35379)``
+* ``Do not ignore the internal_ip_only if set to false in Dataproc cluster config (#37014)``
+
+Misc
+~~~~
+
+* ``Revert protection against back-compatibility issue with google-core-api (#37111)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 lint fixes for google provider (#37304)``
+   * ``D401 lint fixes for all hooks in google provider (#37296)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 10.14.0
 .......
 

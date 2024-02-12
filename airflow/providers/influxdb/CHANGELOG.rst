@@ -28,6 +28,23 @@
 Changelog
 ---------
 
+2.4.1
+.....
+
+Misc
+~~~~
+
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
 2.4.0
 .....
 

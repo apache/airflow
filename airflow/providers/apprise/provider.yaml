@@ -24,9 +24,10 @@ description: |
     `Apprise <https://github.com/caronc/apprise>`__
 
 state: ready
-source-date-epoch: 1705911945
+source-date-epoch: 1707636282
 
 versions:
+  - 1.2.2
   - 1.2.1
   - 1.2.0
   - 1.1.0
