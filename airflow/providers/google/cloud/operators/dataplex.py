@@ -1003,7 +1003,7 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
@@ -1180,7 +1180,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
@@ -1578,7 +1578,7 @@ class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
@@ -1713,7 +1713,7 @@ class DataplexGetDataProfileScanResultOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

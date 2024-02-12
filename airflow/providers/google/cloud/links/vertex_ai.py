@@ -109,7 +109,7 @@ class VertexAIModelExportLink(BaseGoogleLink):
 
     @staticmethod
     def extract_bucket_name(config):
-        """Returns bucket name from output configuration."""
+        """Return bucket name from output configuration."""
         return config["artifact_destination"]["output_uri_prefix"].rpartition("gs://")[-1]
 
     @staticmethod

@@ -392,7 +392,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         return state in finished_job_statuses
 
     def execute_completed(self, context: Context, event: dict):
-        """Method to be executed after invoked trigger in defer method finishes its job."""
+        """Execute after invoked trigger in defer method finishes its job."""
         if event["status"] in ("failed", "cancelled"):
             self.log.error("Trigger finished its work with status: %s.", event["status"])
             raise AirflowException(event["message"])

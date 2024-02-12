@@ -716,7 +716,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
@@ -906,7 +906,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Job name was changed to %s", job_name)
 
     def execute_complete(self, context: Context, event: dict):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
