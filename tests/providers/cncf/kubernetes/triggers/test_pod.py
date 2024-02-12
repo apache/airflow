@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import logging
 from asyncio import Future
@@ -129,6 +130,48 @@ class TestKubernetesPodTrigger:
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook.get_pod")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_loop_return_waiting_event(
+        self, mock_hook, mock_method, mock_get_pod, mock_container_is_running, trigger, caplog
+    ):
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_method.return_value = ContainerState.WAITING
+        mock_container_is_running.return_value = True
+
+        caplog.set_level(logging.INFO)
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        assert not task.done()
+        assert "Container is not completed and still working."
+        assert f"Sleeping for {POLL_INTERVAL} seconds."
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook.get_pod")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_loop_return_running_event(
+        self, mock_hook, mock_method, mock_get_pod, mock_container_is_running, trigger, caplog
+    ):
+        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_method.return_value = ContainerState.RUNNING
+        mock_container_is_running.return_value = True
+
+        caplog.set_level(logging.INFO)
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+
+        assert not task.done()
+        assert "Container is not completed and still working."
+        assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
@@ -262,12 +305,12 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("container_state", [ContainerState.WAITING, ContainerState.UNDEFINED])
-    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_run_loop_return_timeout_event(
         self, mock_hook, mock_method, trigger, caplog, container_state
     ):
-        trigger.trigger_start_time = TRIGGER_START_TIME - datetime.timedelta(minutes=2)
+        trigger.trigger_start_time = TRIGGER_START_TIME - datetime.timedelta(seconds=5)
         mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
                 status=mock.MagicMock(
@@ -281,5 +324,4 @@ class TestKubernetesPodTrigger:
 
         generator = trigger.run()
         actual = await generator.asend(None)
-        actual_stack_trace = actual.payload.pop("description")
-        assert actual_stack_trace.startswith("Pod did not leave 'Pending' phase within specified timeout")
+        assert actual == TriggerEvent({"status": "done", "namespace": NAMESPACE, "pod_name": POD_NAME})
