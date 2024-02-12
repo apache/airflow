@@ -155,18 +155,32 @@ class KubernetesPodTrigger(BaseTrigger):
             },
         )
 
+    def _get_terminal_event(self, state) -> TriggerEvent:
+        if state == PodPhase.SUCCEEDED:
+            status = "success"
+        else:
+            status = "failed"
+        return TriggerEvent({"status": status, "namespace": self.pod_namespace, "name": self.pod_name})
+
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
             state = await self._wait_for_pod_start()
             if state in PodPhase.terminal_states:
-                event = TriggerEvent(
-                    {"status": "done", "namespace": self.pod_namespace, "name": self.pod_name}
-                )
+                event = self._get_terminal_event(state)
             else:
                 event = await self._wait_for_container_completion()
             yield event
+        except PodLaunchTimeoutException as e:
+            description = self._format_exception_description(e)
+            yield TriggerEvent(
+                {
+                    "status": "timeout",
+                    "error_type": e.__class__.__name__,
+                    "description": description,
+                }
+            )
         except Exception as e:
             description = self._format_exception_description(e)
             yield TriggerEvent(
@@ -215,9 +229,12 @@ class KubernetesPodTrigger(BaseTrigger):
         while True:
             pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
             if not container_is_running(pod=pod, container_name=self.base_container_name):
-                return TriggerEvent(
-                    {"status": "done", "namespace": self.pod_namespace, "name": self.pod_name}
-                )
+                container_state = self.define_container_state(pod)
+                if container_state == ContainerState.TERMINATED:
+                    state = "success"
+                else:
+                    state = "failed"
+                return TriggerEvent({"status": state, "namespace": self.pod_namespace, "name": self.pod_name})
             if time_get_more_logs and timezone.utcnow() > time_get_more_logs:
                 return TriggerEvent({"status": "running", "last_log_time": self.last_log_time})
             await asyncio.sleep(self.poll_interval)

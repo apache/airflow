@@ -699,10 +699,10 @@ class KubernetesPodOperator(BaseOperator):
         If ``logging_interval`` is not None, it could be that the pod is still running and we'll just
         grab the latest logs and defer back to the trigger again.
         """
-        pod = None
+        self.pod = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
-            pod = self.find_pod(
+            self.pod = self.find_pod(
                 namespace=self.namespace or self.pod_request_obj.metadata.namespace,
                 context=context,
             )
@@ -710,15 +710,20 @@ class KubernetesPodOperator(BaseOperator):
             # we try to find pod before possibly raising so that on_kill will have `pod` attr
             self.raise_for_trigger_status(event)
 
-            if not pod:
+            if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
+
+            if self.callbacks:
+                self.callbacks.on_operator_resuming(
+                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                )
 
             if self.get_logs:
                 last_log_time = event and event.get("last_log_time")
                 if last_log_time:
                     self.log.info("Resuming logs read from time %r", last_log_time)
                 pod_log_status = self.pod_manager.fetch_container_logs(
-                    pod=pod,
+                    pod=self.pod,
                     container_name=self.BASE_CONTAINER_NAME,
                     follow=self.logging_interval is None,
                     since_time=last_log_time,
@@ -728,67 +733,34 @@ class KubernetesPodOperator(BaseOperator):
                     self.invoke_defer_method(pod_log_status.last_log_time)
 
             if self.do_xcom_push:
-                result = self.extract_xcom(pod=pod)
+                result = self.extract_xcom(pod=self.pod)
+                if event["status"] in ("error", "failed", "timeout"):
+                    raise AirflowException(event)
                 return result
-            pod = self.pod_manager.await_pod_completion(pod)
+            # self.pod = self.pod_manager.await_pod_completion(self.pod)
         except TaskDeferred:
             raise
         finally:
-            istio_enabled = self.is_istio_enabled(pod)
-            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
-            # on the ErrImagePull or ContainerCreating step and it will never complete
-            if event["status"] != "timeout":
-                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
-            if pod is not None:
-                self.post_complete_action(
-                    pod=pod,
-                    remote_pod=pod,
-                )
+            self._clean(event)
+
+    def _clean(self, event: dict[str, Any]):
+        if event["status"] == "running":
+            return
+        istio_enabled = self.is_istio_enabled(self.pod)
+        # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+        # on the ErrImagePull or ContainerCreating step and it will never complete
+        if event["status"] != "timeout":
+            self.pod = self.pod_manager.await_pod_completion(
+                self.pod, istio_enabled, self.base_container_name
+            )
+        if self.pod is not None:
+            self.post_complete_action(
+                pod=self.pod,
+                remote_pod=self.pod,
+            )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
-        self.log.debug("Triggered with event: %s", event)
-        pod = None
-        try:
-            pod = self.hook.get_pod(
-                event["name"],
-                event["namespace"],
-            )
-            if self.callbacks:
-                self.callbacks.on_operator_resuming(
-                    pod=pod, event=event, client=self.client, mode=ExecutionMode.SYNC
-                )
-            if event["status"] in ("error", "failed", "timeout"):
-                # fetch some logs when pod is failed
-                if self.get_logs:
-                    self.write_logs(pod)
-                if "stack_trace" in event:
-                    message = f"{event['message']}\n{event['stack_trace']}"
-                else:
-                    message = event["message"]
-                if self.do_xcom_push:
-                    # In the event of base container failure, we need to kill the xcom sidecar.
-                    # We disregard xcom output and do that here
-                    _ = self.extract_xcom(pod=pod)
-                raise AirflowException(message)
-            elif event["status"] == "success":
-                # fetch some logs when pod is executed successfully
-                if self.get_logs:
-                    self.write_logs(pod)
-
-                if self.do_xcom_push:
-                    xcom_sidecar_output = self.extract_xcom(pod=pod)
-                    return xcom_sidecar_output
-        finally:
-            istio_enabled = self.is_istio_enabled(pod)
-            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
-            # on the ErrImagePull or ContainerCreating step and it will never complete
-            if event["status"] != "timeout":
-                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
-            if pod is not None:
-                self.post_complete_action(
-                    pod=pod,
-                    remote_pod=pod,
-                )
+        self.trigger_reentry(context=context, event=event)
 
     def write_logs(self, pod: k8s.V1Pod):
         try:
