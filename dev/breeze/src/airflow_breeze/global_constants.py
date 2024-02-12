@@ -394,7 +394,10 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.21.0"
+# Kind 0.21 breaks running AMD images on ARM (MacOS M1/M2/M3)
+# see https://github.com/kubernetes-sigs/kind/issues/3510
+# We should only upgrade if it is fixed
+KIND_VERSION = "v0.20.0"
 HELM_VERSION = "v3.14.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
