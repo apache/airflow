@@ -53,7 +53,7 @@ class LanguageModelHook(GoogleBaseHook):
         top_k: int,
     ) -> str:
         """
-        Uses the Vertex AI PaLM API to generate natural language text.
+        Use the Vertex AI PaLM API to generate natural language text.
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
