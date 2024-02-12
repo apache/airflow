@@ -189,6 +189,14 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         return container_status.state.terminated.message if container_status else None
 
 
+class PodLaunchTimeoutException(AirflowException):
+    """When pod does not leave the ``Pending`` phase within specified timeout."""
+
+
+class PodNotFoundException(AirflowException):
+    """Expected pod does not exist in kube-api."""
+
+
 class PodLogsConsumer:
     """
     Responsible for pulling pod logs from a stream with checking a container status before reading data.
