@@ -22,7 +22,7 @@ def requests_retry_session(session,
     retry = Retry(total=retries, read=retries, connect=retries,
                   backoff_factor=back_off_factor,
                   status_forcelist=status_force_list,
-                  method_whitelist=frozenset(['GET', 'POST']))
+                  allowed_methods=frozenset(['GET', 'POST']))
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
@@ -35,6 +35,7 @@ class YQHttpClientConfig(object):
                  project: str | None = None,
                  user_agent: str | None = "Python YQ HTTP SDK") -> None:
 
+        assert len(token) > 0, "empty token"
         self.token = token
         self.project = project
         self.user_agent = user_agent
@@ -43,9 +44,13 @@ class YQHttpClientConfig(object):
         self.endpoint: str = "https://api.yandex-query.cloud.yandex.net"
         self.web_base_url: str = "https://yq.cloud.yandex.ru"
 
-class YQHttpClientException(BaseException):
-    def __init__(self, *args: object) -> None:
-        super().__init__(*args)
+
+class YQHttpClientException(Exception):
+    def __init__(self, prefix_message: str, status: str, message: str, details: Any) -> None:
+        super().__init__(f"{prefix_message} : {message}")
+        self.status = status
+        self.message = message
+        self.details = details
 
 
 class YQHttpClient(object):
@@ -155,9 +160,13 @@ class YQHttpClient(object):
                    idempotency_key: str | None = None,
                    request_id: str | None = None,
                    expected_code: int = 204) -> Any:
-        
+
+        headers = self._build_headers(
+            idempotency_key=idempotency_key,
+            request_id=request_id
+        )
         response = self.session.post(self._compose_api_url(f"/api/fq/v1/queries/{query_id}/stop"),
-                                     headers=self._build_headers(idempotency_key=idempotency_key, request_id=request_id),
+                                     headers=headers,
                                      params=self._build_params())
         self._validate_http_error(response, expected_code=expected_code)
         return response
@@ -261,7 +270,7 @@ class YQHttpClient(object):
                 return r
 
             result.append(r)
-            
+
         return result
 
     def get_openapi_spec(self) -> str:
