@@ -29,8 +29,9 @@ dependencies:
   - requests>=2.27.0,<3
 
 state: ready
-source-date-epoch: 1703288143
+source-date-epoch: 1707723445
 versions:
+  - 2.4.1
   - 2.4.0
   - 2.3.0
   - 2.2.3

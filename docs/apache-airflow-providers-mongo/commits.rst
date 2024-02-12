@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2024-02-08
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`ed346c78ae <https://github.com/apache/airflow/commit/ed346c78ae2f3a44e81698c51b880dc5da6074dc>`_  2024-02-12   ``Typo fix in changelog for mongo provider (#37350)``
 `c297f55d7a <https://github.com/apache/airflow/commit/c297f55d7aa39fda69530887f1dcfcea8a951463>`_  2024-02-08   ``Fixing the version for mongo provider (#37250)``
 `0d338e6051 <https://github.com/apache/airflow/commit/0d338e6051f54c9940d34dceef9197224583e37c>`_  2024-02-08   ``Change docs type in insert_many to list of dicts (#37230)``
 `a5a6549e5b <https://github.com/apache/airflow/commit/a5a6549e5b6609c8feeab992731854ebffddcd1c>`_  2024-02-08   ``Adding certificate validation for ssl in mongo hook (#37214)``

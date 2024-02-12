@@ -55,6 +55,9 @@ Misc
 * ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 * ``Kubernetes version bump (#37040)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Add d401 support to kubernetes provider (#37301)``
+
 7.14.0
 ......
 

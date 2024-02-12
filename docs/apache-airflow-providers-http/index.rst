@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package            Version required
 =====================  ==================
 ``apache-airflow``     ``>=2.6.0``
-``requests``           ``>=2.26.0``
+``requests``           ``>=2.27.0,<3``
 ``requests_toolbelt``
 ``aiohttp``            ``>=3.9.2``
 ``asgiref``

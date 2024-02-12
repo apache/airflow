@@ -47,7 +47,8 @@ Misc
 * ``Change 'MongoHook.conn_name_attr' to 'mongo_conn_id' (#37104)``
 * ``Change docs type in insert_many to list of dicts (#37230)``
 
-
+.. Review and move the new changes to one of the sections above:
+   * ``Typo fix in changelog for mongo provider (#37350)``
 
 3.6.0
 .....

@@ -30,6 +30,11 @@ Changelog
 3.6.3
 .....
 
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hashicorp): Fix 'VAULT_TOKEN' support (#37337)``
+
 Misc
 ~~~~
 

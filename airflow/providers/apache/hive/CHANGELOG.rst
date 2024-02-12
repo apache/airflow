@@ -39,6 +39,11 @@ Now, setting the user in ``Proxy User`` connection parameter or passing ``proxy_
 
 * `` Simplify hive client connection (#37043)``
 
+Misc
+~~~~
+
+* ``Fix pyhive hive_pure_sasl extra name (#37323)``
+
 .. Review and move the new changes to one of the sections above:
    * ``D401 Support in Providers (simple) (#37258)``
 
