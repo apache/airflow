@@ -55,6 +55,7 @@ from airflow_breeze.commands.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_project_name,
+    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
@@ -264,6 +265,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_mount_sources
 @option_mssql_version
 @option_mysql_version
+@option_pydantic
 @option_platform_single
 @option_postgres_version
 @option_project_name
@@ -319,6 +321,7 @@ def shell(
     providers_constraints_mode: str,
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
+    pydantic: str,
     python: str,
     quiet: bool,
     restart: bool,
@@ -379,6 +382,7 @@ def shell(
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
+        pydantic=pydantic,
         python=python,
         quiet=quiet,
         run_db_tests_only=run_db_tests_only,

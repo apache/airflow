@@ -155,11 +155,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Upgrading/downgrading selected packages",
+            "name": "Upgrading/downgrading/removing selected packages",
             "options": [
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
+                "--pydantic",
             ],
         },
         {

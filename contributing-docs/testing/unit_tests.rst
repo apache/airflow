@@ -484,8 +484,6 @@ the test is marked as DB test:
 
   .. code-block:: python
 
-     pytestmark = pytest.mark.db_test
-
      TI = TaskInstance(
          task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
          run_id="fake_run",

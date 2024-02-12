@@ -21,17 +21,17 @@ from datetime import datetime, timedelta
 from typing import Any, List, Optional
 
 from dateutil import relativedelta
-from pydantic import (
+from typing_extensions import Annotated
+
+from airflow import DAG, settings
+from airflow.configuration import conf as airflow_conf
+from airflow.utils.pydantic import (
     BaseModel as BaseModelPydantic,
     ConfigDict,
     PlainSerializer,
     PlainValidator,
     ValidationInfo,
 )
-from typing_extensions import Annotated
-
-from airflow import DAG, settings
-from airflow.configuration import conf as airflow_conf
 from airflow.utils.sqlalchemy import Interval
 
 
