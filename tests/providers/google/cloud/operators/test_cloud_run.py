@@ -103,7 +103,7 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
@@ -220,7 +220,7 @@ class TestCloudRunExecuteJobOperator:
         result = operator.execute_complete(mock.MagicMock(), event)
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
         )
         assert result["name"] == JOB_NAME
 
@@ -242,7 +242,7 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.get_job.assert_called_once_with(
-            region=REGION, project_id=PROJECT_ID
+            job_name=mock.ANY, region=REGION, project_id=PROJECT_ID
         )
 
         hook_mock.return_value.execute_job.assert_called_once_with(
