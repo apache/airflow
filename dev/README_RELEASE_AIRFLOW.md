@@ -848,7 +848,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build
+    breeze build-docs apache-airflow docker-stack --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -860,7 +860,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
-    breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management publish-docs apache-airflow docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
     breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
     cd "${AIRFLOW_SITE_DIRECTORY}"

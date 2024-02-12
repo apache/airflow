@@ -127,8 +127,9 @@ SBOM_INDEX_TEMPLATE = """
 @option_answer
 @click.option(
     "--package-filter",
-    help="List of packages to consider. You can use `apache-airflow` for core "
-    "or `apache-airflow-providers` to consider all the providers.",
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+    "several similarly named packages together.",
     type=BetterChoice(["apache-airflow-providers", "apache-airflow"]),
     required=False,
     default="apache-airflow",

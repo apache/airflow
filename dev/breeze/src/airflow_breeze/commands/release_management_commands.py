@@ -1262,9 +1262,9 @@ def run_publish_docs_in_parallel(
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
-    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
-    "the short hand names or the glob pattern matching the full package name. "
-    "The list of short hand names can be found in --help output",
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+    "several similarly named packages together.",
     type=str,
     multiple=True,
 )
