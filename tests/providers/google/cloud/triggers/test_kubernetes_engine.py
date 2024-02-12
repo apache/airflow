@@ -118,7 +118,7 @@ class TestGKEStartPodTrigger:
 
         expected_event = TriggerEvent(
             {
-                "pod_name": POD_NAME,
+                "name": POD_NAME,
                 "namespace": NAMESPACE,
                 "status": "done",
             }
@@ -144,7 +144,7 @@ class TestGKEStartPodTrigger:
 
         expected_event = TriggerEvent(
             {
-                "pod_name": POD_NAME,
+                "name": POD_NAME,
                 "namespace": NAMESPACE,
                 "status": "done",
             }

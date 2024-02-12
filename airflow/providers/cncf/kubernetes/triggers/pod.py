@@ -162,7 +162,7 @@ class KubernetesPodTrigger(BaseTrigger):
             state = await self._wait_for_pod_start()
             if state in PodPhase.terminal_states:
                 event = TriggerEvent(
-                    {"status": "done", "namespace": self.pod_namespace, "pod_name": self.pod_name}
+                    {"status": "done", "namespace": self.pod_namespace, "name": self.pod_name}
                 )
             else:
                 event = await self._wait_for_container_completion()
@@ -216,7 +216,7 @@ class KubernetesPodTrigger(BaseTrigger):
             pod = await self.hook.get_pod(self.pod_name, self.pod_namespace)
             if not container_is_running(pod=pod, container_name=self.base_container_name):
                 return TriggerEvent(
-                    {"status": "done", "namespace": self.pod_namespace, "pod_name": self.pod_name}
+                    {"status": "done", "namespace": self.pod_namespace, "name": self.pod_name}
                 )
             if time_get_more_logs and timezone.utcnow() > time_get_more_logs:
                 return TriggerEvent({"status": "running", "last_log_time": self.last_log_time})
