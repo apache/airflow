@@ -233,7 +233,7 @@ class HttpOperator(BaseOperator):
         self, context: Context, event: dict, paginated_responses: None | list[Response] = None
     ):
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute callback when the trigger fires; returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

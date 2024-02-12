@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.0
+.....
+
+Latest change: 2024-02-06
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`6c72223f86 <https://github.com/apache/airflow/commit/6c72223f8653abf421fa4443b337c0ffb33af29b>`_  2024-02-06   ``Add 'task_acks_late' configuration to Celery Executor (#37066)``
+`4fa8e45c92 <https://github.com/apache/airflow/commit/4fa8e45c9222f05cabef543c8fd33f737826ebe3>`_  2024-01-28   ``prevent celery command autoscale misconfig (#36576)``
+=================================================================================================  ===========  ==================================================================
+
 3.5.2
 .....
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `6ff96af480 <https://github.com/apache/airflow/commit/6ff96af4806a4107d48ee2e966c61778045ad584>`_  2024-01-18   ``Fix stacklevel in warnings.warn into the providers (#36831)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``

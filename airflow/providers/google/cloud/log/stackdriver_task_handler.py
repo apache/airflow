@@ -174,7 +174,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def set_context(self, task_instance: TaskInstance) -> None:
         """
-        Configures the logger to add information with information about the current task.
+        Configure the logger to add information with information about the current task.
 
         :param task_instance: Currently executed task
         """
@@ -224,7 +224,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def _prepare_log_filter(self, ti_labels: dict[str, str]) -> str:
         """
-        Prepares the filter that chooses which log entries to fetch.
+        Prepare the filter that chooses which log entries to fetch.
 
         More information:
         https://cloud.google.com/logging/docs/reference/v2/rest/v2/entries/list#body.request_body.FIELDS.filter
@@ -258,7 +258,7 @@ class StackdriverTaskHandler(logging.Handler):
         self, log_filter: str, next_page_token: str | None, all_pages: bool
     ) -> tuple[str, bool, str | None]:
         """
-        Sends requests to the Stackdriver service and downloads logs.
+        Send requests to the Stackdriver service and downloads logs.
 
         :param log_filter: Filter specifying the logs to be downloaded.
         :param next_page_token: The token of the page from which the log download will start.
@@ -293,7 +293,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def _read_single_logs_page(self, log_filter: str, page_token: str | None = None) -> tuple[str, str]:
         """
-        Sends requests to the Stackdriver service and downloads single pages with logs.
+        Send requests to the Stackdriver service and downloads single pages with logs.
 
         :param log_filter: Filter specifying the logs to be downloaded.
         :param page_token: The token of the page to be downloaded. If None is passed, the first page will be
@@ -344,7 +344,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
-        Creates an address for an external log collecting service.
+        Create an address for an external log collecting service.
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from

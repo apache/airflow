@@ -53,42 +53,8 @@
 
     System Tests <_api/tests/system/providers/cohere/index>
 
-Package apache-airflow-providers-cohere
------------------------------------------
-
-`Cohere <https://cohere.com>`__
-
-
-Release: 1.0.0
-
-Provider package
-----------------
-
-This is a provider package for ``cohere`` APIs. All classes for this provider package
-are in ``airflow.providers.cohere`` python module.
-
-Installation
-------------
-
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-cohere``
-
-
-Requirements
-------------
-
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
-
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.5.0``
-``cohere``          ``>=4.27``
-==================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
 
 .. toctree::
     :hidden:

@@ -148,7 +148,7 @@ def create_information_schema_query(
     use_flat_cross_db_query: bool = False,
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
-    """Creates query for getting table schemas from information schema."""
+    """Create query for getting table schemas from information schema."""
     metadata = MetaData(sqlalchemy_engine)
     select_statements = []
     # Don't iterate over tables hierarchy, just pass it to query single information schema table
@@ -201,7 +201,7 @@ def create_filter_clauses(
     uppercase_names: bool = False,
 ) -> ClauseElement:
     """
-    Creates comprehensive filter clauses for all tables in one database.
+    Create comprehensive filter clauses for all tables in one database.
 
     :param mapping: a nested dictionary of database, schema names and list of tables in each
     :param information_schema_table: `sqlalchemy.Table` instance used to construct clauses

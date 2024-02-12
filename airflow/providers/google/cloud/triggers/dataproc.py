@@ -182,7 +182,7 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
         self.batch_id = batch_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DataprocBatchTrigger arguments and classpath."""
+        """Serialize DataprocBatchTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger",
             {
@@ -244,7 +244,7 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         self.metadata = metadata
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DataprocDeleteClusterTrigger arguments and classpath."""
+        """Serialize DataprocDeleteClusterTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger",
             {

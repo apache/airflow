@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Enhancement: Performance enhancement for insert_rows method DbApiHook with fast executemany + SAP Hana support (#37246)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 1.10.1
 ......
 

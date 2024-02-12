@@ -193,7 +193,7 @@ class AwsLogsHook(AwsBaseHook):
         skip: int = 0,
         start_from_head: bool = True,
     ) -> AsyncGenerator[Any, dict[str, Any]]:
-        """A generator for log items in a single stream. This will yield all the items that are available.
+        """Yield all the available items in a single log stream.
 
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.

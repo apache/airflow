@@ -155,7 +155,7 @@ class SFTPSensor(BaseSensorOperator):
 
     def execute_complete(self, context: dict[str, Any], event: Any = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute callback when the trigger fires; returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

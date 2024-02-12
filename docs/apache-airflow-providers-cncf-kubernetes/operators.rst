@@ -147,6 +147,14 @@ Also for this action you can use operator in the deferrable mode:
     :start-after: [START howto_operator_k8s_private_image_async]
     :end-before: [END howto_operator_k8s_private_image_async]
 
+Example to fetch and display container log periodically
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_async_log]
+    :end-before: [END howto_operator_async_log]
+
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` handles

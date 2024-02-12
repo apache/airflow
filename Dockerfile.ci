@@ -407,14 +407,17 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
-    # Install latest set of dependencies using constraints. In case constraints were upgraded and there
-    # are conflicts, this might fail, but it should be fixed in the following installation steps
+    # Install latest set of dependencies - without constraints. This is to download a "base" set of
+    # dependencies that we can cache and reuse when installing airflow using constraints and latest
+    # pyproject.toml in the next step (when we install regular airflow).
     set -x
     pip install --root-user-action ignore \
       ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
-      --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
+      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
     common::install_pip_version
+    # Uninstall airflow and providers to keep only the dependencies. In the future when
+    # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
+    # flag and skip the remove step.
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     set +x
     echo
@@ -1060,7 +1063,7 @@ RUN mkdir -pv ${AIRFLOW_HOME} && \
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 # Airflow Extras installed
-ARG AIRFLOW_EXTRAS="all"
+ARG AIRFLOW_EXTRAS="devel-ci"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
 ARG CONSTRAINTS_GITHUB_REPOSITORY="apache/airflow"
@@ -1070,7 +1073,7 @@ ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="6"
+ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
 # Setup PIP
@@ -1124,23 +1127,6 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 
 RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 
-# Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
-# dependency resolution and we do not need to limit the versions of the dependencies
-#
-# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
-# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
-# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
-# We should update it every time a new version of aiobotocore is released supporting 1.34
-#
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-ARG VERSION_SUFFIX_FOR_PYPI=""
-
-ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
-    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
-
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_branch_tip.sh \
@@ -1155,8 +1141,7 @@ COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_bra
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
 RUN bash /scripts/docker/install_pip_version.sh; \
-    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
-          ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+    if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
@@ -1177,9 +1162,26 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
-COPY dev/airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/dev/airflow_pre_installed_providers.txt
-COPY dev/hatch_build.py ${AIRFLOW_SOURCES}/dev/hatch_build.py
+COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
+COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
+
+# Those are additional constraints that are needed for some extras but we do not want to
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+#
+# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
+# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
+# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
+# We should update it every time a new version of aiobotocore is released supporting 1.34
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
+ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
+ARG VERSION_SUFFIX_FOR_PYPI=""
+
+ENV EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 # The goal of this line is to install the dependencies from the most current pyproject.toml from sources
 # This will be usually incremental small set of packages in CI optimized build, so it will be very fast

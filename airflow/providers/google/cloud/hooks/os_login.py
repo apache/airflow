@@ -78,7 +78,7 @@ class OSLoginHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
-        Adds an SSH public key and returns the profile information.
+        Add an SSH public key and returns the profile information.
 
         Default POSIX account information is set when no username and UID exist as part of the login profile.
 

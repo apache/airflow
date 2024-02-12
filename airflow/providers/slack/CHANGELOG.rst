@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+8.6.1
+.....
+
+Misc
+~~~~
+
+* ``Remove the remaining references to use the token bypassing the Connection in the Slack provider. (#37112)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
 8.6.0
 .....
 

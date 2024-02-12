@@ -210,7 +210,7 @@ class CustomObjectLauncher(LoggingMixin):
         template_body: str | None = None,
     ):
         """
-        Creates custom object launcher(sparkapplications crd).
+        Create custom object launcher(sparkapplications crd).
 
         :param kube_client: kubernetes client.
         """
@@ -266,7 +266,7 @@ class CustomObjectLauncher(LoggingMixin):
     )
     def start_spark_job(self, image=None, code_path=None, startup_timeout: int = 600):
         """
-        Launches the pod synchronously and waits for completion.
+        Launch the pod synchronously and waits for completion.
 
         :param image: image name
         :param code_path: path to the .py file for python and jar file for scala
@@ -315,7 +315,7 @@ class CustomObjectLauncher(LoggingMixin):
         return self.pod_spec, self.spark_obj_spec
 
     def spark_job_not_running(self, spark_obj_spec):
-        """Tests if spark_obj_spec has not started."""
+        """Test if spark_obj_spec has not started."""
         spark_job_info = self.custom_obj_api.get_namespaced_custom_object_status(
             group=self.api_group,
             version=self.api_version,
@@ -348,7 +348,7 @@ class CustomObjectLauncher(LoggingMixin):
             raise AirflowException(f"Spark Job Failed. Status: {waiting_reason}, Error: {waiting_message}")
 
     def delete_spark_job(self, spark_job_name=None):
-        """Deletes spark job."""
+        """Delete spark job."""
         spark_job_name = spark_job_name or self.spark_obj_spec.get("metadata", {}).get("name")
         if not spark_job_name:
             self.log.warning("Spark job not found: %s", spark_job_name)

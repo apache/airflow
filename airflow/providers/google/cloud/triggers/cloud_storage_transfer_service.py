@@ -46,7 +46,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes StorageTransferJobsTrigger arguments and classpath."""
+        """Serialize StorageTransferJobsTrigger arguments and classpath."""
         return (
             f"{self.__class__.__module__ }.{self.__class__.__qualname__}",
             {
@@ -57,7 +57,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current data storage transfer jobs and yields a TriggerEvent."""
+        """Get current data storage transfer jobs and yields a TriggerEvent."""
         async_hook: CloudDataTransferServiceAsyncHook = self.get_async_hook()
 
         while True:

@@ -34,7 +34,11 @@ from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodLaunchTimeoutException,
+    PodLoggingStatus,
+    PodPhase,
+)
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -1969,6 +1973,60 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.raise_for_trigger_status"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    def test_get_logs_running(
+        self,
+        fetch_container_logs,
+        await_pod_completion,
+        find_pod,
+        raise_for_trigger_status,
+    ):
+        """When logs fetch exits with status running, raise task deferred"""
+        pod = MagicMock()
+        find_pod.return_value = pod
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        await_pod_completion.return_value = None
+        fetch_container_logs.return_value = PodLoggingStatus(True, None)
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(create_context(op), None)
+        fetch_container_logs.is_called_with(pod, "base")
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.raise_for_trigger_status"
+    )
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, raise_for_trigger_status, cleanup):
+        pod = MagicMock()
+        find_pod.return_value = pod
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        fetch_container_logs.return_value = PodLoggingStatus(False, None)
+        op.trigger_reentry(create_context(op), None)
+        fetch_container_logs.is_called_with(pod, "base")
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    def test_trigger_error(self, find_pod, cleanup):
+        """Assert that trigger_reentry raise exception in case of error"""
+        find_pod.return_value = MagicMock()
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        with pytest.raises(PodLaunchTimeoutException):
+            context = create_context(op)
+            op.trigger_reentry(
+                context,
+                {
+                    "status": "error",
+                    "error_type": "PodLaunchTimeoutException",
+                    "description": "any message",
+                },
+            )
+
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
@@ -2049,8 +2107,13 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
     # assert that it does not push the xcom
     ti_mock.xcom_push.assert_not_called()
 
-    # assert that the xcom are not extracted
-    mock_extract_xcom.assert_not_called()
+    if do_xcom_push:
+        # assert that the xcom are not extracted if do_xcom_push is Fale
+        mock_extract_xcom.assert_called_once()
+    else:
+        # but that it is extracted when do_xcom_push is true because the sidecare
+        # needs to be terminated
+        mock_extract_xcom.assert_not_called()
 
     # check if it waits for the pod to complete
     assert read_pod_mock.call_count == 3
