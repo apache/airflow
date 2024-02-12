@@ -21,9 +21,8 @@ Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from datetime import datetime, timedelta
-
-from pydantic.main import deepcopy
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator

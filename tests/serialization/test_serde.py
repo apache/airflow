@@ -24,7 +24,6 @@ from typing import ClassVar
 
 import attr
 import pytest
-from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -41,6 +40,7 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
@@ -353,6 +353,11 @@ class TestSerDe:
         import airflow.serialization.serializers
 
         for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            if name == "airflow.serialization.serializers.iceberg":
+                try:
+                    import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
@@ -403,6 +408,7 @@ class TestSerDe:
         assert i == e
 
     def test_pydantic(self):
+        pytest.importorskip("pydantic", minversion="2.0.0")
         i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
         e = serialize(i)
         s = deserialize(e)

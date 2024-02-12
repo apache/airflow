@@ -900,6 +900,39 @@ function check_boto_upgrade() {
     pip check
 }
 
+function check_pydantic() {
+    if [[ ${PYDANTIC=} == "none" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore -e .
+        echo
+        echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
+        echo
+        pip uninstall --root-user-action ignore pydantic aws-sam-translator openai pyiceberg qdrant-client cfn-lint -y
+        pip check
+    elif [[ ${PYDANTIC=} == "v1" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore -e .
+        echo
+        echo "${COLOR_YELLOW}Uninstalling pyicberg which is not compatible with Pydantic 1${COLOR_RESET}"
+        echo
+        pip uninstall pyiceberg -y
+        echo
+        echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
+        echo
+        pip install --upgrade "pydantic<2.0.0"
+        pip check
+    else
+        echo
+        echo "${COLOR_BLUE}Leaving default pydantic v2${COLOR_RESET}"
+        echo
+    fi
+}
+
+
 function check_download_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
@@ -952,6 +985,7 @@ function check_run_tests() {
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
+check_pydantic
 check_download_sqlalchemy
 check_download_pendulum
 check_run_tests "${@}"
