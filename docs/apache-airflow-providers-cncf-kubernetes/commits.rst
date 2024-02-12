@@ -43,6 +43,7 @@ Latest change: 2024-02-12
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`053485ba56 <https://github.com/apache/airflow/commit/053485ba564dd85b5dbb4fec093375e21d1cbd41>`_  2024-02-12   ``Modify KPO to log container log periodically  (#37279)``
 `f689c3f606 <https://github.com/apache/airflow/commit/f689c3f606af5edebd52af830b9128b6b252c063>`_  2024-02-12   ``Add d401 support to kubernetes provider (#37301)``
 `6246eec96f <https://github.com/apache/airflow/commit/6246eec96fff15983e76c3810c0eb3e9555d7b1c>`_  2024-02-10   ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
 `e99487946a <https://github.com/apache/airflow/commit/e99487946a39849e078b52ac5b4a226359978254>`_  2024-02-10   ``The task is stuck in a queued state forever in case of pod launch errors  (#36882)``

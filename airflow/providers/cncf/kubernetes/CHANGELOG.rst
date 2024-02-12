@@ -41,6 +41,11 @@ unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of re
 
 * ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
 
+Features
+~~~~~~~~
+
+* ``Add logging_interval in KubernetesPodOperator to log container log periodically (#37279)``
+
 Bug Fixes
 ~~~~~~~~~
 
