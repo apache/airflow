@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
-
 if TYPE_CHECKING:
     from kubernetes.client.models import CoreV1EventList
 

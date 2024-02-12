@@ -21,17 +21,20 @@ Example Airflow DAG that shows how to create and monitor a Spark Application or 
 """
 
 from __future__ import annotations
+
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.google.cloud.operators.dataprocgdc import (
+    DataprocGdcCreateAppEnvironmentKrmOperator,
+    DataprocGDCSubmitSparkJobKrmOperator,
+)
 from airflow.providers.google.cloud.sensors.dataprocgdc import DataprocGDCKrmSensor
-from airflow.providers.google.cloud.operators.dataprocgdc import (DataprocGDCSubmitSparkJobKrmOperator,
-                                                                  DataprocGdcCreateAppEnvironmentKrmOperator)
 
 DAG_ID = "example_dag_dpgdc-krm"
 
-with DAG(DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5), tags=["example", "dataprocgdc"]
-
+with DAG(
+    DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5), tags=["example", "dataprocgdc"]
 ) as dag:
     submitSparkJobOperator = DataprocGDCSubmitSparkJobKrmOperator(
         task_id="example-dataprocgdc-submitspark-operator",
@@ -66,7 +69,6 @@ with DAG(DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5
         api_group="dataprocgdc.cloud.google.com",
         api_version="v1alpha1",
     )
-
 
 
 from tests.system.utils import get_test_run  # noqa: E402

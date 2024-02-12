@@ -1,4 +1,5 @@
-#Licensed to the Apache Software Foundation (ASF) under one
+#
+# Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
@@ -14,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
+#
+---
 apiVersion: "dataprocgdc.cloud.google.com/v1alpha1"
 kind: SparkApplication
 metadata:
@@ -23,11 +24,11 @@ metadata:
   namespace:
 spec:
   properties:
-   "spark.hadoop.fs.s3a.endpoint": "***"
-   "spark.hadoop.fs.s3a.access.key": "***"
-   "spark.hadoop.fs.s3a.secret.key": "***"
-   "spark.hadoop.fs.s3a.path.style.access": "true"
-   "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
+    "spark.hadoop.fs.s3a.endpoint": "***"
+    "spark.hadoop.fs.s3a.access.key": "***"
+    "spark.hadoop.fs.s3a.secret.key": "***"
+    "spark.hadoop.fs.s3a.path.style.access": "true"
+    "spark.hadoop.fs.s3a.connection.ssl.enabled": "false"
   sparkApplicationConfig:
     jarFileUris:
       - "file:///usr/lib/spark/examples/jars/spark-examples.jar"
