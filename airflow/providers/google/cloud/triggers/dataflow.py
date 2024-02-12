@@ -126,6 +126,14 @@ class TemplateJobStartTrigger(BaseTrigger):
                         }
                     )
                     return
+                elif status == JobState.JOB_STATE_CANCELLED:
+                    yield TriggerEvent(
+                        {
+                            "status": "cancelled",
+                            "message": f"Dataflow job with id {self.job_id} was cancelled",
+                        }
+                    )
+                    return
                 else:
                     self.log.info("Job is still running...")
                     self.log.info("Current job status is: %s", status)

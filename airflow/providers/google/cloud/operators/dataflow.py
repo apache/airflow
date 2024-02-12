@@ -717,7 +717,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """Execute after trigger finishes its work."""
-        if event["status"] in ("error", "stopped"):
+        if event["status"] in ("error", "stopped", "cancelled"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
@@ -819,6 +819,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         append_job_name: bool = True,
         expected_terminal_state: str | None = None,
+        poll_sleep: int = 10,
         *args,
         **kwargs,
     ) -> None:
@@ -835,6 +836,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.expected_terminal_state = expected_terminal_state
         self.append_job_name = append_job_name
+        self.poll_sleep = poll_sleep
 
         self._validate_deferrable_params()
 
@@ -893,6 +895,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
+                poll_sleep=self.poll_sleep,
             ),
             method_name="execute_complete",
         )
@@ -907,7 +910,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict):
         """Execute after trigger finishes its work."""
-        if event["status"] in ("error", "stopped"):
+        if event["status"] in ("error", "stopped", "cancelled"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
