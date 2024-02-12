@@ -17,7 +17,7 @@
  * under the License.
  */
 import React, { useMemo } from "react";
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { AccordionItem, AccordionPanel, Text } from "@chakra-ui/react";
 
 import {
   DatasetLink,
@@ -27,6 +27,7 @@ import {
 } from "src/components/Table";
 import { useUpstreamDatasetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
+import AccordionHeader from "src/components/AccordionHeader";
 
 interface Props {
   runId: DagRunType["runId"];
@@ -62,11 +63,13 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   const data = useMemo(() => datasetEvents, [datasetEvents]);
 
   return (
-    <Box mt={3} flexGrow={1}>
-      <Heading size="md">Dataset Events</Heading>
-      <Text>Dataset updates that triggered this DAG run.</Text>
-      <Table data={data} columns={columns} isLoading={isLoading} />
-    </Box>
+    <AccordionItem border="0">
+      <AccordionHeader>Dataset Events</AccordionHeader>
+      <AccordionPanel>
+        <Text>Dataset updates that triggered this DAG run.</Text>
+        <Table data={data} columns={columns} isLoading={isLoading} />
+      </AccordionPanel>
+    </AccordionItem>
   );
 };
 

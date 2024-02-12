@@ -23,7 +23,7 @@ import { Accordion, Box } from "@chakra-ui/react";
 import { useGridData, useTaskInstance, useTIAttrs } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
 import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
-import NotesAccordion from "src/dag/details/NotesAccordion";
+import Notes from "src/dag/details/Notes";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
@@ -95,9 +95,10 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           operator={operator}
         />
       )}
-      <Accordion defaultIndex={[2]} allowMultiple>
+      <Accordion defaultIndex={[0]} allowMultiple>
+        <Details instance={instance} group={group} />
         {!isGroupOrMappedTaskSummary && (
-          <NotesAccordion
+          <Notes
             dagId={dagId}
             runId={runId}
             taskId={taskId}
@@ -106,7 +107,7 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
             key={dagId + runId + taskId + instance.mapIndex}
           />
         )}
-        {group.extraLinks && (
+        {!!group.extraLinks && group.extraLinks.length && (
           <ExtraLinks
             taskId={taskId}
             dagId={dagId}
@@ -116,7 +117,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
             tryNumber={instance.tryNumber}
           />
         )}
-        <Details instance={instance} group={group} />
         {instance.state === "deferred" && (
           <TriggererInfo instance={instance} group={group} dagId={dagId} />
         )}

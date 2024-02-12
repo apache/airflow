@@ -20,12 +20,19 @@
 /* global describe, test, expect */
 
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
+import { Accordion, AccordionProps } from "@chakra-ui/react";
 
 import * as utils from "src/utils";
 import { Wrapper } from "src/utils/testUtils";
 
-import NotesAccordion from "./NotesAccordion";
+import Notes from "./Notes";
+
+const AccordionWrapper = ({ children }: AccordionProps) => (
+  <Wrapper>
+    <Accordion>{children}</Accordion>
+  </Wrapper>
+);
 
 describe("Test DagRun / Task Instance Notes", () => {
   window.scrollTo = jest.fn();
@@ -38,29 +45,15 @@ describe("Test DagRun / Task Instance Notes", () => {
     jest.clearAllMocks();
   });
 
-  test("No initial value, accordion is also open", async () => {
-    jest.spyOn(utils, "getMetaValue").mockImplementation((meta) => {
-      if (meta === "can_edit") return "True";
-      return "";
-    });
-
-    const { getByText } = render(
-      <NotesAccordion dagId="dagId" runId="runId" />,
-      { wrapper: Wrapper }
-    );
-
-    await waitFor(() => expect(getByText("Add Note")).toBeVisible());
-  });
-
-  test("With initial value, accordion is open. And update button changed", () => {
+  test("With initial value and update button changed", () => {
     jest.spyOn(utils, "getMetaValue").mockImplementation((meta) => {
       if (meta === "can_edit") return "True";
       return "";
     });
 
     const { queryByText, getByText } = render(
-      <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      <Notes dagId="dagId" runId="runId" initialValue="I am a note" />,
+      { wrapper: AccordionWrapper }
     );
 
     const changeButton = getByText("Edit Note");
@@ -81,8 +74,8 @@ describe("Test DagRun / Task Instance Notes", () => {
     });
 
     const { getByText } = render(
-      <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      <Notes dagId="dagId" runId="runId" initialValue="I am a note" />,
+      { wrapper: AccordionWrapper }
     );
 
     const changeButton = getByText("Edit Note");
@@ -98,8 +91,8 @@ describe("Test DagRun / Task Instance Notes", () => {
     });
 
     const { getByTestId, getByText, queryByText } = render(
-      <NotesAccordion dagId="dagId" runId="runId" initialValue="I am a note" />,
-      { wrapper: Wrapper }
+      <Notes dagId="dagId" runId="runId" initialValue="I am a note" />,
+      { wrapper: AccordionWrapper }
     );
 
     const changeButton = getByText("Edit Note");

@@ -44,13 +44,7 @@ interface Props {
   initialValue?: string | null;
 }
 
-const NotesAccordion = ({
-  dagId,
-  runId,
-  taskId,
-  mapIndex,
-  initialValue,
-}: Props) => {
+const Notes = ({ dagId, runId, taskId, mapIndex, initialValue }: Props) => {
   const canEdit = getMetaValue("can_edit") === "True";
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
@@ -178,4 +172,4 @@ const NotesAccordion = ({
   );
 };
 
-export default NotesAccordion;
+export default Notes;
