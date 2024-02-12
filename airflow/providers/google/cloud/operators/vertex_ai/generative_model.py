@@ -106,7 +106,7 @@ class LanguageModelGenerateTextOperator(GoogleCloudBaseOperator):
 
 class MultimodalModelChatOperator(GoogleCloudBaseOperator):
     """
-    Uses a Vertex AI Multimodal model to generate natural language text.
+    Use a Vertex AI Multimodal model to generate natural language text.
 
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Multimodal model, in order to elicit a specific response.
