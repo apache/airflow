@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS."""
+
 from __future__ import annotations
 
 import logging

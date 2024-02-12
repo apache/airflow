@@ -87,14 +87,12 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                     location=self.location,
                 )
                 if cloud_build_instance._pb.status in (Build.Status.SUCCESS,):
-                    yield TriggerEvent(
-                        {
-                            "instance": Build.to_dict(cloud_build_instance),
-                            "id_": self.id_,
-                            "status": "success",
-                            "message": "Build completed",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "instance": Build.to_dict(cloud_build_instance),
+                        "id_": self.id_,
+                        "status": "success",
+                        "message": "Build completed",
+                    })
                     return
                 elif cloud_build_instance._pb.status in (
                     Build.Status.WORKING,
@@ -114,9 +112,10 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "error", "message": cloud_build_instance.status_detail})
                     return
                 else:
-                    yield TriggerEvent(
-                        {"status": "error", "message": "Unidentified status of Cloud Build instance"}
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": "Unidentified status of Cloud Build instance",
+                    })
                     return
 
         except Exception as e:

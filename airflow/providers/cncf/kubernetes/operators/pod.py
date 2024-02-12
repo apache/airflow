@@ -1082,12 +1082,10 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(labels)
         # Add Airflow Version to the label
         # And a label to identify that pod is launched by KubernetesPodOperator
-        pod.metadata.labels.update(
-            {
-                "airflow_version": airflow_version.replace("+", "-"),
-                "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
-            }
-        )
+        pod.metadata.labels.update({
+            "airflow_version": airflow_version.replace("+", "-"),
+            "airflow_kpo_in_cluster": str(self.hook.is_in_cluster),
+        })
         pod_mutation_hook(pod)
         return pod
 

@@ -300,9 +300,14 @@ class TestCli:
         with contextlib.redirect_stderr(StringIO()) as stderr:
             with pytest.raises(SystemExit):
                 parser = cli_parser.get_parser()
-                parser.parse_args(
-                    ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
-                )
+                parser.parse_args([
+                    "db",
+                    "export-archived",
+                    "--export-format",
+                    export_format,
+                    "--output-path",
+                    "mydir",
+                ])
             error_msg = stderr.getvalue()
         assert error_msg == (
             "\nairflow db export-archived command error: argument "

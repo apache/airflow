@@ -432,24 +432,22 @@ class TestGCSTimeSpanFileTransformOperator:
             prefix=source_prefix,
         )
 
-        mock_hook.return_value.download.assert_has_calls(
-            [
-                mock.call(
-                    bucket_name=source_bucket,
-                    object_name=f"{source_prefix}/{file1}",
-                    filename=f"{source}/{source_prefix}/{file1}",
-                    chunk_size=None,
-                    num_max_attempts=1,
-                ),
-                mock.call(
-                    bucket_name=source_bucket,
-                    object_name=f"{source_prefix}/{file2}",
-                    filename=f"{source}/{source_prefix}/{file2}",
-                    chunk_size=None,
-                    num_max_attempts=1,
-                ),
-            ]
-        )
+        mock_hook.return_value.download.assert_has_calls([
+            mock.call(
+                bucket_name=source_bucket,
+                object_name=f"{source_prefix}/{file1}",
+                filename=f"{source}/{source_prefix}/{file1}",
+                chunk_size=None,
+                num_max_attempts=1,
+            ),
+            mock.call(
+                bucket_name=source_bucket,
+                object_name=f"{source_prefix}/{file2}",
+                filename=f"{source}/{source_prefix}/{file2}",
+                chunk_size=None,
+                num_max_attempts=1,
+            ),
+        ])
 
         mock_subprocess.Popen.assert_called_once_with(
             args=[
@@ -464,24 +462,22 @@ class TestGCSTimeSpanFileTransformOperator:
             close_fds=True,
         )
 
-        mock_hook.return_value.upload.assert_has_calls(
-            [
-                mock.call(
-                    bucket_name=destination_bucket,
-                    filename=f"{destination}/{file1}",
-                    object_name=f"{destination_prefix}/{file1}",
-                    chunk_size=None,
-                    num_max_attempts=1,
-                ),
-                mock.call(
-                    bucket_name=destination_bucket,
-                    filename=f"{destination}/{file2}",
-                    object_name=f"{destination_prefix}/{file2}",
-                    chunk_size=None,
-                    num_max_attempts=1,
-                ),
-            ]
-        )
+        mock_hook.return_value.upload.assert_has_calls([
+            mock.call(
+                bucket_name=destination_bucket,
+                filename=f"{destination}/{file1}",
+                object_name=f"{destination_prefix}/{file1}",
+                chunk_size=None,
+                num_max_attempts=1,
+            ),
+            mock.call(
+                bucket_name=destination_bucket,
+                filename=f"{destination}/{file2}",
+                object_name=f"{destination_prefix}/{file2}",
+                chunk_size=None,
+                num_max_attempts=1,
+            ),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")

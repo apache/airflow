@@ -100,12 +100,10 @@ class HttpTrigger(BaseTrigger):
                 extra_options=self.extra_options,
             )
             response = await self._convert_response(client_response)
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-                }
-            )
+            yield TriggerEvent({
+                "status": "success",
+                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+            })
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
             # yield TriggerEvent({"status": "error", "message": str(traceback.format_exc())})

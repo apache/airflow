@@ -102,29 +102,23 @@ class TemplateJobStartTrigger(BaseTrigger):
                     location=self.location,
                 )
                 if status == JobState.JOB_STATE_DONE:
-                    yield TriggerEvent(
-                        {
-                            "job_id": self.job_id,
-                            "status": "success",
-                            "message": "Job completed",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_id": self.job_id,
+                        "status": "success",
+                        "message": "Job completed",
+                    })
                     return
                 elif status == JobState.JOB_STATE_FAILED:
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": f"Dataflow job with id {self.job_id} has failed its execution",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": f"Dataflow job with id {self.job_id} has failed its execution",
+                    })
                     return
                 elif status == JobState.JOB_STATE_STOPPED:
-                    yield TriggerEvent(
-                        {
-                            "status": "stopped",
-                            "message": f"Dataflow job with id {self.job_id} was stopped",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "stopped",
+                        "message": f"Dataflow job with id {self.job_id} was stopped",
+                    })
                     return
                 else:
                     self.log.info("Job is still running...")

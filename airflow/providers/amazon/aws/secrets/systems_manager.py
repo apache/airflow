@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store."""
+
 from __future__ import annotations
 
 import re
@@ -118,15 +119,13 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_id = f"{self.__class__.__name__}__connection"
         conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
-        client_kwargs = trim_none_values(
-            {
-                "region_name": conn_config.region_name,
-                "verify": conn_config.verify,
-                "endpoint_url": conn_config.endpoint_url,
-                "api_version": self.api_version,
-                "use_ssl": self.use_ssl,
-            }
-        )
+        client_kwargs = trim_none_values({
+            "region_name": conn_config.region_name,
+            "verify": conn_config.verify,
+            "endpoint_url": conn_config.endpoint_url,
+            "api_version": self.api_version,
+            "use_ssl": self.use_ssl,
+        })
 
         session = SessionFactory(conn=conn_config).create_session()
         return session.client(service_name="ssm", **client_kwargs)

@@ -133,11 +133,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
 
-            class FakeTypeCheckingOnlyClass:
-                ...
+            class FakeTypeCheckingOnlyClass: ...
 
-            class UnresolveableName:
-                ...
+            class UnresolveableName: ...
 
         @task_decorator
         def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
@@ -157,8 +155,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             def t3(  # type: ignore[empty-body]
                 x: "FakeTypeCheckingOnlyClass",
                 y: int,
-            ) -> "UnresolveableName[int, int]":
-                ...
+            ) -> "UnresolveableName[int, int]": ...
 
             line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
             if PY311:
@@ -728,8 +725,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
             return ["x"]
 
         @task_decorator
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1())
 
@@ -756,8 +752,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
             return ["x" * arg]
 
         @task_decorator(retry_delay=30)
-        def task2(arg1, arg2):
-            ...
+        def task2(arg1, arg2): ...
 
         task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
 
@@ -781,8 +776,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
 
 def test_mapped_render_template_fields(dag_maker, session):
     @task_decorator
-    def fn(arg1, arg2):
-        ...
+    def fn(arg1, arg2): ...
 
     with set_current_task_instance_session(session=session):
         with dag_maker(session=session):
@@ -920,8 +914,7 @@ def test_no_warnings(reset_logging_config, caplog):
         return 1
 
     @task_decorator
-    def other(x):
-        ...
+    def other(x): ...
 
     with DAG(dag_id="test", start_date=DEFAULT_DATE, schedule=None):
         other(some_task())

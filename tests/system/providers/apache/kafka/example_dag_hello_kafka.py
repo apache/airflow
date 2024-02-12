@@ -57,14 +57,12 @@ def load_connections():
         Connection(
             conn_id="t2",
             conn_type="kafka",
-            extra=json.dumps(
-                {
-                    "bootstrap.servers": "broker:29092",
-                    "group.id": "t2",
-                    "enable.auto.commit": False,
-                    "auto.offset.reset": "beginning",
-                }
-            ),
+            extra=json.dumps({
+                "bootstrap.servers": "broker:29092",
+                "group.id": "t2",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "beginning",
+            }),
         )
     )
 
@@ -72,14 +70,12 @@ def load_connections():
         Connection(
             conn_id="t4",
             conn_type="kafka",
-            extra=json.dumps(
-                {
-                    "bootstrap.servers": "broker:29092",
-                    "group.id": "t4",
-                    "enable.auto.commit": False,
-                    "auto.offset.reset": "beginning",
-                }
-            ),
+            extra=json.dumps({
+                "bootstrap.servers": "broker:29092",
+                "group.id": "t4",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "beginning",
+            }),
         )
     )
 
@@ -87,14 +83,12 @@ def load_connections():
         Connection(
             conn_id="t4b",
             conn_type="kafka",
-            extra=json.dumps(
-                {
-                    "bootstrap.servers": "broker:29092",
-                    "group.id": "t4b",
-                    "enable.auto.commit": False,
-                    "auto.offset.reset": "beginning",
-                }
-            ),
+            extra=json.dumps({
+                "bootstrap.servers": "broker:29092",
+                "group.id": "t4b",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "beginning",
+            }),
         )
     )
 
@@ -102,14 +96,12 @@ def load_connections():
         Connection(
             conn_id="t5",
             conn_type="kafka",
-            extra=json.dumps(
-                {
-                    "bootstrap.servers": "broker:29092",
-                    "group.id": "t5",
-                    "enable.auto.commit": False,
-                    "auto.offset.reset": "beginning",
-                }
-            ),
+            extra=json.dumps({
+                "bootstrap.servers": "broker:29092",
+                "group.id": "t5",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "beginning",
+            }),
         )
     )
 

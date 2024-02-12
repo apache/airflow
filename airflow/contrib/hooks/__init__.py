@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.hooks` or `airflow.providers.*.hooks`."""
+
 from __future__ import annotations
 
 import warnings

@@ -68,40 +68,32 @@ class AirbyteSyncTrigger(BaseTrigger):
         try:
             while await self.is_still_running(hook):
                 if self.end_time < time.time():
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": f"Job run {self.job_id} has not reached a terminal status after "
-                            f"{self.end_time} seconds.",
-                            "job_id": self.job_id,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": f"Job run {self.job_id} has not reached a terminal status after "
+                        f"{self.end_time} seconds.",
+                        "job_id": self.job_id,
+                    })
                 await asyncio.sleep(self.poll_interval)
             job_run_status = await hook.get_job_status(self.job_id)
             if job_run_status == hook.SUCCEEDED:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Job run {self.job_id} has completed successfully.",
-                        "job_id": self.job_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "success",
+                    "message": f"Job run {self.job_id} has completed successfully.",
+                    "job_id": self.job_id,
+                })
             elif job_run_status == hook.CANCELLED:
-                yield TriggerEvent(
-                    {
-                        "status": "cancelled",
-                        "message": f"Job run {self.job_id} has been cancelled.",
-                        "job_id": self.job_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "cancelled",
+                    "message": f"Job run {self.job_id} has been cancelled.",
+                    "job_id": self.job_id,
+                })
             else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Job run {self.job_id} has failed.",
-                        "job_id": self.job_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "error",
+                    "message": f"Job run {self.job_id} has failed.",
+                    "job_id": self.job_id,
+                })
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "job_id": self.job_id})
 

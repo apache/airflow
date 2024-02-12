@@ -84,12 +84,10 @@ class TestAppriseHook:
         ):
             hook = AppriseHook()
             hook.set_config_from_conn(apprise_obj)
-            apprise_obj.add.assert_has_calls(
-                [
-                    call("http://some_path_that_dont_exist/", tag="p0"),
-                    call("http://some_other_path_that_dont_exist/", tag="p1"),
-                ]
-            )
+            apprise_obj.add.assert_has_calls([
+                call("http://some_path_that_dont_exist/", tag="p0"),
+                call("http://some_other_path_that_dont_exist/", tag="p1"),
+            ])
 
     def test_notify(self):
         apprise_obj = apprise.Apprise()

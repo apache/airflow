@@ -81,9 +81,10 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                     )
                     executed_after_token_refresh = False
                     if pipeline_status == AzureDataFactoryPipelineRunStatus.FAILED:
-                        yield TriggerEvent(
-                            {"status": "error", "message": f"Pipeline run {self.run_id} has Failed."}
-                        )
+                        yield TriggerEvent({
+                            "status": "error",
+                            "message": f"Pipeline run {self.run_id} has Failed.",
+                        })
                         return
                     elif pipeline_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
                         msg = f"Pipeline run {self.run_id} has been Cancelled."
@@ -177,22 +178,18 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         )
                         executed_after_token_refresh = True
                         if pipeline_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
-                            yield TriggerEvent(
-                                {
-                                    "status": "error",
-                                    "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
-                                    "run_id": self.run_id,
-                                }
-                            )
+                            yield TriggerEvent({
+                                "status": "error",
+                                "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
+                                "run_id": self.run_id,
+                            })
                             return
                         elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                            yield TriggerEvent(
-                                {
-                                    "status": "success",
-                                    "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
-                                    "run_id": self.run_id,
-                                }
-                            )
+                            yield TriggerEvent({
+                                "status": "success",
+                                "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
+                                "run_id": self.run_id,
+                            })
                             return
                         self.log.info(
                             "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
@@ -210,21 +207,17 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         else:
                             raise
 
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Timeout: The pipeline run {self.run_id} has {pipeline_status}.",
-                        "run_id": self.run_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "error",
+                    "message": f"Timeout: The pipeline run {self.run_id} has {pipeline_status}.",
+                    "run_id": self.run_id,
+                })
             else:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"The pipeline run {self.run_id} has {pipeline_status} status.",
-                        "run_id": self.run_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "success",
+                    "message": f"The pipeline run {self.run_id} has {pipeline_status} status.",
+                    "run_id": self.run_id,
+                })
         except Exception as e:
             if self.run_id:
                 try:

@@ -18,6 +18,7 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 """Exceptions used by Airflow."""
+
 from __future__ import annotations
 
 import warnings

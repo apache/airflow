@@ -117,48 +117,46 @@ class TestFabAuthManager:
 
     @pytest.mark.parametrize(
         "api_name, method, user_permissions, expected_result",
-        chain(
-            *[
+        chain(*[
+            (
+                # With permission
                 (
-                    # With permission
-                    (
-                        api_name,
-                        "POST",
-                        [(ACTION_CAN_CREATE, resource_type)],
-                        True,
-                    ),
-                    # With permission
-                    (
-                        api_name,
-                        "GET",
-                        [(ACTION_CAN_READ, resource_type)],
-                        True,
-                    ),
-                    # With permission (with several user permissions)
-                    (
-                        api_name,
-                        "DELETE",
-                        [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
-                        True,
-                    ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
-                    (
-                        api_name,
-                        "GET",
-                        [(ACTION_CAN_ACCESS_MENU, resource_type)],
-                        True,
-                    ),
-                    # Without permission
-                    (
-                        api_name,
-                        "POST",
-                        [(ACTION_CAN_READ, resource_type), (ACTION_CAN_CREATE, "resource_test")],
-                        False,
-                    ),
-                )
-                for api_name, resource_type in IS_AUTHORIZED_METHODS_SIMPLE.items()
-            ]
-        ),
+                    api_name,
+                    "POST",
+                    [(ACTION_CAN_CREATE, resource_type)],
+                    True,
+                ),
+                # With permission
+                (
+                    api_name,
+                    "GET",
+                    [(ACTION_CAN_READ, resource_type)],
+                    True,
+                ),
+                # With permission (with several user permissions)
+                (
+                    api_name,
+                    "DELETE",
+                    [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                    True,
+                ),
+                # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                (
+                    api_name,
+                    "GET",
+                    [(ACTION_CAN_ACCESS_MENU, resource_type)],
+                    True,
+                ),
+                # Without permission
+                (
+                    api_name,
+                    "POST",
+                    [(ACTION_CAN_READ, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                    False,
+                ),
+            )
+            for api_name, resource_type in IS_AUTHORIZED_METHODS_SIMPLE.items()
+        ]),
     )
     def test_is_authorized(self, api_name, method, user_permissions, expected_result, auth_manager):
         user = Mock()

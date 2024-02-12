@@ -82,13 +82,11 @@ class DatabricksExecutionTrigger(BaseTrigger):
             while True:
                 run_state = await self.hook.a_get_run_state(self.run_id)
                 if run_state.is_terminal:
-                    yield TriggerEvent(
-                        {
-                            "run_id": self.run_id,
-                            "run_page_url": self.run_page_url,
-                            "run_state": run_state.to_json(),
-                        }
-                    )
+                    yield TriggerEvent({
+                        "run_id": self.run_id,
+                        "run_page_url": self.run_page_url,
+                        "run_state": run_state.to_json(),
+                    })
                     return
                 else:
                     self.log.info(

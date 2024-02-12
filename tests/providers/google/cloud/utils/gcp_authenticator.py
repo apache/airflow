@@ -163,15 +163,13 @@ class GcpAuthenticator(CommandExecutor):
         self._validate_key_set()
         self.log.info("Setting the Google Cloud key to %s", self.full_key_path)
         # Checking if we can authenticate using service account credentials provided
-        self.execute_cmd(
-            [
-                "gcloud",
-                "auth",
-                "activate-service-account",
-                f"--key-file={self.full_key_path}",
-                f"--project={self.project_id}",
-            ]
-        )
+        self.execute_cmd([
+            "gcloud",
+            "auth",
+            "activate-service-account",
+            f"--key-file={self.full_key_path}",
+            f"--project={self.project_id}",
+        ])
         self.set_key_path_in_airflow_connection()
 
     def gcp_revoke_authentication(self):
@@ -190,9 +188,13 @@ class GcpAuthenticator(CommandExecutor):
         """
         self._validate_key_set()
         if not GcpAuthenticator.original_account:
-            GcpAuthenticator.original_account = self.check_output(
-                ["gcloud", "config", "get-value", "account", f"--project={self.project_id}"]
-            ).decode("utf-8")
+            GcpAuthenticator.original_account = self.check_output([
+                "gcloud",
+                "config",
+                "get-value",
+                "account",
+                f"--project={self.project_id}",
+            ]).decode("utf-8")
             self.log.info("Storing account: to restore it later %s", GcpAuthenticator.original_account)
 
     def gcp_restore_authentication(self):
@@ -202,15 +204,13 @@ class GcpAuthenticator(CommandExecutor):
         self._validate_key_set()
         if GcpAuthenticator.original_account:
             self.log.info("Restoring original account stored: %s", GcpAuthenticator.original_account)
-            subprocess.call(
-                [
-                    "gcloud",
-                    "config",
-                    "set",
-                    "account",
-                    GcpAuthenticator.original_account,
-                    f"--project={self.project_id}",
-                ]
-            )
+            subprocess.call([
+                "gcloud",
+                "config",
+                "set",
+                "account",
+                GcpAuthenticator.original_account,
+                f"--project={self.project_id}",
+            ])
         else:
             self.log.info("Not restoring the original Google Cloud account: it is not set")

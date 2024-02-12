@@ -192,19 +192,17 @@ def _fetch_dag_runs(
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
-@format_parameters(
-    {
-        "start_date_gte": format_datetime,
-        "start_date_lte": format_datetime,
-        "execution_date_gte": format_datetime,
-        "execution_date_lte": format_datetime,
-        "end_date_gte": format_datetime,
-        "end_date_lte": format_datetime,
-        "updated_at_gte": format_datetime,
-        "updated_at_lte": format_datetime,
-        "limit": check_limit,
-    }
-)
+@format_parameters({
+    "start_date_gte": format_datetime,
+    "start_date_lte": format_datetime,
+    "execution_date_gte": format_datetime,
+    "execution_date_lte": format_datetime,
+    "end_date_gte": format_datetime,
+    "end_date_lte": format_datetime,
+    "updated_at_gte": format_datetime,
+    "updated_at_lte": format_datetime,
+    "limit": check_limit,
+})
 @provide_session
 def get_dag_runs(
     *,

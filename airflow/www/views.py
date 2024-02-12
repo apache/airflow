@@ -2345,13 +2345,11 @@ class Airflow(AirflowBaseView):
             if dag:
                 # TODO: Make max_active_runs a column so we can query for it directly
                 max_active_runs = dag.max_active_runs
-            payload.append(
-                {
-                    "dag_id": dag_id,
-                    "active_dag_run": active_dag_runs,
-                    "max_active_runs": max_active_runs,
-                }
-            )
+            payload.append({
+                "dag_id": dag_id,
+                "active_dag_run": active_dag_runs,
+                "max_active_runs": max_active_runs,
+            })
         return flask.json.jsonify(payload)
 
     def _mark_dagrun_state_as_failed(self, dag_id, dag_run_id, confirmed):
@@ -2796,14 +2794,12 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             default_dag_run_display_number=default_dag_run_display_number,
             default_wrap=conf.getboolean("webserver", "default_wrap"),
-            filters_drop_down_values=htmlsafe_json_dumps(
-                {
-                    "taskStates": [state.value for state in TaskInstanceState],
-                    "dagStates": [state.value for state in State.dag_states],
-                    "runTypes": [run_type.value for run_type in DagRunType],
-                    "numRuns": num_runs_options,
-                }
-            ),
+            filters_drop_down_values=htmlsafe_json_dumps({
+                "taskStates": [state.value for state in TaskInstanceState],
+                "dagStates": [state.value for state in State.dag_states],
+                "runTypes": [run_type.value for run_type in DagRunType],
+                "numRuns": num_runs_options,
+            }),
         )
 
     @expose("/calendar")

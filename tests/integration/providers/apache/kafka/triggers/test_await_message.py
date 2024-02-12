@@ -42,15 +42,13 @@ class TestTrigger:
                 Connection(
                     conn_id=f"trigger.await_message.test.integration.test_{num}",
                     conn_type="kafka",
-                    extra=json.dumps(
-                        {
-                            "socket.timeout.ms": 10,
-                            "bootstrap.servers": "broker:29092",
-                            "group.id": f"trigger.await_message.test.integration.test_{num}",
-                            "enable.auto.commit": False,
-                            "auto.offset.reset": "beginning",
-                        }
-                    ),
+                    extra=json.dumps({
+                        "socket.timeout.ms": 10,
+                        "bootstrap.servers": "broker:29092",
+                        "group.id": f"trigger.await_message.test.integration.test_{num}",
+                        "enable.auto.commit": False,
+                        "auto.offset.reset": "beginning",
+                    }),
                 )
             )
 

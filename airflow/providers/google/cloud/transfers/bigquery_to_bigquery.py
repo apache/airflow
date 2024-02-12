@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to BigQuery operator."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -124,9 +125,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
                 default_project_id=self.hook.project_id,
                 var_name="source_project_dataset_table",
             )
-            source_project_dataset_tables_fixup.append(
-                {"projectId": source_project, "datasetId": source_dataset, "tableId": source_table}
-            )
+            source_project_dataset_tables_fixup.append({
+                "projectId": source_project,
+                "datasetId": source_dataset,
+                "tableId": source_table,
+            })
 
         destination_project, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,

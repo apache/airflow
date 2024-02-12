@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sentry Integration."""
+
 from __future__ import annotations
 
 import logging
@@ -68,15 +69,13 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
         SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 
-        UNSUPPORTED_SENTRY_OPTIONS = frozenset(
-            (
-                "integrations",
-                "in_app_include",
-                "in_app_exclude",
-                "ignore_errors",
-                "before_breadcrumb",
-            )
-        )
+        UNSUPPORTED_SENTRY_OPTIONS = frozenset((
+            "integrations",
+            "in_app_include",
+            "in_app_exclude",
+            "ignore_errors",
+            "before_breadcrumb",
+        ))
 
         def __init__(self):
             """Initialize the Sentry SDK."""

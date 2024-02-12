@@ -46,14 +46,12 @@ def client_without_config(tmp_path):
 
 @pytest.fixture
 def client_with_config():
-    with conf_vars(
-        {
-            (
-                "logging",
-                "logging_config_class",
-            ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
-        }
-    ):
+    with conf_vars({
+        (
+            "logging",
+            "logging_config_class",
+        ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+    }):
         app = create_app()
 
         yield app.test_client()

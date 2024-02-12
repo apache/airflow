@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """A collection of closely related tasks on the same DAG that should be grouped together visually."""
+
 from __future__ import annotations
 
 import copy
@@ -703,31 +704,27 @@ def task_group_to_dict(task_item_or_group):
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
-        children.append(
-            {
-                "id": task_group.upstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
+        children.append({
+            "id": task_group.upstream_join_id,
+            "value": {
+                "label": "",
+                "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                "style": f"fill:{task_group.ui_color};",
+                "shape": "circle",
+            },
+        })
 
     if task_group.downstream_group_ids or task_group.downstream_task_ids:
         # This is the join node used to reduce the number of edges between two TaskGroup.
-        children.append(
-            {
-                "id": task_group.downstream_join_id,
-                "value": {
-                    "label": "",
-                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
-                    "style": f"fill:{task_group.ui_color};",
-                    "shape": "circle",
-                },
-            }
-        )
+        children.append({
+            "id": task_group.downstream_join_id,
+            "value": {
+                "label": "",
+                "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                "style": f"fill:{task_group.ui_color};",
+                "shape": "circle",
+            },
+        })
 
     return {
         "id": task_group.group_id,

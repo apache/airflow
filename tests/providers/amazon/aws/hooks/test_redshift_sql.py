@@ -63,13 +63,11 @@ class TestRedshiftSQLHookConn:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
     def test_get_conn_extra(self, mock_connect):
-        self.connection.extra = json.dumps(
-            {
-                "iam": False,
-                "cluster_identifier": "my-test-cluster",
-                "profile": "default",
-            }
-        )
+        self.connection.extra = json.dumps({
+            "iam": False,
+            "cluster_identifier": "my-test-cluster",
+            "profile": "default",
+        })
         self.db_hook.get_conn()
         mock_connect.assert_called_once_with(
             user=LOGIN_USER,

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Handler that integrates with Stackdriver."""
+
 from __future__ import annotations
 
 import logging
@@ -40,9 +41,10 @@ if TYPE_CHECKING:
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})
 
-_DEFAULT_SCOPESS = frozenset(
-    ["https://www.googleapis.com/auth/logging.read", "https://www.googleapis.com/auth/logging.write"]
-)
+_DEFAULT_SCOPESS = frozenset([
+    "https://www.googleapis.com/auth/logging.read",
+    "https://www.googleapis.com/auth/logging.write",
+])
 
 
 class StackdriverTaskHandler(logging.Handler):

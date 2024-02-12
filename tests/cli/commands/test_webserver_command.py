@@ -246,21 +246,19 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
 
-                proc = subprocess.Popen(
-                    [
-                        "airflow",
-                        "webserver",
-                        "--daemon",
-                        "--pid",
-                        os.fspath(pidfile_webserver),
-                        "--stdout",
-                        os.fspath(stdout),
-                        "--stderr",
-                        os.fspath(stderr),
-                        "--log-file",
-                        os.fspath(logfile),
-                    ]
-                )
+                proc = subprocess.Popen([
+                    "airflow",
+                    "webserver",
+                    "--daemon",
+                    "--pid",
+                    os.fspath(pidfile_webserver),
+                    "--stdout",
+                    os.fspath(stdout),
+                    "--stderr",
+                    os.fspath(stderr),
+                    "--log-file",
+                    os.fspath(logfile),
+                ])
                 assert proc.poll() is None
 
                 pid_monitor = self._wait_pidfile(pidfile_monitor)
@@ -313,12 +311,10 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
         with mock.patch("airflow.www.app.create_app", return_value=app), mock.patch.object(
             app, "run"
         ) as app_run:
-            args = self.parser.parse_args(
-                [
-                    "webserver",
-                    "--debug",
-                ]
-            )
+            args = self.parser.parse_args([
+                "webserver",
+                "--debug",
+            ])
             webserver_command.webserver(args)
 
             app_run.assert_called_with(
@@ -331,15 +327,13 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
 
     def test_cli_webserver_args(self):
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(webserver_command, "GunicornMonitor"):
-            args = self.parser.parse_args(
-                [
-                    "webserver",
-                    "--access-logformat",
-                    "custom_log_format",
-                    "--pid",
-                    "/tmp/x.pid",
-                ]
-            )
+            args = self.parser.parse_args([
+                "webserver",
+                "--access-logformat",
+                "custom_log_format",
+                "--pid",
+                "/tmp/x.pid",
+            ])
             webserver_command.webserver(args)
 
             Popen.assert_called_with(

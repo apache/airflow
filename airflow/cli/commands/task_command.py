@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task sub-commands."""
+
 from __future__ import annotations
 
 import importlib
@@ -511,8 +512,7 @@ def task_list(args, dag: DAG | None = None) -> None:
 
 
 class _SupportedDebugger(Protocol):
-    def post_mortem(self) -> None:
-        ...
+    def post_mortem(self) -> None: ...
 
 
 SUPPORTED_DEBUGGER_MODULES = [

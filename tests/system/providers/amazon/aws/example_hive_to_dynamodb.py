@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-   This DAG will not work unless you create an Amazon EMR cluster running
-   Apache Hive and copy data into it following steps 1-4 (inclusive) here:
-   https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.Tutorial.html
+This DAG will not work unless you create an Amazon EMR cluster running
+Apache Hive and copy data into it following steps 1-4 (inclusive) here:
+https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.Tutorial.html
 """
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -75,23 +75,19 @@ class CreateHyperparameterTuningJobTrigger(BaseTrigger):
                 poll_interval=self.poll_interval,
             )
         except AirflowException as ex:
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "message": str(ex),
-                }
-            )
+            yield TriggerEvent({
+                "status": "error",
+                "message": str(ex),
+            })
             return
 
         status = "success" if job.state in self.statuses_success else "error"
         message = f"Hyperparameter tuning job {job.name} completed with status {job.state.name}"
-        yield TriggerEvent(
-            {
-                "status": status,
-                "message": message,
-                "job": HyperparameterTuningJob.to_dict(job),
-            }
-        )
+        yield TriggerEvent({
+            "status": status,
+            "message": message,
+            "job": HyperparameterTuningJob.to_dict(job),
+        })
 
     def _get_async_hook(self) -> HyperparameterTuningJobAsyncHook:
         return HyperparameterTuningJobAsyncHook(

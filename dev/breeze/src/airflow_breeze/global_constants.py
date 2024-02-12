@@ -17,6 +17,7 @@
 """
 Global constants that are used by all other Breeze components.
 """
+
 from __future__ import annotations
 
 import json
@@ -53,19 +54,15 @@ DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka", "qdrant"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
-ALL_INTEGRATIONS = sorted(
-    [
-        *TESTABLE_INTEGRATIONS,
-        *OTHER_INTEGRATIONS,
-    ]
-)
-AUTOCOMPLETE_INTEGRATIONS = sorted(
-    [
-        "all-testable",
-        "all",
-        *ALL_INTEGRATIONS,
-    ]
-)
+ALL_INTEGRATIONS = sorted([
+    *TESTABLE_INTEGRATIONS,
+    *OTHER_INTEGRATIONS,
+])
+AUTOCOMPLETE_INTEGRATIONS = sorted([
+    "all-testable",
+    "all",
+    *ALL_INTEGRATIONS,
+])
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 
@@ -167,13 +164,11 @@ ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
 
 @lru_cache(maxsize=None)
 def all_helm_test_packages() -> list[str]:
-    return sorted(
-        [
-            candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
-            if candidate.is_dir() and candidate.name != "__pycache__"
-        ]
-    )
+    return sorted([
+        candidate.name
+        for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+        if candidate.is_dir() and candidate.name != "__pycache__"
+    ])
 
 
 ALLOWED_HELM_TEST_PACKAGES = [
@@ -445,11 +440,9 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(
-    [
-        "fab",
-    ]
-)
+CHICKEN_EGG_PROVIDERS = " ".join([
+    "fab",
+])
 
 
 def _exclusion(providers: Iterable[str]) -> str:

@@ -28,6 +28,7 @@ To obtain info about this token, run the following commands:
 
     RefreshError
 """
+
 from __future__ import annotations
 
 import json

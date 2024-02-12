@@ -349,9 +349,11 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
             endpoint=f"{_account_id}/jobs/{JOB_ID}/run/",
-            data=json.dumps(
-                {"cause": cause, "steps_override": steps_override, "schema_override": schema_override}
-            ),
+            data=json.dumps({
+                "cause": cause,
+                "steps_override": steps_override,
+                "schema_override": schema_override,
+            }),
         )
         hook._paginate.assert_not_called()
 
@@ -377,15 +379,13 @@ class TestDbtCloudHook:
         _account_id = account_id or DEFAULT_ACCOUNT_ID
         hook.run.assert_called_once_with(
             endpoint=f"{_account_id}/jobs/{JOB_ID}/run/",
-            data=json.dumps(
-                {
-                    "cause": cause,
-                    "steps_override": None,
-                    "schema_override": None,
-                    "threads_override": 8,
-                    "generate_docs_override": False,
-                }
-            ),
+            data=json.dumps({
+                "cause": cause,
+                "steps_override": None,
+                "schema_override": None,
+                "threads_override": 8,
+                "generate_docs_override": False,
+            }),
         )
         hook._paginate.assert_not_called()
 

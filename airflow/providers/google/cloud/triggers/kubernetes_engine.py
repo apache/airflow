@@ -199,13 +199,11 @@ class GKEOperationTrigger(BaseTrigger):
 
                 status = operation.status
                 if status == Operation.Status.DONE:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": "Operation is successfully ended.",
-                            "operation_name": operation.name,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "message": "Operation is successfully ended.",
+                        "operation_name": operation.name,
+                    })
                     return
                 elif status in (Operation.Status.RUNNING, Operation.Status.PENDING):
                     self.log.info("Operation is still running.")
@@ -213,21 +211,17 @@ class GKEOperationTrigger(BaseTrigger):
                     await asyncio.sleep(self.poll_interval)
 
                 else:
-                    yield TriggerEvent(
-                        {
-                            "status": "failed",
-                            "message": f"Operation has failed with status: {operation.status}",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "failed",
+                        "message": f"Operation has failed with status: {operation.status}",
+                    })
                     return
         except Exception as e:
             self.log.exception("Exception occurred while checking operation status")
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "message": str(e),
-                }
-            )
+            yield TriggerEvent({
+                "status": "error",
+                "message": str(e),
+            })
 
     def _get_hook(self) -> GKEAsyncHook:
         if self._hook is None:

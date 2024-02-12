@@ -24,6 +24,7 @@ The following sources are available:
 * Metastore database
 * Local Filesystem Secrets Backend
 """
+
 from __future__ import annotations
 
 __all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH"]

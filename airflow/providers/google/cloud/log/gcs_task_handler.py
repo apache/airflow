@@ -38,11 +38,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
-_DEFAULT_SCOPESS = frozenset(
-    [
-        "https://www.googleapis.com/auth/devstorage.read_write",
-    ]
-)
+_DEFAULT_SCOPESS = frozenset([
+    "https://www.googleapis.com/auth/devstorage.read_write",
+])
 
 logger = logging.getLogger(__name__)
 

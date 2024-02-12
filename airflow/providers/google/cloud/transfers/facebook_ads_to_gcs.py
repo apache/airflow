@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ad Reporting to GCS operators."""
+
 from __future__ import annotations
 
 import csv
@@ -165,9 +166,10 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
     ):
         converted_rows = [dict(row) for row in rows]
         if account_id is not None and self.upload_as_account:
-            converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append(
-                {"account_id": account_id, "converted_rows": converted_rows}
-            )
+            converted_rows_with_action[FlushAction.EXPORT_EVERY_ACCOUNT].append({
+                "account_id": account_id,
+                "converted_rows": converted_rows,
+            })
             self.log.info(
                 "Facebook Returned %s data points for account_id: %s", len(converted_rows), account_id
             )

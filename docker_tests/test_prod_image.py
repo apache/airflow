@@ -185,41 +185,37 @@ class TestPythonPackages:
 
 class TestExecuteAsRoot:
     def test_execute_airflow_as_root(self):
-        run_command(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "--user",
-                "0",
-                "-e",
-                "PYTHONDONTWRITEBYTECODE=true",
-                docker_image,
-                "airflow",
-                "info",
-            ]
-        )
+        run_command([
+            "docker",
+            "run",
+            "--rm",
+            "--user",
+            "0",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=true",
+            docker_image,
+            "airflow",
+            "info",
+        ])
 
     def test_run_custom_python_packages_as_root(self, tmp_path):
         (tmp_path / "__init__.py").write_text("")
         (tmp_path / "awesome.py").write_text('print("Awesome")')
 
-        run_command(
-            [
-                "docker",
-                "run",
-                "--rm",
-                "-e",
-                f"PYTHONPATH={tmp_path}",
-                "-e",
-                "PYTHONDONTWRITEBYTECODE=true",
-                "-v",
-                f"{tmp_path}:{tmp_path}",
-                "--user",
-                "0",
-                docker_image,
-                "python",
-                "-c",
-                "import awesome",
-            ]
-        )
+        run_command([
+            "docker",
+            "run",
+            "--rm",
+            "-e",
+            f"PYTHONPATH={tmp_path}",
+            "-e",
+            "PYTHONDONTWRITEBYTECODE=true",
+            "-v",
+            f"{tmp_path}:{tmp_path}",
+            "--user",
+            "0",
+            docker_image,
+            "python",
+            "-c",
+            "import awesome",
+        ])

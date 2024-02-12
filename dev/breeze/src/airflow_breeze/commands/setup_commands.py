@@ -694,12 +694,10 @@ def synchronize_local_mounts():
     prefix = "      "
     volumes = []
     for src, dest in VOLUMES_FOR_SELECTED_MOUNTS:
-        volumes.extend(
-            [
-                prefix + "- type: bind\n",
-                prefix + f"  source: ../../../{src}\n",
-                prefix + f"  target: {dest}\n",
-            ]
-        )
+        volumes.extend([
+            prefix + "- type: bind\n",
+            prefix + f"  source: ../../../{src}\n",
+            prefix + f"  target: {dest}\n",
+        ])
     _insert_documentation(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_FILE, volumes, mounts_header, mounts_footer)
     get_console().print("[success]Synchronized local mounts.[/]")

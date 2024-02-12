@@ -150,12 +150,10 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             waiter = self.hook.get_waiter("cluster_active")
             waiter.wait(
                 clusters=[cluster_details["clusterArn"]],
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
+                WaiterConfig=prune_dict({
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }),
             )
 
         return cluster_details
@@ -227,12 +225,10 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
             waiter = self.hook.get_waiter("cluster_inactive")
             waiter.wait(
                 clusters=[cluster_details["clusterArn"]],
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
+                WaiterConfig=prune_dict({
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }),
             )
 
         return cluster_details

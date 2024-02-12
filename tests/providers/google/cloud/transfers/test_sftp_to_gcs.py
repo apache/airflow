@@ -181,31 +181,27 @@ class TestSFTPToGCSOperator:
             "main_dir", prefix="main_dir/test_object", delimiter=".json"
         )
 
-        sftp_hook.return_value.retrieve_file.assert_has_calls(
-            [
-                mock.call("main_dir/test_object3.json", mock.ANY, prefetch=True),
-                mock.call("main_dir/sub_dir/test_object3.json", mock.ANY, prefetch=True),
-            ]
-        )
+        sftp_hook.return_value.retrieve_file.assert_has_calls([
+            mock.call("main_dir/test_object3.json", mock.ANY, prefetch=True),
+            mock.call("main_dir/sub_dir/test_object3.json", mock.ANY, prefetch=True),
+        ])
 
-        gcs_hook.return_value.upload.assert_has_calls(
-            [
-                mock.call(
-                    bucket_name=TEST_BUCKET,
-                    object_name="destination_dir/test_object3.json",
-                    mime_type=DEFAULT_MIME_TYPE,
-                    filename=mock.ANY,
-                    gzip=False,
-                ),
-                mock.call(
-                    bucket_name=TEST_BUCKET,
-                    object_name="destination_dir/sub_dir/test_object3.json",
-                    mime_type=DEFAULT_MIME_TYPE,
-                    filename=mock.ANY,
-                    gzip=False,
-                ),
-            ]
-        )
+        gcs_hook.return_value.upload.assert_has_calls([
+            mock.call(
+                bucket_name=TEST_BUCKET,
+                object_name="destination_dir/test_object3.json",
+                mime_type=DEFAULT_MIME_TYPE,
+                filename=mock.ANY,
+                gzip=False,
+            ),
+            mock.call(
+                bucket_name=TEST_BUCKET,
+                object_name="destination_dir/sub_dir/test_object3.json",
+                mime_type=DEFAULT_MIME_TYPE,
+                filename=mock.ANY,
+                gzip=False,
+            ),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
@@ -228,12 +224,10 @@ class TestSFTPToGCSOperator:
         )
         task.execute(None)
 
-        sftp_hook.return_value.delete_file.assert_has_calls(
-            [
-                mock.call("main_dir/test_object3.json"),
-                mock.call("main_dir/sub_dir/test_object3.json"),
-            ]
-        )
+        sftp_hook.return_value.delete_file.assert_has_calls([
+            mock.call("main_dir/test_object3.json"),
+            mock.call("main_dir/sub_dir/test_object3.json"),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")

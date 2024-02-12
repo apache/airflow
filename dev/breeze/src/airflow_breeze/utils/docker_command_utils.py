@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+
 from __future__ import annotations
 
 import copy
@@ -339,20 +340,25 @@ def prepare_docker_build_cache_command(
     """
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(
-        ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
-    )
+    final_command.extend([
+        "buildx",
+        "build",
+        "--builder",
+        get_and_use_docker_context(image_params.builder),
+        "--progress=auto",
+    ])
     final_command.extend(image_params.common_docker_build_flags)
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
     final_command.extend(["--target", "main", "."])
-    final_command.extend(
-        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
-    )
+    final_command.extend([
+        "-f",
+        "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci",
+    ])
     final_command.extend(["--platform", image_params.platform])
-    final_command.extend(
-        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
-    )
+    final_command.extend([
+        f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"
+    ])
     return final_command
 
 
@@ -372,20 +378,16 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
     build_command_param = []
     is_buildx_available = check_if_buildx_plugin_installed()
     if is_buildx_available:
-        build_command_param.extend(
-            [
-                "buildx",
-                "build",
-                "--push" if image_params.push else "--load",
-            ]
-        )
+        build_command_param.extend([
+            "buildx",
+            "build",
+            "--push" if image_params.push else "--load",
+        ])
         if not image_params.docker_host:
-            build_command_param.extend(
-                [
-                    "--builder",
-                    get_and_use_docker_context(image_params.builder),
-                ]
-            )
+            build_command_param.extend([
+                "--builder",
+                get_and_use_docker_context(image_params.builder),
+            ])
     else:
         build_command_param.append("build")
     return build_command_param
@@ -410,9 +412,10 @@ def prepare_docker_build_command(
     final_command.extend(["--pull"])
     final_command.extend(image_params.prepare_arguments_for_docker_build_command())
     final_command.extend(["-t", image_params.airflow_image_name_with_tag, "--target", "main", "."])
-    final_command.extend(
-        ["-f", "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci"]
-    )
+    final_command.extend([
+        "-f",
+        "Dockerfile" if isinstance(image_params, BuildProdParams) else "Dockerfile.ci",
+    ])
     final_command.extend(["--platform", image_params.platform])
     return final_command
 

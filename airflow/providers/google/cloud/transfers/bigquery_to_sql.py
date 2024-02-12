@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for BigQuery to SQL operators."""
+
 from __future__ import annotations
 
 import abc

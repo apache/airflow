@@ -404,16 +404,14 @@ class TestSalesforceHook:
         )
         pd.testing.assert_frame_equal(
             data_frame,
-            pd.DataFrame(
-                {
-                    "test": [1, 2, 3],
-                    "time_fetched_from_salesforce": [
-                        mock_time.return_value,
-                        mock_time.return_value,
-                        mock_time.return_value,
-                    ],
-                }
-            ),
+            pd.DataFrame({
+                "test": [1, 2, 3],
+                "time_fetched_from_salesforce": [
+                    mock_time.return_value,
+                    mock_time.return_value,
+                    mock_time.return_value,
+                ],
+            }),
         )
 
     @patch(
@@ -422,9 +420,10 @@ class TestSalesforceHook:
     )
     @patch(
         "pandas.DataFrame.from_records",
-        return_value=pd.DataFrame(
-            {"test": [1, 2, 3, 4], "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"]}
-        ),
+        return_value=pd.DataFrame({
+            "test": [1, 2, 3, 4],
+            "field_1": ["2019-01-01", "2019-01-02", "2019-01-03", "NaT"],
+        }),
     )
     def test_object_to_df_with_timestamp_conversion(self, mock_data_frame, mock_describe_object):
         obj_name = "obj_name"
@@ -450,16 +449,14 @@ class TestSalesforceHook:
 
         pd.testing.assert_frame_equal(
             data_frame,
-            pd.DataFrame(
-                {
-                    "test": [1, 2, 3],
-                    "time_fetched_from_salesforce": [
-                        mock_time.return_value,
-                        mock_time.return_value,
-                        mock_time.return_value,
-                    ],
-                }
-            ),
+            pd.DataFrame({
+                "test": [1, 2, 3],
+                "time_fetched_from_salesforce": [
+                    mock_time.return_value,
+                    mock_time.return_value,
+                    mock_time.return_value,
+                ],
+            }),
         )
 
     @pytest.mark.parametrize(

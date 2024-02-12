@@ -69,15 +69,13 @@ def wait_for_container(container_id: str, timeout: int = 300):
         )
         if container_state in ("running", "restarting"):
             health_status = (
-                subprocess.check_output(
-                    [
-                        "docker",
-                        "inspect",
-                        container_id,
-                        "--format",
-                        "{{ if .State.Health }}{{ .State.Health.Status }}{{ else }}no-check{{ end }}",
-                    ]
-                )
+                subprocess.check_output([
+                    "docker",
+                    "inspect",
+                    container_id,
+                    "--format",
+                    "{{ if .State.Health }}{{ .State.Health.Status }}{{ else }}no-check{{ end }}",
+                ])
                 .decode()
                 .strip()
             )

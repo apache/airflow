@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sensor for detecting the completion of DV360 reports."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

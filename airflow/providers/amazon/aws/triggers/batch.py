@@ -91,9 +91,10 @@ class BatchOperatorTrigger(BaseTrigger):
                     )
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Delete Cluster Failed: {error}"}
-                        )
+                        yield TriggerEvent({
+                            "status": "failure",
+                            "message": f"Delete Cluster Failed: {error}",
+                        })
                         break
                     self.log.info(
                         "Job status is %s. Retrying attempt %s/%s",
@@ -183,13 +184,11 @@ class BatchSensorTrigger(BaseTrigger):
                 else:
                     break
 
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "job_id": self.job_id,
-                    "message": f"Job {self.job_id} Succeeded",
-                }
-            )
+            yield TriggerEvent({
+                "status": "success",
+                "job_id": self.job_id,
+                "message": f"Job {self.job_id} Succeeded",
+            })
 
 
 class BatchJobTrigger(AwsBaseWaiterTrigger):

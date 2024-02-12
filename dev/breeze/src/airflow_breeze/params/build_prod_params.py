@@ -70,27 +70,28 @@ class BuildProdParams(CommonBuildParams):
     @property
     def args_for_remote_install(self) -> list:
         build_args = []
-        build_args.extend(
-            [
-                "--build-arg",
-                "AIRFLOW_SOURCES_FROM=empty",
-                "--build-arg",
-                "AIRFLOW_SOURCES_TO=/empty",
-            ]
-        )
+        build_args.extend([
+            "--build-arg",
+            "AIRFLOW_SOURCES_FROM=empty",
+            "--build-arg",
+            "AIRFLOW_SOURCES_TO=/empty",
+        ])
         if re.match("v?2.*", self.airflow_version):
-            build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
-            )
+            build_args.extend([
+                "--build-arg",
+                f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}",
+            ])
         else:
-            build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
-            )
+            build_args.extend([
+                "--build-arg",
+                f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
+            ])
         if self.airflow_constraints_location:
             # override location if specified
-            build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
-            )
+            build_args.extend([
+                "--build-arg",
+                f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}",
+            ])
         if self.airflow_version == "v2-0-test":
             self.airflow_branch_for_pypi_preloading = "v2-0-test"
         elif self.airflow_version == "v2-1-test":
@@ -112,14 +113,12 @@ class BuildProdParams(CommonBuildParams):
     def _extra_prod_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
         if self.install_airflow_reference:
-            extra_build_flags.extend(
-                [
-                    "--build-arg",
-                    "https://github.com/apache/airflow/archive/"
-                    + self.install_airflow_reference
-                    + ".tar.gz#egg=apache-airflow",
-                ]
-            )
+            extra_build_flags.extend([
+                "--build-arg",
+                "https://github.com/apache/airflow/archive/"
+                + self.install_airflow_reference
+                + ".tar.gz#egg=apache-airflow",
+            ])
             extra_build_flags.extend(self.args_for_remote_install)
         elif self.install_airflow_version:
             if not re.match(r"^[0-9.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
@@ -129,9 +128,10 @@ class BuildProdParams(CommonBuildParams):
                 get_console().print("[error]Only numerical versions allowed for PROD image here !")
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
-            extra_build_flags.extend(
-                ["--build-arg", f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}"]
-            )
+            extra_build_flags.extend([
+                "--build-arg",
+                f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}",
+            ])
             extra_build_flags.extend(["--build-arg", f"AIRFLOW_VERSION={self.install_airflow_version}"])
             constraints_base = (
                 f"https://raw.githubusercontent.com/{self.github_repository}/"
@@ -143,33 +143,29 @@ class BuildProdParams(CommonBuildParams):
             self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
         else:
-            extra_build_flags.extend(
-                [
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_FROM={AIRFLOW_SOURCES_FROM}",
-                    "--build-arg",
-                    f"AIRFLOW_SOURCES_TO={AIRFLOW_SOURCES_TO}",
-                    "--build-arg",
-                    f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
-                    "--build-arg",
-                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
-                ]
-            )
+            extra_build_flags.extend([
+                "--build-arg",
+                f"AIRFLOW_SOURCES_FROM={AIRFLOW_SOURCES_FROM}",
+                "--build-arg",
+                f"AIRFLOW_SOURCES_TO={AIRFLOW_SOURCES_TO}",
+                "--build-arg",
+                f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
+                "--build-arg",
+                f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
+            ])
         maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
         logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
-        extra_build_flags.extend(
-            [
-                "--label",
-                "io.artifacthub.package.license=Apache-2.0",
-                "--label",
-                f"io.artifacthub.package.readme-url={readme_url}",
-                "--label",
-                f"io.artifacthub.package.maintainers={maintainers}",
-                "--label",
-                f"io.artifacthub.package.logo-url={logo_url}",
-            ]
-        )
+        extra_build_flags.extend([
+            "--label",
+            "io.artifacthub.package.license=Apache-2.0",
+            "--label",
+            f"io.artifacthub.package.readme-url={readme_url}",
+            "--label",
+            f"io.artifacthub.package.maintainers={maintainers}",
+            "--label",
+            f"io.artifacthub.package.logo-url={logo_url}",
+        ])
         return extra_build_flags
 
     @property

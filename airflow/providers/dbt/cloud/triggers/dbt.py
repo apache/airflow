@@ -70,40 +70,32 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         try:
             while await self.is_still_running(hook):
                 if self.end_time < time.time():
-                    yield TriggerEvent(
-                        {
-                            "status": "error",
-                            "message": f"Job run {self.run_id} has not reached a terminal status after "
-                            f"{self.end_time} seconds.",
-                            "run_id": self.run_id,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": f"Job run {self.run_id} has not reached a terminal status after "
+                        f"{self.end_time} seconds.",
+                        "run_id": self.run_id,
+                    })
                 await asyncio.sleep(self.poll_interval)
             job_run_status = await hook.get_job_status(self.run_id, self.account_id)
             if job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Job run {self.run_id} has completed successfully.",
-                        "run_id": self.run_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "success",
+                    "message": f"Job run {self.run_id} has completed successfully.",
+                    "run_id": self.run_id,
+                })
             elif job_run_status == DbtCloudJobRunStatus.CANCELLED.value:
-                yield TriggerEvent(
-                    {
-                        "status": "cancelled",
-                        "message": f"Job run {self.run_id} has been cancelled.",
-                        "run_id": self.run_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "cancelled",
+                    "message": f"Job run {self.run_id} has been cancelled.",
+                    "run_id": self.run_id,
+                })
             else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Job run {self.run_id} has failed.",
-                        "run_id": self.run_id,
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "error",
+                    "message": f"Job run {self.run_id} has failed.",
+                    "run_id": self.run_id,
+                })
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
 

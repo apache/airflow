@@ -418,9 +418,10 @@ class TestSlackHook:
     def test_empty_string_ignored_prefixed(self, monkeypatch):
         monkeypatch.setenv(
             "AIRFLOW_CONN_MY_CONN",
-            json.dumps(
-                {"password": "hi", "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""}}
-            ),
+            json.dumps({
+                "password": "hi",
+                "extra": {"extra__slack__base_url": "", "extra__slack__proxy": ""},
+            }),
         )
         hook = SlackHook(slack_conn_id="my_conn")
         params = hook._get_conn_params()

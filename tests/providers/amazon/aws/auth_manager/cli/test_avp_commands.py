@@ -35,14 +35,12 @@ class TestAvpCommands:
 
     @classmethod
     def setup_class(cls):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"
-            }
-        ):
+        with conf_vars({
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"
+        }):
             importlib.reload(cli_parser)
             cls.arg_parser = cli_parser.get_parser()
 

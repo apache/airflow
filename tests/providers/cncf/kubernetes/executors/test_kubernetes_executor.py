@@ -86,9 +86,9 @@ class TestAirflowKubernetesScheduler:
             ("影師嗎", "中華民國;$"),
         ]
 
-        cases.extend(
-            [(self._gen_random_string(seed, 200), self._gen_random_string(seed, 200)) for seed in range(100)]
-        )
+        cases.extend([
+            (self._gen_random_string(seed, 200), self._gen_random_string(seed, 200)) for seed in range(100)
+        ])
 
         return cases
 
@@ -892,14 +892,12 @@ class TestKubernetesExecutor:
     ):
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "10"
-        ti_key = annotations_to_key(
-            {
-                "dag_id": "dag",
-                "run_id": "run_id",
-                "task_id": "task",
-                "try_number": "1",
-            }
-        )
+        ti_key = annotations_to_key({
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        })
         mock_ti = mock.MagicMock(queued_by_job_id="1", external_executor_id="1", key=ti_key)
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
         mock_kube_client = mock.MagicMock()
@@ -1536,15 +1534,13 @@ class TestKubernetesJobWatcher:
             assert self.pod.metadata.resource_version == latest_resource_version
 
     def assert_watcher_queue_called_once_with_state(self, state):
-        self.watcher.watcher_queue.put.assert_called_once_with(
-            (
-                self.pod.metadata.name,
-                self.watcher.namespace,
-                state,
-                self.core_annotations,
-                self.pod.metadata.resource_version,
-            )
-        )
+        self.watcher.watcher_queue.put.assert_called_once_with((
+            self.pod.metadata.name,
+            self.watcher.namespace,
+            state,
+            self.core_annotations,
+            self.pod.metadata.resource_version,
+        ))
 
     def test_process_status_pending(self):
         self.events.append({"type": "MODIFIED", "object": self.pod})
@@ -1606,15 +1602,13 @@ class TestKubernetesJobWatcher:
         self.pod.metadata.deletion_timestamp = None
 
         self._run()
-        self.watcher.watcher_queue.put.assert_called_once_with(
-            (
-                self.pod.metadata.name,
-                self.watcher.namespace,
-                ADOPTED,
-                self.core_annotations,
-                self.pod.metadata.resource_version,
-            )
-        )
+        self.watcher.watcher_queue.put.assert_called_once_with((
+            self.pod.metadata.name,
+            self.watcher.namespace,
+            ADOPTED,
+            self.core_annotations,
+            self.pod.metadata.resource_version,
+        ))
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"

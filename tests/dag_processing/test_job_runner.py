@@ -327,9 +327,12 @@ class TestDagProcessorJobRunner:
         manager.processor.set_file_paths(dag_files)
         assert manager.processor._file_path_queue == deque()
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == deque(
-            ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
-        )
+        assert manager.processor._file_path_queue == deque([
+            "file_1.py",
+            "file_2.py",
+            "file_3.py",
+            "file_4.py",
+        ])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "random_seeded_by_host"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -424,9 +427,12 @@ class TestDagProcessorJobRunner:
         manager.processor.set_file_paths(dag_files)
         assert manager.processor._file_path_queue == deque()
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == deque(
-            ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
-        )
+        assert manager.processor._file_path_queue == deque([
+            "file_4.py",
+            "file_1.py",
+            "file_3.py",
+            "file_2.py",
+        ])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -504,9 +510,12 @@ class TestDagProcessorJobRunner:
 
         manager.processor.set_file_paths([*dag_files, "file_4.py"])
         manager.processor.add_new_file_path_to_queue()
-        assert manager.processor._file_path_queue == deque(
-            ["file_4.py", "file_3.py", "file_2.py", "file_1.py"]
-        )
+        assert manager.processor._file_path_queue == deque([
+            "file_4.py",
+            "file_3.py",
+            "file_2.py",
+            "file_1.py",
+        ])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.settings.TIMEZONE", timezone.utc)
@@ -645,13 +654,11 @@ class TestDagProcessorJobRunner:
             )
             assert serialized_dag_count == 0
 
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-            ("scheduler", "stale_dag_threshold"): "50",
-        }
-    )
+    @conf_vars({
+        ("core", "load_examples"): "False",
+        ("scheduler", "standalone_dag_processor"): "True",
+        ("scheduler", "stale_dag_threshold"): "50",
+    })
     def test_scan_stale_dags_standalone_mode(self):
         """
         Ensure only dags from current dag_directory are updated
@@ -1093,12 +1100,10 @@ class TestDagProcessorJobRunner:
         assert dag.get_is_active()
         assert DagCode.has_dag(dag.fileloc)
 
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-        }
-    )
+    @conf_vars({
+        ("core", "load_examples"): "False",
+        ("scheduler", "standalone_dag_processor"): "True",
+    })
     def test_fetch_callbacks_from_database(self, tmp_path):
         """Test DagProcessorJobRunner._fetch_callbacks method"""
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
@@ -1146,12 +1151,10 @@ class TestDagProcessorJobRunner:
             self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 0
 
-    @conf_vars(
-        {
-            ("core", "load_examples"): "False",
-            ("scheduler", "standalone_dag_processor"): "True",
-        }
-    )
+    @conf_vars({
+        ("core", "load_examples"): "False",
+        ("scheduler", "standalone_dag_processor"): "True",
+    })
     def test_fetch_callbacks_for_current_dag_directory_only(self, tmp_path):
         """Test DagProcessorJobRunner._fetch_callbacks method"""
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
@@ -1193,13 +1196,11 @@ class TestDagProcessorJobRunner:
             self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 1
 
-    @conf_vars(
-        {
-            ("scheduler", "standalone_dag_processor"): "True",
-            ("scheduler", "max_callbacks_per_loop"): "2",
-            ("core", "load_examples"): "False",
-        }
-    )
+    @conf_vars({
+        ("scheduler", "standalone_dag_processor"): "True",
+        ("scheduler", "max_callbacks_per_loop"): "2",
+        ("core", "load_examples"): "False",
+    })
     def test_fetch_callbacks_from_database_max_per_loop(self, tmp_path):
         """Test DagProcessorJobRunner._fetch_callbacks method"""
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
@@ -1237,12 +1238,10 @@ class TestDagProcessorJobRunner:
             self.run_processor_manager_one_loop(manager, parent_pipe)
             assert session.query(DbCallbackRequest).count() == 1
 
-    @conf_vars(
-        {
-            ("scheduler", "standalone_dag_processor"): "False",
-            ("core", "load_examples"): "False",
-        }
-    )
+    @conf_vars({
+        ("scheduler", "standalone_dag_processor"): "False",
+        ("core", "load_examples"): "False",
+    })
     def test_fetch_callbacks_from_database_not_standalone(self, tmp_path):
         dag_filepath = TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"
 

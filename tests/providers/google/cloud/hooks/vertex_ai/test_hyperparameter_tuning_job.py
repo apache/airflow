@@ -441,12 +441,10 @@ class TestHyperparameterTuningJobAsyncHook:
         with mock.patch.object(self.hook, "get_hyperparameter_tuning_job", mock_get_ht_job):
             result = await self.hook.wait_hyperparameter_tuning_job(**await_kwargs)
 
-        mock_async_get_ht_job.assert_has_awaits(
-            [
-                mock.call(**await_kwargs),
-                mock.call(**await_kwargs),
-            ]
-        )
+        mock_async_get_ht_job.assert_has_awaits([
+            mock.call(**await_kwargs),
+            mock.call(**await_kwargs),
+        ])
         mock_sleep.assert_awaited_once()
         assert result == mock_job_complete
 

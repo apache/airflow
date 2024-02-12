@@ -19,6 +19,7 @@
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.
 """
+
 from __future__ import annotations
 
 import os

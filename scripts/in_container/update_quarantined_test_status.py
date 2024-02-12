@@ -161,15 +161,13 @@ def get_table(history_map: dict[str, TestHistory]) -> str:
     headers = ["Test", "Last run", f"Last {num_runs} runs", "Status", "Comment"]
     the_table: list[list[str]] = []
     for _, history in sorted(history_map.items()):
-        the_table.append(
-            [
-                history.url,
-                "Succeeded" if history.states[0] else "Failed",
-                " ".join(reverse_status_map[state] for state in history.states),
-                get_history_status(history),
-                history.comment,
-            ]
-        )
+        the_table.append([
+            history.url,
+            "Succeeded" if history.states[0] else "Failed",
+            " ".join(reverse_status_map[state] for state in history.states),
+            get_history_status(history),
+            history.comment,
+        ])
     return tabulate(the_table, headers, tablefmt="github")
 
 

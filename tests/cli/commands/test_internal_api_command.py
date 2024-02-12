@@ -99,21 +99,19 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
         try:
             # Run internal-api as daemon in background. Note that the wait method is not called.
             console.print("[magenta]Starting airflow internal-api --daemon")
-            proc = subprocess.Popen(
-                [
-                    "airflow",
-                    "internal-api",
-                    "--daemon",
-                    "--pid",
-                    os.fspath(pidfile_internal_api),
-                    "--stdout",
-                    os.fspath(stdout),
-                    "--stderr",
-                    os.fspath(stderr),
-                    "--log-file",
-                    os.fspath(logfile),
-                ]
-            )
+            proc = subprocess.Popen([
+                "airflow",
+                "internal-api",
+                "--daemon",
+                "--pid",
+                os.fspath(pidfile_internal_api),
+                "--stdout",
+                os.fspath(stdout),
+                "--stderr",
+                os.fspath(stderr),
+                "--log-file",
+                os.fspath(logfile),
+            ])
             assert proc.poll() is None
 
             pid_monitor = self._wait_pidfile(pidfile_monitor)
@@ -154,12 +152,10 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
         with mock.patch(
             "airflow.cli.commands.internal_api_command.create_app", return_value=app
         ), mock.patch.object(app, "run") as app_run:
-            args = self.parser.parse_args(
-                [
-                    "internal-api",
-                    "--debug",
-                ]
-            )
+            args = self.parser.parse_args([
+                "internal-api",
+                "--debug",
+            ])
             internal_api_command.internal_api(args)
 
             app_run.assert_called_with(
@@ -173,15 +169,13 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
             internal_api_command, "GunicornMonitor"
         ):
-            args = self.parser.parse_args(
-                [
-                    "internal-api",
-                    "--access-logformat",
-                    "custom_log_format",
-                    "--pid",
-                    "/tmp/x.pid",
-                ]
-            )
+            args = self.parser.parse_args([
+                "internal-api",
+                "--access-logformat",
+                "custom_log_format",
+                "--pid",
+                "/tmp/x.pid",
+            ])
             internal_api_command.internal_api(args)
 
             Popen.assert_called_with(

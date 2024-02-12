@@ -96,9 +96,14 @@ class TestCliListConnections:
             assert conn_id in stdout
 
     def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", "--conn-id", "http_default"]
-        )
+        args = self.parser.parse_args([
+            "connections",
+            "list",
+            "--output",
+            "json",
+            "--conn-id",
+            "http_default",
+        ])
         with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_list(args)
             stdout = stdout.getvalue()
@@ -297,15 +302,13 @@ class TestCliExportConnections:
 
     def test_cli_connections_export_should_force_export_as_specified_format(self, tmp_path):
         output_filepath = tmp_path / "connections.yaml"
-        args = self.parser.parse_args(
-            [
-                "connections",
-                "export",
-                output_filepath.as_posix(),
-                "--format",
-                "json",
-            ]
-        )
+        args = self.parser.parse_args([
+            "connections",
+            "export",
+            output_filepath.as_posix(),
+            "--format",
+            "json",
+        ])
         connection_command.connections_export(args)
         expected_connections = {
             "airflow_db": {
@@ -333,17 +336,15 @@ class TestCliExportConnections:
 
 
 TEST_URL = "postgresql://airflow:airflow@host:5432/airflow"
-TEST_JSON = json.dumps(
-    {
-        "conn_type": "postgres",
-        "login": "airflow",
-        "password": "airflow",
-        "host": "host",
-        "port": 5432,
-        "schema": "airflow",
-        "description": "new0-json description",
-    }
-)
+TEST_JSON = json.dumps({
+    "conn_type": "postgres",
+    "login": "airflow",
+    "password": "airflow",
+    "host": "host",
+    "port": 5432,
+    "schema": "airflow",
+    "description": "new0-json description",
+})
 
 
 class TestCliAddConnections:
@@ -595,9 +596,13 @@ class TestCliAddConnections:
             match=r"The following args are not compatible with the --conn-json flag: \['--conn-extra'\]",
         ):
             connection_command.connections_add(
-                self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-json={TEST_JSON}", "--conn-extra='hi'"]
-                )
+                self.parser.parse_args([
+                    "connections",
+                    "add",
+                    "new1",
+                    f"--conn-json={TEST_JSON}",
+                    "--conn-extra='hi'",
+                ])
             )
 
     def test_cli_connections_add_json_and_uri(self):
@@ -607,9 +612,13 @@ class TestCliAddConnections:
             match="Cannot supply both conn-uri and conn-json",
         ):
             connection_command.connections_add(
-                self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-uri={TEST_URL}", f"--conn-json={TEST_JSON}"]
-                )
+                self.parser.parse_args([
+                    "connections",
+                    "add",
+                    "new1",
+                    f"--conn-uri={TEST_URL}",
+                    f"--conn-json={TEST_JSON}",
+                ])
             )
 
     @pytest.mark.parametrize(
@@ -623,17 +632,24 @@ class TestCliAddConnections:
         # Attempt to add with invalid uri
         with pytest.raises(SystemExit, match=r"The URI provided to --conn-uri is invalid: .*"):
             connection_command.connections_add(
-                self.parser.parse_args(
-                    ["connections", "add", "new1", f"--conn-uri={shlex.quote(invalid_uri)}"]
-                )
+                self.parser.parse_args([
+                    "connections",
+                    "add",
+                    "new1",
+                    f"--conn-uri={shlex.quote(invalid_uri)}",
+                ])
             )
 
     def test_cli_connections_add_invalid_type(self):
         with warnings.catch_warnings(record=True):
             connection_command.connections_add(
-                self.parser.parse_args(
-                    ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
-                )
+                self.parser.parse_args([
+                    "connections",
+                    "add",
+                    "fsconn",
+                    "--conn-host=/tmp",
+                    "--conn-type=File",
+                ])
             )
 
     def test_cli_connections_add_invalid_conn_id(self):

@@ -284,12 +284,10 @@ class TestBulkStateFetcher:
             ):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher()
-                result = fetcher.get_many(
-                    [
-                        mock.MagicMock(task_id="123"),
-                        mock.MagicMock(task_id="456"),
-                    ]
-                )
+                result = fetcher.get_many([
+                    mock.MagicMock(task_id="123"),
+                    mock.MagicMock(task_id="456"),
+                ])
 
         # Assert called - ignore order
         mget_args, _ = mock_mget.call_args
@@ -316,12 +314,10 @@ class TestBulkStateFetcher:
                 ]
 
                 fetcher = celery_executor_utils.BulkStateFetcher()
-                result = fetcher.get_many(
-                    [
-                        mock.MagicMock(task_id="123"),
-                        mock.MagicMock(task_id="456"),
-                    ]
-                )
+                result = fetcher.get_many([
+                    mock.MagicMock(task_id="123"),
+                    mock.MagicMock(task_id="456"),
+                ])
 
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]
@@ -350,12 +346,10 @@ class TestBulkStateFetcher:
                 ]
 
                 fetcher = celery_executor_utils.BulkStateFetcher()
-                result = fetcher.get_many(
-                    [
-                        mock.MagicMock(task_id="123"),
-                        mock.MagicMock(task_id="456"),
-                    ]
-                )
+                result = fetcher.get_many([
+                    mock.MagicMock(task_id="123"),
+                    mock.MagicMock(task_id="456"),
+                ])
         assert mock_retry_db_result.call_count == 2
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
         assert caplog.messages == [
@@ -375,12 +369,10 @@ class TestBulkStateFetcher:
             ):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher(1)
-                result = fetcher.get_many(
-                    [
-                        ClassWithCustomAttributes(task_id="123", state="SUCCESS"),
-                        ClassWithCustomAttributes(task_id="456", state="PENDING"),
-                    ]
-                )
+                result = fetcher.get_many([
+                    ClassWithCustomAttributes(task_id="123", state="SUCCESS"),
+                    ClassWithCustomAttributes(task_id="456", state="PENDING"),
+                ])
 
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]

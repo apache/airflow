@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage sensors."""
+
 from __future__ import annotations
 
 import os

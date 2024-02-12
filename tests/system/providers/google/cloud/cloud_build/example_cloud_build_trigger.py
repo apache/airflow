@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
 """
+
 from __future__ import annotations
 
 import os

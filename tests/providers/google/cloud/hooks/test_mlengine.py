@@ -176,9 +176,10 @@ class TestMLEngineHook:
         response_bodies[-1].pop("nextPageToken")
 
         pages_requests = [mock.Mock(**{"execute.return_value": body}) for body in response_bodies]
-        versions_mock = mock.Mock(
-            **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
-        )
+        versions_mock = mock.Mock(**{
+            "list.return_value": pages_requests[0],
+            "list_next.side_effect": pages_requests[1:] + [None],
+        })
 
         (
             mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value
@@ -257,12 +258,10 @@ class TestMLEngineHook:
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
         assert create_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
+            mock.call().projects().models().create().execute(num_retries=5),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model_idempotency(self, mock_get_conn):
@@ -282,26 +281,24 @@ class TestMLEngineHook:
         ) = [
             HttpError(
                 resp=httplib2.Response({"status": 409}),
-                content=json.dumps(
-                    {
-                        "error": {
-                            "code": 409,
-                            "message": "Field: model.name Error: A model with the same name already exists.",
-                            "status": "ALREADY_EXISTS",
-                            "details": [
-                                {
-                                    "@type": "type.googleapis.com/google.rpc.BadRequest",
-                                    "fieldViolations": [
-                                        {
-                                            "field": "model.name",
-                                            "description": "A model with the same name already exists.",
-                                        }
-                                    ],
-                                }
-                            ],
-                        }
+                content=json.dumps({
+                    "error": {
+                        "code": 409,
+                        "message": "Field: model.name Error: A model with the same name already exists.",
+                        "status": "ALREADY_EXISTS",
+                        "details": [
+                            {
+                                "@type": "type.googleapis.com/google.rpc.BadRequest",
+                                "fieldViolations": [
+                                    {
+                                        "field": "model.name",
+                                        "description": "A model with the same name already exists.",
+                                    }
+                                ],
+                            }
+                        ],
                     }
-                ).encode(),
+                }).encode(),
             )
         ]
 
@@ -312,18 +309,14 @@ class TestMLEngineHook:
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
         assert create_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(num_retries=5),
-            ]
-        )
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().get(name="projects/test-project/models/test-model"),
-                mock.call().projects().models().get().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
+            mock.call().projects().models().create().execute(num_retries=5),
+        ])
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().get(name="projects/test-project/models/test-model"),
+            mock.call().projects().models().get().execute(num_retries=5),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model_with_labels(self, mock_get_conn):
@@ -343,12 +336,10 @@ class TestMLEngineHook:
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
         assert create_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
-                mock.call().projects().models().create().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model_with_airflow_version, parent=project_path),
+            mock.call().projects().models().create().execute(num_retries=5),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn):
@@ -364,12 +355,10 @@ class TestMLEngineHook:
         get_model_response = self.hook.get_model(project_id=project_id, model_name=model_name)
 
         assert get_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().get(name=model_path),
-                mock.call().projects().models().get().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().get(name=model_path),
+            mock.call().projects().models().get().execute(num_retries=5),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn):
@@ -384,12 +373,10 @@ class TestMLEngineHook:
 
         self.hook.delete_model(project_id=project_id, model_name=model_name)
 
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().delete(name=model_path),
+            mock.call().projects().models().delete().execute(num_retries=5),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.log")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
@@ -407,12 +394,10 @@ class TestMLEngineHook:
 
         self.hook.delete_model(project_id=project_id, model_name=model_name)
 
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().delete(name=model_path),
+            mock.call().projects().models().delete().execute(num_retries=5),
+        ])
         mock_log.error.assert_called_once_with("Model was not found: %s", http_error)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
@@ -805,9 +790,10 @@ class TestMLEngineHookWithDefaultProjectId:
         response_bodies[-1].pop("nextPageToken")
 
         pages_requests = [mock.Mock(**{"execute.return_value": body}) for body in response_bodies]
-        versions_mock = mock.Mock(
-            **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
-        )
+        versions_mock = mock.Mock(**{
+            "list.return_value": pages_requests[0],
+            "list_next.side_effect": pages_requests[1:] + [None],
+        })
 
         (
             mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value
@@ -893,12 +879,10 @@ class TestMLEngineHookWithDefaultProjectId:
         create_model_response = self.hook.create_model(model=model, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         assert create_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().create(body=model, parent=project_path),
-                mock.call().projects().models().create().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().create(body=model, parent=project_path),
+            mock.call().projects().models().create().execute(num_retries=5),
+        ])
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -920,12 +904,10 @@ class TestMLEngineHookWithDefaultProjectId:
         )
 
         assert get_model_response == model
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().get(name=model_path),
-                mock.call().projects().models().get().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().get(name=model_path),
+            mock.call().projects().models().get().execute(num_retries=5),
+        ])
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -944,12 +926,10 @@ class TestMLEngineHookWithDefaultProjectId:
 
         self.hook.delete_model(model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call().projects().models().delete(name=model_path),
-                mock.call().projects().models().delete().execute(num_retries=5),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call().projects().models().delete(name=model_path),
+            mock.call().projects().models().delete().execute(num_retries=5),
+        ])
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",

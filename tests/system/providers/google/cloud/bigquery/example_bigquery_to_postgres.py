@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google BigQuery service.
 """
+
 from __future__ import annotations
 
 import os

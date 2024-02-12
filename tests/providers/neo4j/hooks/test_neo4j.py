@@ -66,16 +66,14 @@ class TestNeo4jHookConn:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
             neo4j_hook = Neo4jHook()
             op_result = neo4j_hook.run(mock_sql)
-            mock_graph_database.assert_has_calls(
-                [
-                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
-                    mock.call.driver().session(database="schema"),
-                    mock.call.driver().session().__enter__(),
-                    mock.call.driver().session().__enter__().run(mock_sql),
-                    mock.call.driver().session().__enter__().run().data(),
-                    mock.call.driver().session().__exit__(None, None, None),
-                ]
-            )
+            mock_graph_database.assert_has_calls([
+                mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                mock.call.driver().session(database="schema"),
+                mock.call.driver().session().__enter__(),
+                mock.call.driver().session().__enter__().run(mock_sql),
+                mock.call.driver().session().__enter__().run().data(),
+                mock.call.driver().session().__exit__(None, None, None),
+            ])
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 
@@ -91,16 +89,14 @@ class TestNeo4jHookConn:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
             neo4j_hook = Neo4jHook()
             op_result = neo4j_hook.run(mock_sql)
-            mock_graph_database.assert_has_calls(
-                [
-                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
-                    mock.call.driver().session(),
-                    mock.call.driver().session().__enter__(),
-                    mock.call.driver().session().__enter__().run(mock_sql),
-                    mock.call.driver().session().__enter__().run().data(),
-                    mock.call.driver().session().__exit__(None, None, None),
-                ]
-            )
+            mock_graph_database.assert_has_calls([
+                mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                mock.call.driver().session(),
+                mock.call.driver().session().__enter__(),
+                mock.call.driver().session().__enter__().run(mock_sql),
+                mock.call.driver().session().__enter__().run().data(),
+                mock.call.driver().session().__exit__(None, None, None),
+            ])
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 

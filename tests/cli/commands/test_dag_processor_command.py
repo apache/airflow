@@ -38,12 +38,10 @@ class TestDagProcessorCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @conf_vars(
-        {
-            ("scheduler", "standalone_dag_processor"): "True",
-            ("core", "load_examples"): "False",
-        }
-    )
+    @conf_vars({
+        ("scheduler", "standalone_dag_processor"): "True",
+        ("core", "load_examples"): "False",
+    })
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     @pytest.mark.skipif(
         conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("sqlite"),

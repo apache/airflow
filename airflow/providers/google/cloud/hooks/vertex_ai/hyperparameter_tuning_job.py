@@ -22,6 +22,7 @@ This module contains a Google Cloud Vertex AI hook.
 
     JobServiceAsyncClient
 """
+
 from __future__ import annotations
 
 import asyncio

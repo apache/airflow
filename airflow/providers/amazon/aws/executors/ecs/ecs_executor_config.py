@@ -50,9 +50,9 @@ def _fetch_templated_kwargs() -> dict[str, str]:
 
 
 def _fetch_config_values() -> dict[str, str]:
-    return prune_dict(
-        {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()}
-    )
+    return prune_dict({
+        key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()
+    })
 
 
 def build_task_kwargs() -> dict:
@@ -92,23 +92,19 @@ def build_task_kwargs() -> dict:
     # The executor will overwrite the 'command' property during execution. Must always be the first container!
     task_kwargs["overrides"]["containerOverrides"][0]["command"] = []  # type: ignore
 
-    if any(
-        [
-            subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
-            security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
-            # Surrounding parens are for the walrus operator to function correctly along with the None check
-            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
-        ]
-    ):
-        network_config = prune_dict(
-            {
-                "awsvpcConfiguration": {
-                    "subnets": str(subnets).split(",") if subnets else None,
-                    "securityGroups": str(security_groups).split(",") if security_groups else None,
-                    "assignPublicIp": parse_assign_public_ip(assign_public_ip),
-                }
+    if any([
+        subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
+        security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
+        # Surrounding parens are for the walrus operator to function correctly along with the None check
+        (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
+    ]):
+        network_config = prune_dict({
+            "awsvpcConfiguration": {
+                "subnets": str(subnets).split(",") if subnets else None,
+                "securityGroups": str(security_groups).split(",") if security_groups else None,
+                "assignPublicIp": parse_assign_public_ip(assign_public_ip),
             }
-        )
+        })
 
         if "subnets" not in network_config["awsvpcConfiguration"]:
             raise ValueError("At least one subnet is required to run a task.")

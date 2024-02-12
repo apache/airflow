@@ -98,16 +98,14 @@ def add_managed_identity_connection_widgets(func):
         from wtforms import StringField
 
         widgets = func(*args, **kwargs)
-        widgets.update(
-            {
-                "managed_identity_client_id": StringField(
-                    lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-                ),
-                "workload_identity_tenant_id": StringField(
-                    lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-                ),
-            }
-        )
+        widgets.update({
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+        })
         return widgets
 
     return wrapper

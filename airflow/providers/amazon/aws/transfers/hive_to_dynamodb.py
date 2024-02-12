@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator to move data from Hive to DynamoDB."""
+
 from __future__ import annotations
 
 import json

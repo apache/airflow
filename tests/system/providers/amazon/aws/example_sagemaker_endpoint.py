@@ -261,12 +261,10 @@ with DAG(
         force_delete=True,
     )
 
-    log_cleanup = prune_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            ("/aws/sagemaker/TrainingJobs", test_context[ENV_ID_KEY]),
-        ]
-    )
+    log_cleanup = prune_logs([
+        # Format: ('log group name', 'log stream prefix')
+        ("/aws/sagemaker/TrainingJobs", test_context[ENV_ID_KEY]),
+    ])
 
     chain(
         # TEST SETUP

@@ -43,16 +43,14 @@ class TestWebHDFSHook:
             conn = self.webhdfs_hook.get_conn()
             connection = mock_get_connection.return_value
             hosts = connection.host.split(",")
-            mock_insecure_client.assert_has_calls(
-                [
-                    call(
-                        f"http://{host}:{connection.port}",
-                        user=connection.login,
-                        session=mock_session.return_value,
-                    )
-                    for host in hosts
-                ]
-            )
+            mock_insecure_client.assert_has_calls([
+                call(
+                    f"http://{host}:{connection.port}",
+                    user=connection.login,
+                    session=mock_session.return_value,
+                )
+                for host in hosts
+            ])
             mock_insecure_client.return_value.status.assert_called_once_with("/")
             assert conn == mock_insecure_client.return_value
 
@@ -69,16 +67,14 @@ class TestWebHDFSHook:
             conn = self.webhdfs_hook.get_conn()
             connection = mock_get_connection.return_value
             hosts = connection.host.split(",")
-            mock_insecure_client.assert_has_calls(
-                [
-                    call(
-                        f"http://{host}:{connection.port}/{connection.schema}",
-                        user=connection.login,
-                        session=mock_session.return_value,
-                    )
-                    for host in hosts
-                ]
-            )
+            mock_insecure_client.assert_has_calls([
+                call(
+                    f"http://{host}:{connection.port}/{connection.schema}",
+                    user=connection.login,
+                    session=mock_session.return_value,
+                )
+                for host in hosts
+            ])
             mock_insecure_client.return_value.status.assert_called_once_with("/")
             assert conn == mock_insecure_client.return_value
 
@@ -107,16 +103,14 @@ class TestWebHDFSHook:
             socket_mock.socket.return_value.connect_ex.return_value = 0
             conn = self.webhdfs_hook.get_conn()
             hosts = test_connection.host.split(",")
-            mock_insecure_client.assert_has_calls(
-                [
-                    call(
-                        f"http://{host}",
-                        user=test_connection.login,
-                        session=mock_session.return_value,
-                    )
-                    for host in hosts
-                ]
-            )
+            mock_insecure_client.assert_has_calls([
+                call(
+                    f"http://{host}",
+                    user=test_connection.login,
+                    session=mock_session.return_value,
+                )
+                for host in hosts
+            ])
             mock_insecure_client.return_value.status.assert_called_once_with("/")
             assert conn == mock_insecure_client.return_value
 

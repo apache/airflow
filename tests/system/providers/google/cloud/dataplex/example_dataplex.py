@@ -17,6 +17,7 @@
 """
 Example Airflow DAG that shows how to use Dataplex.
 """
+
 from __future__ import annotations
 
 import datetime

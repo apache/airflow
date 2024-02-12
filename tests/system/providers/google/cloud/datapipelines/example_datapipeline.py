@@ -19,6 +19,7 @@
 """
 Example Airflow DAG for testing Google DataPipelines Create Data Pipeline Operator.
 """
+
 from __future__ import annotations
 
 import os

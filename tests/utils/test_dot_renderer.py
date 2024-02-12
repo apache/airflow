@@ -182,61 +182,58 @@ class TestDotRenderer:
 
         dot = dot_renderer.render_dag(dag)
 
-        assert dot.source.strip() == "\n".join(
-            [
-                "digraph example_task_group {",
-                "\tgraph [label=example_task_group labelloc=t rankdir=LR]",
-                '\tend [color="#000000" fillcolor="#e8f7e4" label=end shape=rectangle '
-                'style="filled,rounded"]',
-                "\tsubgraph cluster_section_1 {",
-                '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_1 shape=rectangle style=filled',
-                '\t\t"section_1.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
-                'label="" shape=circle style="filled,rounded" width=0.2]',
-                '\t\t"section_1.downstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
-                'label="" shape=circle style="filled,rounded" width=0.2]',
-                '\t\t"section_1.task_1" [color="#000000" fillcolor="#e8f7e4" label=task_1 shape=rectangle '
-                'style="filled,rounded"]',
-                '\t\t"section_1.task_2" [color="#000000" fillcolor="#f0ede4" label=task_2 shape=rectangle '
-                'style="filled,rounded"]',
-                '\t\t"section_1.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 shape=rectangle '
-                'style="filled,rounded"]',
-                "\t}",
-                "\tsubgraph cluster_section_2 {",
-                '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_2 shape=rectangle style=filled',
-                '\t\t"section_2.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
-                'label="" shape=circle style="filled,rounded" width=0.2]',
-                '\t\t"section_2.downstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
-                'label="" shape=circle style="filled,rounded" width=0.2]',
-                '\t\tsubgraph "cluster_section_2.inner_section_2" {',
-                '\t\t\tcolor="#000000" fillcolor="#6495ed7f" label=inner_section_2 shape=rectangle '
-                "style=filled",
-                '\t\t\t"section_2.inner_section_2.task_2" [color="#000000" fillcolor="#f0ede4" label=task_2 '
-                'shape=rectangle style="filled,rounded"]',
-                '\t\t\t"section_2.inner_section_2.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 '
-                'shape=rectangle style="filled,rounded"]',
-                '\t\t\t"section_2.inner_section_2.task_4" [color="#000000" fillcolor="#e8f7e4" label=task_4 '
-                'shape=rectangle style="filled,rounded"]',
-                "\t\t}",
-                '\t\t"section_2.task_1" [color="#000000" fillcolor="#e8f7e4" label=task_1 shape=rectangle '
-                'style="filled,rounded"]',
-                "\t}",
-                '\tstart [color="#000000" fillcolor="#e8f7e4" label=start shape=rectangle '
-                'style="filled,rounded"]',
-                '\t"section_1.downstream_join_id" -> "section_2.upstream_join_id"',
-                '\t"section_1.task_1" -> "section_1.task_2"',
-                '\t"section_1.task_1" -> "section_1.task_3"',
-                '\t"section_1.task_2" -> "section_1.downstream_join_id"',
-                '\t"section_1.task_3" -> "section_1.downstream_join_id"',
-                '\t"section_1.upstream_join_id" -> "section_1.task_1"',
-                '\t"section_2.downstream_join_id" -> end',
-                '\t"section_2.inner_section_2.task_2" -> "section_2.inner_section_2.task_4"',
-                '\t"section_2.inner_section_2.task_3" -> "section_2.inner_section_2.task_4"',
-                '\t"section_2.inner_section_2.task_4" -> "section_2.downstream_join_id"',
-                '\t"section_2.task_1" -> "section_2.downstream_join_id"',
-                '\t"section_2.upstream_join_id" -> "section_2.inner_section_2.task_2"',
-                '\t"section_2.upstream_join_id" -> "section_2.inner_section_2.task_3"',
-                '\t"section_2.upstream_join_id" -> "section_2.task_1"',
-                '\tstart -> "section_1.upstream_join_id"',
-                "}",
-            ]
-        )
+        assert dot.source.strip() == "\n".join([
+            "digraph example_task_group {",
+            "\tgraph [label=example_task_group labelloc=t rankdir=LR]",
+            '\tend [color="#000000" fillcolor="#e8f7e4" label=end shape=rectangle ' 'style="filled,rounded"]',
+            "\tsubgraph cluster_section_1 {",
+            '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_1 shape=rectangle style=filled',
+            '\t\t"section_1.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
+            'label="" shape=circle style="filled,rounded" width=0.2]',
+            '\t\t"section_1.downstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
+            'label="" shape=circle style="filled,rounded" width=0.2]',
+            '\t\t"section_1.task_1" [color="#000000" fillcolor="#e8f7e4" label=task_1 shape=rectangle '
+            'style="filled,rounded"]',
+            '\t\t"section_1.task_2" [color="#000000" fillcolor="#f0ede4" label=task_2 shape=rectangle '
+            'style="filled,rounded"]',
+            '\t\t"section_1.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 shape=rectangle '
+            'style="filled,rounded"]',
+            "\t}",
+            "\tsubgraph cluster_section_2 {",
+            '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_2 shape=rectangle style=filled',
+            '\t\t"section_2.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
+            'label="" shape=circle style="filled,rounded" width=0.2]',
+            '\t\t"section_2.downstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
+            'label="" shape=circle style="filled,rounded" width=0.2]',
+            '\t\tsubgraph "cluster_section_2.inner_section_2" {',
+            '\t\t\tcolor="#000000" fillcolor="#6495ed7f" label=inner_section_2 shape=rectangle '
+            "style=filled",
+            '\t\t\t"section_2.inner_section_2.task_2" [color="#000000" fillcolor="#f0ede4" label=task_2 '
+            'shape=rectangle style="filled,rounded"]',
+            '\t\t\t"section_2.inner_section_2.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 '
+            'shape=rectangle style="filled,rounded"]',
+            '\t\t\t"section_2.inner_section_2.task_4" [color="#000000" fillcolor="#e8f7e4" label=task_4 '
+            'shape=rectangle style="filled,rounded"]',
+            "\t\t}",
+            '\t\t"section_2.task_1" [color="#000000" fillcolor="#e8f7e4" label=task_1 shape=rectangle '
+            'style="filled,rounded"]',
+            "\t}",
+            '\tstart [color="#000000" fillcolor="#e8f7e4" label=start shape=rectangle '
+            'style="filled,rounded"]',
+            '\t"section_1.downstream_join_id" -> "section_2.upstream_join_id"',
+            '\t"section_1.task_1" -> "section_1.task_2"',
+            '\t"section_1.task_1" -> "section_1.task_3"',
+            '\t"section_1.task_2" -> "section_1.downstream_join_id"',
+            '\t"section_1.task_3" -> "section_1.downstream_join_id"',
+            '\t"section_1.upstream_join_id" -> "section_1.task_1"',
+            '\t"section_2.downstream_join_id" -> end',
+            '\t"section_2.inner_section_2.task_2" -> "section_2.inner_section_2.task_4"',
+            '\t"section_2.inner_section_2.task_3" -> "section_2.inner_section_2.task_4"',
+            '\t"section_2.inner_section_2.task_4" -> "section_2.downstream_join_id"',
+            '\t"section_2.task_1" -> "section_2.downstream_join_id"',
+            '\t"section_2.upstream_join_id" -> "section_2.inner_section_2.task_2"',
+            '\t"section_2.upstream_join_id" -> "section_2.inner_section_2.task_3"',
+            '\t"section_2.upstream_join_id" -> "section_2.task_1"',
+            '\tstart -> "section_1.upstream_join_id"',
+            "}",
+        ])

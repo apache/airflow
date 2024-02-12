@@ -85,12 +85,10 @@ class TestEmail:
 
     @mock.patch("airflow.utils.email.send_email_smtp")
     def test_custom_backend(self, mock_send_email):
-        with conf_vars(
-            {
-                ("email", "email_backend"): "tests.utils.test_email.send_email_test",
-                ("email", "email_conn_id"): "smtp_default",
-            }
-        ):
+        with conf_vars({
+            ("email", "email_backend"): "tests.utils.test_email.send_email_test",
+            ("email", "email_conn_id"): "smtp_default",
+        }):
             email.send_email("to", "subject", "content")
         send_email_test.assert_called_once_with(
             "to",
@@ -109,13 +107,11 @@ class TestEmail:
         assert not mock_send_email.called
 
     @mock.patch("airflow.utils.email.send_email_smtp")
-    @conf_vars(
-        {
-            ("email", "email_backend"): "tests.utils.test_email.send_email_test",
-            ("email", "email_conn_id"): "smtp_default",
-            ("email", "from_email"): "from@test.com",
-        }
-    )
+    @conf_vars({
+        ("email", "email_backend"): "tests.utils.test_email.send_email_test",
+        ("email", "email_conn_id"): "smtp_default",
+        ("email", "from_email"): "from@test.com",
+    })
     def test_custom_backend_sender(self, mock_send_email_smtp):
         email.send_email("to", "subject", "content")
         _, call_kwargs = send_email_test.call_args
@@ -285,12 +281,10 @@ class TestEmailSmtp:
     @mock.patch("smtplib.SMTP")
     def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
         mock_smtp.return_value = mock.Mock()
-        with conf_vars(
-            {
-                ("smtp", "smtp_user"): None,
-                ("smtp", "smtp_password"): None,
-            }
-        ):
+        with conf_vars({
+            ("smtp", "smtp_user"): None,
+            ("smtp", "smtp_password"): None,
+        }):
             email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
         assert not mock_smtp_ssl.called
         mock_smtp.assert_called_once_with(
@@ -359,12 +353,10 @@ class TestEmailSmtp:
         custom_retry_limit = 10
         custom_timeout = 60
 
-        with conf_vars(
-            {
-                ("smtp", "smtp_retry_limit"): str(custom_retry_limit),
-                ("smtp", "smtp_timeout"): str(custom_timeout),
-            }
-        ):
+        with conf_vars({
+            ("smtp", "smtp_retry_limit"): str(custom_retry_limit),
+            ("smtp", "smtp_timeout"): str(custom_timeout),
+        }):
             with pytest.raises(SMTPServerDisconnected):
                 email.send_mime_email("from", "to", msg, dryrun=False)
 

@@ -821,33 +821,31 @@ class TestMLEngineStartTrainingJobOperator:
             "params": [],
         }
 
-        hyperparams["params"].append(
-            {
-                "parameterName": "hidden1",
-                "type": "INTEGER",
-                "minValue": 40,
-                "maxValue": 400,
-                "scaleType": "UNIT_LINEAR_SCALE",
-            }
-        )
+        hyperparams["params"].append({
+            "parameterName": "hidden1",
+            "type": "INTEGER",
+            "minValue": 40,
+            "maxValue": 400,
+            "scaleType": "UNIT_LINEAR_SCALE",
+        })
 
-        hyperparams["params"].append(
-            {"parameterName": "numRnnCells", "type": "DISCRETE", "discreteValues": [1, 2, 3, 4]}
-        )
+        hyperparams["params"].append({
+            "parameterName": "numRnnCells",
+            "type": "DISCRETE",
+            "discreteValues": [1, 2, 3, 4],
+        })
 
-        hyperparams["params"].append(
-            {
-                "parameterName": "rnnCellType",
-                "type": "CATEGORICAL",
-                "categoricalValues": [
-                    "BasicLSTMCell",
-                    "BasicRNNCell",
-                    "GRUCell",
-                    "LSTMCell",
-                    "LayerNormBasicLSTMCell",
-                ],
-            }
-        )
+        hyperparams["params"].append({
+            "parameterName": "rnnCellType",
+            "type": "CATEGORICAL",
+            "categoricalValues": [
+                "BasicLSTMCell",
+                "BasicRNNCell",
+                "GRUCell",
+                "LSTMCell",
+                "LayerNormBasicLSTMCell",
+            ],
+        })
 
         training_input["trainingInput"]["hyperparameters"] = hyperparams
 

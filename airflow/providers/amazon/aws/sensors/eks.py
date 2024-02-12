@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -37,22 +38,18 @@ if TYPE_CHECKING:
 DEFAULT_CONN_ID = "aws_default"
 
 CLUSTER_TERMINAL_STATES = frozenset({ClusterStates.ACTIVE, ClusterStates.FAILED, ClusterStates.NONEXISTENT})
-FARGATE_TERMINAL_STATES = frozenset(
-    {
-        FargateProfileStates.ACTIVE,
-        FargateProfileStates.CREATE_FAILED,
-        FargateProfileStates.DELETE_FAILED,
-        FargateProfileStates.NONEXISTENT,
-    }
-)
-NODEGROUP_TERMINAL_STATES = frozenset(
-    {
-        NodegroupStates.ACTIVE,
-        NodegroupStates.CREATE_FAILED,
-        NodegroupStates.DELETE_FAILED,
-        NodegroupStates.NONEXISTENT,
-    }
-)
+FARGATE_TERMINAL_STATES = frozenset({
+    FargateProfileStates.ACTIVE,
+    FargateProfileStates.CREATE_FAILED,
+    FargateProfileStates.DELETE_FAILED,
+    FargateProfileStates.NONEXISTENT,
+})
+NODEGROUP_TERMINAL_STATES = frozenset({
+    NodegroupStates.ACTIVE,
+    NodegroupStates.CREATE_FAILED,
+    NodegroupStates.DELETE_FAILED,
+    NodegroupStates.NONEXISTENT,
+})
 
 
 class EksBaseSensor(BaseSensorOperator):
@@ -114,12 +111,10 @@ class EksBaseSensor(BaseSensorOperator):
         return state == self.target_state
 
     @abstractmethod
-    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates:
-        ...
+    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates: ...
 
     @abstractmethod
-    def get_terminal_states(self) -> frozenset:
-        ...
+    def get_terminal_states(self) -> frozenset: ...
 
 
 class EksClusterStateSensor(EksBaseSensor):

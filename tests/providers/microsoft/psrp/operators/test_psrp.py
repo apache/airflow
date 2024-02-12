@@ -90,9 +90,9 @@ class TestPsrpOperator:
             had_errors=had_errors,
             runspace_pool=runspace_pool,
         )
-        hook_impl.configure_mock(
-            **{"return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps}
-        )
+        hook_impl.configure_mock(**{
+            "return_value.__enter__.return_value.invoke.return_value.__enter__.return_value": ps
+        })
         if had_errors or rc:
             exception_msg = "Process failed" if had_errors else "Process exited with non-zero status code: 1"
             with pytest.raises(AirflowException, match=exception_msg):

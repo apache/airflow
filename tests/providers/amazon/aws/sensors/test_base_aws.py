@@ -149,8 +149,7 @@ class TestAwsBaseSensor:
             )
 
     def test_no_aws_hook_class_attr(self):
-        class NoAwsHookClassSensor(AwsBaseSensor):
-            ...
+        class NoAwsHookClassSensor(AwsBaseSensor): ...
 
         error_match = r"Class attribute 'NoAwsHookClassSensor\.aws_hook_class' should be set"
         with pytest.raises(AttributeError, match=error_match):

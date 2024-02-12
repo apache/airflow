@@ -87,13 +87,11 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         if use_ssl is not None:
             params.append(f"{SparkConnectHook.PARAM_USE_SSL}={quote(str(use_ssl))}")
 
-        return urlunparse(
-            (
-                "sc",
-                url.netloc,
-                "/",
-                ";".join(params),  # params
-                "",
-                url.fragment,
-            )
-        )
+        return urlunparse((
+            "sc",
+            url.netloc,
+            "/",
+            ";".join(params),  # params
+            "",
+            url.fragment,
+        ))

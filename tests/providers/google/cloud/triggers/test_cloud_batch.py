@@ -74,13 +74,11 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "job_name": JOB_NAME,
-                    "status": "success",
-                    "message": "Job completed",
-                }
-            )
+            TriggerEvent({
+                "job_name": JOB_NAME,
+                "status": "success",
+                "message": "Job completed",
+            })
             == actual
         )
 
@@ -97,13 +95,11 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "job_name": JOB_NAME,
-                    "status": "deleted",
-                    "message": f"Batch job with name {JOB_NAME} is being deleted",
-                }
-            )
+            TriggerEvent({
+                "job_name": JOB_NAME,
+                "status": "deleted",
+                "message": f"Batch job with name {JOB_NAME} is being deleted",
+            })
             == actual
         )
 
@@ -118,12 +114,10 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "status": "error",
-                    "message": "Test Exception",
-                }
-            )
+            TriggerEvent({
+                "status": "error",
+                "message": "Test Exception",
+            })
             == actual
         )
 
@@ -144,13 +138,11 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "job_name": JOB_NAME,
-                    "status": "timed out",
-                    "message": f"Batch job with name {JOB_NAME} timed out",
-                }
-            )
+            TriggerEvent({
+                "job_name": JOB_NAME,
+                "status": "timed out",
+                "message": f"Batch job with name {JOB_NAME} timed out",
+            })
             == actual
         )
 

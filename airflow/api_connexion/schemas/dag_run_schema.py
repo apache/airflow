@@ -136,9 +136,11 @@ class SetDagRunStateFormSchema(Schema):
     """Schema for handling the request of setting state of DAG run."""
 
     state = DagStateField(
-        validate=validate.OneOf(
-            [DagRunState.SUCCESS.value, DagRunState.FAILED.value, DagRunState.QUEUED.value]
-        )
+        validate=validate.OneOf([
+            DagRunState.SUCCESS.value,
+            DagRunState.FAILED.value,
+            DagRunState.QUEUED.value,
+        ])
     )
 
 

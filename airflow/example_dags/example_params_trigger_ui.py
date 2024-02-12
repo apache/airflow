@@ -19,6 +19,7 @@
 
 This example DAG generates greetings to a list of provided names in selected languages in the logs.
 """
+
 from __future__ import annotations
 
 import datetime

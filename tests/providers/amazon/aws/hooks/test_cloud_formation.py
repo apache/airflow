@@ -31,26 +31,24 @@ class TestCloudFormationHook:
 
     def create_stack(self, stack_name):
         timeout = 15
-        template_body = json.dumps(
-            {
-                "Resources": {
-                    "myResource": {
-                        "Type": "AWS::EC2::VPC",
-                        "Properties": {
-                            "CidrBlock": {"Ref": "VPCCidr"},
-                            "Tags": [{"Key": "Name", "Value": "Primary_CF_VPC"}],
-                        },
-                    }
-                },
-                "Parameters": {
-                    "VPCCidr": {
-                        "Type": "String",
-                        "Default": "10.0.0.0/16",
-                        "Description": "Enter the CIDR block for the VPC. Default is 10.0.0.0/16.",
-                    }
-                },
-            }
-        )
+        template_body = json.dumps({
+            "Resources": {
+                "myResource": {
+                    "Type": "AWS::EC2::VPC",
+                    "Properties": {
+                        "CidrBlock": {"Ref": "VPCCidr"},
+                        "Tags": [{"Key": "Name", "Value": "Primary_CF_VPC"}],
+                    },
+                }
+            },
+            "Parameters": {
+                "VPCCidr": {
+                    "Type": "String",
+                    "Default": "10.0.0.0/16",
+                    "Description": "Enter the CIDR block for the VPC. Default is 10.0.0.0/16.",
+                }
+            },
+        })
 
         self.hook.create_stack(
             stack_name=stack_name,

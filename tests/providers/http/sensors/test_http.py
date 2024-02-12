@@ -216,15 +216,13 @@ class TestHttpSensor:
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
     def test_response_error_codes_allowlist(self, mock_session_send, create_task_of_operator):
-        allowed_error_response_gen = iter(
-            [
-                (503, "Service Unavailable"),
-                (503, "Service Unavailable"),
-                (503, "Service Unavailable"),
-                (404, "Not Found"),
-                (499, "Allowed Non-standard Error Code"),
-            ]
-        )
+        allowed_error_response_gen = iter([
+            (503, "Service Unavailable"),
+            (503, "Service Unavailable"),
+            (503, "Service Unavailable"),
+            (404, "Not Found"),
+            (499, "Allowed Non-standard Error Code"),
+        ])
 
         def mocking_allowed_error_responses(*_, **__):
             try:

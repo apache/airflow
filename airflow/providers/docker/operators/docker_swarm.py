@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services."""
+
 from __future__ import annotations
 
 import re

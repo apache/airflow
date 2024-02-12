@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Cloud Firestore service."""
+
 from __future__ import annotations
 
 import time

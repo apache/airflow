@@ -106,14 +106,12 @@ class TestTelegramHook:
         mock_get_conn.return_value.send_message.return_value = "OK."
 
         mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.send_message.assert_called_once_with(
-            **{
-                "chat_id": -420913222,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-                "text": "test telegram message",
-            }
-        )
+        mock_get_conn.return_value.send_message.assert_called_once_with(**{
+            "chat_id": -420913222,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "text": "test telegram message",
+        })
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_chat_id_is_provided_through_constructor(self, mock_get_conn):
@@ -125,14 +123,12 @@ class TestTelegramHook:
         mock_get_conn.return_value.send_message.return_value = "OK."
 
         mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.send_message.assert_called_once_with(
-            **{
-                "chat_id": -420913222,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-                "text": "test telegram message",
-            }
-        )
+        mock_get_conn.return_value.send_message.assert_called_once_with(**{
+            "chat_id": -420913222,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "text": "test telegram message",
+        })
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_chat_id_is_provided_in_connection(self, mock_get_conn):
@@ -144,14 +140,12 @@ class TestTelegramHook:
         mock_get_conn.return_value.send_message.return_value = "OK."
 
         mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.send_message.assert_called_once_with(
-            **{
-                "chat_id": "-420913222",
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-                "text": "test telegram message",
-            }
-        )
+        mock_get_conn.return_value.send_message.assert_called_once_with(**{
+            "chat_id": "-420913222",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "text": "test telegram message",
+        })
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_retry_when_any_telegram_error_is_encountered(self, mock_get_conn):
@@ -171,14 +165,12 @@ class TestTelegramHook:
         assert "state=finished raised TelegramError" in str(ctx.value)
 
         mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.send_message.assert_called_with(
-            **{
-                "chat_id": "-420913222",
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-                "text": "test telegram message",
-            }
-        )
+        mock_get_conn.return_value.send_message.assert_called_with(**{
+            "chat_id": "-420913222",
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "text": "test telegram message",
+        })
         assert excepted_retry_count == mock_get_conn.return_value.send_message.call_count
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
@@ -191,11 +183,9 @@ class TestTelegramHook:
         mock_get_conn.return_value.send_message.return_value = "OK."
 
         mock_get_conn.assert_called_once()
-        mock_get_conn.return_value.send_message.assert_called_once_with(
-            **{
-                "chat_id": -420913222,
-                "parse_mode": "HTML",
-                "disable_web_page_preview": True,
-                "text": "test telegram message",
-            }
-        )
+        mock_get_conn.return_value.send_message.assert_called_once_with(**{
+            "chat_id": -420913222,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+            "text": "test telegram message",
+        })

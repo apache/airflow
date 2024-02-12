@@ -86,12 +86,10 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
         self.assert_remote_logs("terminated with exit code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
-        with provide_gcp_context(GCP_STACKDRIVER), conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_base_log_folder"): f"stackdriver://{self.log_name}",
-            }
-        ):
+        with provide_gcp_context(GCP_STACKDRIVER), conf_vars({
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): f"stackdriver://{self.log_name}",
+        }):
             from airflow.config_templates import airflow_local_settings
 
             importlib.reload(airflow_local_settings)

@@ -74,21 +74,19 @@ TEST_SOURCE_OBJECTS = "test/objects/test.csv"
 TEST_SOURCE_OBJECTS_JSON = "test/objects/test.json"
 LABELS = {"k1": "v1"}
 DESCRIPTION = "Test Description"
-TEST_TABLE: Table = Table.from_api_repr(
-    {
-        "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
-        "description": DESCRIPTION,
-        "schema": {
-            "fields": [
-                {"name": "field1", "type": "STRING", "description": "field1 description"},
-                {"name": "field2", "type": "INTEGER"},
-            ]
-        },
-    }
-)
-TEST_EMPTY_TABLE: Table = Table.from_api_repr(
-    {"tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE}}
-)
+TEST_TABLE: Table = Table.from_api_repr({
+    "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
+    "description": DESCRIPTION,
+    "schema": {
+        "fields": [
+            {"name": "field1", "type": "STRING", "description": "field1 description"},
+            {"name": "field2", "type": "INTEGER"},
+        ]
+    },
+})
+TEST_EMPTY_TABLE: Table = Table.from_api_repr({
+    "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE}
+})
 job_id = "123456"
 hash_ = "hash"
 pytest.real_job_id = f"{job_id}_{hash_}"

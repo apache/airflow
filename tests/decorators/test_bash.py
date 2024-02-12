@@ -69,8 +69,7 @@ class TestBashDecorator:
         with self.dag:
 
             @task.bash
-            def bash():
-                ...
+            def bash(): ...
 
             bash_task = bash()
 

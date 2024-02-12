@@ -127,9 +127,9 @@ for prev_version, curr_version in zip(to_check_versions[:-1], to_check_versions[
     # Remove existing options in new section
     new_options -= computed_option_new_section
     # Update expected options with version added field
-    expected_computed_options.update(
-        {(section_name, option_name, curr_version) for section_name, option_name in new_options}
-    )
+    expected_computed_options.update({
+        (section_name, option_name, curr_version) for section_name, option_name in new_options
+    })
 print("Expected computed options count:", len(expected_computed_options))
 
 # 3. Read local options set

@@ -761,16 +761,14 @@ class TestHiveServer2Hook:
     def test_to_csv(self):
         hook = MockHiveServer2Hook()
         hook._get_results = mock.MagicMock(
-            return_value=iter(
+            return_value=iter([
                 [
-                    [
-                        ("hive_server_hook.a", "INT_TYPE", None, None, None, None, True),
-                        ("hive_server_hook.b", "INT_TYPE", None, None, None, None, True),
-                    ],
-                    (1, 1),
-                    (2, 2),
-                ]
-            )
+                    ("hive_server_hook.a", "INT_TYPE", None, None, None, None, True),
+                    ("hive_server_hook.b", "INT_TYPE", None, None, None, None, True),
+                ],
+                (1, 1),
+                (2, 2),
+            ])
         )
         query = f"SELECT * FROM {self.table}"
         csv_filepath = "query_results.csv"
@@ -851,16 +849,14 @@ class TestHiveServer2Hook:
         ):
             hook = MockHiveServer2Hook()
             hook._get_results = mock.MagicMock(
-                return_value=iter(
-                    [
-                        "header",
-                        ("value", "test"),
-                        ("test_dag_id", "test"),
-                        ("test_task_id", "test"),
-                        ("test_execution_date", "test"),
-                        ("test_dag_run_id", "test"),
-                    ]
-                )
+                return_value=iter([
+                    "header",
+                    ("value", "test"),
+                    ("test_dag_id", "test"),
+                    ("test_task_id", "test"),
+                    ("test_execution_date", "test"),
+                    ("test_dag_run_id", "test"),
+                ])
             )
 
             output = "\n".join(

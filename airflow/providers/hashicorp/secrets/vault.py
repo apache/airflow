@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

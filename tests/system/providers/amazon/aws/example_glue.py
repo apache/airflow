@@ -177,15 +177,13 @@ with DAG(
         force_delete=True,
     )
 
-    log_cleanup = prune_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            ("/aws-glue/crawlers", glue_crawler_name),
-            ("/aws-glue/jobs/logs-v2", submit_glue_job.output),
-            ("/aws-glue/jobs/error", submit_glue_job.output),
-            ("/aws-glue/jobs/output", submit_glue_job.output),
-        ]
-    )
+    log_cleanup = prune_logs([
+        # Format: ('log group name', 'log stream prefix')
+        ("/aws-glue/crawlers", glue_crawler_name),
+        ("/aws-glue/jobs/logs-v2", submit_glue_job.output),
+        ("/aws-glue/jobs/error", submit_glue_job.output),
+        ("/aws-glue/jobs/output", submit_glue_job.output),
+    ])
 
     chain(
         # TEST SETUP

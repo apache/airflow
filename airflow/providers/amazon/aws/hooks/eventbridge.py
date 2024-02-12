@@ -73,18 +73,16 @@ class EventBridgeHook(AwsBaseHook):
             _validate_json(event_pattern)
 
         put_rule_kwargs: dict[str, str | list] = {
-            **prune_dict(
-                {
-                    "Name": name,
-                    "Description": description,
-                    "EventBusName": event_bus_name,
-                    "EventPattern": event_pattern,
-                    "RoleArn": role_arn,
-                    "ScheduleExpression": schedule_expression,
-                    "State": state,
-                    "Tags": tags,
-                }
-            )
+            **prune_dict({
+                "Name": name,
+                "Description": description,
+                "EventBusName": event_bus_name,
+                "EventPattern": event_pattern,
+                "RoleArn": role_arn,
+                "ScheduleExpression": schedule_expression,
+                "State": state,
+                "Tags": tags,
+            })
         }
 
         return self.conn.put_rule(**put_rule_kwargs)

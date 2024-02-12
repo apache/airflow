@@ -117,16 +117,14 @@ class AwsLogsHook(AwsBaseHook):
                 token_arg = {}
 
             response = self.conn.get_log_events(
-                **prune_dict(
-                    {
-                        "logGroupName": log_group,
-                        "logStreamName": log_stream_name,
-                        "startTime": start_time,
-                        "endTime": end_time,
-                        "startFromHead": start_from_head,
-                        **token_arg,
-                    }
-                )
+                **prune_dict({
+                    "logGroupName": log_group,
+                    "logStreamName": log_stream_name,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "startFromHead": start_from_head,
+                    **token_arg,
+                })
             )
 
             events = response["events"]

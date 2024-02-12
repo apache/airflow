@@ -847,9 +847,10 @@ class TestGCPTransferServiceHookWithoutProjectId:
         pages_requests = [
             mock.Mock(**{"execute.return_value": {"operations": [TEST_TRANSFER_OPERATION]}}) for _ in range(4)
         ]
-        transfer_operation_mock = mock.Mock(
-            **{"list.return_value": pages_requests[1], "list_next.side_effect": pages_requests[1:] + [None]}
-        )
+        transfer_operation_mock = mock.Mock(**{
+            "list.return_value": pages_requests[1],
+            "list_next.side_effect": pages_requests[1:] + [None],
+        })
 
         get_conn.return_value.transferOperations.return_value = transfer_operation_mock
 

@@ -76,12 +76,10 @@ def log_app(backup_modules, log_path):
             "init_api_connexion",
         ]
     )
-    @conf_vars(
-        {
-            ("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG",
-            ("fab", "auth_rate_limited"): "False",
-        }
-    )
+    @conf_vars({
+        ("logging", "logging_config_class"): "airflow_local_settings.LOGGING_CONFIG",
+        ("fab", "auth_rate_limited"): "False",
+    })
     def factory():
         app = create_app(testing=True)
         app.config["WTF_CSRF_ENABLED"] = False

@@ -147,11 +147,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
-        mock_hook.return_value.rewrite.assert_has_calls(
-            [
-                mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt"),
-            ]
-        )
+        mock_hook.return_value.rewrite.assert_has_calls([
+            mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt"),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_copy_file_with_exact_match_destination(self, mock_hook):

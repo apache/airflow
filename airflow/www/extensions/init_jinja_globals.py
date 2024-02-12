@@ -84,12 +84,10 @@ def init_jinja_globals(app):
             extra_globals["rest_api_enabled"] = True
 
         if "analytics_tool" in conf.getsection("webserver"):
-            extra_globals.update(
-                {
-                    "analytics_tool": conf.get("webserver", "ANALYTICS_TOOL"),
-                    "analytics_id": conf.get("webserver", "ANALYTICS_ID"),
-                }
-            )
+            extra_globals.update({
+                "analytics_tool": conf.get("webserver", "ANALYTICS_TOOL"),
+                "analytics_id": conf.get("webserver", "ANALYTICS_ID"),
+            })
 
         return extra_globals
 

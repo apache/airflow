@@ -85,12 +85,10 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                     return
                 if statement_status["status"] == "success":
                     statement_query_ids.extend(statement_status["statement_handles"])
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "statement_query_ids": statement_query_ids,
-                }
-            )
+            yield TriggerEvent({
+                "status": "success",
+                "statement_query_ids": statement_query_ids,
+            })
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 

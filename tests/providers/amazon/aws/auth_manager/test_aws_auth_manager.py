@@ -49,15 +49,13 @@ mock = Mock()
 
 @pytest.fixture
 def auth_manager():
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
-        }
-    ):
+    with conf_vars({
+        (
+            "core",
+            "auth_manager",
+        ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+        ("aws_auth_manager", "enable"): "True",
+    }):
         return AwsAuthManager(None)
 
 
@@ -65,15 +63,13 @@ def auth_manager():
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    with conf_vars(
-        {
-            (
-                "core",
-                "auth_manager",
-            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "enable"): "True",
-        }
-    ):
+    with conf_vars({
+        (
+            "core",
+            "auth_manager",
+        ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+        ("aws_auth_manager", "enable"): "True",
+    }):
         return AwsAuthManager(appbuilder)
 
 

@@ -22,6 +22,7 @@ DebugExecutor.
     For more information on how the DebugExecutor works, take a look at the guide:
     :ref:`executor:DebugExecutor`
 """
+
 from __future__ import annotations
 
 import threading

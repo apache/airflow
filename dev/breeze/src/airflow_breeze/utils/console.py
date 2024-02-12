@@ -18,6 +18,7 @@
 Console used by all processes. We are forcing colors and terminal output as Breeze is supposed
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,29 +38,25 @@ def get_theme() -> Theme:
         from airflow_breeze.utils.cache import read_from_cache_file
 
         if read_from_cache_file("suppress_colour") is not None:
-            return Theme(
-                {
-                    "success": "bold italic",
-                    "info": "bold",
-                    "warning": "italic",
-                    "error": "italic underline",
-                    "special": "bold italic underline",
-                }
-            )
+            return Theme({
+                "success": "bold italic",
+                "info": "bold",
+                "warning": "italic",
+                "error": "italic underline",
+                "special": "bold italic underline",
+            })
     except ImportError:
         # sometimes we might want to use console before the cache folder is determined
         # and in this case we will get an import error due to partial initialization.
         # in this case we switch to default theme
         pass
-    return Theme(
-        {
-            "success": "green",
-            "info": "bright_blue",
-            "warning": "bright_yellow",
-            "error": "red",
-            "special": "magenta",
-        }
-    )
+    return Theme({
+        "success": "green",
+        "info": "bright_blue",
+        "warning": "bright_yellow",
+        "error": "red",
+        "special": "magenta",
+    })
 
 
 class MessageType(Enum):

@@ -335,15 +335,13 @@ class AwsConnectionWrapper(LoggingMixin):
     @property
     def session_kwargs(self) -> dict[str, Any]:
         """Additional kwargs passed to boto3.session.Session."""
-        return trim_none_values(
-            {
-                "aws_access_key_id": self.aws_access_key_id,
-                "aws_secret_access_key": self.aws_secret_access_key,
-                "aws_session_token": self.aws_session_token,
-                "region_name": self.region_name,
-                "profile_name": self.profile_name,
-            }
-        )
+        return trim_none_values({
+            "aws_access_key_id": self.aws_access_key_id,
+            "aws_secret_access_key": self.aws_secret_access_key,
+            "aws_session_token": self.aws_session_token,
+            "region_name": self.region_name,
+            "profile_name": self.profile_name,
+        })
 
     def __bool__(self):
         return self.conn_id is not NOTSET

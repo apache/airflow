@@ -98,14 +98,12 @@ def provide_gcp_context(
         executor = CommandExecutor()
 
         if key_file_path:
-            executor.execute_cmd(
-                [
-                    "gcloud",
-                    "auth",
-                    "activate-service-account",
-                    f"--key-file={key_file_path}",
-                ]
-            )
+            executor.execute_cmd([
+                "gcloud",
+                "auth",
+                "activate-service-account",
+                f"--key-file={key_file_path}",
+            ])
         if project_id:
             executor.execute_cmd(["gcloud", "config", "set", "core/project", project_id])
         yield
@@ -187,15 +185,13 @@ class GoogleSystemTest(SystemTest):
     @classmethod
     def grant_bucket_access(cls, bucket: str, account_email: str):
         bucket_name = f"gs://{bucket}" if not bucket.startswith("gs://") else bucket
-        cls.execute_cmd(
-            [
-                "gsutil",
-                "iam",
-                "ch",
-                f"serviceAccount:{account_email}:admin",
-                bucket_name,
-            ]
-        )
+        cls.execute_cmd([
+            "gsutil",
+            "iam",
+            "ch",
+            f"serviceAccount:{account_email}:admin",
+            bucket_name,
+        ])
 
     @classmethod
     def delete_secret(cls, name: str, silent: bool = False):

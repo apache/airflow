@@ -164,13 +164,11 @@ class TestDataprocClusterTrigger:
         generator = cluster_trigger.run()
         actual_event = await generator.asend(None)
 
-        expected_event = TriggerEvent(
-            {
-                "cluster_name": TEST_CLUSTER_NAME,
-                "cluster_state": ClusterStatus.State.RUNNING,
-                "cluster": actual_event.payload["cluster"],
-            }
-        )
+        expected_event = TriggerEvent({
+            "cluster_name": TEST_CLUSTER_NAME,
+            "cluster_state": ClusterStatus.State.RUNNING,
+            "cluster": actual_event.payload["cluster"],
+        })
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
@@ -188,13 +186,11 @@ class TestDataprocClusterTrigger:
         actual_event = await cluster_trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
-        expected_event = TriggerEvent(
-            {
-                "cluster_name": TEST_CLUSTER_NAME,
-                "cluster_state": ClusterStatus.State.ERROR,
-                "cluster": actual_event.payload["cluster"],
-            }
-        )
+        expected_event = TriggerEvent({
+            "cluster_name": TEST_CLUSTER_NAME,
+            "cluster_state": ClusterStatus.State.ERROR,
+            "cluster": actual_event.payload["cluster"],
+        })
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
@@ -249,12 +245,10 @@ class TestDataprocBatchTrigger:
 
         mock_hook.return_value = async_get_batch(state=Batch.State.SUCCEEDED, batch_id=TEST_BATCH_ID)
 
-        expected_event = TriggerEvent(
-            {
-                "batch_id": TEST_BATCH_ID,
-                "batch_state": Batch.State.SUCCEEDED,
-            }
-        )
+        expected_event = TriggerEvent({
+            "batch_id": TEST_BATCH_ID,
+            "batch_state": Batch.State.SUCCEEDED,
+        })
 
         actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
@@ -324,14 +318,12 @@ class TestDataprocOperationTrigger:
             name=TEST_OPERATION_NAME, done=True, response={}, error=Status(message="")
         )
 
-        expected_event = TriggerEvent(
-            {
-                "operation_name": TEST_OPERATION_NAME,
-                "operation_done": True,
-                "status": "success",
-                "message": "Operation is successfully ended.",
-            }
-        )
+        expected_event = TriggerEvent({
+            "operation_name": TEST_OPERATION_NAME,
+            "operation_done": True,
+            "status": "success",
+            "message": "Operation is successfully ended.",
+        })
         actual_event = await operation_trigger.run().asend(None)
         assert expected_event == actual_event
 
@@ -348,13 +340,11 @@ class TestDataprocOperationTrigger:
             error=Status(message=""),
         )
 
-        expected_event = TriggerEvent(
-            {
-                "output_uri": gcs_uri,
-                "status": "success",
-                "message": "Operation is successfully ended.",
-            }
-        )
+        expected_event = TriggerEvent({
+            "output_uri": gcs_uri,
+            "status": "success",
+            "message": "Operation is successfully ended.",
+        })
         actual_event = await diagnose_operation_trigger.run().asend(None)
         assert expected_event == actual_event
 
@@ -365,13 +355,11 @@ class TestDataprocOperationTrigger:
             name=TEST_OPERATION_NAME, done=True, response={}, error=Status(message="test_error")
         )
 
-        expected_event = TriggerEvent(
-            {
-                "operation_name": TEST_OPERATION_NAME,
-                "operation_done": True,
-                "status": "error",
-                "message": "test_error",
-            }
-        )
+        expected_event = TriggerEvent({
+            "operation_name": TEST_OPERATION_NAME,
+            "operation_done": True,
+            "status": "error",
+            "message": "test_error",
+        })
         actual_event = await operation_trigger.run().asend(None)
         assert expected_event == actual_event

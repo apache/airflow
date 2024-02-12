@@ -50,30 +50,24 @@ class TestAwsTaskLogFetcher:
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
         side_effect=(
-            iter(
-                [
-                    {"timestamp": 1617400267123, "message": "First"},
-                    {"timestamp": 1617400367456, "message": "Second"},
-                ]
-            ),
-            iter(
-                [
-                    {"timestamp": 1617400467789, "message": "Third"},
-                ]
-            ),
+            iter([
+                {"timestamp": 1617400267123, "message": "First"},
+                {"timestamp": 1617400367456, "message": "Second"},
+            ]),
+            iter([
+                {"timestamp": 1617400467789, "message": "Third"},
+            ]),
             iter([]),
         ),
     )
     def test_run(self, get_log_events_mock, event_is_set_mock):
         self.log_fetcher.run()
 
-        self.logger_mock.info.assert_has_calls(
-            [
-                mock.call("[2021-04-02 21:51:07,123] First"),
-                mock.call("[2021-04-02 21:52:47,456] Second"),
-                mock.call("[2021-04-02 21:54:27,789] Third"),
-            ]
-        )
+        self.logger_mock.info.assert_has_calls([
+            mock.call("[2021-04-02 21:51:07,123] First"),
+            mock.call("[2021-04-02 21:52:47,456] Second"),
+            mock.call("[2021-04-02 21:54:27,789] Third"),
+        ])
 
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
@@ -111,13 +105,11 @@ class TestAwsTaskLogFetcher:
             {"timestamp": 1617400367456, "message": "Second"},
             {"timestamp": 1617400467789, "message": "Third"},
         ]
-        assert [self.log_fetcher.event_to_str(event) for event in events] == (
-            [
-                "[2021-04-02 21:51:07,123] First",
-                "[2021-04-02 21:52:47,456] Second",
-                "[2021-04-02 21:54:27,789] Third",
-            ]
-        )
+        assert [self.log_fetcher.event_to_str(event) for event in events] == ([
+            "[2021-04-02 21:51:07,123] First",
+            "[2021-04-02 21:52:47,456] Second",
+            "[2021-04-02 21:54:27,789] Third",
+        ])
 
     @mock.patch.object(AwsLogsHook, "conn")
     def test_get_last_log_message_with_no_log_events(self, mock_conn):

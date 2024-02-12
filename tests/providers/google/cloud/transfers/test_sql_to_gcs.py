@@ -49,13 +49,11 @@ INPUT_DATA = [
     ["102", "business", "2017-05-24"],
     ["103", "non-profit", "2018-10-01"],
 ]
-OUTPUT_DATA = json.dumps(
-    {
-        "column_a": "convert_type_return_value",
-        "column_b": "convert_type_return_value",
-        "column_c": "convert_type_return_value",
-    }
-).encode("utf-8")
+OUTPUT_DATA = json.dumps({
+    "column_a": "convert_type_return_value",
+    "column_b": "convert_type_return_value",
+    "column_c": "convert_type_return_value",
+}).encode("utf-8")
 SCHEMA_FILE = "schema_file.json"
 APP_JSON = "application/json"
 
@@ -332,19 +330,17 @@ class TestBaseSQLToGCSOperator:
         mock_query.assert_called_once()
         assert mock_file.flush.call_count == 3
         assert mock_file.close.call_count == 3
-        mock_upload.assert_has_calls(
-            [
-                mock.call(
-                    BUCKET,
-                    f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
-                    TMP_FILE_NAME,
-                    mime_type="application/octet-stream",
-                    gzip=False,
-                    metadata=None,
-                )
-                for i, row in enumerate(INPUT_DATA)
-            ]
-        )
+        mock_upload.assert_has_calls([
+            mock.call(
+                BUCKET,
+                f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
+                TMP_FILE_NAME,
+                mime_type="application/octet-stream",
+                gzip=False,
+                metadata=None,
+            )
+            for i, row in enumerate(INPUT_DATA)
+        ])
 
         mock_query.reset_mock()
         mock_file.flush.reset_mock()
@@ -375,14 +371,12 @@ class TestBaseSQLToGCSOperator:
             "files": [{"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 3}],
         }
 
-        mock_writer.return_value.writerow.assert_has_calls(
-            [
-                mock.call(COLUMNS),
-                mock.call(["NULL", "NULL", "NULL"]),
-                mock.call(["NULL", "NULL", "NULL"]),
-                mock.call(["NULL", "NULL", "NULL"]),
-            ]
-        )
+        mock_writer.return_value.writerow.assert_has_calls([
+            mock.call(COLUMNS),
+            mock.call(["NULL", "NULL", "NULL"]),
+            mock.call(["NULL", "NULL", "NULL"]),
+            mock.call(["NULL", "NULL", "NULL"]),
+        ])
 
     def test__write_local_data_files_csv(self):
         op = DummySQLToGCSOperator(

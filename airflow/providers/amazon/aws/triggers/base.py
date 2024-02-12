@@ -116,14 +116,12 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
         # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
         params.update(
-            prune_dict(
-                {
-                    # Keep previous behaviour when empty string in region_name evaluated as `None`
-                    "region_name": self.region_name or None,
-                    "verify": self.verify,
-                    "botocore_config": self.botocore_config,
-                }
-            )
+            prune_dict({
+                # Keep previous behaviour when empty string in region_name evaluated as `None`
+                "region_name": self.region_name or None,
+                "verify": self.verify,
+                "botocore_config": self.botocore_config,
+            })
         )
 
         return (

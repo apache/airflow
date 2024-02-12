@@ -113,13 +113,11 @@ class TestCreateHyperparameterTuningJobTrigger:
             job_id=TEST_HPT_JOB_ID,
             poll_interval=TEST_POLL_INTERVAL,
         )
-        assert event_actual == TriggerEvent(
-            {
-                "status": status,
-                "message": f"Hyperparameter tuning job {TEST_HPT_JOB_NAME} completed with status {state.name}",
-                "job": mock_dict_job,
-            }
-        )
+        assert event_actual == TriggerEvent({
+            "status": status,
+            "message": f"Hyperparameter tuning job {TEST_HPT_JOB_NAME} completed with status {state.name}",
+            "job": mock_dict_job,
+        })
 
     @pytest.mark.asyncio
     @patch(VERTEX_AI_TRIGGER_PATH.format("HyperparameterTuningJobAsyncHook"))
@@ -131,9 +129,7 @@ class TestCreateHyperparameterTuningJobTrigger:
         generator = create_hyperparameter_tuning_job_trigger.run()
         event_actual = await generator.asend(None)  # type:ignore[attr-defined]
 
-        assert event_actual == TriggerEvent(
-            {
-                "status": "error",
-                "message": "test error",
-            }
-        )
+        assert event_actual == TriggerEvent({
+            "status": "error",
+            "message": "test error",
+        })

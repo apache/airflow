@@ -21,6 +21,7 @@ It shows how to use standard Python ``@task.branch`` as well as the external Pyt
 version ``@task.branch_external_python`` which calls an external Python interpreter and
 the ``@task.branch_virtualenv`` which builds a temporary Python virtual environment.
 """
+
 from __future__ import annotations
 
 import random

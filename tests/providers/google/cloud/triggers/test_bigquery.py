@@ -335,13 +335,11 @@ class TestBigQueryGetDataTrigger:
         # structure - 'rows":[{"f":[{"v":"42"},{"v":"monthy python"}]},{"f":[{"v":"42"},{"v":"fishy fish"}]}]
 
         assert (
-            TriggerEvent(
-                {
-                    "status": "success",
-                    "message": "Job completed",
-                    "records": [[42, "monthy python"], [42, "fishy fish"]],
-                }
-            )
+            TriggerEvent({
+                "status": "success",
+                "message": "Job completed",
+                "records": [[42, "monthy python"], [42, "fishy fish"]],
+            })
             == actual
         )
         # Prevents error when task is destroyed while in "pending" state
@@ -547,9 +545,11 @@ class TestBigQueryIntervalCheckTrigger:
         actual = await generator.asend(None)
 
         assert (
-            TriggerEvent(
-                {"status": "error", "message": "The conn_id `bq_default` isn't defined", "data": None}
-            )
+            TriggerEvent({
+                "status": "error",
+                "message": "The conn_id `bq_default` isn't defined",
+                "data": None,
+            })
             == actual
         )
 

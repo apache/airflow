@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Plugins example"""
+
 from __future__ import annotations
 
 from flask import Blueprint

@@ -927,9 +927,11 @@ class TestDatabricksHook:
     def test_list_jobs_success_multiple_pages(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.side_effect = [
-            create_successful_response_mock(
-                {**LIST_JOBS_RESPONSE, "has_more": True, "next_page_token": "PAGETOKEN"}
-            ),
+            create_successful_response_mock({
+                **LIST_JOBS_RESPONSE,
+                "has_more": True,
+                "next_page_token": "PAGETOKEN",
+            }),
             create_successful_response_mock(LIST_JOBS_RESPONSE),
         ]
 
@@ -1229,9 +1231,11 @@ class TestRunState:
 
     def test_to_json(self):
         run_state = RunState("TERMINATED", "SUCCESS", "")
-        expected = json.dumps(
-            {"life_cycle_state": "TERMINATED", "result_state": "SUCCESS", "state_message": ""}
-        )
+        expected = json.dumps({
+            "life_cycle_state": "TERMINATED",
+            "result_state": "SUCCESS",
+            "state_message": "",
+        })
         assert expected == run_state.to_json()
 
     def test_from_json(self):
@@ -1298,12 +1302,10 @@ class TestDatabricksHookAadToken:
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
-        )
+        conn.extra = json.dumps({
+            "host": HOST,
+            "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1340,13 +1342,11 @@ class TestDatabricksHookAadTokenOtherClouds:
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.login = self.client_id
         conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": self.tenant_id,
-                "azure_ad_endpoint": self.ad_endpoint,
-            }
-        )
+        conn.extra = json.dumps({
+            "host": HOST,
+            "azure_tenant_id": self.tenant_id,
+            "azure_ad_endpoint": self.ad_endpoint,
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1387,12 +1387,10 @@ class TestDatabricksHookAadTokenSpOutside:
         conn.login = self.client_id
         conn.password = "secret"
         conn.host = HOST
-        conn.extra = json.dumps(
-            {
-                "azure_resource_id": "/Some/resource",
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
-        )
+        conn.extra = json.dumps({
+            "azure_resource_id": "/Some/resource",
+            "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1437,11 +1435,9 @@ class TestDatabricksHookAadTokenManagedIdentity:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
-        conn.extra = json.dumps(
-            {
-                "use_azure_managed_identity": True,
-            }
-        )
+        conn.extra = json.dumps({
+            "use_azure_managed_identity": True,
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1621,12 +1617,10 @@ class TestDatabricksHookAsyncAadToken:
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.login = "9ff815a6-4404-4ab8-85cb-cd0e6f879c1d"
         conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
-            }
-        )
+        conn.extra = json.dumps({
+            "host": HOST,
+            "azure_tenant_id": "3ff810a6-5504-4ab8-85cb-cd0e6f879c1d",
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1667,13 +1661,11 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.login = self.client_id
         conn.password = "secret"
-        conn.extra = json.dumps(
-            {
-                "host": HOST,
-                "azure_tenant_id": self.tenant_id,
-                "azure_ad_endpoint": self.ad_endpoint,
-            }
-        )
+        conn.extra = json.dumps({
+            "host": HOST,
+            "azure_tenant_id": self.tenant_id,
+            "azure_ad_endpoint": self.ad_endpoint,
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1719,12 +1711,10 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         conn.login = self.client_id
         conn.password = "secret"
         conn.host = HOST
-        conn.extra = json.dumps(
-            {
-                "azure_resource_id": "/Some/resource",
-                "azure_tenant_id": self.tenant_id,
-            }
-        )
+        conn.extra = json.dumps({
+            "azure_resource_id": "/Some/resource",
+            "azure_tenant_id": self.tenant_id,
+        })
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
@@ -1783,11 +1773,9 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
         conn.host = HOST
-        conn.extra = json.dumps(
-            {
-                "use_azure_managed_identity": True,
-            }
-        )
+        conn.extra = json.dumps({
+            "use_azure_managed_identity": True,
+        })
         session.commit()
         session.commit()
         self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)

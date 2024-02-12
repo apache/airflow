@@ -144,9 +144,9 @@ class TestStackdriverLoggingHandlerTask:
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
     def test_should_read_logs_for_all_try(self, mock_client, mock_get_creds_and_project_id):
-        mock_client.return_value.list_log_entries.return_value.pages = iter(
-            [_create_list_log_entries_response_mock(["MSG1", "MSG2"], None)]
-        )
+        mock_client.return_value.list_log_entries.return_value.pages = iter([
+            _create_list_log_entries_response_mock(["MSG1", "MSG2"], None)
+        ])
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
         stackdriver_task_handler = self._setup_handler()
@@ -172,9 +172,9 @@ class TestStackdriverLoggingHandlerTask:
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
     def test_should_read_logs_for_task_with_quote(self, mock_client, mock_get_creds_and_project_id):
-        mock_client.return_value.list_log_entries.return_value.pages = iter(
-            [_create_list_log_entries_response_mock(["MSG1", "MSG2"], None)]
-        )
+        mock_client.return_value.list_log_entries.return_value.pages = iter([
+            _create_list_log_entries_response_mock(["MSG1", "MSG2"], None)
+        ])
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
 
         self.ti.task_id = 'K"OT'
@@ -202,9 +202,9 @@ class TestStackdriverLoggingHandlerTask:
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
     def test_should_read_logs_for_single_try(self, mock_client, mock_get_creds_and_project_id):
-        mock_client.return_value.list_log_entries.return_value.pages = iter(
-            [_create_list_log_entries_response_mock(["MSG1", "MSG2"], None)]
-        )
+        mock_client.return_value.list_log_entries.return_value.pages = iter([
+            _create_list_log_entries_response_mock(["MSG1", "MSG2"], None)
+        ])
         mock_get_creds_and_project_id.return_value = ("creds", "project_id")
         stackdriver_task_handler = self._setup_handler()
 
@@ -346,12 +346,10 @@ labels.try_number="3"'''
         mock_get_creds_and_project_id.assert_called_once_with(
             disable_logging=True,
             key_path="KEY_PATH",
-            scopes=frozenset(
-                {
-                    "https://www.googleapis.com/auth/logging.write",
-                    "https://www.googleapis.com/auth/logging.read",
-                }
-            ),
+            scopes=frozenset({
+                "https://www.googleapis.com/auth/logging.write",
+                "https://www.googleapis.com/auth/logging.read",
+            }),
         )
         mock_client.assert_called_once_with(credentials="creds", client_info=mock.ANY, project="project_id")
         assert mock_client.return_value == client

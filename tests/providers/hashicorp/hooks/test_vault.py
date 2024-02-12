@@ -1259,12 +1259,10 @@ class TestVaultHook:
 
 class TestConfigurationFromSecrets:
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @conf_vars(
-        {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
-        }
-    )
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
     def test_config_from_secret_backend(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
         mock_client = mock.MagicMock()
@@ -1304,12 +1302,10 @@ class TestConfigurationFromSecrets:
         assert "sqlite:////Users/airflow/airflow/airflow.db" == test_conf.get("test", "sql_alchemy_conn")
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @conf_vars(
-        {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
-        }
-    )
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
 

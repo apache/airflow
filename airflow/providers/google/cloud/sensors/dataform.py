@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataform sensor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Sequence

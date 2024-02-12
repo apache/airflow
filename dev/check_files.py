@@ -94,12 +94,10 @@ def check_providers(files: list[str]):
     for name, version in get_packages():
         print(f"Checking {name} {version}")
         version = strip_rc_suffix(version)
-        expected_files = expand_name_variations(
-            [
-                f"{name.replace('-', '_')}-{version}.tar.gz",
-                f"{name.replace('-', '_')}-{version}-py3-none-any.whl",
-            ]
-        )
+        expected_files = expand_name_variations([
+            f"{name.replace('-', '_')}-{version}.tar.gz",
+            f"{name.replace('-', '_')}-{version}-py3-none-any.whl",
+        ])
 
         missing_list.extend(check_all_files(expected_files=expected_files, actual_files=files))
 
@@ -129,13 +127,11 @@ def check_release(files: list[str], version: str):
     print(f"Checking airflow release for version {version}:\n")
     version = strip_rc_suffix(version)
 
-    expected_files = expand_name_variations(
-        [
-            f"apache_airflow-{version}.tar.gz",
-            f"apache-airflow-{version}-source.tar.gz",
-            f"apache_airflow-{version}-py3-none-any.whl",
-        ]
-    )
+    expected_files = expand_name_variations([
+        f"apache_airflow-{version}.tar.gz",
+        f"apache-airflow-{version}-source.tar.gz",
+        f"apache_airflow-{version}-py3-none-any.whl",
+    ])
     return check_all_files(expected_files=expected_files, actual_files=files)
 
 
@@ -147,13 +143,11 @@ def check_upgrade_check(files: list[str], version: str):
     print(f"Checking upgrade_check for version {version}:\n")
     version = strip_rc_suffix(version)
 
-    expected_files = expand_name_variations(
-        [
-            f"apache-airflow-upgrade-check-{version}-bin.tar.gz",
-            f"apache-airflow-upgrade-check-{version}-source.tar.gz",
-            f"apache_airflow_upgrade_check-{version}-py2.py3-none-any.whl",
-        ]
-    )
+    expected_files = expand_name_variations([
+        f"apache-airflow-upgrade-check-{version}-bin.tar.gz",
+        f"apache-airflow-upgrade-check-{version}-source.tar.gz",
+        f"apache_airflow_upgrade_check-{version}-py2.py3-none-any.whl",
+    ])
     return check_all_files(expected_files=expected_files, actual_files=files)
 
 

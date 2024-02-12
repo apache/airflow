@@ -158,13 +158,11 @@ ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
 
 
 @overload
-def correct_maybe_zipped(fileloc: None) -> None:
-    ...
+def correct_maybe_zipped(fileloc: None) -> None: ...
 
 
 @overload
-def correct_maybe_zipped(fileloc: str | Path) -> str | Path:
-    ...
+def correct_maybe_zipped(fileloc: str | Path) -> str | Path: ...
 
 
 def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:

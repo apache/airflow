@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all plugins."""
+
 from __future__ import annotations
 
 import importlib
@@ -402,9 +403,9 @@ def initialize_ti_deps_plugins():
     registered_ti_dep_classes = {}
 
     for plugin in plugins:
-        registered_ti_dep_classes.update(
-            {qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps}
-        )
+        registered_ti_dep_classes.update({
+            qualname(ti_dep.__class__): ti_dep.__class__ for ti_dep in plugin.ti_deps
+        })
 
 
 def initialize_extra_operators_links_plugins():
@@ -435,9 +436,9 @@ def initialize_extra_operators_links_plugins():
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
         operator_extra_links.extend(list(plugin.operator_extra_links))
 
-        registered_operator_link_classes.update(
-            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
-        )
+        registered_operator_link_classes.update({
+            qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links
+        })
 
 
 def initialize_timetables_plugins():

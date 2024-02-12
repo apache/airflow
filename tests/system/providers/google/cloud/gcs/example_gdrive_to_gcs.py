@@ -67,12 +67,9 @@ with DAG(
             conn_id=CONNECTION_ID,
             conn_type="google_cloud_platform",
         )
-        conn_extra_json = json.dumps(
-            {
-                "scope": "https://www.googleapis.com/auth/drive,"
-                "https://www.googleapis.com/auth/cloud-platform"
-            }
-        )
+        conn_extra_json = json.dumps({
+            "scope": "https://www.googleapis.com/auth/drive," "https://www.googleapis.com/auth/cloud-platform"
+        })
         conn.set_extra(conn_extra_json)
 
         session = Session()

@@ -120,13 +120,11 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = target_upper
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.NONE,
+            "branch_2": State.SKIPPED,
+        })
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
@@ -146,13 +144,11 @@ class TestBranchDateTimeOperator:
             with time_machine.travel(date):
                 self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-                self._assert_task_ids_match_states(
-                    {
-                        "datetime_branch": State.SUCCESS,
-                        "branch_1": State.SKIPPED,
-                        "branch_2": State.NONE,
-                    }
-                )
+                self._assert_task_ids_match_states({
+                    "datetime_branch": State.SUCCESS,
+                    "branch_1": State.SKIPPED,
+                    "branch_2": State.NONE,
+                })
 
     @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
     @time_machine.travel("2020-07-07 10:54:05")
@@ -163,13 +159,11 @@ class TestBranchDateTimeOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.NONE,
+            "branch_2": State.SKIPPED,
+        })
 
     @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
     @time_machine.travel("2020-07-07 10:54:05")
@@ -180,13 +174,11 @@ class TestBranchDateTimeOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.NONE,
+            "branch_2": State.SKIPPED,
+        })
 
     @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
     @time_machine.travel("2020-07-07 12:00:00")
@@ -197,13 +189,11 @@ class TestBranchDateTimeOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.SKIPPED,
-                "branch_2": State.NONE,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.SKIPPED,
+            "branch_2": State.NONE,
+        })
 
     @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
     @time_machine.travel("2020-07-07 09:00:00")
@@ -214,13 +204,11 @@ class TestBranchDateTimeOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.SKIPPED,
-                "branch_2": State.NONE,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.SKIPPED,
+            "branch_2": State.NONE,
+        })
 
     @pytest.mark.parametrize(
         "target_lower,target_upper",
@@ -242,13 +230,11 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = target_upper
         self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
 
-        self._assert_task_ids_match_states(
-            {
-                "datetime_branch": State.SUCCESS,
-                "branch_1": State.NONE,
-                "branch_2": State.SKIPPED,
-            }
-        )
+        self._assert_task_ids_match_states({
+            "datetime_branch": State.SUCCESS,
+            "branch_1": State.NONE,
+            "branch_2": State.SKIPPED,
+        })
 
     def test_deprecation_warning(self):
         warning_message = (

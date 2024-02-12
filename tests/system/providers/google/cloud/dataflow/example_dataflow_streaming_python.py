@@ -19,6 +19,7 @@
 """
 Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Python for Streaming job.
 """
+
 from __future__ import annotations
 
 import os

@@ -193,15 +193,13 @@ KWARGS = {
             callable11,
             (),
             KWARGS,
-            (
-                (
-                    "20200101",
-                    {
-                        "prev_ds_nodash": "20191231",
-                        "tomorrow_ds_nodash": "20200102",
-                    },
-                )
-            ),
+            ((
+                "20200101",
+                {
+                    "prev_ds_nodash": "20191231",
+                    "tomorrow_ds_nodash": "20200102",
+                },
+            )),
         ),
     ],
 )

@@ -80,13 +80,11 @@ def _parse_sqlite_version(s: str) -> tuple[int, ...]:
 
 
 @overload
-def expand_env_var(env_var: None) -> None:
-    ...
+def expand_env_var(env_var: None) -> None: ...
 
 
 @overload
-def expand_env_var(env_var: str) -> str:
-    ...
+def expand_env_var(env_var: str) -> str: ...
 
 
 def expand_env_var(env_var: str | None) -> str | None:
@@ -921,12 +919,10 @@ class AirflowConfigParser(ConfigParser):
         return value
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:
-        ...
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, **kwargs) -> str | None:
-        ...
+    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def get(  # type: ignore[override,misc]
         self,

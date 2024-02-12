@@ -105,21 +105,17 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                 # An operation can only have one of those two combinations: if it is failed, then
                 # the error field will be populated, else, then the response field will be.
                 if operation.error.SerializeToString():
-                    yield TriggerEvent(
-                        {
-                            "status": RunJobStatus.FAIL.value,
-                            "operation_error_code": operation.error.code,
-                            "operation_error_message": operation.error.message,
-                            "job_name": self.job_name,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": RunJobStatus.FAIL.value,
+                        "operation_error_code": operation.error.code,
+                        "operation_error_message": operation.error.message,
+                        "job_name": self.job_name,
+                    })
                 else:
-                    yield TriggerEvent(
-                        {
-                            "status": RunJobStatus.SUCCESS.value,
-                            "job_name": self.job_name,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": RunJobStatus.SUCCESS.value,
+                        "job_name": self.job_name,
+                    })
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")
 
@@ -129,12 +125,10 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
             if timeout is None or timeout > 0:
                 await asyncio.sleep(self.polling_period_seconds)
 
-        yield TriggerEvent(
-            {
-                "status": RunJobStatus.TIMEOUT,
-                "job_name": self.job_name,
-            }
-        )
+        yield TriggerEvent({
+            "status": RunJobStatus.TIMEOUT,
+            "job_name": self.job_name,
+        })
 
     def _get_async_hook(self) -> CloudRunAsyncHook:
         return CloudRunAsyncHook(

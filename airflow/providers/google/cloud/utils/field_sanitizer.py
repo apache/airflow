@@ -67,7 +67,7 @@ specification of the path you should delete - separated with '.'
 >>>         },
 >>>     }
 >>> }
->>> sanitizer=GcpBodyFieldSanitizer(FIELDS_TO_SANITIZE)
+>>> sanitizer = GcpBodyFieldSanitizer(FIELDS_TO_SANITIZE)
 >>> sanitizer.sanitize(body)
 >>> json.dumps(body, indent=2)
 {
@@ -96,6 +96,7 @@ In case  they are dictionaries, subsequent component names key of the field, in 
 arrays - the sanitizer iterates through all dictionaries in the array and searches
 components in all elements of the array.
 """
+
 from __future__ import annotations
 
 from airflow.exceptions import AirflowException

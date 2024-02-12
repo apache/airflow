@@ -24,6 +24,7 @@ A client for AWS Batch services.
     - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
+
 from __future__ import annotations
 
 import itertools
@@ -491,16 +492,14 @@ class BatchClientHook(AwsBaseHook):
         # cross stream names with options (i.e. attempts X nodes) to generate all log infos
         result = []
         for stream, option in itertools.product(stream_names, log_options):
-            result.append(
-                {
-                    "awslogs_stream_name": stream,
-                    # If the user did not specify anything, the default settings are:
-                    #   awslogs-group = /aws/batch/job
-                    #   awslogs-region = `same as AWS Batch Job region`
-                    "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
-                    "awslogs_region": option.get("awslogs-region", self.conn_region_name),
-                }
-            )
+            result.append({
+                "awslogs_stream_name": stream,
+                # If the user did not specify anything, the default settings are:
+                #   awslogs-group = /aws/batch/job
+                #   awslogs-region = `same as AWS Batch Job region`
+                "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
+                "awslogs_region": option.get("awslogs-region", self.conn_region_name),
+            })
         return result
 
     @staticmethod

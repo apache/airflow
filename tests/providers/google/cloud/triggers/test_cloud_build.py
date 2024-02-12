@@ -130,14 +130,12 @@ class TestCloudBuildCreateBuildTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
-            TriggerEvent(
-                {
-                    "instance": TEST_BUILD_INSTANCE,
-                    "id_": TEST_BUILD_ID,
-                    "status": "success",
-                    "message": "Build completed",
-                }
-            )
+            TriggerEvent({
+                "instance": TEST_BUILD_INSTANCE,
+                "id_": TEST_BUILD_ID,
+                "status": "success",
+                "message": "Build completed",
+            })
             == actual
         )
 

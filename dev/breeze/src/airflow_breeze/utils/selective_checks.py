@@ -106,161 +106,155 @@ class HashableDict(Dict[T, List[str]]):
         return hash(frozenset(self))
 
 
-CI_FILE_GROUP_MATCHES = HashableDict(
-    {
-        FileGroupForCi.ENVIRONMENT_FILES: [
-            r"^.github/workflows",
-            r"^dev/breeze",
-            r"^dev/.*\.py$",
-            r"^Dockerfile",
-            r"^scripts/ci/docker-compose",
-            r"^scripts/ci/kubernetes",
-            r"^scripts/docker",
-            r"^scripts/in_container",
-            r"^generated/provider_dependencies.json$",
-        ],
-        FileGroupForCi.PYTHON_PRODUCTION_FILES: [
-            r"^airflow/.*\.py",
-            r"^pyproject.toml",
-        ],
-        FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
-            r"^airflow/.*\.[jt]sx?",
-            r"^airflow/.*\.lock",
-        ],
-        FileGroupForCi.API_TEST_FILES: [
-            r"^airflow/api/",
-            r"^airflow/api_connexion/",
-        ],
-        FileGroupForCi.API_CODEGEN_FILES: [
-            r"^airflow/api_connexion/openapi/v1\.yaml",
-            r"^clients/gen",
-        ],
-        FileGroupForCi.HELM_FILES: [
-            r"^chart",
-            r"^airflow/kubernetes",
-            r"^tests/kubernetes",
-            r"^helm_tests",
-        ],
-        FileGroupForCi.DEPENDENCY_FILES: [
-            r"^generated/provider_dependencies.json$",
-        ],
-        FileGroupForCi.DOC_FILES: [
-            r"^docs",
-            r"^\.github/SECURITY\.rst$",
-            r"^airflow/.*\.py$",
-            r"^chart",
-            r"^providers",
-            r"^tests/system",
-            r"^CHANGELOG\.txt",
-            r"^airflow/config_templates/config\.yml",
-            r"^chart/RELEASE_NOTES\.txt",
-            r"^chart/values\.schema\.json",
-            r"^chart/values\.json",
-        ],
-        FileGroupForCi.WWW_FILES: [
-            r"^airflow/www/.*\.ts[x]?$",
-            r"^airflow/www/.*\.js[x]?$",
-            r"^airflow/www/[^/]+\.json$",
-            r"^airflow/www/.*\.lock$",
-        ],
-        FileGroupForCi.KUBERNETES_FILES: [
-            r"^chart",
-            r"^kubernetes_tests",
-            r"^airflow/providers/cncf/kubernetes/",
-            r"^tests/providers/cncf/kubernetes/",
-            r"^tests/system/providers/cncf/kubernetes/",
-        ],
-        FileGroupForCi.ALL_PYTHON_FILES: [
-            r".*\.py$",
-        ],
-        FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r".*\.py$",
-        ],
-        FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
-            r"^airflow/providers/.*\.py$",
-            r"^tests/providers/.*\.py$",
-            r"^tests/system/providers/.*\.py$",
-        ],
-        FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
-            r"^docs/.*\.py$",
-        ],
-        FileGroupForCi.ALL_DEV_PYTHON_FILES: [
-            r"^dev/.*\.py$",
-        ],
-        FileGroupForCi.ALL_SOURCE_FILES: [
-            r"^.pre-commit-config.yaml$",
-            r"^airflow",
-            r"^chart",
-            r"^tests",
-            r"^kubernetes_tests",
-        ],
-        FileGroupForCi.SYSTEM_TEST_FILES: [
-            r"^tests/system/",
-        ],
-        FileGroupForCi.ALWAYS_TESTS_FILES: [
-            r"^tests/always/",
-        ],
-        FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
-            r".*/provider\.yaml$",
-        ],
-    }
-)
+CI_FILE_GROUP_MATCHES = HashableDict({
+    FileGroupForCi.ENVIRONMENT_FILES: [
+        r"^.github/workflows",
+        r"^dev/breeze",
+        r"^dev/.*\.py$",
+        r"^Dockerfile",
+        r"^scripts/ci/docker-compose",
+        r"^scripts/ci/kubernetes",
+        r"^scripts/docker",
+        r"^scripts/in_container",
+        r"^generated/provider_dependencies.json$",
+    ],
+    FileGroupForCi.PYTHON_PRODUCTION_FILES: [
+        r"^airflow/.*\.py",
+        r"^pyproject.toml",
+    ],
+    FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
+        r"^airflow/.*\.[jt]sx?",
+        r"^airflow/.*\.lock",
+    ],
+    FileGroupForCi.API_TEST_FILES: [
+        r"^airflow/api/",
+        r"^airflow/api_connexion/",
+    ],
+    FileGroupForCi.API_CODEGEN_FILES: [
+        r"^airflow/api_connexion/openapi/v1\.yaml",
+        r"^clients/gen",
+    ],
+    FileGroupForCi.HELM_FILES: [
+        r"^chart",
+        r"^airflow/kubernetes",
+        r"^tests/kubernetes",
+        r"^helm_tests",
+    ],
+    FileGroupForCi.DEPENDENCY_FILES: [
+        r"^generated/provider_dependencies.json$",
+    ],
+    FileGroupForCi.DOC_FILES: [
+        r"^docs",
+        r"^\.github/SECURITY\.rst$",
+        r"^airflow/.*\.py$",
+        r"^chart",
+        r"^providers",
+        r"^tests/system",
+        r"^CHANGELOG\.txt",
+        r"^airflow/config_templates/config\.yml",
+        r"^chart/RELEASE_NOTES\.txt",
+        r"^chart/values\.schema\.json",
+        r"^chart/values\.json",
+    ],
+    FileGroupForCi.WWW_FILES: [
+        r"^airflow/www/.*\.ts[x]?$",
+        r"^airflow/www/.*\.js[x]?$",
+        r"^airflow/www/[^/]+\.json$",
+        r"^airflow/www/.*\.lock$",
+    ],
+    FileGroupForCi.KUBERNETES_FILES: [
+        r"^chart",
+        r"^kubernetes_tests",
+        r"^airflow/providers/cncf/kubernetes/",
+        r"^tests/providers/cncf/kubernetes/",
+        r"^tests/system/providers/cncf/kubernetes/",
+    ],
+    FileGroupForCi.ALL_PYTHON_FILES: [
+        r".*\.py$",
+    ],
+    FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
+        r".*\.py$",
+    ],
+    FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
+        r"^airflow/providers/.*\.py$",
+        r"^tests/providers/.*\.py$",
+        r"^tests/system/providers/.*\.py$",
+    ],
+    FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
+        r"^docs/.*\.py$",
+    ],
+    FileGroupForCi.ALL_DEV_PYTHON_FILES: [
+        r"^dev/.*\.py$",
+    ],
+    FileGroupForCi.ALL_SOURCE_FILES: [
+        r"^.pre-commit-config.yaml$",
+        r"^airflow",
+        r"^chart",
+        r"^tests",
+        r"^kubernetes_tests",
+    ],
+    FileGroupForCi.SYSTEM_TEST_FILES: [
+        r"^tests/system/",
+    ],
+    FileGroupForCi.ALWAYS_TESTS_FILES: [
+        r"^tests/always/",
+    ],
+    FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
+        r".*/provider\.yaml$",
+    ],
+})
 
-CI_FILE_GROUP_EXCLUDES = HashableDict(
-    {
-        FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
-            r"^.*/.*_vendor/.*",
-            r"^airflow/migrations/.*",
-            r"^airflow/providers/.*",
-            r"^dev/.*",
-            r"^docs/.*",
-            r"^provider_packages/.*",
-            r"^tests/providers/.*",
-            r"^tests/system/providers/.*",
-            r"^tests/dags/test_imports.py",
-        ]
-    }
-)
+CI_FILE_GROUP_EXCLUDES = HashableDict({
+    FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
+        r"^.*/.*_vendor/.*",
+        r"^airflow/migrations/.*",
+        r"^airflow/providers/.*",
+        r"^dev/.*",
+        r"^docs/.*",
+        r"^provider_packages/.*",
+        r"^tests/providers/.*",
+        r"^tests/system/providers/.*",
+        r"^tests/dags/test_imports.py",
+    ]
+})
 
 PYTHON_OPERATOR_FILES = [
     r"^airflow/operators/python.py",
     r"^tests/operators/test_python.py",
 ]
 
-TEST_TYPE_MATCHES = HashableDict(
-    {
-        SelectiveUnitTestTypes.API: [
-            r"^airflow/api/",
-            r"^airflow/api_connexion/",
-            r"^airflow/api_internal/",
-            r"^tests/api/",
-            r"^tests/api_connexion/",
-            r"^tests/api_internal/",
-        ],
-        SelectiveUnitTestTypes.CLI: [
-            r"^airflow/cli/",
-            r"^tests/cli/",
-        ],
-        SelectiveUnitTestTypes.OPERATORS: [
-            r"^airflow/operators/",
-            r"^tests/operators/",
-        ],
-        SelectiveUnitTestTypes.PROVIDERS: [
-            r"^airflow/providers/",
-            r"^tests/system/providers/",
-            r"^tests/providers/",
-        ],
-        SelectiveUnitTestTypes.SERIALIZATION: [
-            r"^airflow/serialization/",
-            r"^tests/serialization/",
-        ],
-        SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.EXTERNAL_PYTHON: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.EXTERNAL_BRANCH_PYTHON: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
-    }
-)
+TEST_TYPE_MATCHES = HashableDict({
+    SelectiveUnitTestTypes.API: [
+        r"^airflow/api/",
+        r"^airflow/api_connexion/",
+        r"^airflow/api_internal/",
+        r"^tests/api/",
+        r"^tests/api_connexion/",
+        r"^tests/api_internal/",
+    ],
+    SelectiveUnitTestTypes.CLI: [
+        r"^airflow/cli/",
+        r"^tests/cli/",
+    ],
+    SelectiveUnitTestTypes.OPERATORS: [
+        r"^airflow/operators/",
+        r"^tests/operators/",
+    ],
+    SelectiveUnitTestTypes.PROVIDERS: [
+        r"^airflow/providers/",
+        r"^tests/system/providers/",
+        r"^tests/providers/",
+    ],
+    SelectiveUnitTestTypes.SERIALIZATION: [
+        r"^airflow/serialization/",
+        r"^tests/serialization/",
+    ],
+    SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
+    SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
+    SelectiveUnitTestTypes.EXTERNAL_PYTHON: PYTHON_OPERATOR_FILES,
+    SelectiveUnitTestTypes.EXTERNAL_BRANCH_PYTHON: PYTHON_OPERATOR_FILES,
+    SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
+})
 
 TEST_TYPE_EXCLUDES = HashableDict({})
 
@@ -383,9 +377,9 @@ class SelectiveChecks:
         return hash(self.__important_attributes())
 
     def __eq__(self, other):
-        return isinstance(other, SelectiveChecks) and all(
-            [getattr(other, f) == getattr(self, f) for f in self.__HASHABLE_FIELDS]
-        )
+        return isinstance(other, SelectiveChecks) and all([
+            getattr(other, f) == getattr(self, f) for f in self.__HASHABLE_FIELDS
+        ])
 
     def __str__(self) -> str:
         from airflow_breeze.utils.github import get_ga_output
@@ -965,15 +959,13 @@ class SelectiveChecks:
         pre_commits_to_skip.update({"mypy-providers", "mypy-core", "mypy-docs", "mypy-dev"})
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
-            pre_commits_to_skip.update(
-                (
-                    "check-airflow-provider-compatibility",
-                    "check-extra-packages-references",
-                    "check-provider-yaml-valid",
-                    "lint-helm-chart",
-                    "validate-operators-init",
-                )
-            )
+            pre_commits_to_skip.update((
+                "check-airflow-provider-compatibility",
+                "check-extra-packages-references",
+                "check-provider-yaml-valid",
+                "lint-helm-chart",
+                "validate-operators-init",
+            ))
 
         if self.full_tests_needed:
             # when full tests are needed, we do not want to skip any checks and we should
@@ -1099,16 +1091,14 @@ class SelectiveChecks:
         they will just add arm in the runner name - because currently GitHub users use just
         one label "ubuntu-*" for all their work and depend on them being AMD ones.
         """
-        return any(
-            [
-                "amd" == label.lower()
-                or "amd64" == label.lower()
-                or "x64" == label.lower()
-                or "asf-runner" == label
-                or ("ubuntu" in label and "arm" not in label.lower())
-                for label in json.loads(self.runs_on)
-            ]
-        )
+        return any([
+            "amd" == label.lower()
+            or "amd64" == label.lower()
+            or "x64" == label.lower()
+            or "asf-runner" == label
+            or ("ubuntu" in label and "arm" not in label.lower())
+            for label in json.loads(self.runs_on)
+        ])
 
     @cached_property
     def is_arm_runner(self) -> bool:
@@ -1119,12 +1109,10 @@ class SelectiveChecks:
 
         # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
         """
-        return any(
-            [
-                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
-                for label in json.loads(self.runs_on)
-            ]
-        )
+        return any([
+            "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+            for label in json.loads(self.runs_on)
+        ])
 
     @cached_property
     def is_vm_runner(self) -> bool:
@@ -1152,13 +1140,11 @@ class SelectiveChecks:
     @cached_property
     def providers_compatibility_checks(self) -> str:
         """Provider compatibility input checks for the current run. Filter out python versions not built"""
-        return json.dumps(
-            [
-                check
-                for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
-                if check["python-version"] in self.python_versions
-            ]
-        )
+        return json.dumps([
+            check
+            for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+            if check["python-version"] in self.python_versions
+        ])
 
     @cached_property
     def is_committer_build(self):

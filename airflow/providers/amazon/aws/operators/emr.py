@@ -313,12 +313,10 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         if self.wait_for_completion:
             emr_hook.get_waiter("notebook_running").wait(
                 NotebookExecutionId=notebook_execution_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
+                WaiterConfig=prune_dict({
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }),
             )
 
             # The old Waiter method raised an exception if the notebook
@@ -405,12 +403,10 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         if self.wait_for_completion:
             emr_hook.get_waiter("notebook_stopped").wait(
                 NotebookExecutionId=self.notebook_execution_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
+                WaiterConfig=prune_dict({
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }),
             )
 
 
@@ -797,12 +793,10 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if self.wait_for_completion:
             self._emr_hook.get_waiter("job_flow_waiting").wait(
                 ClusterId=self._job_flow_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
+                WaiterConfig=prune_dict({
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }),
             )
         return self._job_flow_id
 

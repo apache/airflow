@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataproc triggers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -329,31 +330,25 @@ class DataprocOperationTrigger(DataprocBaseTrigger):
                             output_uri = match.group(0).decode("utf-8", "ignore")
                         else:
                             output_uri = gcs_uri_value
-                        yield TriggerEvent(
-                            {
-                                "status": status,
-                                "message": message,
-                                "output_uri": output_uri,
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": status,
+                            "message": message,
+                            "output_uri": output_uri,
+                        })
                     else:
-                        yield TriggerEvent(
-                            {
-                                "operation_name": operation.name,
-                                "operation_done": operation.done,
-                                "status": status,
-                                "message": message,
-                            }
-                        )
+                        yield TriggerEvent({
+                            "operation_name": operation.name,
+                            "operation_done": operation.done,
+                            "status": status,
+                            "message": message,
+                        })
                     return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)
         except Exception as e:
             self.log.exception("Exception occurred while checking operation status.")
-            yield TriggerEvent(
-                {
-                    "status": "failed",
-                    "message": str(e),
-                }
-            )
+            yield TriggerEvent({
+                "status": "failed",
+                "message": str(e),
+            })

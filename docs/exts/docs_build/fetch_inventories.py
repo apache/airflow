@@ -100,29 +100,23 @@ def fetch_inventories():
     to_download: list[tuple[str, str, str]] = []
 
     for pkg_name in get_available_providers_packages():
-        to_download.append(
-            (
-                pkg_name,
-                S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f"{CACHE_DIR}/{pkg_name}/objects.inv",
-            )
-        )
+        to_download.append((
+            pkg_name,
+            S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
+            f"{CACHE_DIR}/{pkg_name}/objects.inv",
+        ))
     for pkg_name in ["apache-airflow", "helm-chart"]:
-        to_download.append(
-            (
-                pkg_name,
-                S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
-                f"{CACHE_DIR}/{pkg_name}/objects.inv",
-            )
-        )
+        to_download.append((
+            pkg_name,
+            S3_DOC_URL_VERSIONED.format(package_name=pkg_name),
+            f"{CACHE_DIR}/{pkg_name}/objects.inv",
+        ))
     for pkg_name in ["apache-airflow-providers", "docker-stack"]:
-        to_download.append(
-            (
-                pkg_name,
-                S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
-                f"{CACHE_DIR}/{pkg_name}/objects.inv",
-            )
-        )
+        to_download.append((
+            pkg_name,
+            S3_DOC_URL_NON_VERSIONED.format(package_name=pkg_name),
+            f"{CACHE_DIR}/{pkg_name}/objects.inv",
+        ))
     to_download.extend(
         (
             pkg_name,

@@ -499,9 +499,9 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
         with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
             mapped = MyOperator.partial(
                 task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-            ).expand_kwargs(
-                [{"map_template": "{{ ds }}", "map_static": "{{ ds }}", "file_template": "/path/to/file.ext"}]
-            )
+            ).expand_kwargs([
+                {"map_template": "{{ ds }}", "map_static": "{{ ds }}", "file_template": "/path/to/file.ext"}
+            ])
 
         dr = dag_maker.create_dagrun()
 
@@ -1586,8 +1586,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:
@@ -1614,8 +1613,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:

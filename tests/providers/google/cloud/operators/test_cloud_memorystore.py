@@ -370,32 +370,30 @@ class TestCloudMemorystoreCreateInstanceAndImportOperatorOperator:
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         task.execute(mock.MagicMock())
-        mock_hook.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id=TEST_GCP_CONN_ID,
-                    impersonation_chain=TEST_IMPERSONATION_CHAIN,
-                ),
-                mock.call().create_instance(
-                    location=TEST_LOCATION,
-                    instance_id=TEST_INSTANCE_ID,
-                    instance=TEST_INSTANCE,
-                    project_id=TEST_PROJECT_ID,
-                    retry=TEST_RETRY,
-                    timeout=TEST_TIMEOUT,
-                    metadata=TEST_METADATA,
-                ),
-                mock.call().import_instance(
-                    input_config=TEST_INPUT_CONFIG,
-                    instance=TEST_INSTANCE_ID,
-                    location=TEST_LOCATION,
-                    metadata=TEST_METADATA,
-                    project_id=TEST_PROJECT_ID,
-                    retry=TEST_RETRY,
-                    timeout=TEST_TIMEOUT,
-                ),
-            ]
-        )
+        mock_hook.assert_has_calls([
+            mock.call(
+                gcp_conn_id=TEST_GCP_CONN_ID,
+                impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            ),
+            mock.call().create_instance(
+                location=TEST_LOCATION,
+                instance_id=TEST_INSTANCE_ID,
+                instance=TEST_INSTANCE,
+                project_id=TEST_PROJECT_ID,
+                retry=TEST_RETRY,
+                timeout=TEST_TIMEOUT,
+                metadata=TEST_METADATA,
+            ),
+            mock.call().import_instance(
+                input_config=TEST_INPUT_CONFIG,
+                instance=TEST_INSTANCE_ID,
+                location=TEST_LOCATION,
+                metadata=TEST_METADATA,
+                project_id=TEST_PROJECT_ID,
+                retry=TEST_RETRY,
+                timeout=TEST_TIMEOUT,
+            ),
+        ])
 
 
 class TestCloudMemorystoreMemcachedCreateInstanceOperator:

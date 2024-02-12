@@ -20,6 +20,7 @@ This module provides everything to search mail for a specific attachment and dow
 
 It uses the imaplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import email

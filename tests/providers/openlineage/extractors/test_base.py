@@ -240,9 +240,9 @@ def test_extractors_env_var():
 
 
 @mock.patch.dict(os.environ, {"OPENLINEAGE_EXTRACTORS": "no.such.extractor"})
-@conf_vars(
-    {("openlineage", "extractors"): "tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
-)
+@conf_vars({
+    ("openlineage", "extractors"): "tests.providers.openlineage.extractors.test_base.ExampleExtractor"
+})
 def test_config_has_precedence_over_env_var():
     extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
     assert extractor is ExampleExtractor

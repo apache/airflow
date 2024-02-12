@@ -157,15 +157,13 @@ class State:
             return "white"
         return "black"
 
-    finished: frozenset[TaskInstanceState] = frozenset(
-        [
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.FAILED,
-            TaskInstanceState.SKIPPED,
-            TaskInstanceState.UPSTREAM_FAILED,
-            TaskInstanceState.REMOVED,
-        ]
-    )
+    finished: frozenset[TaskInstanceState] = frozenset([
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.FAILED,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.REMOVED,
+    ])
     """
     A list of states indicating a task has reached a terminal state (i.e. it has "finished") and needs no
     further action.
@@ -175,33 +173,33 @@ class State:
     case, it is no longer running.
     """
 
-    unfinished: frozenset[TaskInstanceState | None] = frozenset(
-        [
-            None,
-            TaskInstanceState.SCHEDULED,
-            TaskInstanceState.QUEUED,
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.RESTARTING,
-            TaskInstanceState.UP_FOR_RETRY,
-            TaskInstanceState.UP_FOR_RESCHEDULE,
-            TaskInstanceState.DEFERRED,
-        ]
-    )
+    unfinished: frozenset[TaskInstanceState | None] = frozenset([
+        None,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.RESTARTING,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.DEFERRED,
+    ])
     """
     A list of states indicating that a task either has not completed
     a run or has not even started.
     """
 
-    failed_states: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
-    )
+    failed_states: frozenset[TaskInstanceState] = frozenset([
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UPSTREAM_FAILED,
+    ])
     """
     A list of states indicating that a task or dag is a failed state.
     """
 
-    success_states: frozenset[TaskInstanceState] = frozenset(
-        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
-    )
+    success_states: frozenset[TaskInstanceState] = frozenset([
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.SKIPPED,
+    ])
     """
     A list of states indicating that a task or dag is a success state.
     """
@@ -215,9 +213,11 @@ class State:
     :meta private:
     """
 
-    adoptable_states = frozenset(
-        [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
-    )
+    adoptable_states = frozenset([
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.RESTARTING,
+    ])
     """
     A list of states indicating that a task can be adopted or reset by a scheduler job
     if it was queued by another scheduler job that is not running anymore.

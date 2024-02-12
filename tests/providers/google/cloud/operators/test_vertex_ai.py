@@ -821,12 +821,10 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TabularDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value = MagicMock(
-            **{
-                "create_auto_ml_tabular_training_job.return_value": (None, "training_id"),
-                "get_credentials_and_project_id.return_value": ("creds", "project_id"),
-            }
-        )
+        mock_hook.return_value = MagicMock(**{
+            "create_auto_ml_tabular_training_job.return_value": (None, "training_id"),
+            "get_credentials_and_project_id.return_value": ("creds", "project_id"),
+        })
         op = CreateAutoMLTabularTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -1427,20 +1425,18 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
 
         result = op.execute_complete(context=mock_context, event=event)
 
-        mock_xcom_push.assert_has_calls(
-            [
-                call(mock_context, key="hyperparameter_tuning_job_id", value=test_job_id),
-                call(
-                    mock_context,
-                    key="training_conf",
-                    value={
-                        "training_conf_id": test_job_id,
-                        "region": GCP_LOCATION,
-                        "project_id": GCP_PROJECT,
-                    },
-                ),
-            ]
-        )
+        mock_xcom_push.assert_has_calls([
+            call(mock_context, key="hyperparameter_tuning_job_id", value=test_job_id),
+            call(
+                mock_context,
+                key="training_conf",
+                value={
+                    "training_conf_id": test_job_id,
+                    "region": GCP_LOCATION,
+                    "project_id": GCP_PROJECT,
+                },
+            ),
+        ])
         assert result == test_job
 
     def test_execute_complete_error(self):

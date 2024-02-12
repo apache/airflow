@@ -1994,12 +1994,10 @@ class TestTaskInstance:
         assert "test_email_alert" in body
         assert "Try 1" in body
 
-    @conf_vars(
-        {
-            ("email", "subject_template"): "/subject/path",
-            ("email", "html_content_template"): "/html_content/path",
-        }
-    )
+    @conf_vars({
+        ("email", "subject_template"): "/subject/path",
+        ("email", "html_content_template"): "/html_content/path",
+    })
     @patch("airflow.models.taskinstance.send_email")
     def test_email_alert_with_config(self, mock_send_email, dag_maker):
         with dag_maker(dag_id="test_failure_email"):

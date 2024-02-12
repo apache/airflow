@@ -16,6 +16,7 @@
 # under the License.
 
 """This module contains the Apache Livy Trigger."""
+
 from __future__ import annotations
 
 import asyncio
@@ -88,23 +89,19 @@ class LivyTrigger(BaseTrigger):
             if self._polling_interval > 0:
                 response = await self.poll_for_termination(self._batch_id)
                 yield TriggerEvent(response)
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "batch_id": self._batch_id,
-                    "response": f"Batch {self._batch_id} succeeded",
-                    "log_lines": None,
-                }
-            )
+            yield TriggerEvent({
+                "status": "success",
+                "batch_id": self._batch_id,
+                "response": f"Batch {self._batch_id} succeeded",
+                "log_lines": None,
+            })
         except Exception as exc:
-            yield TriggerEvent(
-                {
-                    "status": "error",
-                    "batch_id": self._batch_id,
-                    "response": f"Batch {self._batch_id} did not succeed with {exc}",
-                    "log_lines": None,
-                }
-            )
+            yield TriggerEvent({
+                "status": "error",
+                "batch_id": self._batch_id,
+                "response": f"Batch {self._batch_id} did not succeed with {exc}",
+                "log_lines": None,
+            })
 
     async def poll_for_termination(self, batch_id: int | str) -> dict[str, Any]:
         """

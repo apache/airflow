@@ -18,6 +18,7 @@
 """
 Example use of MySql related operators.
 """
+
 from __future__ import annotations
 
 import os

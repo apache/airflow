@@ -139,9 +139,9 @@ def mock_conn(request):
 
 
 class TestSessionFactory:
-    @conf_vars(
-        {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
-    )
+    @conf_vars({
+        ("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"
+    })
     def test_resolve_session_factory_class(self):
         cls = resolve_session_factory()
         assert issubclass(cls, CustomSessionFactory)
@@ -429,14 +429,12 @@ class TestAwsBaseHook:
 
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
-        with conf_vars(
-            {
-                ("aws_ecs_executor", "cluster"): "foo",
-                ("aws_ecs_executor", "region_name"): "us-east-1",
-                ("aws_ecs_executor", "container_name"): "bar",
-                ("aws_ecs_executor", "conn_id"): "fish",
-            }
-        ):
+        with conf_vars({
+            ("aws_ecs_executor", "cluster"): "foo",
+            ("aws_ecs_executor", "region_name"): "us-east-1",
+            ("aws_ecs_executor", "container_name"): "bar",
+            ("aws_ecs_executor", "conn_id"): "fish",
+        }):
             executor = AwsEcsExecutor()
 
         user_agent_dict = dict(tag.split("/") for tag in executor.ecs.meta.config.user_agent.split(" "))
@@ -501,28 +499,24 @@ class TestAwsBaseHook:
             mock_client.return_value.assume_role.side_effect = mock_assume_role
 
             AwsBaseHook(aws_conn_id=aws_conn_id, client_type="s3").get_client_type()
-            mocked_basic_session.assert_has_calls(
-                [
-                    mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
-                    mock.call()
-                    .client()
-                    .assume_role(
-                        RoleArn=role_arn,
-                        RoleSessionName=slugified_role_session_name,
-                    ),
-                ]
-            )
+            mocked_basic_session.assert_has_calls([
+                mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
+                mock.call()
+                .client()
+                .assume_role(
+                    RoleArn=role_arn,
+                    RoleSessionName=slugified_role_session_name,
+                ),
+            ])
 
     def test_get_credentials_from_gcp_credentials(self):
         mock_connection = Connection(
-            extra=json.dumps(
-                {
-                    "role_arn": "arn:aws:iam::123456:role/role_arn",
-                    "assume_role_method": "assume_role_with_web_identity",
-                    "assume_role_with_web_identity_federation": "google",
-                    "assume_role_with_web_identity_federation_audience": "aws-federation.airflow.apache.org",
-                }
-            )
+            extra=json.dumps({
+                "role_arn": "arn:aws:iam::123456:role/role_arn",
+                "assume_role_method": "assume_role_with_web_identity",
+                "assume_role_with_web_identity_federation": "google",
+                "assume_role_with_web_identity_federation_audience": "aws-federation.airflow.apache.org",
+            })
         )
         mock_connection.conn_type = "aws"
 
@@ -550,43 +544,37 @@ class TestAwsBaseHook:
                 mock_get_credentials.return_value.get_frozen_credentials.return_value == credentials_from_hook
             )
 
-        mock_boto3.assert_has_calls(
-            [
-                mock.call.session.Session(),
-                mock.call.session.Session()._session.__bool__(),
-                mock.call.session.Session(botocore_session=mock_session.get_session.return_value),
-                mock.call.session.Session().get_credentials(),
-                mock.call.session.Session().get_credentials().get_frozen_credentials(),
-            ]
-        )
+        mock_boto3.assert_has_calls([
+            mock.call.session.Session(),
+            mock.call.session.Session()._session.__bool__(),
+            mock.call.session.Session(botocore_session=mock_session.get_session.return_value),
+            mock.call.session.Session().get_credentials(),
+            mock.call.session.Session().get_credentials().get_frozen_credentials(),
+        ])
         mock_fetcher = mock_botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher
-        mock_botocore.assert_has_calls(
-            [
-                mock.call.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
-                    client_creator=mock_boto3.session.Session.return_value._session.create_client,
-                    extra_args={},
-                    role_arn="arn:aws:iam::123456:role/role_arn",
-                    web_identity_token_loader=mock.ANY,
-                ),
-                mock.call.credentials.DeferredRefreshableCredentials(
-                    method="assume-role-with-web-identity",
-                    refresh_using=mock_fetcher.return_value.fetch_credentials,
-                    time_fetcher=mock.ANY,
-                ),
-            ]
-        )
+        mock_botocore.assert_has_calls([
+            mock.call.credentials.AssumeRoleWithWebIdentityCredentialFetcher(
+                client_creator=mock_boto3.session.Session.return_value._session.create_client,
+                extra_args={},
+                role_arn="arn:aws:iam::123456:role/role_arn",
+                web_identity_token_loader=mock.ANY,
+            ),
+            mock.call.credentials.DeferredRefreshableCredentials(
+                method="assume-role-with-web-identity",
+                refresh_using=mock_fetcher.return_value.fetch_credentials,
+                time_fetcher=mock.ANY,
+            ),
+        ])
 
-        mock_session.assert_has_calls(
-            [
-                mock.call.get_session(),
-                mock.call.get_session().set_config_variable(
-                    "region", mock_boto3.session.Session.return_value.region_name
-                ),
-            ]
-        )
-        mock_id_token_credentials.assert_has_calls(
-            [mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")]
-        )
+        mock_session.assert_has_calls([
+            mock.call.get_session(),
+            mock.call.get_session().set_config_variable(
+                "region", mock_boto3.session.Session.return_value.region_name
+            ),
+        ])
+        mock_id_token_credentials.assert_has_calls([
+            mock.call.get_default_id_token_credentials(target_audience="aws-federation.airflow.apache.org")
+        ])
 
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.base_aws.botocore.credentials.AssumeRoleWithWebIdentityCredentialFetcher"
@@ -599,14 +587,12 @@ class TestAwsBaseHook:
             return_value=Connection(
                 conn_id="aws_default",
                 conn_type="aws",
-                extra=json.dumps(
-                    {
-                        "role_arn": "arn:aws:iam::123456:role/role_arn",
-                        "assume_role_method": "assume_role_with_web_identity",
-                        "assume_role_with_web_identity_token_file": "/my-token-path",
-                        "assume_role_with_web_identity_federation": "file",
-                    }
-                ),
+                extra=json.dumps({
+                    "role_arn": "arn:aws:iam::123456:role/role_arn",
+                    "assume_role_method": "assume_role_with_web_identity",
+                    "assume_role_with_web_identity_token_file": "/my-token-path",
+                    "assume_role_with_web_identity_federation": "file",
+                }),
             ),
         ):
             mock_open_ = mock_open(read_data="TOKEN")

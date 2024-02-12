@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery operators."""
+
 from __future__ import annotations
 
 import enum
@@ -1694,24 +1695,22 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
         super().__init__(**kwargs)
 
         # BQ config
-        kwargs_passed = any(
-            [
-                destination_project_dataset_table,
-                schema_fields,
-                source_format,
-                compression,
-                skip_leading_rows,
-                field_delimiter,
-                max_bad_records,
-                autodetect,
-                quote_character,
-                allow_quoted_newlines,
-                allow_jagged_rows,
-                src_fmt_configs,
-                labels,
-                encryption_configuration,
-            ]
-        )
+        kwargs_passed = any([
+            destination_project_dataset_table,
+            schema_fields,
+            source_format,
+            compression,
+            skip_leading_rows,
+            field_delimiter,
+            max_bad_records,
+            autodetect,
+            quote_character,
+            allow_quoted_newlines,
+            allow_jagged_rows,
+            src_fmt_configs,
+            labels,
+            encryption_configuration,
+        ])
 
         if not table_resource:
             warnings.warn(

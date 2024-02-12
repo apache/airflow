@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Mongo DB."""
+
 from __future__ import annotations
 
 import warnings
@@ -198,8 +199,7 @@ class MongoHook(BaseHook):
         mongo_db: str | None = None,
         projection: list | dict | None = None,
         **kwargs,
-    ) -> pymongo.cursor.Cursor:
-        ...
+    ) -> pymongo.cursor.Cursor: ...
 
     @overload
     def find(
@@ -210,8 +210,7 @@ class MongoHook(BaseHook):
         mongo_db: str | None = None,
         projection: list | dict | None = None,
         **kwargs,
-    ) -> Any | None:
-        ...
+    ) -> Any | None: ...
 
     def find(
         self,

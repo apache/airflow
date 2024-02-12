@@ -42,9 +42,9 @@ class TestOpenLineageProviderPlugin:
             ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"})], 0),
             (
                 [
-                    conf_vars(
-                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
-                    ),
+                    conf_vars({
+                        ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'
+                    }),
                     patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}),
                 ],
                 0,
@@ -52,12 +52,10 @@ class TestOpenLineageProviderPlugin:
             ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "false"})], 0),
             (
                 [
-                    conf_vars(
-                        {
-                            ("openlineage", "disabled"): "False",
-                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
-                        }
-                    )
+                    conf_vars({
+                        ("openlineage", "disabled"): "False",
+                        ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                    })
                 ],
                 1,
             ),
@@ -72,9 +70,9 @@ class TestOpenLineageProviderPlugin:
             ([patch.dict(os.environ, {"OPENLINEAGE_URL": "http://localhost:8080"})], 1),
             (
                 [
-                    conf_vars(
-                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
-                    )
+                    conf_vars({
+                        ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'
+                    })
                 ],
                 1,
             ),

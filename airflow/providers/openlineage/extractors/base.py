@@ -74,8 +74,7 @@ class BaseExtractor(ABC, LoggingMixin):
         assert self.operator.task_type in self.get_operator_classnames()
 
     @abstractmethod
-    def _execute_extraction(self) -> OperatorLineage | None:
-        ...
+    def _execute_extraction(self) -> OperatorLineage | None: ...
 
     def extract(self) -> OperatorLineage | None:
         fully_qualified_class_name = (

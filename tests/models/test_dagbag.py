@@ -874,25 +874,19 @@ class TestDagBag:
         dagbag.sync_to_db(session=mock_session)
 
         # Test that 3 attempts were made to run 'DAG.bulk_write_to_db' successfully
-        mock_bulk_write_to_db.assert_has_calls(
-            [
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-                mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
-            ]
-        )
+        mock_bulk_write_to_db.assert_has_calls([
+            mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
+            mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
+            mock.call(mock.ANY, processor_subdir=None, session=mock.ANY),
+        ])
         # Assert that rollback is called twice (i.e. whenever OperationalError occurs)
         mock_session.rollback.assert_has_calls([mock.call(), mock.call()])
         # Check that 'SerializedDagModel.write_dag' is also called
         # Only called once since the other two times the 'DAG.bulk_write_to_db' error'd
         # and the session was roll-backed before even reaching 'SerializedDagModel.write_dag'
-        mock_s10n_write_dag.assert_has_calls(
-            [
-                mock.call(
-                    mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session
-                ),
-            ]
-        )
+        mock_s10n_write_dag.assert_has_calls([
+            mock.call(mock_dag, min_update_interval=mock.ANY, processor_subdir=None, session=mock_session),
+        ])
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")

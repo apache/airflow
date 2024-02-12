@@ -41,6 +41,7 @@ This DAG relies on the following environment variables:
 * CBT_TABLE_ID - desired ID of the Table
 * CBT_POKE_INTERVAL - number of seconds between every attempt of Sensor check
 """
+
 from __future__ import annotations
 
 import os

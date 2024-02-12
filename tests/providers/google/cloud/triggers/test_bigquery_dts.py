@@ -85,14 +85,12 @@ class TestBigQueryDataTransferRunTrigger:
     @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
     async def test_run_returns_success_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.SUCCEEDED)
-        expected_event = TriggerEvent(
-            {
-                "run_id": RUN_ID,
-                "status": "success",
-                "message": "Job completed",
-                "config_id": CONFIG_ID,
-            }
-        )
+        expected_event = TriggerEvent({
+            "run_id": RUN_ID,
+            "status": "success",
+            "message": "Job completed",
+            "config_id": CONFIG_ID,
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -101,13 +99,11 @@ class TestBigQueryDataTransferRunTrigger:
     @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
     async def test_run_returns_failed_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.FAILED)
-        expected_event = TriggerEvent(
-            {
-                "status": "failed",
-                "run_id": RUN_ID,
-                "message": "Job has failed",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "failed",
+            "run_id": RUN_ID,
+            "message": "Job has failed",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -117,12 +113,10 @@ class TestBigQueryDataTransferRunTrigger:
     async def test_run_returns_exception_event(self, mock_hook, trigger):
         error_msg = "test error msg"
         mock_hook.side_effect = Exception(error_msg)
-        expected_event = TriggerEvent(
-            {
-                "status": "failed",
-                "message": f"Trigger failed with exception: {error_msg}",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "failed",
+            "message": f"Trigger failed with exception: {error_msg}",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -131,13 +125,11 @@ class TestBigQueryDataTransferRunTrigger:
     @mock.patch(f"{TRIGGER_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook.get_transfer_run")
     async def test_run_returns_cancelled_event(self, mock_hook, trigger):
         mock_hook.return_value = mock.MagicMock(state=TransferState.CANCELLED)
-        expected_event = TriggerEvent(
-            {
-                "status": "cancelled",
-                "run_id": RUN_ID,
-                "message": "Job was cancelled",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "cancelled",
+            "run_id": RUN_ID,
+            "message": "Job was cancelled",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event

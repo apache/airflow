@@ -336,18 +336,16 @@ class TestGoogleDriveHook:
 
         mock_ensure_folders_exists.assert_not_called()
         mock_resolve_file_path.assert_not_called()
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call()
-                .files()
-                .create(
-                    body={"name": "remote_path", "parents": ["root"]},
-                    fields="id",
-                    media_body=mock_media_file_upload.return_value,
-                    supportsAllDrives=True,
-                )
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call()
+            .files()
+            .create(
+                body={"name": "remote_path", "parents": ["root"]},
+                fields="id",
+                media_body=mock_media_file_upload.return_value,
+                supportsAllDrives=True,
+            )
+        ])
         assert return_value == "FILE_ID"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
@@ -366,18 +364,16 @@ class TestGoogleDriveHook:
         return_value = self.gdrive_hook.upload_file("local_path", "AA/BB/CC/remote_path")
 
         mock_ensure_folders_exists.assert_called_once_with(path="AA/BB/CC", folder_id="root")
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call()
-                .files()
-                .create(
-                    body={"name": "remote_path", "parents": ["PARENT_ID"]},
-                    fields="id",
-                    media_body=mock_media_file_upload.return_value,
-                    supportsAllDrives=True,
-                )
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call()
+            .files()
+            .create(
+                body={"name": "remote_path", "parents": ["PARENT_ID"]},
+                fields="id",
+                media_body=mock_media_file_upload.return_value,
+                supportsAllDrives=True,
+            )
+        ])
         assert return_value == "FILE_ID"
 
     @mock.patch("airflow.providers.google.suite.hooks.drive.MediaFileUpload")
@@ -397,16 +393,14 @@ class TestGoogleDriveHook:
         return_value = self.gdrive_hook.upload_file("/tmp/file.csv", "/file.csv", folder_id=folder_id)
 
         mock_ensure_folders_exists.assert_not_called()
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call()
-                .files()
-                .create(
-                    body={"name": "file.csv", "parents": [folder_id]},
-                    fields="id",
-                    media_body=mock_media_file_upload.return_value,
-                    supportsAllDrives=True,
-                )
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call()
+            .files()
+            .create(
+                body={"name": "file.csv", "parents": [folder_id]},
+                fields="id",
+                media_body=mock_media_file_upload.return_value,
+                supportsAllDrives=True,
+            )
+        ])
         assert return_value == file_id

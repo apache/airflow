@@ -43,8 +43,7 @@ ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
-def cli():
-    ...
+def cli(): ...
 
 
 option_verbose = click.option(

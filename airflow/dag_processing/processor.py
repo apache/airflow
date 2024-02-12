@@ -202,13 +202,11 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             if zipfile.is_zipfile(self.file_path):
                 try:
                     with zipfile.ZipFile(self.file_path) as z:
-                        zip_file_paths.extend(
-                            [
-                                os.path.join(self.file_path, info.filename)
-                                for info in z.infolist()
-                                if might_contain_dag(info.filename, True, z)
-                            ]
-                        )
+                        zip_file_paths.extend([
+                            os.path.join(self.file_path, info.filename)
+                            for info in z.infolist()
+                            if might_contain_dag(info.filename, True, z)
+                        ])
                 except zipfile.BadZipFile as err:
                     self.log.error("There was an err accessing %s, %s", self.file_path, err)
             if zip_file_paths:

@@ -55,8 +55,7 @@ EXCLUDED_CHANGES_FILE = "excluded-changes.txt"
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
-def cli():
-    ...
+def cli(): ...
 
 
 option_verbose = click.option(

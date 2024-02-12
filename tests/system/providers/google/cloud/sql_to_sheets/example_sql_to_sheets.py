@@ -58,6 +58,7 @@ You can delete the db with
 DROP DATABASE test_db;
 ```
 """
+
 from __future__ import annotations
 
 import json

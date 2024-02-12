@@ -19,6 +19,7 @@
 This is an example DAG which uses the KylinCubeOperator.
 The tasks below include kylin build, refresh, merge operation.
 """
+
 from __future__ import annotations
 
 import os

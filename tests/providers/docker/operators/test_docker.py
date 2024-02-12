@@ -373,87 +373,83 @@ class TestDockerOperator:
             )
             assert warning_message in caplog.messages
 
-        self.client_mock.create_container.assert_has_calls(
-            [
-                call(
-                    command="env",
-                    name="test_container",
-                    environment={
-                        "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
-                        "UNIT": "TEST",
-                        "PRIVATE": "MESSAGE",
-                        "ENV": "FILE",
-                        "VAR": "VALUE",
-                    },
-                    host_config=self.client_mock.create_host_config.return_value,
-                    image=TEST_IMAGE,
-                    user=None,
-                    entrypoint=["sh", "-c"],
-                    working_dir="/container/path",
-                    tty=True,
-                    hostname=None,
-                    ports=[],
-                ),
-                call(
-                    command="env",
-                    name="test_container",
-                    environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
-                    host_config=self.client_mock.create_host_config.return_value,
-                    image=TEST_IMAGE,
-                    user=None,
-                    entrypoint=["sh", "-c"],
-                    working_dir="/container/path",
-                    tty=True,
-                    hostname=None,
-                    ports=[],
-                ),
-            ]
-        )
-        self.client_mock.create_host_config.assert_has_calls(
-            [
-                call(
-                    mounts=[
-                        Mount(source="/host/path", target="/container/path", type="bind"),
-                        Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
-                    ],
-                    network_mode="bridge",
-                    shm_size=1000,
-                    cpu_shares=1024,
-                    mem_limit=None,
-                    auto_remove=False,
-                    dns=None,
-                    dns_search=None,
-                    cap_add=None,
-                    extra_hosts=None,
-                    privileged=False,
-                    device_requests=None,
-                    log_config=LogConfig(config={}),
-                    ipc_mode=None,
-                    port_bindings={},
-                    ulimits=[],
-                ),
-                call(
-                    mounts=[
-                        Mount(source="/host/path", target="/container/path", type="bind"),
-                    ],
-                    network_mode="bridge",
-                    shm_size=1000,
-                    cpu_shares=1024,
-                    mem_limit=None,
-                    auto_remove=False,
-                    dns=None,
-                    dns_search=None,
-                    cap_add=None,
-                    extra_hosts=None,
-                    privileged=False,
-                    device_requests=None,
-                    log_config=LogConfig(config={}),
-                    ipc_mode=None,
-                    port_bindings={},
-                    ulimits=[],
-                ),
-            ]
-        )
+        self.client_mock.create_container.assert_has_calls([
+            call(
+                command="env",
+                name="test_container",
+                environment={
+                    "AIRFLOW_TMP_DIR": TEST_AIRFLOW_TEMP_DIRECTORY,
+                    "UNIT": "TEST",
+                    "PRIVATE": "MESSAGE",
+                    "ENV": "FILE",
+                    "VAR": "VALUE",
+                },
+                host_config=self.client_mock.create_host_config.return_value,
+                image=TEST_IMAGE,
+                user=None,
+                entrypoint=["sh", "-c"],
+                working_dir="/container/path",
+                tty=True,
+                hostname=None,
+                ports=[],
+            ),
+            call(
+                command="env",
+                name="test_container",
+                environment={"UNIT": "TEST", "PRIVATE": "MESSAGE", "ENV": "FILE", "VAR": "VALUE"},
+                host_config=self.client_mock.create_host_config.return_value,
+                image=TEST_IMAGE,
+                user=None,
+                entrypoint=["sh", "-c"],
+                working_dir="/container/path",
+                tty=True,
+                hostname=None,
+                ports=[],
+            ),
+        ])
+        self.client_mock.create_host_config.assert_has_calls([
+            call(
+                mounts=[
+                    Mount(source="/host/path", target="/container/path", type="bind"),
+                    Mount(source="/mkdtemp", target=TEST_AIRFLOW_TEMP_DIRECTORY, type="bind"),
+                ],
+                network_mode="bridge",
+                shm_size=1000,
+                cpu_shares=1024,
+                mem_limit=None,
+                auto_remove=False,
+                dns=None,
+                dns_search=None,
+                cap_add=None,
+                extra_hosts=None,
+                privileged=False,
+                device_requests=None,
+                log_config=LogConfig(config={}),
+                ipc_mode=None,
+                port_bindings={},
+                ulimits=[],
+            ),
+            call(
+                mounts=[
+                    Mount(source="/host/path", target="/container/path", type="bind"),
+                ],
+                network_mode="bridge",
+                shm_size=1000,
+                cpu_shares=1024,
+                mem_limit=None,
+                auto_remove=False,
+                dns=None,
+                dns_search=None,
+                cap_add=None,
+                extra_hosts=None,
+                privileged=False,
+                device_requests=None,
+                log_config=LogConfig(config={}),
+                ipc_mode=None,
+                port_bindings={},
+                ulimits=[],
+            ),
+        ])
         self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
         self.client_mock.attach.assert_called_once_with(

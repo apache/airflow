@@ -186,13 +186,11 @@ class TestDbtCloudRunJobTrigger:
             account_id=self.ACCOUNT_ID,
         )
         task = [i async for i in trigger.run()]
-        response = TriggerEvent(
-            {
-                "status": "error",
-                "message": "Test exception",
-                "run_id": self.RUN_ID,
-            }
-        )
+        response = TriggerEvent({
+            "status": "error",
+            "message": "Test exception",
+            "run_id": self.RUN_ID,
+        })
         assert len(task) == 1
         assert response in task
 
@@ -213,14 +211,12 @@ class TestDbtCloudRunJobTrigger:
         )
         generator = trigger.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Job run {self.RUN_ID} has not reached a terminal status "
-                f"after {end_time} seconds.",
-                "run_id": self.RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "error",
+            "message": f"Job run {self.RUN_ID} has not reached a terminal status "
+            f"after {end_time} seconds.",
+            "run_id": self.RUN_ID,
+        })
         assert expected == actual
 
     @pytest.mark.asyncio

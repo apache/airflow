@@ -105,12 +105,10 @@ class TestHttpTrigger:
 
         generator = trigger.run()
         actual = await generator.asend(None)
-        assert actual == TriggerEvent(
-            {
-                "status": "success",
-                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-            }
-        )
+        assert actual == TriggerEvent({
+            "status": "success",
+            "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+        })
 
     @pytest.mark.asyncio
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))

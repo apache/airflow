@@ -515,90 +515,53 @@ class TestDag:
 
         REF_DATE = BASE_DATE
 
-        assert set([dr.run_id for dr in [dr1]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=7, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=9, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
-            ]
-        )  # stays constrained to available ones
+        assert set([dr.run_id for dr in [dr1]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr1, dr2, dr3]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=7, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=9, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr1, dr2, dr3, dr4, dr5, dr6, dr7, dr8]]) == set([
+            ti.run_id
+            for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+        ])  # stays constrained to available ones
 
         REF_DATE = BASE_DATE + timedelta(hours=-3.5)
 
-        assert set([dr.run_id for dr in [dr4]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=6, session=session)
-            ]
-        )  # stays constrained to available ones
+        assert set([dr.run_id for dr in [dr4]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr4, dr5, dr6]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=3, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=5, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr4, dr5, dr6, dr7, dr8]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=6, session=session)
+        ])  # stays constrained to available ones
 
         REF_DATE = BASE_DATE + timedelta(hours=-8)
 
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=0, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
-            ]
-        )
-        assert set([dr.run_id for dr in [dr8]]) == set(
-            [
-                ti.run_id
-                for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
-            ]
-        )
+        assert set([dr.run_id for dr in [dr8]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=0, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr8]]) == set([
+            ti.run_id for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=1, session=session)
+        ])
+        assert set([dr.run_id for dr in [dr8]]) == set([
+            ti.run_id
+            for ti in test_dag.get_task_instances_before(base_date=REF_DATE, num=10, session=session)
+        ])
 
         session.close()
 
@@ -2869,14 +2832,12 @@ class TestDagModel:
             pass
 
         session.flush()
-        session.add_all(
-            [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
-                DatasetDagRunQueue(
-                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
-                ),
-            ]
-        )
+        session.add_all([
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+            DatasetDagRunQueue(
+                dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+            ),
+        ])
         session.flush()
 
         query, dataset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
@@ -2926,8 +2887,7 @@ class TestDagDecorator:
 
     def test_fileloc(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -2938,8 +2898,7 @@ class TestDagDecorator:
         """Test that checks you can set dag_id from decorator."""
 
         @dag_decorator("test", default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -2949,8 +2908,7 @@ class TestDagDecorator:
         """Test that @dag uses function name as default dag id."""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -3006,8 +2964,7 @@ class TestDagDecorator:
         @dag_decorator(
             "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
         )
-        def markdown_docs():
-            ...
+        def markdown_docs(): ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
@@ -3103,8 +3060,7 @@ class TestDagDecorator:
     def test_warning_location(self):
         # NOTE: This only works as long as there is some warning we can emit from `DAG()`
         @dag_decorator(schedule_interval=None)
-        def mydag():
-            ...
+        def mydag(): ...
 
         with pytest.warns(RemovedInAirflow3Warning) as warnings:
             line = sys._getframe().f_lineno + 1
@@ -3572,12 +3528,10 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
 
     session = dag_maker.session
     ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-    session.bulk_save_objects(
-        [
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
-        ]
-    )
+    session.bulk_save_objects([
+        DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
+        DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+    ])
     session.flush()
 
     datasets = session.query(DatasetModel.uri).order_by(DatasetModel.id).all()
@@ -3982,16 +3936,13 @@ class TestTaskClearingSetupTeardownBehavior:
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
 
             @setup
-            def my_setup():
-                ...
+            def my_setup(): ...
 
             @task_decorator
-            def my_work():
-                ...
+            def my_work(): ...
 
             @teardown
-            def my_teardown():
-                ...
+            def my_teardown(): ...
 
             s1 = my_setup()
             w1 = my_work()

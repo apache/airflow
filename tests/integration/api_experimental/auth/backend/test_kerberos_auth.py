@@ -36,13 +36,11 @@ KRB5_KTNAME = os.environ.get("KRB5_KTNAME")
 
 @pytest.fixture(scope="module")
 def app_for_kerberos():
-    with conf_vars(
-        {
-            ("api", "auth_backends"): "airflow.api.auth.backend.kerberos_auth",
-            ("kerberos", "keytab"): KRB5_KTNAME,
-            ("api", "enable_experimental_api"): "true",
-        }
-    ):
+    with conf_vars({
+        ("api", "auth_backends"): "airflow.api.auth.backend.kerberos_auth",
+        ("kerberos", "keytab"): KRB5_KTNAME,
+        ("api", "enable_experimental_api"): "true",
+    }):
         yield app.create_app(testing=True)
 
 

@@ -263,12 +263,10 @@ key1 = true
             assert test_conf.getboolean(section, key) is False
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @conf_vars(
-        {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
-        }
-    )
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
     def test_config_from_secret_backend(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
         mock_client = mock.MagicMock()
@@ -333,12 +331,10 @@ sql_alchemy_conn = airflow
         assert test_conf.as_dict(display_sensitive=True, include_cmds=False)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @conf_vars(
-        {
-            ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
-            ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
-        }
-    )
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.hashicorp.secrets.vault.VaultBackend",
+        ("secrets", "backend_kwargs"): '{"url": "http://127.0.0.1:8200", "token": "token"}',
+    })
     def test_config_raise_exception_from_secret_backend_connection_error(self, mock_hvac):
         """Get Config Value from a Secret Backend"""
 
@@ -894,12 +890,10 @@ key7 =
     },
 )
 class TestDeprecatedConf:
-    @conf_vars(
-        {
-            ("celery", "worker_concurrency"): None,
-            ("celery", "celeryd_concurrency"): None,
-        }
-    )
+    @conf_vars({
+        ("celery", "worker_concurrency"): None,
+        ("celery", "celeryd_concurrency"): None,
+    })
     def test_deprecated_options(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -916,12 +910,10 @@ class TestDeprecatedConf:
             with pytest.warns(DeprecationWarning), conf_vars({("celery", "celeryd_concurrency"): "99"}):
                 assert conf.getint("celery", "worker_concurrency") == 99
 
-    @conf_vars(
-        {
-            ("logging", "logging_level"): None,
-            ("core", "logging_level"): None,
-        }
-    )
+    @conf_vars({
+        ("logging", "logging_level"): None,
+        ("core", "logging_level"): None,
+    })
     def test_deprecated_options_with_new_section(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
@@ -943,13 +935,11 @@ class TestDeprecatedConf:
             with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
                 assert conf.get("logging", "logging_level") == "VALUE"
 
-    @conf_vars(
-        {
-            ("celery", "result_backend"): None,
-            ("celery", "celery_result_backend"): None,
-            ("celery", "celery_result_backend_cmd"): None,
-        }
-    )
+    @conf_vars({
+        ("celery", "result_backend"): None,
+        ("celery", "celery_result_backend"): None,
+        ("celery", "celery_result_backend_cmd"): None,
+    })
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback

@@ -72,9 +72,7 @@ class CloudComposerExecutionTrigger(BaseTrigger):
             elif operation.error.message:
                 raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
             await asyncio.sleep(self.pooling_period_seconds)
-        yield TriggerEvent(
-            {
-                "operation_name": operation.name,
-                "operation_done": operation.done,
-            }
-        )
+        yield TriggerEvent({
+            "operation_name": operation.name,
+            "operation_done": operation.done,
+        })

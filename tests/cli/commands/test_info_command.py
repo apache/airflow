@@ -91,17 +91,15 @@ class TestAirflowInfo:
     def unique_items(items):
         return {i[0] for i in items}
 
-    @conf_vars(
-        {
-            ("core", "executor"): "TEST_EXECUTOR",
-            ("core", "dags_folder"): "TEST_DAGS_FOLDER",
-            ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
-            ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-            ("logging", "remote_logging"): "True",
-            ("logging", "remote_base_log_folder"): "s3://logs-name",
-        }
-    )
+    @conf_vars({
+        ("core", "executor"): "TEST_EXECUTOR",
+        ("core", "dags_folder"): "TEST_DAGS_FOLDER",
+        ("core", "plugins_folder"): "TEST_PLUGINS_FOLDER",
+        ("logging", "base_log_folder"): "TEST_LOG_FOLDER",
+        ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+        ("logging", "remote_logging"): "True",
+        ("logging", "remote_base_log_folder"): "s3://logs-name",
+    })
     def test_airflow_info(self):
         importlib.reload(airflow_local_settings)
         configure_logging()
@@ -144,11 +142,9 @@ class TestAirflowInfo:
         assert self.unique_items(instance._tools_info) == expected
 
     @pytest.mark.db_test
-    @conf_vars(
-        {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-        }
-    )
+    @conf_vars({
+        ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+    })
     def test_show_info(self):
         with contextlib.redirect_stdout(StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info"]))
@@ -158,11 +154,9 @@ class TestAirflowInfo:
         assert "postgresql+psycopg2://postgres:airflow@postgres/airflow" in output
 
     @pytest.mark.db_test
-    @conf_vars(
-        {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-        }
-    )
+    @conf_vars({
+        ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+    })
     def test_show_info_anonymize(self):
         with contextlib.redirect_stdout(StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
@@ -178,11 +172,9 @@ def setup_parser():
 
 
 class TestInfoCommandMockHttpx:
-    @conf_vars(
-        {
-            ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
-        }
-    )
+    @conf_vars({
+        ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
+    })
     def test_show_info_anonymize_fileio(self, setup_parser):
         with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
             post.return_value = httpx.Response(

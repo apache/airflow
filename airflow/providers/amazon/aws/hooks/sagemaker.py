@@ -577,9 +577,9 @@ class SageMakerHook(AwsBaseHook):
                     limit=instance_count,
                 )
                 stream_names = [s["logStreamName"] for s in streams["logStreams"]]
-                positions.update(
-                    [(s, Position(timestamp=0, skip=0)) for s in stream_names if s not in positions]
-                )
+                positions.update([
+                    (s, Position(timestamp=0, skip=0)) for s in stream_names if s not in positions
+                ])
             except logs_conn.exceptions.ResourceNotFoundException:
                 # On the very first training job run on an account, there's no log group until
                 # the container starts logging, so ignore any errors thrown about that
@@ -1283,9 +1283,9 @@ class SageMakerHook(AwsBaseHook):
         if compressed_input:
             input_data[0]["CompressionType"] = "Gzip"
         if time_limit:
-            params_dict.update(
-                {"AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": time_limit}}}
-            )
+            params_dict.update({
+                "AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": time_limit}}
+            })
         if autodeploy_endpoint_name:
             params_dict.update({"ModelDeployConfig": {"EndpointName": autodeploy_endpoint_name}})
         if extras:

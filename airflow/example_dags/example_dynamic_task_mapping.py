@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of dynamic task mapping."""
+
 from __future__ import annotations
 
 from datetime import datetime

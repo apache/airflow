@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
+
 from __future__ import annotations
 
 import re

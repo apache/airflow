@@ -19,6 +19,7 @@
 This module contains various unit tests for
 functions in CloudBuildHook
 """
+
 from __future__ import annotations
 
 from concurrent.futures import Future

@@ -48,15 +48,13 @@ class TestConnectionsFromSecrets:
         mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
         mock_meta_get.not_called()
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
-        }
-    )
+    @conf_vars({
+        (
+            "secrets",
+            "backend",
+        ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+    })
     def test_initialize_secrets_backends(self):
         backends = initialize_secrets_backends()
         backend_classes = [backend.__class__.__name__ for backend in backends]
@@ -64,15 +62,13 @@ class TestConnectionsFromSecrets:
         assert 3 == len(backends)
         assert "SystemsManagerParameterStoreBackend" in backend_classes
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"use_ssl": false}',
-        }
-    )
+    @conf_vars({
+        (
+            "secrets",
+            "backend",
+        ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        ("secrets", "backend_kwargs"): '{"use_ssl": false}',
+    })
     def test_backends_kwargs(self):
         backends = initialize_secrets_backends()
         systems_manager = next(
@@ -83,15 +79,13 @@ class TestConnectionsFromSecrets:
         assert systems_manager.kwargs == {}
         assert systems_manager.use_ssl is False
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
-        }
-    )
+    @conf_vars({
+        (
+            "secrets",
+            "backend",
+        ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
+    })
     @mock.patch.dict(
         "os.environ",
         {
@@ -161,15 +155,13 @@ class TestVariableFromSecrets:
         variable_value = Variable.get(key="test_var", default_var="new")
         assert "new" == variable_value
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
-            ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
-        }
-    )
+    @conf_vars({
+        (
+            "secrets",
+            "backend",
+        ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
+    })
     @mock.patch.dict(
         "os.environ",
         {

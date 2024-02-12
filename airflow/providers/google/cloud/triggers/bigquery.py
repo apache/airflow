@@ -95,13 +95,11 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
                 if job_status["status"] == "success":
-                    yield TriggerEvent(
-                        {
-                            "job_id": self.job_id,
-                            "status": job_status["status"],
-                            "message": job_status["message"],
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_id": self.job_id,
+                        "status": job_status["status"],
+                        "message": job_status["message"],
+                    })
                     return
                 elif job_status["status"] == "error":
                     yield TriggerEvent(job_status)
@@ -153,24 +151,20 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
 
                     # If empty list, then no records are available
                     if not records:
-                        yield TriggerEvent(
-                            {
-                                "status": job_status["status"],
-                                "message": job_status["message"],
-                                "records": None,
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                            "records": None,
+                        })
                         return
                     else:
                         # Extract only first record from the query results
                         first_record = records.pop(0)
-                        yield TriggerEvent(
-                            {
-                                "status": job_status["status"],
-                                "message": job_status["message"],
-                                "records": first_record,
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                            "records": first_record,
+                        })
                         return
                 elif job_status["status"] == "error":
                     yield TriggerEvent({"status": "error", "message": job_status["message"]})
@@ -227,13 +221,11 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
                     records = hook.get_records(query_results=query_results, as_dict=self.as_dict)
                     self.log.debug("Response from hook: %s", job_status["status"])
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": job_status["message"],
-                            "records": records,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "message": job_status["message"],
+                        "records": records,
+                    })
                     return
                 elif job_status["status"] == "error":
                     yield TriggerEvent(job_status)
@@ -387,14 +379,12 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                         self.ratio_formula,
                     )
 
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": "Job completed",
-                            "first_row_data": first_job_row,
-                            "second_row_data": second_job_row,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "message": "Job completed",
+                        "first_row_data": first_job_row,
+                        "second_row_data": second_job_row,
+                    })
                     return
                 elif (
                     first_job_response_from_hook["status"] == "pending"
@@ -404,9 +394,11 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
-                    yield TriggerEvent(
-                        {"status": "error", "message": second_job_response_from_hook["message"], "data": None}
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": second_job_response_from_hook["message"],
+                        "data": None,
+                    })
                     return
 
         except Exception as e:
@@ -504,9 +496,11 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
-                    yield TriggerEvent(
-                        {"status": "error", "message": response_from_hook["message"], "records": None}
-                    )
+                    yield TriggerEvent({
+                        "status": "error",
+                        "message": response_from_hook["message"],
+                        "records": None,
+                    })
                     return
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
@@ -666,12 +660,10 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                         hook=hook, job_id=job_id, project_id=self.project_id
                     )
                     if is_partition:
-                        yield TriggerEvent(
-                            {
-                                "status": "success",
-                                "message": f"Partition: {self.partition_id} in table: {self.table_id}",
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": "success",
+                            "message": f"Partition: {self.partition_id} in table: {self.table_id}",
+                        })
                         return
                     job_id = None
                 elif job_status["status"] == "error":

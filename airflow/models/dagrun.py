@@ -1228,8 +1228,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[True],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]:
-        ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[dict[str, Any]]]: ...
 
     @overload
     def _get_task_creator(
@@ -1237,8 +1236,7 @@ class DagRun(Base, LoggingMixin):
         created_counts: dict[str, int],
         ti_mutation_hook: Callable,
         hook_is_noop: Literal[False],
-    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]:
-        ...
+    ) -> Callable[[Operator, Iterable[int]], Iterator[TI]]: ...
 
     def _get_task_creator(
         self,

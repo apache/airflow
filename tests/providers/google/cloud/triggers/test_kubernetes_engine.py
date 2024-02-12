@@ -116,13 +116,11 @@ class TestGKEStartPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.TERMINATED
 
-        expected_event = TriggerEvent(
-            {
-                "pod_name": POD_NAME,
-                "namespace": NAMESPACE,
-                "status": "done",
-            }
-        )
+        expected_event = TriggerEvent({
+            "pod_name": POD_NAME,
+            "namespace": NAMESPACE,
+            "status": "done",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -142,13 +140,11 @@ class TestGKEStartPodTrigger:
         )
         mock_method.return_value = ContainerState.FAILED
 
-        expected_event = TriggerEvent(
-            {
-                "pod_name": POD_NAME,
-                "namespace": NAMESPACE,
-                "status": "done",
-            }
-        )
+        expected_event = TriggerEvent({
+            "pod_name": POD_NAME,
+            "namespace": NAMESPACE,
+            "status": "done",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -316,13 +312,11 @@ class TestGKEOperationTrigger:
             status=Operation.Status.DONE,
         )
 
-        expected_event = TriggerEvent(
-            {
-                "status": "success",
-                "message": "Operation is successfully ended.",
-                "operation_name": OPERATION_NAME,
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "success",
+            "message": "Operation is successfully ended.",
+            "operation_name": OPERATION_NAME,
+        })
         actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -340,12 +334,10 @@ class TestGKEOperationTrigger:
             status=Operation.Status.STATUS_UNSPECIFIED,
         )
 
-        expected_event = TriggerEvent(
-            {
-                "status": "failed",
-                "message": f"Operation has failed with status: {Operation.Status.STATUS_UNSPECIFIED}",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "failed",
+            "message": f"Operation has failed with status: {Operation.Status.STATUS_UNSPECIFIED}",
+        })
         actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -363,12 +355,10 @@ class TestGKEOperationTrigger:
             status=Operation.Status.ABORTING,
         )
 
-        expected_event = TriggerEvent(
-            {
-                "status": "failed",
-                "message": f"Operation has failed with status: {Operation.Status.ABORTING}",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "failed",
+            "message": f"Operation has failed with status: {Operation.Status.ABORTING}",
+        })
         actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -380,12 +370,10 @@ class TestGKEOperationTrigger:
     ):
         mock_hook.return_value.get_operation.side_effect = Exception(EXC_MSG)
 
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": EXC_MSG,
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": EXC_MSG,
+        })
         actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event

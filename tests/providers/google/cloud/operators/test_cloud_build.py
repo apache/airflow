@@ -18,6 +18,7 @@
 """
 This module contains various unit tests for GCP Cloud Build Operators
 """
+
 from __future__ import annotations
 
 import json

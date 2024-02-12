@@ -71,9 +71,14 @@ class TestCliConfigList:
 
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(
-                self.parser.parse_args(
-                    ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
-                )
+                self.parser.parse_args([
+                    "jobs",
+                    "check",
+                    "--job-type",
+                    "SchedulerJob",
+                    "--hostname",
+                    "HOSTNAME",
+                ])
             )
         assert "Found one alive job." in temp_stdout.getvalue()
 
@@ -93,9 +98,15 @@ class TestCliConfigList:
         try:
             with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 jobs_command.check(
-                    self.parser.parse_args(
-                        ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
-                    )
+                    self.parser.parse_args([
+                        "jobs",
+                        "check",
+                        "--job-type",
+                        "SchedulerJob",
+                        "--limit",
+                        "100",
+                        "--allow-multiple",
+                    ])
                 )
             assert "Found 3 alive jobs." in temp_stdout.getvalue()
         finally:
@@ -140,16 +151,14 @@ class TestCliConfigList:
 
         with pytest.raises(SystemExit, match=r"Found 3 alive jobs. Expected only one."):
             jobs_command.check(
-                self.parser.parse_args(
-                    [
-                        "jobs",
-                        "check",
-                        "--job-type",
-                        "SchedulerJob",
-                        "--limit",
-                        "100",
-                    ]
-                )
+                self.parser.parse_args([
+                    "jobs",
+                    "check",
+                    "--job-type",
+                    "SchedulerJob",
+                    "--limit",
+                    "100",
+                ])
             )
         for job_runner in job_runners:
             if job_runner.processor_agent:

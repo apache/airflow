@@ -39,9 +39,14 @@ class TestElastiCacheReplicationGroupHook:
         "CacheParameterGroupName": "default.redis5.0",
     }
 
-    VALID_STATES = frozenset(
-        {"creating", "available", "modifying", "deleting", "create - failed", "snapshotting"}
-    )
+    VALID_STATES = frozenset({
+        "creating",
+        "available",
+        "modifying",
+        "deleting",
+        "create - failed",
+        "snapshotting",
+    })
 
     def setup_method(self):
         self.hook = ElastiCacheReplicationGroupHook()

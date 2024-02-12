@@ -234,15 +234,13 @@ class AzureBatchOperator(BaseOperator):
                 "A batch_job_release_task cannot be specified without also "
                 " specifying a batch_job_preparation_task for the Job."
             )
-        if not all(
-            [
-                self.batch_pool_id,
-                self.batch_job_id,
-                self.batch_pool_vm_size,
-                self.batch_task_id,
-                self.batch_task_command_line,
-            ]
-        ):
+        if not all([
+            self.batch_pool_id,
+            self.batch_job_id,
+            self.batch_pool_vm_size,
+            self.batch_task_id,
+            self.batch_task_command_line,
+        ]):
             raise AirflowException(
                 "Some required parameters are missing.Please you must set all the required parameters. "
             )

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches Custom object."""
+
 from __future__ import annotations
 
 import time
@@ -57,13 +58,11 @@ class SparkJobSpec:
 
     def validate(self):
         if self.spec.get("dynamicAllocation", {}).get("enabled"):
-            if not all(
-                [
-                    self.spec["dynamicAllocation"]["initialExecutors"],
-                    self.spec["dynamicAllocation"]["minExecutors"],
-                    self.spec["dynamicAllocation"]["maxExecutors"],
-                ]
-            ):
+            if not all([
+                self.spec["dynamicAllocation"]["initialExecutors"],
+                self.spec["dynamicAllocation"]["minExecutors"],
+                self.spec["dynamicAllocation"]["maxExecutors"],
+            ]):
                 raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
 
     def update_resources(self):

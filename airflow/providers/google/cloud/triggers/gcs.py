@@ -272,9 +272,11 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
                     hook=hook, bucket_name=self.bucket, prefix=self.prefix
                 )
                 if len(res) > 0:
-                    yield TriggerEvent(
-                        {"status": "success", "message": "Successfully completed", "matches": res}
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "message": "Successfully completed",
+                        "matches": res,
+                    })
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:

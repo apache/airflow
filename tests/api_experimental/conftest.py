@@ -25,12 +25,10 @@ from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 @pytest.fixture(scope="session")
 def minimal_app_for_experimental_api():
-    with conf_vars(
-        {
-            ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
-            ("api", "enable_experimental_api"): "true",
-        }
-    ):
+    with conf_vars({
+        ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
+        ("api", "enable_experimental_api"): "true",
+    }):
 
         @dont_initialize_flask_app_submodules(
             skip_all_except=["init_appbuilder", "init_api_experimental", "init_api_experimental_auth"]

@@ -266,13 +266,11 @@ class TestLoggingSettings:
         from airflow.logging_config import configure_logging
         from airflow.utils.log.wasb_task_handler import WasbTaskHandler
 
-        with conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_log_conn_id"): "some_wasb",
-                ("logging", "remote_base_log_folder"): "wasb://some-folder",
-            }
-        ):
+        with conf_vars({
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_log_conn_id"): "some_wasb",
+            ("logging", "remote_base_log_folder"): "wasb://some-folder",
+        }):
             importlib.reload(airflow_local_settings)
             configure_logging()
 
@@ -303,13 +301,11 @@ class TestLoggingSettings:
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
 
-        with conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_log_conn_id"): "some_cloudwatch",
-                ("logging", "remote_base_log_folder"): remote_base_log_folder,
-            }
-        ):
+        with conf_vars({
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_log_conn_id"): "some_cloudwatch",
+            ("logging", "remote_base_log_folder"): remote_base_log_folder,
+        }):
             importlib.reload(airflow_local_settings)
             configure_logging()
             assert (
@@ -323,14 +319,12 @@ class TestLoggingSettings:
         from airflow.logging_config import configure_logging
         from airflow.utils.log.s3_task_handler import S3TaskHandler
 
-        with conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_log_conn_id"): "some_s3",
-                ("logging", "remote_base_log_folder"): "s3://some-folder",
-                ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true}',
-            }
-        ):
+        with conf_vars({
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_log_conn_id"): "some_s3",
+            ("logging", "remote_base_log_folder"): "s3://some-folder",
+            ("logging", "remote_task_handler_kwargs"): '{"delete_local_copy": true}',
+        }):
             importlib.reload(airflow_local_settings)
             configure_logging()
 

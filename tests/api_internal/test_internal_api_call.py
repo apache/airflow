@@ -44,31 +44,25 @@ def reset_init_api_config():
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestInternalApiConfig:
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "false",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "false",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     def test_get_use_internal_api_disabled(self):
         assert InternalApiConfig.get_use_internal_api() is False
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     def test_get_use_internal_api_enabled(self):
         assert InternalApiConfig.get_use_internal_api() is True
         assert InternalApiConfig.get_internal_api_endpoint() == "http://localhost:8888/internal_api/v1/rpcapi"
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     def test_force_database_direct_access(self):
         InternalApiConfig.force_database_direct_access()
         assert InternalApiConfig.get_use_internal_api() is False
@@ -99,12 +93,10 @@ class TestInternalApiCall:
     ) -> str:
         return f"local-classmethod-call-with-serialized-{ti.task_id}"
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "false",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "false",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_local_call(self, mock_requests):
         result = TestInternalApiCall.fake_method()
@@ -112,12 +104,10 @@ class TestInternalApiCall:
         assert result == "local-call"
         mock_requests.post.assert_not_called()
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_call(self, mock_requests):
         response = requests.Response()
@@ -129,25 +119,21 @@ class TestInternalApiCall:
 
         result = TestInternalApiCall.fake_method()
         assert result == "remote-call"
-        expected_data = json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall.fake_method",
-                "params": json.dumps(BaseSerialization.serialize({})),
-            }
-        )
+        expected_data = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall.fake_method",
+            "params": json.dumps(BaseSerialization.serialize({})),
+        })
         mock_requests.post.assert_called_once_with(
             url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_call_with_none_result(self, mock_requests):
         response = requests.Response()
@@ -159,12 +145,10 @@ class TestInternalApiCall:
         result = TestInternalApiCall.fake_method()
         assert result is None
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_call_with_params(self, mock_requests):
         response = requests.Response()
@@ -177,33 +161,27 @@ class TestInternalApiCall:
         result = TestInternalApiCall.fake_method_with_params("fake-dag", task_id=123, session="session")
 
         assert result == "remote-call"
-        expected_data = json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
-                "fake_method_with_params",
-                "params": json.dumps(
-                    BaseSerialization.serialize(
-                        {
-                            "dag_id": "fake-dag",
-                            "task_id": 123,
-                        }
-                    )
-                ),
-            }
-        )
+        expected_data = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+            "fake_method_with_params",
+            "params": json.dumps(
+                BaseSerialization.serialize({
+                    "dag_id": "fake-dag",
+                    "task_id": 123,
+                })
+            ),
+        })
         mock_requests.post.assert_called_once_with(
             url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_classmethod_call_with_params(self, mock_requests):
         response = requests.Response()
@@ -216,32 +194,26 @@ class TestInternalApiCall:
         result = TestInternalApiCall.fake_class_method_with_params("fake-dag", session="session")
 
         assert result == "remote-call"
-        expected_data = json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
-                "fake_class_method_with_params",
-                "params": json.dumps(
-                    BaseSerialization.serialize(
-                        {
-                            "dag_id": "fake-dag",
-                        }
-                    )
-                ),
-            }
-        )
+        expected_data = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+            "fake_class_method_with_params",
+            "params": json.dumps(
+                BaseSerialization.serialize({
+                    "dag_id": "fake-dag",
+                })
+            ),
+        })
         mock_requests.post.assert_called_once_with(
             url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
 
-    @conf_vars(
-        {
-            ("core", "database_access_isolation"): "true",
-            ("core", "internal_api_url"): "http://localhost:8888",
-        }
-    )
+    @conf_vars({
+        ("core", "database_access_isolation"): "true",
+        ("core", "internal_api_url"): "http://localhost:8888",
+    })
     @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_call_with_serialized_model(self, mock_requests):
         response = requests.Response()
@@ -255,17 +227,15 @@ class TestInternalApiCall:
         result = TestInternalApiCall.fake_class_method_with_serialized_params(ti, session="session")
 
         assert result == "remote-call"
-        expected_data = json.dumps(
-            {
-                "jsonrpc": "2.0",
-                "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
-                "fake_class_method_with_serialized_params",
-                "params": json.dumps(
-                    BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
-                    default=BaseSerialization.serialize,
-                ),
-            }
-        )
+        expected_data = json.dumps({
+            "jsonrpc": "2.0",
+            "method": "tests.api_internal.test_internal_api_call.TestInternalApiCall."
+            "fake_class_method_with_serialized_params",
+            "params": json.dumps(
+                BaseSerialization.serialize({"ti": ti}, use_pydantic_models=True),
+                default=BaseSerialization.serialize,
+            ),
+        })
         mock_requests.post.assert_called_once_with(
             url="http://localhost:8888/internal_api/v1/rpcapi",
             data=expected_data,

@@ -45,13 +45,11 @@ class TestProduceToTopic:
             Connection(
                 conn_id="kafka_default",
                 conn_type="kafka",
-                extra=json.dumps(
-                    {
-                        "socket.timeout.ms": 10,
-                        "message.timeout.ms": 10,
-                        "bootstrap.servers": "broker:29092",
-                    }
-                ),
+                extra=json.dumps({
+                    "socket.timeout.ms": 10,
+                    "message.timeout.ms": 10,
+                    "bootstrap.servers": "broker:29092",
+                }),
             )
         )
 

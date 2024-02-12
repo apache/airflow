@@ -109,12 +109,10 @@ class TestDebugExecutor:
 
         assert executor.fail_fast
         assert not executor.tasks_to_run
-        change_state_mock.assert_has_calls(
-            [
-                mock.call(ti1.key, State.FAILED, None),
-                mock.call(ti2.key, State.UPSTREAM_FAILED),
-            ]
-        )
+        change_state_mock.assert_has_calls([
+            mock.call(ti1.key, State.FAILED, None),
+            mock.call(ti2.key, State.UPSTREAM_FAILED),
+        ])
 
     def test_reschedule_mode(self):
         assert DebugExecutor.change_sensor_mode_to_reschedule
@@ -143,8 +141,6 @@ class TestDebugExecutor:
         executor.terminate()
         executor.sync()
 
-        change_state_mock.assert_has_calls(
-            [
-                mock.call(ti1.key, State.FAILED, None),
-            ]
-        )
+        change_state_mock.assert_has_calls([
+            mock.call(ti1.key, State.FAILED, None),
+        ])

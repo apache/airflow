@@ -428,15 +428,13 @@ class TestLocalFileBackend:
         assert "VAL_A" == backend.get_variable("KEY_A")
         assert backend.get_variable("KEY_B") is None
 
-    @conf_vars(
-        {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
-            ("secrets", "backend_kwargs"): '{"variables_file_path": "var.env"}',
-        }
-    )
+    @conf_vars({
+        (
+            "secrets",
+            "backend",
+        ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+        ("secrets", "backend_kwargs"): '{"variables_file_path": "var.env"}',
+    })
     def test_load_secret_backend_LocalFilesystemBackend(self):
         with mock_local_file("KEY_A=VAL_A"):
             backends = ensure_secrets_loaded()

@@ -48,14 +48,12 @@ def load_connections():
         Connection(
             conn_id="fizz_buzz_2",
             conn_type="kafka",
-            extra=json.dumps(
-                {
-                    "bootstrap.servers": "broker:29092",
-                    "group.id": "fizz_buzz",
-                    "enable.auto.commit": False,
-                    "auto.offset.reset": "beginning",
-                }
-            ),
+            extra=json.dumps({
+                "bootstrap.servers": "broker:29092",
+                "group.id": "fizz_buzz",
+                "enable.auto.commit": False,
+                "auto.offset.reset": "beginning",
+            }),
         )
     )
 

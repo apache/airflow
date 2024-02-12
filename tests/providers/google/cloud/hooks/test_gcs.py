@@ -761,14 +761,12 @@ class TestGCSHook:
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
             assert test_file == response.name
         download_filename_method.assert_called_once_with(test_file, timeout=60)
-        mock_temp_file.assert_has_calls(
-            [
-                mock.call(suffix="test_object", dir=None),
-                mock.call().__enter__(),
-                mock.call().__enter__().flush(),
-                mock.call().__exit__(None, None, None),
-            ]
-        )
+        mock_temp_file.assert_has_calls([
+            mock.call(suffix="test_object", dir=None),
+            mock.call().__enter__(),
+            mock.call().__enter__().flush(),
+            mock.call().__exit__(None, None, None),
+        ])
 
     @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
     @mock.patch(GCS_STRING.format("GCSHook.upload"))
@@ -789,15 +787,13 @@ class TestGCSHook:
         mock_upload.assert_called_once_with(
             bucket_name=test_bucket, object_name=test_object, filename=test_file, user_project=None
         )
-        mock_temp_file.assert_has_calls(
-            [
-                mock.call(suffix="test_object"),
-                mock.call().__enter__(),
-                mock.call().__enter__().write(),
-                mock.call().__enter__().flush(),
-                mock.call().__exit__(None, None, None),
-            ]
-        )
+        mock_temp_file.assert_has_calls([
+            mock.call(suffix="test_object"),
+            mock.call().__enter__(),
+            mock.call().__enter__().write(),
+            mock.call().__enter__().flush(),
+            mock.call().__exit__(None, None, None),
+        ])
 
     @pytest.mark.parametrize(
         "prefix, blob_names, returned_prefixes, call_args, result",
@@ -875,20 +871,18 @@ class TestGCSHook:
             prefix="prefix",
             match_glob="**/*.json",
         )
-        http_iterator.assert_has_calls(
-            [
-                mock.call(
-                    api_request=mocked_functools.partial.return_value,
-                    client=mock_service.return_value,
-                    extra_params={"prefix": "prefix", "matchGlob": "**/*.json"},
-                    item_to_value=_item_to_blob,
-                    max_results=None,
-                    page_start=_blobs_page_start,
-                    page_token=None,
-                    path=mock_service.return_value.bucket.return_value.path.__add__.return_value,
-                )
-            ]
-        )
+        http_iterator.assert_has_calls([
+            mock.call(
+                api_request=mocked_functools.partial.return_value,
+                client=mock_service.return_value,
+                extra_params={"prefix": "prefix", "matchGlob": "**/*.json"},
+                item_to_value=_item_to_blob,
+                max_results=None,
+                page_start=_blobs_page_start,
+                page_token=None,
+                path=mock_service.return_value.bucket.return_value.path.__add__.return_value,
+            )
+        ])
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_list__error_match_glob_and_invalid_delimiter(self, _):
@@ -1088,9 +1082,10 @@ class TestSyncGcsHook:
         destination_bucket.list_blobs.return_value = []
         mock_get_conn.return_value.bucket.side_effect = [source_bucket, destination_bucket]
         self.gcs_hook.sync(source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET")
-        mock_get_conn.return_value.bucket.assert_has_calls(
-            [mock.call("SOURCE_BUCKET"), mock.call("DEST_BUCKET")]
-        )
+        mock_get_conn.return_value.bucket.assert_has_calls([
+            mock.call("SOURCE_BUCKET"),
+            mock.call("DEST_BUCKET"),
+        ])
         source_bucket.list_blobs.assert_called_once_with(delimiter=None, prefix=None)
         destination_bucket.list_blobs.assert_called_once_with(delimiter=None, prefix=None)
         mock_delete.assert_not_called()

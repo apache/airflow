@@ -85,14 +85,12 @@ class TestGetDefaultIdTokenCredentials:
     @mock.patch(
         "airflow.providers.google.common.utils.id_token_credentials.open",
         mock.mock_open(
-            read_data=json.dumps(
-                {
-                    "client_id": "CLIENT_ID",
-                    "client_secret": "CLIENT_SECRET",
-                    "refresh_token": "REFRESH_TOKEN",
-                    "type": "authorized_user",
-                }
-            )
+            read_data=json.dumps({
+                "client_id": "CLIENT_ID",
+                "client_secret": "CLIENT_SECRET",
+                "refresh_token": "REFRESH_TOKEN",
+                "type": "authorized_user",
+            })
         ),
     )
     @mock.patch("google.auth._cloud_sdk.get_application_default_credentials_path", return_value=__file__)
@@ -108,20 +106,18 @@ class TestGetDefaultIdTokenCredentials:
     @mock.patch(
         "airflow.providers.google.common.utils.id_token_credentials.open",
         mock.mock_open(
-            read_data=json.dumps(
-                {
-                    "type": "service_account",
-                    "project_id": "PROJECT_ID",
-                    "private_key_id": "PRIVATE_KEY_ID",
-                    "private_key": "PRIVATE_KEY",
-                    "client_email": "CLIENT_EMAIL",
-                    "client_id": "CLIENT_ID",
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/CERT",
-                }
-            )
+            read_data=json.dumps({
+                "type": "service_account",
+                "project_id": "PROJECT_ID",
+                "private_key_id": "PRIVATE_KEY_ID",
+                "private_key": "PRIVATE_KEY",
+                "client_email": "CLIENT_EMAIL",
+                "client_id": "CLIENT_ID",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/CERT",
+            })
         ),
     )
     @mock.patch("google.auth._service_account_info.from_dict", return_value="SIGNER")
@@ -137,20 +133,18 @@ class TestGetDefaultIdTokenCredentials:
     @mock.patch(
         "airflow.providers.google.common.utils.id_token_credentials.open",
         mock.mock_open(
-            read_data=json.dumps(
-                {
-                    "type": "service_account",
-                    "project_id": "PROJECT_ID",
-                    "private_key_id": "PRIVATE_KEY_ID",
-                    "private_key": "PRIVATE_KEY",
-                    "client_email": "CLIENT_EMAIL",
-                    "client_id": "CLIENT_ID",
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/CERT",
-                }
-            )
+            read_data=json.dumps({
+                "type": "service_account",
+                "project_id": "PROJECT_ID",
+                "private_key_id": "PRIVATE_KEY_ID",
+                "private_key": "PRIVATE_KEY",
+                "client_email": "CLIENT_EMAIL",
+                "client_id": "CLIENT_ID",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/CERT",
+            })
         ),
     )
     @mock.patch("google.auth._service_account_info.from_dict", return_value="SIGNER")

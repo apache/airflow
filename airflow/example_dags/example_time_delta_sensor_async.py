@@ -19,6 +19,7 @@
 Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
 defers and doesn't occupy a worker slot while it waits
 """
+
 from __future__ import annotations
 
 import datetime

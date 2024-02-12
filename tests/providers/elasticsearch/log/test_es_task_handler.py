@@ -646,8 +646,7 @@ class TestElasticsearchTaskHandler:
 
 
 def test_safe_attrgetter():
-    class A:
-        ...
+    class A: ...
 
     a = A()
     a.b = "b"
@@ -669,12 +668,10 @@ def test_retrieve_config_keys():
     * constructor parameters missing from config are also added
     :return:
     """
-    with conf_vars(
-        {
-            ("elasticsearch_configs", "http_compress"): "False",
-            ("elasticsearch_configs", "timeout"): "10",
-        }
-    ):
+    with conf_vars({
+        ("elasticsearch_configs", "http_compress"): "False",
+        ("elasticsearch_configs", "timeout"): "10",
+    }):
         args_from_config = get_es_kwargs_from_config().keys()
         # verify_certs comes from default config value
         assert "verify_certs" in args_from_config
@@ -689,11 +686,9 @@ def test_retrieve_retry_on_timeout():
     """
     Test if retrieve timeout is converted to retry_on_timeout.
     """
-    with conf_vars(
-        {
-            ("elasticsearch_configs", "retry_timeout"): "True",
-        }
-    ):
+    with conf_vars({
+        ("elasticsearch_configs", "retry_timeout"): "True",
+    }):
         args_from_config = get_es_kwargs_from_config().keys()
         # verify_certs comes from default config value
         assert "retry_on_timeout" in args_from_config

@@ -37,12 +37,10 @@ jdbc_conn_mock = Mock(name="jdbc_conn")
 def get_hook(hook_params=None, conn_params=None):
     hook_params = hook_params or {}
     conn_params = conn_params or {}
-    connection = Connection(
-        **{
-            **dict(login="login", password="password", host="host", schema="schema", port=1234),
-            **conn_params,
-        }
-    )
+    connection = Connection(**{
+        **dict(login="login", password="password", host="host", schema="schema", port=1234),
+        **conn_params,
+    })
 
     hook = JdbcHook(**hook_params)
     hook.get_connection = Mock()
@@ -58,12 +56,10 @@ class TestJdbcHook:
                 conn_type="jdbc",
                 host="jdbc://localhost/",
                 port=443,
-                extra=json.dumps(
-                    {
-                        "driver_path": "/path1/test.jar,/path2/t.jar2",
-                        "driver_class": "com.driver.main",
-                    }
-                ),
+                extra=json.dumps({
+                    "driver_path": "/path1/test.jar,/path2/t.jar2",
+                    "driver_class": "com.driver.main",
+                }),
             )
         )
 

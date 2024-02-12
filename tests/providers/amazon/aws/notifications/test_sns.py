@@ -74,16 +74,14 @@ class TestSnsNotifier:
             region_name="{{ var_region }}",
         )
         with mock.patch("airflow.providers.amazon.aws.notifications.sns.SnsHook") as m:
-            notifier(
-                {
-                    "dag": dag,
-                    "var_username": "Robot",
-                    "var_region": "us-west-1",
-                    "var_account": "000000000000",
-                    "var_topic": "AwesomeTopic",
-                    "var_subject": "spam-egg",
-                }
-            )
+            notifier({
+                "dag": dag,
+                "var_username": "Robot",
+                "var_region": "us-west-1",
+                "var_account": "000000000000",
+                "var_topic": "AwesomeTopic",
+                "var_subject": "spam-egg",
+            })
             # Hook initialisation
             m.assert_called_once_with(aws_conn_id="test_sns_notifier_templated", region_name="us-west-1")
             # Publish message

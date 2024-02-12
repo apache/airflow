@@ -17,6 +17,7 @@
 """
 Tests for Google Cloud Firestore
 """
+
 from __future__ import annotations
 
 from unittest import mock
@@ -97,9 +98,9 @@ class TestCloudFirestoreHookWithPassedProjectId:
         )
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
-        execute_mock = mock.Mock(
-            **{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]}
-        )
+        execute_mock = mock.Mock(**{
+            "side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]
+        })
         mock_operation_get.return_value.execute = execute_mock
 
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
@@ -186,9 +187,9 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
         )
         (mock_export_documents.return_value.execute.return_value) = TEST_OPERATION
 
-        execute_mock = mock.Mock(
-            **{"side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]}
-        )
+        execute_mock = mock.Mock(**{
+            "side_effect": [TEST_WAITING_OPERATION, TEST_DONE_OPERATION, TEST_DONE_OPERATION]
+        })
         mock_operation_get.return_value.execute = execute_mock
 
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)

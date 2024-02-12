@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Dataflow Hook."""
+
 from __future__ import annotations
 
 import functools
@@ -517,9 +518,10 @@ class _DataflowJobsController(LoggingMixin):
                 )
                 tm = timeout(seconds=self._cancel_timeout, error_message=timeout_error_message)
                 with tm:
-                    self._wait_for_states(
-                        {DataflowJobStatus.JOB_STATE_CANCELLED, DataflowJobStatus.JOB_STATE_DRAINED}
-                    )
+                    self._wait_for_states({
+                        DataflowJobStatus.JOB_STATE_CANCELLED,
+                        DataflowJobStatus.JOB_STATE_DRAINED,
+                    })
         else:
             self.log.info("No jobs to cancel")
 
@@ -1277,14 +1279,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         project_id = project_id or (await self.get_project_id())
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
 
-        request = GetJobRequest(
-            {
-                "project_id": project_id,
-                "job_id": job_id,
-                "view": job_view,
-                "location": location,
-            }
-        )
+        request = GetJobRequest({
+            "project_id": project_id,
+            "job_id": job_id,
+            "view": job_view,
+            "location": location,
+        })
 
         job = await client.get_job(
             request=request,
@@ -1341,14 +1341,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         """
         project_id = project_id or (await self.get_project_id())
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
-        request: ListJobsRequest = ListJobsRequest(
-            {
-                "project_id": project_id,
-                "location": location,
-                "filter": jobs_filter,
-                "page_size": page_size,
-                "page_token": page_token,
-            }
-        )
+        request: ListJobsRequest = ListJobsRequest({
+            "project_id": project_id,
+            "location": location,
+            "filter": jobs_filter,
+            "page_size": page_size,
+            "page_token": page_token,
+        })
         page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
         return page_result

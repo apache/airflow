@@ -45,33 +45,29 @@ class TestPinotAdminHook:
     def test_add_schema(self, mock_run_cli):
         params = ["schema_file", False]
         self.db_hook.add_schema(*params)
-        mock_run_cli.assert_called_once_with(
-            [
-                "AddSchema",
-                "-controllerHost",
-                self.conn.host,
-                "-controllerPort",
-                self.conn.port,
-                "-schemaFile",
-                params[0],
-            ]
-        )
+        mock_run_cli.assert_called_once_with([
+            "AddSchema",
+            "-controllerHost",
+            self.conn.host,
+            "-controllerPort",
+            self.conn.port,
+            "-schemaFile",
+            params[0],
+        ])
 
     @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_add_table(self, mock_run_cli):
         params = ["config_file", False]
         self.db_hook.add_table(*params)
-        mock_run_cli.assert_called_once_with(
-            [
-                "AddTable",
-                "-controllerHost",
-                self.conn.host,
-                "-controllerPort",
-                self.conn.port,
-                "-filePath",
-                params[0],
-            ]
-        )
+        mock_run_cli.assert_called_once_with([
+            "AddTable",
+            "-controllerHost",
+            self.conn.host,
+            "-controllerPort",
+            self.conn.port,
+            "-filePath",
+            params[0],
+        ])
 
     @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_create_segment(self, mock_run_cli):
@@ -98,61 +94,57 @@ class TestPinotAdminHook:
 
         self.db_hook.create_segment(**params)
 
-        mock_run_cli.assert_called_once_with(
-            [
-                "CreateSegment",
-                "-generatorConfigFile",
-                params["generator_config_file"],
-                "-dataDir",
-                params["data_dir"],
-                "-format",
-                params["segment_format"],
-                "-outDir",
-                params["out_dir"],
-                "-overwrite",
-                params["overwrite"],
-                "-tableName",
-                params["table_name"],
-                "-segmentName",
-                params["segment_name"],
-                "-timeColumnName",
-                params["time_column_name"],
-                "-schemaFile",
-                params["schema_file"],
-                "-readerConfigFile",
-                params["reader_config_file"],
-                "-starTreeIndexSpecFile",
-                params["star_tree_index_spec_file"],
-                "-hllSize",
-                params["hll_size"],
-                "-hllColumns",
-                params["hll_columns"],
-                "-hllSuffix",
-                params["hll_suffix"],
-                "-numThreads",
-                params["num_threads"],
-                "-postCreationVerification",
-                params["post_creation_verification"],
-                "-retry",
-                params["retry"],
-            ]
-        )
+        mock_run_cli.assert_called_once_with([
+            "CreateSegment",
+            "-generatorConfigFile",
+            params["generator_config_file"],
+            "-dataDir",
+            params["data_dir"],
+            "-format",
+            params["segment_format"],
+            "-outDir",
+            params["out_dir"],
+            "-overwrite",
+            params["overwrite"],
+            "-tableName",
+            params["table_name"],
+            "-segmentName",
+            params["segment_name"],
+            "-timeColumnName",
+            params["time_column_name"],
+            "-schemaFile",
+            params["schema_file"],
+            "-readerConfigFile",
+            params["reader_config_file"],
+            "-starTreeIndexSpecFile",
+            params["star_tree_index_spec_file"],
+            "-hllSize",
+            params["hll_size"],
+            "-hllColumns",
+            params["hll_columns"],
+            "-hllSuffix",
+            params["hll_suffix"],
+            "-numThreads",
+            params["num_threads"],
+            "-postCreationVerification",
+            params["post_creation_verification"],
+            "-retry",
+            params["retry"],
+        ])
 
     @mock.patch("airflow.providers.apache.pinot.hooks.pinot.PinotAdminHook.run_cli")
     def test_upload_segment(self, mock_run_cli):
         params = ["segment_dir", False]
         self.db_hook.upload_segment(*params)
-        mock_run_cli.assert_called_once_with(
-            [
-                "UploadSegment",
-                "-controllerHost",
-                self.conn.host,
-                "-controllerPort",
-                self.conn.port,
-                "-segmentDir",
-                params[0],
-            ]
-        )
+        mock_run_cli.assert_called_once_with([
+            "UploadSegment",
+            "-controllerHost",
+            self.conn.host,
+            "-controllerPort",
+            self.conn.port,
+            "-segmentDir",
+            params[0],
+        ])
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_success(self, mock_popen):

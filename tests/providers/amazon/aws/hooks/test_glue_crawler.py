@@ -229,10 +229,8 @@ class TestGlueCrawlerHook:
             ]
         }
         assert self.hook.wait_for_crawler_completion(mock_crawler_name) == "MOCK_STATUS"
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call(),
-                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
-            ]
-        )
+        mock_get_conn.assert_has_calls([
+            mock.call(),
+            mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
+        ])
         mock_get_crawler.assert_called_once_with(mock_crawler_name)

@@ -281,9 +281,14 @@ class TestCliDb:
 
     def test_check(self):
         retry, retry_delay = 6, 9  # arbitrary but distinct number
-        args = self.parser.parse_args(
-            ["db", "check", "--retry", str(retry), "--retry-delay", str(retry_delay)]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "check",
+            "--retry",
+            str(retry),
+            "--retry-delay",
+            str(retry_delay),
+        ])
         sleep = MagicMock()
         always_pass = Mock()
         always_fail = Mock(side_effect=OperationalError("", None, None))
@@ -352,15 +357,13 @@ class TestCLIDBClean:
         """
         When ``-y`` provided, ``confirm`` should be false.
         """
-        args = self.parser.parse_args(
-            [
-                "db",
-                "clean",
-                "--clean-before-timestamp",
-                "2021-01-01",
-                *confirm_arg,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "clean",
+            "--clean-before-timestamp",
+            "2021-01-01",
+            *confirm_arg,
+        ])
         db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -378,15 +381,13 @@ class TestCLIDBClean:
         """
         When ``--skip-archive`` provided, ``skip_archive`` should be True (False otherwise).
         """
-        args = self.parser.parse_args(
-            [
-                "db",
-                "clean",
-                "--clean-before-timestamp",
-                "2021-01-01",
-                *extra_arg,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "clean",
+            "--clean-before-timestamp",
+            "2021-01-01",
+            *extra_arg,
+        ])
         db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -404,15 +405,13 @@ class TestCLIDBClean:
         """
         When tz included in the string then default timezone should not be used.
         """
-        args = self.parser.parse_args(
-            [
-                "db",
-                "clean",
-                "--clean-before-timestamp",
-                "2021-01-01",
-                *dry_run_arg,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "clean",
+            "--clean-before-timestamp",
+            "2021-01-01",
+            *dry_run_arg,
+        ])
         db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -432,15 +431,13 @@ class TestCLIDBClean:
         """
         When tz included in the string then default timezone should not be used.
         """
-        args = self.parser.parse_args(
-            [
-                "db",
-                "clean",
-                "--clean-before-timestamp",
-                "2021-01-01",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "clean",
+            "--clean-before-timestamp",
+            "2021-01-01",
+            *extra_args,
+        ])
         db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -458,15 +455,13 @@ class TestCLIDBClean:
         """
         When tz included in the string then default timezone should not be used.
         """
-        args = self.parser.parse_args(
-            [
-                "db",
-                "clean",
-                "--clean-before-timestamp",
-                "2021-01-01",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "clean",
+            "--clean-before-timestamp",
+            "2021-01-01",
+            *extra_args,
+        ])
         db_command.cleanup_tables(args)
 
         run_cleanup_mock.assert_called_once_with(
@@ -481,14 +476,12 @@ class TestCLIDBClean:
     @patch("airflow.cli.commands.db_command.export_archived_records")
     @patch("airflow.cli.commands.db_command.os.path.isdir", return_value=True)
     def test_export_archived_records(self, os_mock, export_archived_mock):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "export-archived",
-                "--output-path",
-                "path",
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "export-archived",
+            "--output-path",
+            "path",
+        ])
         db_command.export_archived(args)
 
         export_archived_mock.assert_called_once_with(
@@ -503,15 +496,13 @@ class TestCLIDBClean:
     def test_tables_in_export_archived_records_command(
         self, os_mock, export_archived_mock, extra_args, expected
     ):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "export-archived",
-                "--output-path",
-                "path",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "export-archived",
+            "--output-path",
+            "path",
+            *extra_args,
+        ])
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
             export_format="csv",
@@ -527,15 +518,13 @@ class TestCLIDBClean:
     def test_drop_archives_in_export_archived_records_command(
         self, os_mock, export_archived_mock, extra_args, expected
     ):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "export-archived",
-                "--output-path",
-                "path",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "export-archived",
+            "--output-path",
+            "path",
+            *extra_args,
+        ])
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
             export_format="csv",
@@ -550,25 +539,21 @@ class TestCLIDBClean:
     )
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_tables_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "drop-archived",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "drop-archived",
+            *extra_args,
+        ])
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=expected, needs_confirm=True)
 
     @pytest.mark.parametrize("extra_args, expected", [(["-y"], False), ([], True)])
     @patch("airflow.cli.commands.db_command.drop_archived_tables")
     def test_confirm_in_drop_archived_records_command(self, mock_drop_archived_records, extra_args, expected):
-        args = self.parser.parse_args(
-            [
-                "db",
-                "drop-archived",
-                *extra_args,
-            ]
-        )
+        args = self.parser.parse_args([
+            "db",
+            "drop-archived",
+            *extra_args,
+        ])
         db_command.drop_archived(args)
         mock_drop_archived_records.assert_called_once_with(table_names=None, needs_confirm=expected)

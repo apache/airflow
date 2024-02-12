@@ -216,14 +216,12 @@ class TestAzureDataFactoryTrigger:
         )
         generator = trigger.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "success",
-                "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
-                f"{AzureDataFactoryPipelineRunStatus.SUCCEEDED} status.",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "success",
+            "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
+            f"{AzureDataFactoryPipelineRunStatus.SUCCEEDED} status.",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
         assert actual == expected
 
     @pytest.mark.asyncio
@@ -273,14 +271,12 @@ class TestAzureDataFactoryTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "success",
-                "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
-                f"{AzureDataFactoryPipelineRunStatus.SUCCEEDED}.",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "success",
+            "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
+            f"{AzureDataFactoryPipelineRunStatus.SUCCEEDED}.",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
         assert expected == actual
 
     @pytest.mark.asyncio
@@ -291,14 +287,12 @@ class TestAzureDataFactoryTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
-                f"{AzureDataFactoryPipelineRunStatus.FAILED}.",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "error",
+            "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
+            f"{AzureDataFactoryPipelineRunStatus.FAILED}.",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
         assert expected == actual
 
     @pytest.mark.asyncio
@@ -309,14 +303,12 @@ class TestAzureDataFactoryTrigger:
 
         generator = self.TRIGGER.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
-                f"{AzureDataFactoryPipelineRunStatus.CANCELLED}.",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "error",
+            "message": f"The pipeline run {AZ_PIPELINE_RUN_ID} has "
+            f"{AzureDataFactoryPipelineRunStatus.CANCELLED}.",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
         assert expected == actual
 
     @pytest.mark.asyncio
@@ -329,13 +321,11 @@ class TestAzureDataFactoryTrigger:
         mock_pipeline_run_status.side_effect = Exception("Test exception")
 
         task = [i async for i in self.TRIGGER.run()]
-        response = TriggerEvent(
-            {
-                "status": "error",
-                "message": "Test exception",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        response = TriggerEvent({
+            "status": "error",
+            "message": "Test exception",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
         assert len(task) == 1
         assert response in task
         mock_cancel_pipeline_run.assert_called_once()
@@ -354,13 +344,11 @@ class TestAzureDataFactoryTrigger:
         )
         generator = trigger.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Timeout: The pipeline run {AZ_PIPELINE_RUN_ID} "
-                f"has {AzureDataFactoryPipelineRunStatus.QUEUED}.",
-                "run_id": AZ_PIPELINE_RUN_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "error",
+            "message": f"Timeout: The pipeline run {AZ_PIPELINE_RUN_ID} "
+            f"has {AzureDataFactoryPipelineRunStatus.QUEUED}.",
+            "run_id": AZ_PIPELINE_RUN_ID,
+        })
 
         assert expected == actual

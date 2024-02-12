@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

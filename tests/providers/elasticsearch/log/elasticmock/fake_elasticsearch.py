@@ -210,16 +210,14 @@ class FakeElasticsearch(Elasticsearch):
 
         version = 1
 
-        self.__documents_dict[index].append(
-            {
-                "_type": doc_type,
-                "_id": id,
-                "_source": body,
-                "_index": index,
-                "_version": version,
-                "_headers": headers,
-            }
-        )
+        self.__documents_dict[index].append({
+            "_type": doc_type,
+            "_id": id,
+            "_source": body,
+            "_index": index,
+            "_version": version,
+            "_headers": headers,
+        })
 
         return {
             "_type": doc_type,

@@ -52,26 +52,24 @@ class MyEnum(str, Enum):
 
 @pytest.fixture
 def logger(caplog):
-    logging.config.dictConfig(
-        {
-            "version": 1,
-            "handlers": {
-                __name__: {
-                    # Reset later
-                    "class": "logging.StreamHandler",
-                    "stream": "ext://sys.stdout",
-                }
-            },
-            "loggers": {
-                __name__: {
-                    "handlers": [__name__],
-                    "level": logging.INFO,
-                    "propagate": False,
-                }
-            },
-            "disable_existing_loggers": False,
-        }
-    )
+    logging.config.dictConfig({
+        "version": 1,
+        "handlers": {
+            __name__: {
+                # Reset later
+                "class": "logging.StreamHandler",
+                "stream": "ext://sys.stdout",
+            }
+        },
+        "loggers": {
+            __name__: {
+                "handlers": [__name__],
+                "level": logging.INFO,
+                "propagate": False,
+            }
+        },
+        "disable_existing_loggers": False,
+    })
     formatter = ShortExcFormatter("%(levelname)s %(message)s")
     logger = logging.getLogger(__name__)
 

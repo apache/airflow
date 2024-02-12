@@ -23,6 +23,7 @@ This module contains a Google Pub/Sub Hook.
     MessageStoragePolicy
     ReceivedMessage
 """
+
 from __future__ import annotations
 
 import warnings

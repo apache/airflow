@@ -595,48 +595,46 @@ class TestBigQueryOperator:
         )
 
         operator.execute(MagicMock())
-        mock_hook.return_value.run_query.assert_has_calls(
-            [
-                mock.call(
-                    sql="Select * from test_table",
-                    destination_dataset_table=None,
-                    write_disposition="WRITE_EMPTY",
-                    allow_large_results=False,
-                    flatten_results=None,
-                    udf_config=None,
-                    maximum_billing_tier=None,
-                    maximum_bytes_billed=None,
-                    create_disposition="CREATE_IF_NEEDED",
-                    schema_update_options=(),
-                    query_params=None,
-                    labels=None,
-                    priority="INTERACTIVE",
-                    time_partitioning=None,
-                    api_resource_configs=None,
-                    cluster_fields=None,
-                    encryption_configuration=None,
-                ),
-                mock.call(
-                    sql="Select * from other_test_table",
-                    destination_dataset_table=None,
-                    write_disposition="WRITE_EMPTY",
-                    allow_large_results=False,
-                    flatten_results=None,
-                    udf_config=None,
-                    maximum_billing_tier=None,
-                    maximum_bytes_billed=None,
-                    create_disposition="CREATE_IF_NEEDED",
-                    schema_update_options=(),
-                    query_params=None,
-                    labels=None,
-                    priority="INTERACTIVE",
-                    time_partitioning=None,
-                    api_resource_configs=None,
-                    cluster_fields=None,
-                    encryption_configuration=None,
-                ),
-            ]
-        )
+        mock_hook.return_value.run_query.assert_has_calls([
+            mock.call(
+                sql="Select * from test_table",
+                destination_dataset_table=None,
+                write_disposition="WRITE_EMPTY",
+                allow_large_results=False,
+                flatten_results=None,
+                udf_config=None,
+                maximum_billing_tier=None,
+                maximum_bytes_billed=None,
+                create_disposition="CREATE_IF_NEEDED",
+                schema_update_options=(),
+                query_params=None,
+                labels=None,
+                priority="INTERACTIVE",
+                time_partitioning=None,
+                api_resource_configs=None,
+                cluster_fields=None,
+                encryption_configuration=None,
+            ),
+            mock.call(
+                sql="Select * from other_test_table",
+                destination_dataset_table=None,
+                write_disposition="WRITE_EMPTY",
+                allow_large_results=False,
+                flatten_results=None,
+                udf_config=None,
+                maximum_billing_tier=None,
+                maximum_bytes_billed=None,
+                create_disposition="CREATE_IF_NEEDED",
+                schema_update_options=(),
+                query_params=None,
+                labels=None,
+                priority="INTERACTIVE",
+                time_partitioning=None,
+                api_resource_configs=None,
+                cluster_fields=None,
+                encryption_configuration=None,
+            ),
+        ])
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_bad_type(self, mock_hook):
@@ -2149,9 +2147,11 @@ class TestBigQueryColumnCheckOperator:
     def test_bigquery_column_check_operator_succeeds(
         self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
     ):
-        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
-            {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
-        )
+        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame({
+            "col_name": ["col1"],
+            "check_type": ["min"],
+            "check_result": [check_result],
+        })
         mock_hook.return_value.insert_job.return_value = mock_job
 
         ti = create_task_instance_of_operator(
@@ -2181,9 +2181,11 @@ class TestBigQueryColumnCheckOperator:
     def test_bigquery_column_check_operator_fails(
         self, mock_job, mock_hook, check_type, check_value, check_result, create_task_instance_of_operator
     ):
-        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame(
-            {"col_name": ["col1"], "check_type": ["min"], "check_result": [check_result]}
-        )
+        mock_job.result.return_value.to_dataframe.return_value = pd.DataFrame({
+            "col_name": ["col1"],
+            "check_type": ["min"],
+            "check_result": [check_result],
+        })
         mock_hook.return_value.insert_job.return_value = mock_job
 
         ti = create_task_instance_of_operator(

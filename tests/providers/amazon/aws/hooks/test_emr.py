@@ -54,9 +54,10 @@ class TestEmrHook:
         client = boto3.client("emr", region_name="us-east-1")
 
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
-        cluster = hook.create_job_flow(
-            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
-        )
+        cluster = hook.create_job_flow({
+            "Name": "test_cluster",
+            "Instances": {"KeepJobFlowAliveWhenNoSteps": False},
+        })
 
         assert client.list_clusters()["Clusters"][0]["Id"] == cluster["JobFlowId"]
 
@@ -64,9 +65,10 @@ class TestEmrHook:
     @pytest.mark.parametrize("num_steps", [1, 2, 3, 4])
     def test_add_job_flow_steps_one_step(self, num_steps):
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
-        cluster = hook.create_job_flow(
-            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": False}}
-        )
+        cluster = hook.create_job_flow({
+            "Name": "test_cluster",
+            "Instances": {"KeepJobFlowAliveWhenNoSteps": False},
+        })
         steps = [
             {
                 "ActionOnFailure": "test_step",
@@ -231,9 +233,10 @@ class TestEmrHook:
         """
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
-        job_flow = hook.create_job_flow(
-            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
-        )
+        job_flow = hook.create_job_flow({
+            "Name": "test_cluster",
+            "Instances": {"KeepJobFlowAliveWhenNoSteps": True},
+        })
 
         job_flow_id = job_flow["JobFlowId"]
 
@@ -269,9 +272,10 @@ class TestEmrHook:
 
         # Create enough clusters to trigger pagination
         for index in range(51):
-            hook.create_job_flow(
-                {"Name": f"test_cluster_{index}", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
-            )
+            hook.create_job_flow({
+                "Name": f"test_cluster_{index}",
+                "Instances": {"KeepJobFlowAliveWhenNoSteps": True},
+            })
 
         # Fetch a cluster from the second page using the boto API
         client = boto3.client("emr", region_name="us-east-1")
@@ -308,9 +312,10 @@ class TestEmrHook:
         }
         hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default")
 
-        job_flow = hook.create_job_flow(
-            {"Name": "test_cluster", "Instances": {"KeepJobFlowAliveWhenNoSteps": True}}
-        )
+        job_flow = hook.create_job_flow({
+            "Name": "test_cluster",
+            "Instances": {"KeepJobFlowAliveWhenNoSteps": True},
+        })
 
         job_flow_id = job_flow["JobFlowId"]
 

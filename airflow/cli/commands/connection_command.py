@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Connection sub-commands."""
+
 from __future__ import annotations
 
 import json
@@ -276,16 +277,14 @@ def connections_add(args):
             msg = msg.format(
                 conn_id=new_conn.conn_id,
                 uri=args.conn_uri
-                or urlunsplit(
-                    (
-                        new_conn.conn_type,
-                        f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
-                        f"@{new_conn.host or ''}:{new_conn.port or ''}",
-                        new_conn.schema or "",
-                        "",
-                        "",
-                    )
-                ),
+                or urlunsplit((
+                    new_conn.conn_type,
+                    f"{new_conn.login or ''}:{'******' if new_conn.password else ''}"
+                    f"@{new_conn.host or ''}:{new_conn.port or ''}",
+                    new_conn.schema or "",
+                    "",
+                    "",
+                )),
             )
             print(msg)
         else:

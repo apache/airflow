@@ -18,6 +18,7 @@
 """
 Example Airflow DAG to execute SQL in an Apache Drill environment using the `DrillOperator`.
 """
+
 from __future__ import annotations
 
 import os

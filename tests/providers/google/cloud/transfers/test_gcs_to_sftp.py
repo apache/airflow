@@ -198,18 +198,14 @@ class TestGoogleCloudStorageToSFTPOperator:
 
         gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
 
-        gcs_hook_mock.return_value.download.assert_has_calls(
-            [
-                mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
-                for gcs_file in gcs_files_list
-            ]
-        )
-        sftp_hook_mock.return_value.store_file.assert_has_calls(
-            [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
-                for target_object in target_objects
-            ]
-        )
+        gcs_hook_mock.return_value.download.assert_has_calls([
+            mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
+            for gcs_file in gcs_files_list
+        ])
+        sftp_hook_mock.return_value.store_file.assert_has_calls([
+            mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+            for target_object in target_objects
+        ])
 
         gcs_hook_mock.return_value.delete.assert_not_called()
 
@@ -290,22 +286,18 @@ class TestGoogleCloudStorageToSFTPOperator:
 
         gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
 
-        gcs_hook_mock.return_value.download.assert_has_calls(
-            [
-                mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
-                for gcs_file in gcs_files_list
-            ]
-        )
-        sftp_hook_mock.return_value.store_file.assert_has_calls(
-            [
-                mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
-                for target_object in target_objects
-            ]
-        )
+        gcs_hook_mock.return_value.download.assert_has_calls([
+            mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
+            for gcs_file in gcs_files_list
+        ])
+        sftp_hook_mock.return_value.store_file.assert_has_calls([
+            mock.call(os.path.join(DESTINATION_SFTP, target_object), mock.ANY)
+            for target_object in target_objects
+        ])
 
-        gcs_hook_mock.return_value.delete.assert_has_calls(
-            [mock.call(TEST_BUCKET, gcs_file) for gcs_file in gcs_files_list]
-        )
+        gcs_hook_mock.return_value.delete.assert_has_calls([
+            mock.call(TEST_BUCKET, gcs_file) for gcs_file in gcs_files_list
+        ])
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_sftp.SFTPHook")

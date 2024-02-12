@@ -17,6 +17,7 @@
 """
 Example Airflow DAG that shows how to use Dataplex Scan Data.
 """
+
 from __future__ import annotations
 
 import os
@@ -110,20 +111,18 @@ EXAMPLE_DATA_SCAN.data.entity = (
 EXAMPLE_DATA_SCAN.data.resource = (
     f"//bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/{DATASET}/tables/{TABLE_1}"
 )
-EXAMPLE_DATA_SCAN.data_quality_spec = DataQualitySpec(
-    {
-        "rules": [
-            {
-                "range_expectation": {
-                    "min_value": "0",
-                    "max_value": "10000",
-                },
-                "column": "value",
-                "dimension": "VALIDITY",
-            }
-        ],
-    }
-)
+EXAMPLE_DATA_SCAN.data_quality_spec = DataQualitySpec({
+    "rules": [
+        {
+            "range_expectation": {
+                "min_value": "0",
+                "max_value": "10000",
+            },
+            "column": "value",
+            "dimension": "VALIDITY",
+        }
+    ],
+})
 # [END howto_dataplex_data_quality_configuration]
 UPDATE_MASK = FieldMask(paths=["data_quality_spec"])
 ENTITY = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"

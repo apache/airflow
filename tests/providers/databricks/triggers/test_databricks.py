@@ -112,15 +112,13 @@ class TestDatabricksExecutionTrigger:
 
         trigger_event = self.trigger.run()
         async for event in trigger_event:
-            assert event == TriggerEvent(
-                {
-                    "run_id": RUN_ID,
-                    "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                    ).to_json(),
-                    "run_page_url": RUN_PAGE_URL,
-                }
-            )
+            assert event == TriggerEvent({
+                "run_id": RUN_ID,
+                "run_state": RunState(
+                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                ).to_json(),
+                "run_page_url": RUN_PAGE_URL,
+            })
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
@@ -141,14 +139,12 @@ class TestDatabricksExecutionTrigger:
 
         trigger_event = self.trigger.run()
         async for event in trigger_event:
-            assert event == TriggerEvent(
-                {
-                    "run_id": RUN_ID,
-                    "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                    ).to_json(),
-                    "run_page_url": RUN_PAGE_URL,
-                }
-            )
+            assert event == TriggerEvent({
+                "run_id": RUN_ID,
+                "run_state": RunState(
+                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                ).to_json(),
+                "run_page_url": RUN_PAGE_URL,
+            })
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)

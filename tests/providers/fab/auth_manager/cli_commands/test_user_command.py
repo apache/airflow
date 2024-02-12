@@ -67,104 +67,92 @@ class TestCliUsers:
                 self.appbuilder.sm.del_register_user(test_user)
 
     def test_cli_create_user_random_password(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test1",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe@foo.com",
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test1",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe@foo.com",
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
 
     def test_cli_create_user_supplied_password(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test2",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe@apache.org",
-                "--role",
-                "Viewer",
-                "--password",
-                "test",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test2",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe@apache.org",
+            "--role",
+            "Viewer",
+            "--password",
+            "test",
+        ])
         user_command.users_create(args)
 
     def test_cli_delete_user(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test3",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe@example.com",
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test3",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe@example.com",
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
-        args = self.parser.parse_args(
-            [
-                "users",
-                "delete",
-                "--username",
-                "test3",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "delete",
+            "--username",
+            "test3",
+        ])
         with redirect_stdout(StringIO()) as stdout:
             user_command.users_delete(args)
         assert 'User "test3" deleted' in stdout.getvalue()
 
     def test_cli_delete_user_by_email(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test4",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe2@example.com",
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test4",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe2@example.com",
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
-        args = self.parser.parse_args(
-            [
-                "users",
-                "delete",
-                "--email",
-                "jdoe2@example.com",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "delete",
+            "--email",
+            "jdoe2@example.com",
+        ])
         with redirect_stdout(StringIO()) as stdout:
             user_command.users_delete(args)
         assert 'User "test4" deleted' in stdout.getvalue()
@@ -220,23 +208,21 @@ class TestCliUsers:
 
     def test_cli_list_users(self):
         for i in range(3):
-            args = self.parser.parse_args(
-                [
-                    "users",
-                    "create",
-                    "--username",
-                    f"user{i}",
-                    "--lastname",
-                    "doe",
-                    "--firstname",
-                    "jon",
-                    "--email",
-                    f"jdoe+{i}@gmail.com",
-                    "--role",
-                    "Viewer",
-                    "--use-random-password",
-                ]
-            )
+            args = self.parser.parse_args([
+                "users",
+                "create",
+                "--username",
+                f"user{i}",
+                "--lastname",
+                "doe",
+                "--firstname",
+                "jon",
+                "--email",
+                f"jdoe+{i}@gmail.com",
+                "--role",
+                "Viewer",
+                "--use-random-password",
+            ])
             user_command.users_create(args)
         with redirect_stdout(StringIO()) as stdout:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
@@ -356,23 +342,21 @@ class TestCliUsers:
 
     @pytest.fixture()
     def create_user_test4(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test4",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                TEST_USER1_EMAIL,
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test4",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            TEST_USER1_EMAIL,
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
 
     def test_cli_add_user_role(self, create_user_test4):
@@ -474,53 +458,58 @@ class TestCliUsers:
             self._import_users_from_file([user])
 
     def test_cli_reset_user_password(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test3",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe@example.com",
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test3",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe@example.com",
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
-        args = self.parser.parse_args(
-            ["users", "reset-password", "--username", "test3", "--use-random-password"]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "reset-password",
+            "--username",
+            "test3",
+            "--use-random-password",
+        ])
         with redirect_stdout(StringIO()) as stdout:
             user_command.user_reset_password(args)
         assert 'User "test3" password reset successfully' in stdout.getvalue()
 
     def test_cli_reset_user_password_with_email(self):
-        args = self.parser.parse_args(
-            [
-                "users",
-                "create",
-                "--username",
-                "test3",
-                "--lastname",
-                "doe",
-                "--firstname",
-                "jon",
-                "--email",
-                "jdoe@example.com",
-                "--role",
-                "Viewer",
-                "--use-random-password",
-            ]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "create",
+            "--username",
+            "test3",
+            "--lastname",
+            "doe",
+            "--firstname",
+            "jon",
+            "--email",
+            "jdoe@example.com",
+            "--role",
+            "Viewer",
+            "--use-random-password",
+        ])
         user_command.users_create(args)
-        args = self.parser.parse_args(
-            ["users", "reset-password", "--email", "jdoe@example.com", "--password", "s3cr3t"]
-        )
+        args = self.parser.parse_args([
+            "users",
+            "reset-password",
+            "--email",
+            "jdoe@example.com",
+            "--password",
+            "s3cr3t",
+        ])
         with redirect_stdout(StringIO()) as stdout:
             user_command.user_reset_password(args)
         assert 'User "test3" password reset successfully' in stdout.getvalue()

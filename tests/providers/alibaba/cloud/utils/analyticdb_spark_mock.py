@@ -29,13 +29,11 @@ def mock_adb_spark_hook_default_project_id(
 ):
     self.adb_spark_conn_id = adb_spark_conn_id
     self.adb_spark_conn = Connection(
-        extra=json.dumps(
-            {
-                "auth_type": "AK",
-                "access_key_id": "mock_access_key_id",
-                "access_key_secret": "mock_access_key_secret",
-                "region": "mock_region",
-            }
-        )
+        extra=json.dumps({
+            "auth_type": "AK",
+            "access_key_id": "mock_access_key_id",
+            "access_key_secret": "mock_access_key_secret",
+            "region": "mock_region",
+        })
     )
     self.region = region

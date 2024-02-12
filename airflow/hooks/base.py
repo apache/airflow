@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base class for all hooks."""
+
 from __future__ import annotations
 
 import logging

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Class responsible for colouring logs based on log level."""
+
 from __future__ import annotations
 
 import sys

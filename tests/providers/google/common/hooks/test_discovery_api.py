@@ -81,15 +81,13 @@ class TestGoogleDiscoveryApiHook:
         google_discovery_api_hook.query(endpoint, data, num_retries=num_retries)
 
         google_api_endpoint_name_parts = endpoint.split(".")
-        mock_getattr.assert_has_calls(
-            [
-                call(mock_get_conn.return_value, google_api_endpoint_name_parts[1]),
-                call()(),
-                call(mock_getattr.return_value.return_value, google_api_endpoint_name_parts[2]),
-                call()(**data),
-                call()().execute(num_retries=num_retries),
-            ]
-        )
+        mock_getattr.assert_has_calls([
+            call(mock_get_conn.return_value, google_api_endpoint_name_parts[1]),
+            call()(),
+            call(mock_getattr.return_value.return_value, google_api_endpoint_name_parts[2]),
+            call()(**data),
+            call()().execute(num_retries=num_retries),
+        ])
 
     @patch("airflow.providers.google.common.hooks.discovery_api.getattr")
     @patch("airflow.providers.google.common.hooks.discovery_api.GoogleDiscoveryApiHook.get_conn")
@@ -125,23 +123,21 @@ class TestGoogleDiscoveryApiHook:
 
         api_endpoint_name_parts = endpoint.split(".")
         google_api_conn_client = mock_get_conn.return_value
-        mock_getattr.assert_has_calls(
-            [
-                call(google_api_conn_client, api_endpoint_name_parts[1]),
-                call()(),
-                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2]),
-                call()(**data),
-                call()().__bool__(),
-                call()().execute(num_retries=num_retries),
-                call(google_api_conn_client, api_endpoint_name_parts[1]),
-                call()(),
-                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
-                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
-                call()().__bool__(),
-                call()().execute(num_retries=num_retries),
-                call(google_api_conn_client, api_endpoint_name_parts[1]),
-                call()(),
-                call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
-                call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
-            ]
-        )
+        mock_getattr.assert_has_calls([
+            call(google_api_conn_client, api_endpoint_name_parts[1]),
+            call()(),
+            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2]),
+            call()(**data),
+            call()().__bool__(),
+            call()().execute(num_retries=num_retries),
+            call(google_api_conn_client, api_endpoint_name_parts[1]),
+            call()(),
+            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
+            call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+            call()().__bool__(),
+            call()().execute(num_retries=num_retries),
+            call(google_api_conn_client, api_endpoint_name_parts[1]),
+            call()(),
+            call(google_api_conn_client_sub_call, api_endpoint_name_parts[2] + "_next"),
+            call()(google_api_conn_client_sub_call, google_api_conn_client_sub_call.execute.return_value),
+        ])

@@ -118,17 +118,15 @@ class TestCliRoles:
         assert len(role.permissions) == 0
 
         role_command.roles_add_perms(
-            self.parser.parse_args(
-                [
-                    "roles",
-                    "add-perms",
-                    "FakeTeamC",
-                    "-r",
-                    permissions.RESOURCE_POOL,
-                    "-a",
-                    permissions.ACTION_CAN_EDIT,
-                ]
-            )
+            self.parser.parse_args([
+                "roles",
+                "add-perms",
+                "FakeTeamC",
+                "-r",
+                permissions.RESOURCE_POOL,
+                "-a",
+                permissions.ACTION_CAN_EDIT,
+            ])
         )
         role: Role = self.appbuilder.sm.find_role("FakeTeamC")
         assert len(role.permissions) == 1
@@ -136,17 +134,15 @@ class TestCliRoles:
         assert role.permissions[0].action.name == permissions.ACTION_CAN_EDIT
 
         role_command.roles_del_perms(
-            self.parser.parse_args(
-                [
-                    "roles",
-                    "del-perms",
-                    "FakeTeamC",
-                    "-r",
-                    permissions.RESOURCE_POOL,
-                    "-a",
-                    permissions.ACTION_CAN_EDIT,
-                ]
-            )
+            self.parser.parse_args([
+                "roles",
+                "del-perms",
+                "FakeTeamC",
+                "-r",
+                permissions.RESOURCE_POOL,
+                "-a",
+                permissions.ACTION_CAN_EDIT,
+            ])
         )
         role: Role = self.appbuilder.sm.find_role("FakeTeamC")
         assert len(role.permissions) == 0
@@ -157,18 +153,16 @@ class TestCliRoles:
         args = self.parser.parse_args(["roles", "create", "FakeTeamA", "FakeTeamB"])
         role_command.roles_create(args)
         role_command.roles_add_perms(
-            self.parser.parse_args(
-                [
-                    "roles",
-                    "add-perms",
-                    "FakeTeamA",
-                    "-r",
-                    permissions.RESOURCE_POOL,
-                    "-a",
-                    permissions.ACTION_CAN_EDIT,
-                    permissions.ACTION_CAN_READ,
-                ]
-            )
+            self.parser.parse_args([
+                "roles",
+                "add-perms",
+                "FakeTeamA",
+                "-r",
+                permissions.RESOURCE_POOL,
+                "-a",
+                permissions.ACTION_CAN_EDIT,
+                permissions.ACTION_CAN_READ,
+            ])
         )
         role_command.roles_export(self.parser.parse_args(["roles", "export", str(fn)]))
         with open(fn) as outfile:

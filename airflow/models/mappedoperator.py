@@ -297,12 +297,10 @@ class MappedOperator(AbstractOperator):
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
 
-    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        (
-            "parse_time_mapped_ti_count",
-            "operator_class",
-        )
-    )
+    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset((
+        "parse_time_mapped_ti_count",
+        "operator_class",
+    ))
 
     def __hash__(self):
         return id(self)

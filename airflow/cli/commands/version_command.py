@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Version command."""
+
 from __future__ import annotations
 
 import airflow

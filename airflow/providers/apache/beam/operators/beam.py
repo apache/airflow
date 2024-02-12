@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+
 from __future__ import annotations
 
 import asyncio
@@ -111,9 +112,9 @@ class BeamDataflowMixin(metaclass=ABCMeta):
                 pipeline_options["impersonateServiceAccount"] = self.dataflow_config.impersonation_chain
         pipeline_options["project"] = self.dataflow_config.project_id
         pipeline_options["region"] = self.dataflow_config.location
-        pipeline_options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        pipeline_options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
         return pipeline_options
 
     def __get_dataflow_process_callback(self) -> Callable[[str], None]:
@@ -333,9 +334,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
-        self.pipeline_options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        self.pipeline_options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -741,9 +742,9 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         self.launcher_binary = launcher_binary
         self.worker_binary = worker_binary or launcher_binary
 
-        self.pipeline_options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        self.pipeline_options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
 
     def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
@@ -812,12 +813,10 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
 class _GoArtifact(ABC):
     @abstractmethod
-    def is_located_on_gcs(self) -> bool:
-        ...
+    def is_located_on_gcs(self) -> bool: ...
 
     @abstractmethod
-    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        ...
+    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None: ...
 
     @abstractmethod
     def start_pipeline(
@@ -825,8 +824,7 @@ class _GoArtifact(ABC):
         beam_hook: BeamHook,
         variables: dict,
         process_line_callback: Callable[[str], None] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class _GoFile(_GoArtifact):

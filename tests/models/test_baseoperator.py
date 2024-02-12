@@ -86,8 +86,7 @@ class DummyClass(metaclass=BaseOperatorMeta):
     def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
-    def set_xcomargs_dependencies(self):
-        ...
+    def set_xcomargs_dependencies(self): ...
 
 
 class DummySubClass(DummyClass):

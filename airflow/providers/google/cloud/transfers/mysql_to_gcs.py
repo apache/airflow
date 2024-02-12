@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """MySQL to GCS operator."""
+
 from __future__ import annotations
 
 import base64

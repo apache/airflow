@@ -44,8 +44,7 @@ SOURCE_DIR_PATH = MY_DIR_PATH / os.pardir / os.pardir
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
-def cli():
-    ...
+def cli(): ...
 
 
 option_table = click.option(
@@ -152,34 +151,30 @@ def stats_to_rows(stats_list: list[Stats]) -> list[tuple]:
         total.tested_issues += stat.tested_issues
         total.users_involved.update(stat.users_involved)
         total.users_commented.update(stat.users_commented)
-        rows.append(
-            (
-                f"[{stat.issue_number}]({stat.url})",
-                stat.num_providers,
-                stat.num_issues,
-                stat.tested_issues,
-                stat.percent_tested(),
-                len(stat.users_involved),
-                len(stat.users_commented),
-                stat.num_involved_users_who_commented(),
-                stat.num_commenting_not_involved(),
-                stat.percent_commented_among_involved(),
-            )
-        )
-    rows.append(
-        (
-            "Total",
-            total.num_providers,
-            total.num_issues,
-            total.tested_issues,
-            total.percent_tested(),
-            len(total.users_involved),
-            len(total.users_commented),
-            total.num_involved_users_who_commented(),
-            total.num_commenting_not_involved(),
-            total.percent_commented_among_involved(),
-        )
-    )
+        rows.append((
+            f"[{stat.issue_number}]({stat.url})",
+            stat.num_providers,
+            stat.num_issues,
+            stat.tested_issues,
+            stat.percent_tested(),
+            len(stat.users_involved),
+            len(stat.users_commented),
+            stat.num_involved_users_who_commented(),
+            stat.num_commenting_not_involved(),
+            stat.percent_commented_among_involved(),
+        ))
+    rows.append((
+        "Total",
+        total.num_providers,
+        total.num_issues,
+        total.tested_issues,
+        total.percent_tested(),
+        len(total.users_involved),
+        len(total.users_commented),
+        total.num_involved_users_who_commented(),
+        total.num_commenting_not_involved(),
+        total.percent_commented_among_involved(),
+    ))
     return rows
 
 

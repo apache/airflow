@@ -60,12 +60,10 @@ class EventBridgePutEventsOperator(AwsBaseOperator[EventBridgeHook]):
 
     def execute(self, context: Context):
         response = self.hook.conn.put_events(
-            **prune_dict(
-                {
-                    "Entries": self.entries,
-                    "EndpointId": self.endpoint_id,
-                }
-            )
+            **prune_dict({
+                "Entries": self.entries,
+                "EndpointId": self.endpoint_id,
+            })
         )
 
         self.log.info("Sent %d events to EventBridge.", len(self.entries))
@@ -193,12 +191,10 @@ class EventBridgeEnableRuleOperator(AwsBaseOperator[EventBridgeHook]):
 
     def execute(self, context: Context):
         self.hook.conn.enable_rule(
-            **prune_dict(
-                {
-                    "Name": self.name,
-                    "EventBusName": self.event_bus_name,
-                }
-            )
+            **prune_dict({
+                "Name": self.name,
+                "EventBusName": self.event_bus_name,
+            })
         )
 
         self.log.info('Enabled rule "%s"', self.name)
@@ -236,12 +232,10 @@ class EventBridgeDisableRuleOperator(AwsBaseOperator[EventBridgeHook]):
 
     def execute(self, context: Context):
         self.hook.conn.disable_rule(
-            **prune_dict(
-                {
-                    "Name": self.name,
-                    "EventBusName": self.event_bus_name,
-                }
-            )
+            **prune_dict({
+                "Name": self.name,
+                "EventBusName": self.event_bus_name,
+            })
         )
 
         self.log.info('Disabled rule "%s"', self.name)

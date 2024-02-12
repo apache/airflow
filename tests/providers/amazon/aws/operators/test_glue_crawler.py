@@ -89,12 +89,10 @@ class TestGlueCrawlerOperator:
         mock_hook.return_value.has_crawler.return_value = True
         self.glue.execute({})
 
-        mock_hook.assert_has_calls(
-            [
-                mock.call("aws_default", region_name=None),
-                mock.call().has_crawler("test-crawler"),
-                mock.call().update_crawler(**mock_config),
-                mock.call().start_crawler(mock_crawler_name),
-                mock.call().wait_for_crawler_completion(crawler_name=mock_crawler_name, poll_interval=5),
-            ]
-        )
+        mock_hook.assert_has_calls([
+            mock.call("aws_default", region_name=None),
+            mock.call().has_crawler("test-crawler"),
+            mock.call().update_crawler(**mock_config),
+            mock.call().start_crawler(mock_crawler_name),
+            mock.call().wait_for_crawler_completion(crawler_name=mock_crawler_name, poll_interval=5),
+        ])

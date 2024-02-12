@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Level DB."""
+
 from __future__ import annotations
 
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException

@@ -44,16 +44,14 @@ class TestApp:
 
         settings.configure_orm()
 
-    @conf_vars(
-        {
-            ("webserver", "enable_proxy_fix"): "True",
-            ("webserver", "proxy_fix_x_for"): "1",
-            ("webserver", "proxy_fix_x_proto"): "1",
-            ("webserver", "proxy_fix_x_host"): "1",
-            ("webserver", "proxy_fix_x_port"): "1",
-            ("webserver", "proxy_fix_x_prefix"): "1",
-        }
-    )
+    @conf_vars({
+        ("webserver", "enable_proxy_fix"): "True",
+        ("webserver", "proxy_fix_x_for"): "1",
+        ("webserver", "proxy_fix_x_proto"): "1",
+        ("webserver", "proxy_fix_x_host"): "1",
+        ("webserver", "proxy_fix_x_port"): "1",
+        ("webserver", "proxy_fix_x_prefix"): "1",
+    })
     @dont_initialize_flask_app_submodules
     def test_should_respect_proxy_fix(self):
         app = application.cached_app(testing=True)
@@ -150,16 +148,14 @@ class TestApp:
             ),
         ],
     )
-    @conf_vars(
-        {
-            ("webserver", "enable_proxy_fix"): "True",
-            ("webserver", "proxy_fix_x_for"): "1",
-            ("webserver", "proxy_fix_x_proto"): "1",
-            ("webserver", "proxy_fix_x_host"): "1",
-            ("webserver", "proxy_fix_x_port"): "1",
-            ("webserver", "proxy_fix_x_prefix"): "1",
-        }
-    )
+    @conf_vars({
+        ("webserver", "enable_proxy_fix"): "True",
+        ("webserver", "proxy_fix_x_for"): "1",
+        ("webserver", "proxy_fix_x_proto"): "1",
+        ("webserver", "proxy_fix_x_host"): "1",
+        ("webserver", "proxy_fix_x_port"): "1",
+        ("webserver", "proxy_fix_x_prefix"): "1",
+    })
     @dont_initialize_flask_app_submodules
     def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(
         self, base_url, expected_exception
@@ -197,17 +193,15 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
-    @conf_vars(
-        {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
-            ("webserver", "enable_proxy_fix"): "True",
-            ("webserver", "proxy_fix_x_for"): "1",
-            ("webserver", "proxy_fix_x_proto"): "1",
-            ("webserver", "proxy_fix_x_host"): "1",
-            ("webserver", "proxy_fix_x_port"): "1",
-            ("webserver", "proxy_fix_x_prefix"): "1",
-        }
-    )
+    @conf_vars({
+        ("webserver", "base_url"): "http://localhost:8080/internal-client",
+        ("webserver", "enable_proxy_fix"): "True",
+        ("webserver", "proxy_fix_x_for"): "1",
+        ("webserver", "proxy_fix_x_proto"): "1",
+        ("webserver", "proxy_fix_x_host"): "1",
+        ("webserver", "proxy_fix_x_port"): "1",
+        ("webserver", "proxy_fix_x_prefix"): "1",
+    })
     @dont_initialize_flask_app_submodules
     def test_should_respect_base_url_and_proxy_when_proxy_fix_and_base_url_is_set_up(self):
         app = application.cached_app(testing=True)
@@ -243,11 +237,9 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
-    @conf_vars(
-        {
-            ("webserver", "session_lifetime_minutes"): "3600",
-        }
-    )
+    @conf_vars({
+        ("webserver", "session_lifetime_minutes"): "3600",
+    })
     @dont_initialize_flask_app_submodules
     def test_should_set_permanent_session_timeout(self):
         app = application.cached_app(testing=True)

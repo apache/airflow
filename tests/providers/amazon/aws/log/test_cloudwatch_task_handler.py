@@ -116,13 +116,11 @@ class TestCloudwatchTaskHandler:
             {"timestamp": current_time - 1000, "message": "Second"},
             {"timestamp": current_time, "message": "Third"},
         ]
-        assert [handler._event_to_str(event) for event in events] == (
-            [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
-                f"[{get_time_str(current_time)}] Third",
-            ]
-        )
+        assert [handler._event_to_str(event) for event in events] == ([
+            f"[{get_time_str(current_time-2000)}] First",
+            f"[{get_time_str(current_time-1000)}] Second",
+            f"[{get_time_str(current_time)}] Third",
+        ])
 
     def test_read(self):
         # Confirmed via AWS Support call:
@@ -142,13 +140,11 @@ class TestCloudwatchTaskHandler:
         )
 
         msg_template = "*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n"
-        events = "\n".join(
-            [
-                f"[{get_time_str(current_time-2000)}] First",
-                f"[{get_time_str(current_time-1000)}] Second",
-                f"[{get_time_str(current_time)}] Third",
-            ]
-        )
+        events = "\n".join([
+            f"[{get_time_str(current_time-2000)}] First",
+            f"[{get_time_str(current_time-1000)}] Second",
+            f"[{get_time_str(current_time)}] Third",
+        ])
         assert self.cloudwatch_task_handler.read(self.ti) == (
             [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
             [{"end_of_log": True}],
@@ -217,9 +213,10 @@ class TestCloudwatchTaskHandler:
                 mock_queue = Mock()
                 mq.return_value = mock_queue
                 handler.handle(message)
-                mock_queue.put.assert_called_once_with(
-                    {"message": expected_serialized_output, "timestamp": ANY}
-                )
+                mock_queue.put.assert_called_once_with({
+                    "message": expected_serialized_output,
+                    "timestamp": ANY,
+                })
 
     def test_close_prevents_duplicate_calls(self):
         with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google Cloud Batch Operators.
 """
+
 from __future__ import annotations
 
 import os

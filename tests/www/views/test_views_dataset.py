@@ -298,45 +298,37 @@ class TestGetDatasets(TestDatasetEndpoint):
             ds5_id = session.query(DatasetModel.id).filter_by(uri=datasets[4].uri).scalar()
 
             # dataset 1 events
-            session.add_all(
-                [
-                    DatasetEvent(
-                        dataset_id=ds1_id,
-                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
-                    )
-                    for i in range(3)
-                ]
-            )
+            session.add_all([
+                DatasetEvent(
+                    dataset_id=ds1_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                )
+                for i in range(3)
+            ])
             # dataset 3 events
-            session.add_all(
-                [
-                    DatasetEvent(
-                        dataset_id=ds3_id,
-                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
-                    )
-                    for i in range(3)
-                ]
-            )
+            session.add_all([
+                DatasetEvent(
+                    dataset_id=ds3_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                )
+                for i in range(3)
+            ])
             # dataset 4 events
-            session.add_all(
-                [
-                    DatasetEvent(
-                        dataset_id=ds4_id,
-                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
-                    )
-                    for i in range(4)
-                ]
-            )
+            session.add_all([
+                DatasetEvent(
+                    dataset_id=ds4_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                )
+                for i in range(4)
+            ])
             # dataset 5 events
-            session.add_all(
-                [
-                    DatasetEvent(
-                        dataset_id=ds5_id,
-                        timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
-                    )
-                    for i in range(5)
-                ]
-            )
+            session.add_all([
+                DatasetEvent(
+                    dataset_id=ds5_id,
+                    timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
+                )
+                for i in range(5)
+            ])
             session.commit()
 
             response = admin_client.get("/object/datasets_summary")

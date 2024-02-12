@@ -102,34 +102,32 @@ def setup_bucket_permissions(bucket_name):
     s3 = boto3.client("s3")
     s3.put_bucket_policy(
         Bucket=bucket_name,
-        Policy=json.dumps(
-            {
-                "Version": "2008-10-17",
-                "Statement": [
-                    {
-                        "Sid": "AllowAppFlowSourceActions",
-                        "Effect": "Allow",
-                        "Principal": {"Service": "appflow.amazonaws.com"},
-                        "Action": ["s3:ListBucket", "s3:GetObject"],
-                        "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
-                    },
-                    {
-                        "Sid": "AllowAppFlowDestinationActions",
-                        "Effect": "Allow",
-                        "Principal": {"Service": "appflow.amazonaws.com"},
-                        "Action": [
-                            "s3:PutObject",
-                            "s3:AbortMultipartUpload",
-                            "s3:ListMultipartUploadParts",
-                            "s3:ListBucketMultipartUploads",
-                            "s3:GetBucketAcl",
-                            "s3:PutObjectAcl",
-                        ],
-                        "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
-                    },
-                ],
-            }
-        ),
+        Policy=json.dumps({
+            "Version": "2008-10-17",
+            "Statement": [
+                {
+                    "Sid": "AllowAppFlowSourceActions",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "appflow.amazonaws.com"},
+                    "Action": ["s3:ListBucket", "s3:GetObject"],
+                    "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
+                },
+                {
+                    "Sid": "AllowAppFlowDestinationActions",
+                    "Effect": "Allow",
+                    "Principal": {"Service": "appflow.amazonaws.com"},
+                    "Action": [
+                        "s3:PutObject",
+                        "s3:AbortMultipartUpload",
+                        "s3:ListMultipartUploadParts",
+                        "s3:ListBucketMultipartUploads",
+                        "s3:GetBucketAcl",
+                        "s3:PutObjectAcl",
+                    ],
+                    "Resource": [f"arn:aws:s3:::{bucket_name}", f"arn:aws:s3:::{bucket_name}/*"],
+                },
+            ],
+        }),
     )
 
 

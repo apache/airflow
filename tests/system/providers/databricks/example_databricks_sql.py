@@ -25,6 +25,7 @@ task runs the select SQL statement written in the test.sql file. The
 final task using DatabricksCopyIntoOperator loads the data from the
 file_location passed into Delta table.
 """
+
 from __future__ import annotations
 
 import os

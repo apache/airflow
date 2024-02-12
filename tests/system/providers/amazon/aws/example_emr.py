@@ -215,28 +215,26 @@ with DAG(
             trigger_rule=TriggerRule.ALL_DONE,
         )
 
-    chain(
-        *[
-            task
-            for task in [
-                # TEST SETUP
-                test_context,
-                create_s3_bucket,
-                create_security_configuration,
-                # TEST BODY
-                create_job_flow,
-                modify_cluster,
-                add_steps,
-                wait_for_step,
-                # TEST TEARDOWN
-                remove_cluster,
-                check_job_flow,
-                delete_security_configuration,
-                delete_s3_bucket,
-            ]
-            if task is not None
+    chain(*[
+        task
+        for task in [
+            # TEST SETUP
+            test_context,
+            create_s3_bucket,
+            create_security_configuration,
+            # TEST BODY
+            create_job_flow,
+            modify_cluster,
+            add_steps,
+            wait_for_step,
+            # TEST TEARDOWN
+            remove_cluster,
+            check_job_flow,
+            delete_security_configuration,
+            delete_s3_bucket,
         ]
-    )
+        if task is not None
+    ])
 
     from tests.system.utils.watcher import watcher
 

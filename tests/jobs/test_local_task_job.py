@@ -402,20 +402,18 @@ class TestLocalTaskJob:
         with timeout(10):
             run_job(job=job1, execute_callable=job_runner._execute)
 
-        mock_stats_incr.assert_has_calls(
-            [
-                mock.call("local_task_job.task_exit.95.test_localtaskjob_code.op1.-9"),
-                mock.call(
-                    "local_task_job.task_exit",
-                    tags={
-                        "job_id": 95,
-                        "dag_id": "test_localtaskjob_code",
-                        "task_id": "op1",
-                        "return_code": -9,
-                    },
-                ),
-            ]
-        )
+        mock_stats_incr.assert_has_calls([
+            mock.call("local_task_job.task_exit.95.test_localtaskjob_code.op1.-9"),
+            mock.call(
+                "local_task_job.task_exit",
+                tags={
+                    "job_id": 95,
+                    "dag_id": "test_localtaskjob_code",
+                    "task_id": "op1",
+                    "return_code": -9,
+                },
+            ),
+        ])
 
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):

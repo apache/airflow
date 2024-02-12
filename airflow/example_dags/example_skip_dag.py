@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

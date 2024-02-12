@@ -187,9 +187,10 @@ class TestSSHHook:
                 conn_id=cls.CONN_SSH_WITH_PRIVATE_KEY_PASSPHRASE_EXTRA,
                 host="localhost",
                 conn_type="ssh",
-                extra=json.dumps(
-                    {"private_key": TEST_ENCRYPTED_PRIVATE_KEY, "private_key_passphrase": PASSPHRASE}
-                ),
+                extra=json.dumps({
+                    "private_key": TEST_ENCRYPTED_PRIVATE_KEY,
+                    "private_key_passphrase": PASSPHRASE,
+                }),
             )
         )
         db.merge_conn(
@@ -261,9 +262,11 @@ class TestSSHHook:
                 conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 host="remote_host",
                 conn_type="ssh",
-                extra=json.dumps(
-                    {"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY, "no_host_key_check": False}
-                ),
+                extra=json.dumps({
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_KEY,
+                    "no_host_key_check": False,
+                }),
             )
         )
         db.merge_conn(
@@ -271,9 +274,11 @@ class TestSSHHook:
                 conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 host="remote_host",
                 conn_type="ssh",
-                extra=json.dumps(
-                    {"private_key": TEST_PRIVATE_KEY, "host_key": TEST_HOST_KEY, "no_host_key_check": True}
-                ),
+                extra=json.dumps({
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_KEY,
+                    "no_host_key_check": True,
+                }),
             )
         )
         db.merge_conn(
@@ -297,13 +302,11 @@ class TestSSHHook:
                 conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
                 host="remote_host",
                 conn_type="ssh",
-                extra=json.dumps(
-                    {
-                        "private_key": TEST_PRIVATE_KEY,
-                        "host_key": TEST_HOST_KEY,
-                        "allow_host_key_change": True,
-                    }
-                ),
+                extra=json.dumps({
+                    "private_key": TEST_PRIVATE_KEY,
+                    "host_key": TEST_HOST_KEY,
+                    "allow_host_key_change": True,
+                }),
             )
         )
         db.merge_conn(

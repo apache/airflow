@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+
 from __future__ import annotations
 
 import abc
@@ -191,13 +192,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             # Metadata to be outputted to Xcom
             total_row_count += file_to_upload["file_row_count"]
             total_files += 1
-            files.append(
-                {
-                    "file_name": file_to_upload["file_name"],
-                    "file_mime_type": file_to_upload["file_mime_type"],
-                    "file_row_count": file_to_upload["file_row_count"],
-                }
-            )
+            files.append({
+                "file_name": file_to_upload["file_name"],
+                "file_mime_type": file_to_upload["file_mime_type"],
+                "file_row_count": file_to_upload["file_row_count"],
+            })
 
             counter += 1
 
@@ -254,9 +253,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         for row in cursor:
             if self.partition_columns:
                 row_dict = dict(zip(schema, row))
-                curr_partition_values = tuple(
-                    [row_dict.get(partition_column, "") for partition_column in self.partition_columns]
-                )
+                curr_partition_values = tuple([
+                    row_dict.get(partition_column, "") for partition_column in self.partition_columns
+                ])
 
                 if prev_partition_values is None:
                     # We haven't set prev_partition_values before. Set to current

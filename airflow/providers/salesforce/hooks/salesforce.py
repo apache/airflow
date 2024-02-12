@@ -21,6 +21,7 @@ Connect to your Salesforce instance, retrieve data from it, and write that data 
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
 """
+
 from __future__ import annotations
 
 import logging

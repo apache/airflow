@@ -161,11 +161,9 @@ class TestHelpers:
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
     @pytest.mark.db_test
-    @conf_vars(
-        {
-            ("webserver", "dag_default_view"): "graph",
-        }
-    )
+    @conf_vars({
+        ("webserver", "dag_default_view"): "graph",
+    })
     def test_build_airflow_url_with_query(self):
         """
         Test query generated with dag_id and params

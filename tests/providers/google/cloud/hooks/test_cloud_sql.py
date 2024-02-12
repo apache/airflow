@@ -808,17 +808,15 @@ class TestCloudSqlDatabaseHook:
         connection = Connection()
         mock_is_file.return_value = True
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "instance",
-                    "database_type": "postgres",
-                    "use_ssl": "True",
-                    "sslcert": "cert_file.pem",
-                    "sslrootcert": "rootcert_file.pem",
-                    "sslkey": "key_file.pem",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+                "use_ssl": "True",
+                "sslcert": "cert_file.pem",
+                "sslrootcert": "rootcert_file.pem",
+                "sslkey": "key_file.pem",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -834,17 +832,15 @@ class TestCloudSqlDatabaseHook:
         connection = Connection()
         mock_is_file.return_value = False
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "instance",
-                    "database_type": "postgres",
-                    "use_ssl": "True",
-                    "sslcert": "cert_file.pem",
-                    "sslrootcert": "rootcert_file.pem",
-                    "sslkey": "key_file.pem",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+                "use_ssl": "True",
+                "sslcert": "cert_file.pem",
+                "sslrootcert": "rootcert_file.pem",
+                "sslkey": "key_file.pem",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -863,15 +859,13 @@ class TestCloudSqlDatabaseHook:
         gettempdir_mock.return_value = "/tmp"
         connection = Connection()
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "very_long_instance_name_that_will_be_too_long_to_build_socket_length",
-                    "database_type": "postgres",
-                    "use_proxy": "True",
-                    "use_tcp": "False",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "very_long_instance_name_that_will_be_too_long_to_build_socket_length",
+                "database_type": "postgres",
+                "use_proxy": "True",
+                "use_tcp": "False",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -890,15 +884,13 @@ class TestCloudSqlDatabaseHook:
         gettempdir_mock.return_value = "/tmp"
         connection = Connection()
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "short_instance_name",
-                    "database_type": "postgres",
-                    "use_proxy": "True",
-                    "use_tcp": "False",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "short_instance_name",
+                "database_type": "postgres",
+                "use_proxy": "True",
+                "use_tcp": "False",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -942,13 +934,11 @@ class TestCloudSqlDatabaseHook:
     def test_cloudsql_database_hook_get_sqlproxy_runner_no_proxy(self, get_connection):
         connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "instance",
-                    "database_type": "postgres",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -963,15 +953,13 @@ class TestCloudSqlDatabaseHook:
     def test_cloudsql_database_hook_get_sqlproxy_runner(self, get_connection):
         connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "instance",
-                    "database_type": "postgres",
-                    "use_proxy": "True",
-                    "use_tcp": "False",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+                "use_proxy": "True",
+                "use_tcp": "False",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(
@@ -985,13 +973,11 @@ class TestCloudSqlDatabaseHook:
     def test_cloudsql_database_hook_get_database_hook(self, get_connection):
         connection = Connection(uri="http://user:password@host:80/database")
         connection.set_extra(
-            json.dumps(
-                {
-                    "location": "test",
-                    "instance": "instance",
-                    "database_type": "postgres",
-                }
-            )
+            json.dumps({
+                "location": "test",
+                "instance": "instance",
+                "database_type": "postgres",
+            })
         )
         get_connection.return_value = connection
         hook = CloudSQLDatabaseHook(

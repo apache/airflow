@@ -30,17 +30,15 @@ URI_CONNECTION = pytest.param(
     "postgres://my-login:my-pass@my-host:5432/my-schema?param1=val1&param2=val2", id="uri-connection"
 )
 JSON_CONNECTION = pytest.param(
-    json.dumps(
-        {
-            "conn_type": "postgres",
-            "login": "my-login",
-            "password": "my-pass",
-            "host": "my-host",
-            "port": 5432,
-            "schema": "my-schema",
-            "extra": {"param1": "val1", "param2": "val2"},
-        }
-    ),
+    json.dumps({
+        "conn_type": "postgres",
+        "login": "my-login",
+        "password": "my-pass",
+        "host": "my-host",
+        "port": 5432,
+        "schema": "my-schema",
+        "extra": {"param1": "val1", "param2": "val2"},
+    }),
     id="json-connection",
 )
 
@@ -144,16 +142,14 @@ class TestSsmSecrets:
 
         assert ssm_backend.get_variable("test_mysql") is None
 
-    @conf_vars(
-        {
-            ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.systems_manager."
-            "SystemsManagerParameterStoreBackend",
-            (
-                "secrets",
-                "backend_kwargs",
-            ): '{"use_ssl": false, "role_arn": "arn:aws:iam::222222222222:role/awesome-role"}',
-        }
-    )
+    @conf_vars({
+        ("secrets", "backend"): "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend",
+        (
+            "secrets",
+            "backend_kwargs",
+        ): '{"use_ssl": false, "role_arn": "arn:aws:iam::222222222222:role/awesome-role"}',
+    })
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):
         backends = initialize_secrets_backends()

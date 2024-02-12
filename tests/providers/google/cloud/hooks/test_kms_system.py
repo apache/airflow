@@ -48,23 +48,21 @@ class TestKmsHookSystem(GoogleSystemTest):
             )
             with open(f"{tmp_dir}/mysecret.txt.encrypted", "wb") as encrypted_file:
                 encrypted_file.write(base64.b64decode(content))
-            self.execute_cmd(
-                [
-                    "gcloud",
-                    "kms",
-                    "decrypt",
-                    "--location",
-                    "global",
-                    "--keyring",
-                    GCP_KMS_KEYRING_NAME,
-                    "--key",
-                    GCP_KMS_KEY_NAME,
-                    "--ciphertext-file",
-                    f"{tmp_dir}/mysecret.txt.encrypted",
-                    "--plaintext-file",
-                    f"{tmp_dir}/mysecret.txt",
-                ]
-            )
+            self.execute_cmd([
+                "gcloud",
+                "kms",
+                "decrypt",
+                "--location",
+                "global",
+                "--keyring",
+                GCP_KMS_KEYRING_NAME,
+                "--key",
+                GCP_KMS_KEY_NAME,
+                "--ciphertext-file",
+                f"{tmp_dir}/mysecret.txt.encrypted",
+                "--plaintext-file",
+                f"{tmp_dir}/mysecret.txt",
+            ])
             with open(f"{tmp_dir}/mysecret.txt", "rb") as secret_file:
                 secret = secret_file.read()
             assert secret == b"TEST-SECRET"
@@ -74,23 +72,21 @@ class TestKmsHookSystem(GoogleSystemTest):
         with TemporaryDirectory() as tmp_dir:
             with open(f"{tmp_dir}/mysecret.txt", "w") as secret_file:
                 secret_file.write("TEST-SECRET")
-            self.execute_cmd(
-                [
-                    "gcloud",
-                    "kms",
-                    "encrypt",
-                    "--location",
-                    "global",
-                    "--keyring",
-                    GCP_KMS_KEYRING_NAME,
-                    "--key",
-                    GCP_KMS_KEY_NAME,
-                    "--plaintext-file",
-                    f"{tmp_dir}/mysecret.txt",
-                    "--ciphertext-file",
-                    f"{tmp_dir}/mysecret.txt.encrypted",
-                ]
-            )
+            self.execute_cmd([
+                "gcloud",
+                "kms",
+                "encrypt",
+                "--location",
+                "global",
+                "--keyring",
+                GCP_KMS_KEYRING_NAME,
+                "--key",
+                GCP_KMS_KEY_NAME,
+                "--plaintext-file",
+                f"{tmp_dir}/mysecret.txt",
+                "--ciphertext-file",
+                f"{tmp_dir}/mysecret.txt.encrypted",
+            ])
             with open(f"{tmp_dir}/mysecret.txt.encrypted", "rb") as encrypted_file:
                 encrypted_secret = base64.b64encode(encrypted_file.read()).decode()
 

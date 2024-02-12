@@ -171,13 +171,11 @@ class TestAirbyteSyncTrigger:
             job_id=self.JOB_ID,
         )
         task = [i async for i in trigger.run()]
-        response = TriggerEvent(
-            {
-                "status": "error",
-                "message": "Test exception",
-                "job_id": self.JOB_ID,
-            }
-        )
+        response = TriggerEvent({
+            "status": "error",
+            "message": "Test exception",
+            "job_id": self.JOB_ID,
+        })
         assert len(task) == 1
         assert response in task
 
@@ -197,14 +195,12 @@ class TestAirbyteSyncTrigger:
         )
         generator = trigger.run()
         actual = await generator.asend(None)
-        expected = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Job run {self.JOB_ID} has not reached a terminal status "
-                f"after {end_time} seconds.",
-                "job_id": self.JOB_ID,
-            }
-        )
+        expected = TriggerEvent({
+            "status": "error",
+            "message": f"Job run {self.JOB_ID} has not reached a terminal status "
+            f"after {end_time} seconds.",
+            "job_id": self.JOB_ID,
+        })
         assert expected == actual
 
     @pytest.mark.asyncio

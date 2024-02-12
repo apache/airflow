@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for stringified DAGs."""
+
 from __future__ import annotations
 
 import copy
@@ -513,12 +514,10 @@ class TestStringifiedDAGs:
             self.validate_deserialized_dag(stringified_dags[dag_id], dags[dag_id])
 
     def test_roundtrip_provider_example_dags(self):
-        dags = collect_dags(
-            [
-                "airflow/providers/*/example_dags",
-                "airflow/providers/*/*/example_dags",
-            ]
-        )
+        dags = collect_dags([
+            "airflow/providers/*/example_dags",
+            "airflow/providers/*/*/example_dags",
+        ])
 
         # Verify deserialized DAGs.
         for dag in dags.values():
@@ -1601,14 +1600,12 @@ class TestStringifiedDAGs:
             ]
 
     @pytest.mark.db_test
-    @conf_vars(
-        {
-            (
-                "scheduler",
-                "dependency_detector",
-            ): "tests.serialization.test_dag_serialization.CustomDependencyDetector"
-        }
-    )
+    @conf_vars({
+        (
+            "scheduler",
+            "dependency_detector",
+        ): "tests.serialization.test_dag_serialization.CustomDependencyDetector"
+    })
     def test_custom_dep_detector(self):
         """
         Prior to deprecation of custom dependency detector, the return type was DagDependency | None.

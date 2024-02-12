@@ -592,18 +592,16 @@ def test_sync_perm_for_dag_removes_existing_permissions_if_empty(app, security_m
             role_name=test_role,
             permissions=[],
         ) as user:
-            security_manager.bulk_sync_roles(
-                [
-                    {
-                        "role": test_role,
-                        "perms": [
-                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
-                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
-                            (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
-                        ],
-                    }
-                ]
-            )
+            security_manager.bulk_sync_roles([
+                {
+                    "role": test_role,
+                    "perms": [
+                        (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                        (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
+                    ],
+                }
+            ])
 
             assert _can_read_dag(test_dag_id, user)
             assert _can_edit_dag(test_dag_id, user)
@@ -630,19 +628,17 @@ def test_sync_perm_for_dag_removes_permissions_from_other_roles(app, security_ma
             role_name=test_role,
             permissions=[],
         ) as user:
-            security_manager.bulk_sync_roles(
-                [
-                    {
-                        "role": test_role,
-                        "perms": [
-                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
-                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
-                            (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
-                        ],
-                    },
-                    {"role": "other_role", "perms": []},
-                ]
-            )
+            security_manager.bulk_sync_roles([
+                {
+                    "role": test_role,
+                    "perms": [
+                        (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                        (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
+                    ],
+                },
+                {"role": "other_role", "perms": []},
+            ])
 
             assert _can_read_dag(test_dag_id, user)
             assert _can_edit_dag(test_dag_id, user)
@@ -669,17 +665,15 @@ def test_sync_perm_for_dag_does_not_prune_roles_when_access_control_unset(app, s
             role_name=test_role,
             permissions=[],
         ) as user:
-            security_manager.bulk_sync_roles(
-                [
-                    {
-                        "role": test_role,
-                        "perms": [
-                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
-                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
-                        ],
-                    },
-                ]
-            )
+            security_manager.bulk_sync_roles([
+                {
+                    "role": test_role,
+                    "perms": [
+                        (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                        (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                    ],
+                },
+            ])
 
             assert _can_read_dag(test_dag_id, user)
             assert _can_edit_dag(test_dag_id, user)

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL triggers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -71,20 +72,16 @@ class CloudSQLExportTrigger(BaseTrigger):
                 )
                 if operation["status"] == CloudSqlOperationStatus.DONE:
                     if "error" in operation:
-                        yield TriggerEvent(
-                            {
-                                "operation_name": operation["name"],
-                                "status": "error",
-                                "message": operation["error"]["message"],
-                            }
-                        )
-                        return
-                    yield TriggerEvent(
-                        {
+                        yield TriggerEvent({
                             "operation_name": operation["name"],
-                            "status": "success",
-                        }
-                    )
+                            "status": "error",
+                            "message": operation["error"]["message"],
+                        })
+                        return
+                    yield TriggerEvent({
+                        "operation_name": operation["name"],
+                        "status": "success",
+                    })
                     return
                 else:
                     self.log.info(
@@ -95,9 +92,7 @@ class CloudSQLExportTrigger(BaseTrigger):
                     await asyncio.sleep(self.poke_interval)
         except Exception as e:
             self.log.exception("Exception occurred while checking operation status.")
-            yield TriggerEvent(
-                {
-                    "status": "failed",
-                    "message": str(e),
-                }
-            )
+            yield TriggerEvent({
+                "status": "failed",
+                "message": str(e),
+            })

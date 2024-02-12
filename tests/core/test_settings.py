@@ -188,9 +188,10 @@ class TestLocalSettings:
 
 
 class TestUpdatedConfigNames:
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43200"}
-    )
+    @conf_vars({
+        ("webserver", "session_lifetime_days"): "5",
+        ("webserver", "session_lifetime_minutes"): "43200",
+    })
     def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
         from airflow import settings
 
@@ -199,9 +200,10 @@ class TestUpdatedConfigNames:
             minutes_in_five_days = 5 * 24 * 60
             assert session_lifetime_config == minutes_in_five_days
 
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43201"}
-    )
+    @conf_vars({
+        ("webserver", "session_lifetime_days"): "5",
+        ("webserver", "session_lifetime_minutes"): "43201",
+    })
     def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
         from airflow import settings
 

@@ -267,16 +267,14 @@ class HiveCliHook(BaseHook):
                 env_context.update(hive_conf)
             hive_conf_params = self._prepare_hiveconf(env_context)
             if self.mapred_queue:
-                hive_conf_params.extend(
-                    [
-                        "-hiveconf",
-                        f"mapreduce.job.queuename={self.mapred_queue}",
-                        "-hiveconf",
-                        f"mapred.job.queue.name={self.mapred_queue}",
-                        "-hiveconf",
-                        f"tez.queue.name={self.mapred_queue}",
-                    ]
-                )
+                hive_conf_params.extend([
+                    "-hiveconf",
+                    f"mapreduce.job.queuename={self.mapred_queue}",
+                    "-hiveconf",
+                    f"mapred.job.queue.name={self.mapred_queue}",
+                    "-hiveconf",
+                    f"tez.queue.name={self.mapred_queue}",
+                ])
 
             if self.mapred_queue_priority:
                 hive_conf_params.extend(["-hiveconf", f"mapreduce.job.priority={self.mapred_queue_priority}"])

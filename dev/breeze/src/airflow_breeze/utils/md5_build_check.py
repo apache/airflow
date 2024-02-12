@@ -17,6 +17,7 @@
 """
 Utilities to check - with MD5 - whether files have been modified since the last successful build.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -106,12 +107,9 @@ def calculate_md5_checksum_for_files(
                 f"{len(modified_provider_yaml_files)} provider.yaml file(s) changed since last check."
             )
             if get_verbose():
-                get_console().print(
-                    [
-                        os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT))
-                        for file in modified_provider_yaml_files
-                    ]
-                )
+                get_console().print([
+                    os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT)) for file in modified_provider_yaml_files
+                ])
             # Regenerate provider_dependencies.json
             run_command(
                 [

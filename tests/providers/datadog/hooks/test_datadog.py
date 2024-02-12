@@ -50,13 +50,11 @@ class TestDatadogHook:
         with mock.patch("airflow.providers.datadog.hooks.datadog.initialize"):
             with mock.patch("airflow.providers.datadog.hooks.datadog.DatadogHook.get_connection") as m:
                 m.return_value = Connection(
-                    extra=json.dumps(
-                        {
-                            "app_key": APP_KEY,
-                            "api_key": API_KEY,
-                            "api_host": API_HOST,
-                        }
-                    )
+                    extra=json.dumps({
+                        "app_key": APP_KEY,
+                        "api_key": API_KEY,
+                        "api_host": API_HOST,
+                    })
                 )
                 self.hook = DatadogHook()
 

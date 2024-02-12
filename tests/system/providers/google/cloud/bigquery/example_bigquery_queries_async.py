@@ -18,6 +18,7 @@
 Example Airflow DAG for Google BigQuery service.
 Uses Async version of the Big Query Operators
 """
+
 from __future__ import annotations
 
 import os

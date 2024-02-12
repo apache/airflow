@@ -89,13 +89,11 @@ class TestDataplexDataQualityJobTrigger:
         generator = trigger.run()
         actual_event = await generator.asend(None)
 
-        expected_event = TriggerEvent(
-            {
-                "job_id": TEST_JOB_ID,
-                "job_state": DataScanJob.State.SUCCEEDED,
-                "job": {},
-            }
-        )
+        expected_event = TriggerEvent({
+            "job_id": TEST_JOB_ID,
+            "job_state": DataScanJob.State.SUCCEEDED,
+            "job": {},
+        })
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
@@ -112,9 +110,11 @@ class TestDataplexDataQualityJobTrigger:
         actual_event = await trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
-        expected_event = TriggerEvent(
-            {"job_id": TEST_JOB_ID, "job_state": DataScanJob.State.FAILED, "job": {}}
-        )
+        expected_event = TriggerEvent({
+            "job_id": TEST_JOB_ID,
+            "job_state": DataScanJob.State.FAILED,
+            "job": {},
+        })
         assert expected_event == actual_event
 
     @pytest.mark.asyncio

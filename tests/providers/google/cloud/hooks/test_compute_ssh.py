@@ -72,41 +72,35 @@ class TestComputeEngineHookWithPassedProjectId:
         assert mock_ssh_client.return_value == result
 
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
-        mock_compute_hook.assert_has_calls(
-            [
-                mock.call(gcp_conn_id="google_cloud_default"),
-                mock.call().get_instance_address(
-                    project_id=TEST_PROJECT_ID,
-                    resource_id=TEST_INSTANCE_NAME,
-                    use_internal_ip=False,
-                    zone=TEST_ZONE,
-                ),
-            ]
-        )
-        mock_os_login_hook.assert_has_calls(
-            [
-                mock.call(gcp_conn_id="google_cloud_default"),
-                mock.call()._get_credentials_email(),
-                mock.call().import_ssh_public_key(
-                    ssh_public_key={"key": "NAME AYZ root", "expiration_time_usec": mock.ANY},
-                    project_id="test-project-id",
-                    user=mock_os_login_hook.return_value._get_credentials_email.return_value,
-                ),
-            ]
-        )
-        mock_ssh_client.assert_has_calls(
-            [
-                mock.call(mock_compute_hook.return_value),
-                mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
-                mock.call().connect(
-                    hostname=EXTERNAL_IP,
-                    look_for_keys=False,
-                    pkey=mock_paramiko.RSAKey.generate.return_value,
-                    sock=None,
-                    username="test-username",
-                ),
-            ]
-        )
+        mock_compute_hook.assert_has_calls([
+            mock.call(gcp_conn_id="google_cloud_default"),
+            mock.call().get_instance_address(
+                project_id=TEST_PROJECT_ID,
+                resource_id=TEST_INSTANCE_NAME,
+                use_internal_ip=False,
+                zone=TEST_ZONE,
+            ),
+        ])
+        mock_os_login_hook.assert_has_calls([
+            mock.call(gcp_conn_id="google_cloud_default"),
+            mock.call()._get_credentials_email(),
+            mock.call().import_ssh_public_key(
+                ssh_public_key={"key": "NAME AYZ root", "expiration_time_usec": mock.ANY},
+                project_id="test-project-id",
+                user=mock_os_login_hook.return_value._get_credentials_email.return_value,
+            ),
+        ])
+        mock_ssh_client.assert_has_calls([
+            mock.call(mock_compute_hook.return_value),
+            mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
+            mock.call().connect(
+                hostname=EXTERNAL_IP,
+                look_for_keys=False,
+                pkey=mock_paramiko.RSAKey.generate.return_value,
+                sock=None,
+                username="test-username",
+            ),
+        ])
 
     @pytest.mark.parametrize(
         "exception_type, error_message",
@@ -169,40 +163,36 @@ class TestComputeEngineHookWithPassedProjectId:
         assert mock_ssh_client.return_value == result
 
         mock_paramiko.RSAKey.generate.assert_called_once_with(2048)
-        mock_compute_hook.assert_has_calls(
-            [
-                mock.call(gcp_conn_id="google_cloud_default"),
-                mock.call().get_instance_address(
-                    project_id=TEST_PROJECT_ID,
-                    resource_id=TEST_INSTANCE_NAME,
-                    use_internal_ip=False,
-                    zone=TEST_ZONE,
-                ),
-                mock.call().get_instance_info(
-                    project_id=TEST_PROJECT_ID, resource_id=TEST_INSTANCE_NAME, zone=TEST_ZONE
-                ),
-                mock.call().set_instance_metadata(
-                    metadata={"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n"}]},
-                    project_id=TEST_PROJECT_ID,
-                    resource_id=TEST_INSTANCE_NAME,
-                    zone=TEST_ZONE,
-                ),
-            ]
-        )
+        mock_compute_hook.assert_has_calls([
+            mock.call(gcp_conn_id="google_cloud_default"),
+            mock.call().get_instance_address(
+                project_id=TEST_PROJECT_ID,
+                resource_id=TEST_INSTANCE_NAME,
+                use_internal_ip=False,
+                zone=TEST_ZONE,
+            ),
+            mock.call().get_instance_info(
+                project_id=TEST_PROJECT_ID, resource_id=TEST_INSTANCE_NAME, zone=TEST_ZONE
+            ),
+            mock.call().set_instance_metadata(
+                metadata={"items": [{"key": "ssh-keys", "value": f"{TEST_PUB_KEY}\n"}]},
+                project_id=TEST_PROJECT_ID,
+                resource_id=TEST_INSTANCE_NAME,
+                zone=TEST_ZONE,
+            ),
+        ])
 
-        mock_ssh_client.assert_has_calls(
-            [
-                mock.call(mock_compute_hook.return_value),
-                mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
-                mock.call().connect(
-                    hostname=EXTERNAL_IP,
-                    look_for_keys=False,
-                    pkey=mock_paramiko.RSAKey.generate.return_value,
-                    sock=None,
-                    username="root",
-                ),
-            ]
-        )
+        mock_ssh_client.assert_has_calls([
+            mock.call(mock_compute_hook.return_value),
+            mock.call().set_missing_host_key_policy(mock_paramiko.AutoAddPolicy.return_value),
+            mock.call().connect(
+                hostname=EXTERNAL_IP,
+                look_for_keys=False,
+                pkey=mock_paramiko.RSAKey.generate.return_value,
+                sock=None,
+                username="root",
+            ),
+        ])
 
         mock_os_login_hook.return_value.import_ssh_public_key.assert_not_called()
 
@@ -460,16 +450,14 @@ class TestComputeEngineHookWithPassedProjectId:
             conn_type="gcpssh",
             login="conn-user",
             host="conn-host",
-            extra=json.dumps(
-                {
-                    "instance_name": "conn-instance-name",
-                    "zone": "zone",
-                    "use_internal_ip": True,
-                    "use_iap_tunnel": True,
-                    "use_oslogin": False,
-                    "expire_time": 4242,
-                }
-            ),
+            extra=json.dumps({
+                "instance_name": "conn-instance-name",
+                "zone": "zone",
+                "use_internal_ip": True,
+                "use_iap_tunnel": True,
+                "use_oslogin": False,
+                "expire_time": 4242,
+            }),
         )
         conn_uri = conn.get_uri()
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):

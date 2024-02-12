@@ -299,13 +299,11 @@ class TestGKEPodOperator:
     @pytest.mark.parametrize("use_internal_ip", [True, False])
     @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
     def test_cluster_info(self, get_cluster_mock, use_internal_ip):
-        get_cluster_mock.return_value = mock.MagicMock(
-            **{
-                "endpoint": "test-host",
-                "private_cluster_config.private_endpoint": "test-private-host",
-                "master_auth.cluster_ca_certificate": SSL_CA_CERT,
-            }
-        )
+        get_cluster_mock.return_value = mock.MagicMock(**{
+            "endpoint": "test-host",
+            "private_cluster_config.private_endpoint": "test-private-host",
+            "master_auth.cluster_ca_certificate": SSL_CA_CERT,
+        })
         gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,
             location=PROJECT_LOCATION,

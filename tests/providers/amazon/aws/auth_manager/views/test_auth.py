@@ -49,16 +49,14 @@ SAML_METADATA_PARSED = {
 @pytest.fixture()
 def aws_app():
     def factory():
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws_auth_manager", "enable"): "True",
-                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
-            }
-        ):
+        with conf_vars({
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "enable"): "True",
+            ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
+        }):
             with patch(
                 "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
             ) as mock_parser:
@@ -89,16 +87,14 @@ class TestAwsAuthManagerAuthenticationViews:
             assert response.headers["Content-Type"] == "text/xml"
 
     def test_login_callback_set_user_in_session(self):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws_auth_manager", "enable"): "True",
-                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
-            }
-        ):
+        with conf_vars({
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "enable"): "True",
+            ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
+        }):
             with patch(
                 "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
             ) as mock_parser, patch(
@@ -125,16 +121,14 @@ class TestAwsAuthManagerAuthenticationViews:
                     assert session["aws_user"].get_name() == "user_id"
 
     def test_login_callback_raise_exception_if_errors(self):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws_auth_manager", "enable"): "True",
-                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
-            }
-        ):
+        with conf_vars({
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "enable"): "True",
+            ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
+        }):
             with patch(
                 "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
             ) as mock_parser, patch(

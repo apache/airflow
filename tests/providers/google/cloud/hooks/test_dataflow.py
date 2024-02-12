@@ -1758,12 +1758,10 @@ class TestDataflowJob:
 
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_list_job_messages_responses"))
     def test_fetch_job_messages_by_id(self, mock_fetch_responses):
-        mock_fetch_responses.return_value = iter(
-            [
-                {"jobMessages": ["message_1"]},
-                {"jobMessages": ["message_2"]},
-            ]
-        )
+        mock_fetch_responses.return_value = iter([
+            {"jobMessages": ["message_1"]},
+            {"jobMessages": ["message_2"]},
+        ])
         jobs_controller = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
@@ -1776,12 +1774,10 @@ class TestDataflowJob:
 
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController._fetch_list_job_messages_responses"))
     def test_fetch_job_autoscaling_events_by_id(self, mock_fetch_responses):
-        mock_fetch_responses.return_value = iter(
-            [
-                {"autoscalingEvents": ["event_1"]},
-                {"autoscalingEvents": ["event_2"]},
-            ]
-        )
+        mock_fetch_responses.return_value = iter([
+            {"autoscalingEvents": ["event_1"]},
+            {"autoscalingEvents": ["event_2"]},
+        ])
         jobs_controller = _DataflowJobsController(
             dataflow=self.mock_dataflow,
             project_number=TEST_PROJECT,
@@ -1986,14 +1982,12 @@ class TestAsyncHook:
             jobs_filter=TEST_JOBS_FILTER,
         )
 
-        request = ListJobsRequest(
-            {
-                "project_id": TEST_PROJECT_ID,
-                "location": TEST_LOCATION,
-                "filter": TEST_JOBS_FILTER,
-                "page_size": None,
-                "page_token": None,
-            }
-        )
+        request = ListJobsRequest({
+            "project_id": TEST_PROJECT_ID,
+            "location": TEST_LOCATION,
+            "filter": TEST_JOBS_FILTER,
+            "page_size": None,
+            "page_token": None,
+        })
         initialize_client_mock.assert_called_once()
         client.list_jobs.assert_called_once_with(request=request)

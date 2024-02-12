@@ -173,13 +173,11 @@ class TestSqsSensor:
         def mock_receive_message(**kwargs):
             messages = []
             for message in [*matching, *non_matching]:
-                messages.append(
-                    {
-                        "MessageId": message["id"],
-                        "ReceiptHandle": 100 + message["id"],
-                        "Body": message["body"],
-                    }
-                )
+                messages.append({
+                    "MessageId": message["id"],
+                    "ReceiptHandle": 100 + message["id"],
+                    "Body": message["body"],
+                })
             return {"Messages": messages}
 
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
@@ -218,13 +216,11 @@ class TestSqsSensor:
         def mock_receive_message(**kwargs):
             messages = []
             for message in [*matching, *non_matching]:
-                messages.append(
-                    {
-                        "MessageId": message["id"],
-                        "ReceiptHandle": 100 + message["id"],
-                        "Body": json.dumps(message),
-                    }
-                )
+                messages.append({
+                    "MessageId": message["id"],
+                    "ReceiptHandle": 100 + message["id"],
+                    "Body": json.dumps(message),
+                })
             return {"Messages": messages}
 
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
@@ -262,13 +258,11 @@ class TestSqsSensor:
         def mock_receive_message(**kwargs):
             messages = []
             for message in [*matching, *non_matching]:
-                messages.append(
-                    {
-                        "MessageId": message["id"],
-                        "ReceiptHandle": 100 + message["id"],
-                        "Body": json.dumps(message),
-                    }
-                )
+                messages.append({
+                    "MessageId": message["id"],
+                    "ReceiptHandle": 100 + message["id"],
+                    "Body": json.dumps(message),
+                })
             return {"Messages": messages}
 
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
@@ -306,13 +300,11 @@ class TestSqsSensor:
         def mock_receive_message(**kwargs):
             messages = []
             for message in [*matching, *non_matching]:
-                messages.append(
-                    {
-                        "MessageId": message["id"],
-                        "ReceiptHandle": 100 + message["id"],
-                        "Body": json.dumps(message),
-                    }
-                )
+                messages.append({
+                    "MessageId": message["id"],
+                    "ReceiptHandle": 100 + message["id"],
+                    "Body": json.dumps(message),
+                })
             return {"Messages": messages}
 
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
@@ -349,13 +341,11 @@ class TestSqsSensor:
         def mock_receive_message(**kwargs):
             messages = []
             for message in [*matching, *non_matching]:
-                messages.append(
-                    {
-                        "MessageId": message["id"],
-                        "ReceiptHandle": 100 + message["id"],
-                        "Body": json.dumps(message),
-                    }
-                )
+                messages.append({
+                    "MessageId": message["id"],
+                    "ReceiptHandle": 100 + message["id"],
+                    "Body": json.dumps(message),
+                })
             return {"Messages": messages}
 
         mocked_client.return_value.receive_message.side_effect = mock_receive_message

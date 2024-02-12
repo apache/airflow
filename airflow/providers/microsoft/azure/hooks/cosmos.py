@@ -23,6 +23,7 @@ Airflow connection of type `azure_cosmos` exists. Authorization can be done by s
 login (=Endpoint uri), password (=secret key) and extra fields database_name and collection_name to specify
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
+
 from __future__ import annotations
 
 import uuid

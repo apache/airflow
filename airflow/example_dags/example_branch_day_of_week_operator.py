@@ -18,6 +18,7 @@
 """
 Example DAG demonstrating the usage of BranchDayOfWeekOperator.
 """
+
 from __future__ import annotations
 
 import pendulum

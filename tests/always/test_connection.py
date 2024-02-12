@@ -841,18 +841,16 @@ class TestConnection:
             ),
             pytest.param(
                 "get_connection4",
-                json.dumps(
-                    {
-                        "conn_type": "bar",
-                        "description": "Sample Description",
-                        "host": "example.org",
-                        "login": "user",
-                        "password": "p@$$",
-                        "schema": "schema",
-                        "port": 777,
-                        "extra": {"foo": "bar", "answer": 42},
-                    }
-                ),
+                json.dumps({
+                    "conn_type": "bar",
+                    "description": "Sample Description",
+                    "host": "example.org",
+                    "login": "user",
+                    "password": "p@$$",
+                    "schema": "schema",
+                    "port": 777,
+                    "extra": {"foo": "bar", "answer": 42},
+                }),
                 id="all-fields",
             ),
             pytest.param(

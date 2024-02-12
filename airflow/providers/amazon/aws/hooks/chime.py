@@ -17,6 +17,7 @@
 # under the License.
 
 """This module contains a web hook for Chime."""
+
 from __future__ import annotations
 
 import json

@@ -241,13 +241,11 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_fold
     get_console(output=output).print(f"[info]Provider requirements in {provider_with_core_path}")
     base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
-    provider_packages = sorted(
-        [
-            line
-            for line in provider_with_core_path.read_text().splitlines()
-            if line.split("==")[0] not in base_packages
-        ]
-    )
+    provider_packages = sorted([
+        line
+        for line in provider_with_core_path.read_text().splitlines()
+        if line.split("==")[0] not in base_packages
+    ])
     get_console(output=output).print(
         f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
         f"dependent packages (excluding airflow and its dependencies)"

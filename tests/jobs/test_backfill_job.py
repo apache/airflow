@@ -434,21 +434,17 @@ class TestBackfillJob:
             if with_max_active_tis_per_dag:
                 assert len(running_task_instances) <= max_active_tis_per_dag
             running_tis_per_dagrun_dict = get_running_tis_per_dagrun(running_task_instances)
-            assert all(
-                [
-                    num_running_tis <= max_active_tis_per_dagrun
-                    for num_running_tis in running_tis_per_dagrun_dict.values()
-                ]
-            )
+            assert all([
+                num_running_tis <= max_active_tis_per_dagrun
+                for num_running_tis in running_tis_per_dagrun_dict.values()
+            ])
             num_running_task_instances += len(running_task_instances)
             task_concurrency_limit_reached_at_least_once = (
                 task_concurrency_limit_reached_at_least_once
-                or any(
-                    [
-                        num_running_tis == max_active_tis_per_dagrun
-                        for num_running_tis in running_tis_per_dagrun_dict.values()
-                    ]
-                )
+                or any([
+                    num_running_tis == max_active_tis_per_dagrun
+                    for num_running_tis in running_tis_per_dagrun_dict.values()
+                ])
             )
 
         assert 80 == num_running_task_instances  # (7 backfill run + 1 manual run ) * 10 mapped task per run
@@ -879,12 +875,12 @@ class TestBackfillJob:
         dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
-        ] = State.UP_FOR_RETRY
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)] = (
+            State.UP_FOR_RETRY
+        )
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)] = (
+            State.UP_FOR_RETRY
+        )
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
             job=job,
@@ -907,9 +903,9 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)] = (
+            State.UP_FOR_RETRY
+        )
         executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(

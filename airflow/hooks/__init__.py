@@ -17,6 +17,7 @@
 # under the License.
 # fmt:, off
 """Hooks."""
+
 from __future__ import annotations
 
 from airflow.utils.deprecation_tools import add_deprecated_classes

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Kerberos command."""
+
 from __future__ import annotations
 
 from airflow import settings

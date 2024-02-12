@@ -421,13 +421,11 @@ class TestPoolApiExperimental(TestBase):
     def test_create_pool(self):
         response = self.client.post(
             "/api/experimental/pools",
-            data=json.dumps(
-                {
-                    "name": "foo",
-                    "slots": 1,
-                    "description": "",
-                }
-            ),
+            data=json.dumps({
+                "name": "foo",
+                "slots": 1,
+                "description": "",
+            }),
             content_type="application/json",
         )
         self.assert_deprecated(response)
@@ -443,13 +441,11 @@ class TestPoolApiExperimental(TestBase):
         for name in ("", "    "):
             response = self.client.post(
                 "/api/experimental/pools",
-                data=json.dumps(
-                    {
-                        "name": name,
-                        "slots": 1,
-                        "description": "",
-                    }
-                ),
+                data=json.dumps({
+                    "name": name,
+                    "slots": 1,
+                    "description": "",
+                }),
                 content_type="application/json",
             )
             assert response.status_code == 400

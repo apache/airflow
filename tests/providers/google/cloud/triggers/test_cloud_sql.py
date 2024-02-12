@@ -79,12 +79,10 @@ class TestCloudSQLExportTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
-            TriggerEvent(
-                {
-                    "operation_name": OPERATION_NAME,
-                    "status": "success",
-                }
-            )
+            TriggerEvent({
+                "operation_name": OPERATION_NAME,
+                "status": "success",
+            })
             == actual
         )
 

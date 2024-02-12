@@ -1934,9 +1934,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 default_project_id=self.project_id,
                 var_name="source_project_dataset_table",
             )
-            source_project_dataset_tables_fixup.append(
-                {"projectId": source_project, "datasetId": source_dataset, "tableId": source_table}
-            )
+            source_project_dataset_tables_fixup.append({
+                "projectId": source_project,
+                "datasetId": source_dataset,
+                "tableId": source_table,
+            })
 
         destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table, default_project_id=self.project_id
@@ -2232,14 +2234,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                             "'datasetId':'', 'tableId':''}"
                         )
                 else:
-                    configuration["query"].update(
-                        {
-                            "allowLargeResults": allow_large_results,
-                            "flattenResults": flatten_results,
-                            "writeDisposition": write_disposition,
-                            "createDisposition": create_disposition,
-                        }
-                    )
+                    configuration["query"].update({
+                        "allowLargeResults": allow_large_results,
+                        "flattenResults": flatten_results,
+                        "writeDisposition": write_disposition,
+                        "createDisposition": create_disposition,
+                    })
 
         if (
             "useLegacySql" in configuration["query"]
@@ -3021,14 +3021,12 @@ class BigQueryCursor(BigQueryBaseCursor):
                             "'datasetId':'', 'tableId':''}"
                         )
                 else:
-                    configuration["query"].update(
-                        {
-                            "allowLargeResults": allow_large_results,
-                            "flattenResults": flatten_results,
-                            "writeDisposition": write_disposition,
-                            "createDisposition": create_disposition,
-                        }
-                    )
+                    configuration["query"].update({
+                        "allowLargeResults": allow_large_results,
+                        "flattenResults": flatten_results,
+                        "writeDisposition": write_disposition,
+                        "createDisposition": create_disposition,
+                    })
 
         if (
             "useLegacySql" in configuration["query"]

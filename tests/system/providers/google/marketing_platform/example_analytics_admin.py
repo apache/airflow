@@ -32,6 +32,7 @@ Editor permissions. This service account should be created on behalf of the acco
 6. Associate the Google Ads account with a property, and save this property's id in the variable
 GA_GOOGLE_ADS_PROPERTY_ID.
 """
+
 from __future__ import annotations
 
 import json
@@ -83,12 +84,10 @@ with DAG(
             conn_id=CONNECTION_ID,
             conn_type="google_cloud_platform",
         )
-        conn_extra_json = json.dumps(
-            {
-                "scope": "https://www.googleapis.com/auth/analytics.edit,"
-                "https://www.googleapis.com/auth/analytics.readonly",
-            }
-        )
+        conn_extra_json = json.dumps({
+            "scope": "https://www.googleapis.com/auth/analytics.edit,"
+            "https://www.googleapis.com/auth/analytics.readonly",
+        })
         connection.set_extra(conn_extra_json)
 
         session = Session()

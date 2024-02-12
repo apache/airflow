@@ -216,9 +216,9 @@ class TestSFTPToWasbOperator:
             "main_dir", prefix="main_dir/test_object", delimiter=".json"
         )
 
-        sftp_hook.return_value.retrieve_file.assert_has_calls(
-            [mock.call("main_dir/test_object.json", mock.ANY)]
-        )
+        sftp_hook.return_value.retrieve_file.assert_has_calls([
+            mock.call("main_dir/test_object.json", mock.ANY)
+        ])
 
         mock_hook.return_value.load_file.assert_called_once_with(
             mock.ANY, CONTAINER_NAME, "test_object.json", create_container, overwrite=False
@@ -253,9 +253,9 @@ class TestSFTPToWasbOperator:
             "main_dir", prefix="main_dir/test_object", delimiter=".json"
         )
 
-        sftp_hook.return_value.retrieve_file.assert_has_calls(
-            [mock.call("main_dir/test_object.json", mock.ANY)]
-        )
+        sftp_hook.return_value.retrieve_file.assert_has_calls([
+            mock.call("main_dir/test_object.json", mock.ANY)
+        ])
 
         mock_hook.return_value.load_file.assert_called_once_with(
             mock.ANY, CONTAINER_NAME, BLOB_PREFIX + "test_object.json", create_container, overwrite=False

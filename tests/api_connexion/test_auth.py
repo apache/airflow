@@ -182,14 +182,12 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
-            with conf_vars(
-                {
-                    (
-                        "api",
-                        "auth_backends",
-                    ): "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
-                }
-            ):
+            with conf_vars({
+                (
+                    "api",
+                    "auth_backends",
+                ): "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
+            }):
                 init_api_experimental_auth(minimal_app_for_api)
                 yield
         finally:

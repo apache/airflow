@@ -20,6 +20,7 @@ Base operator for all operators.
 
 :sphinx-autoapi-skip:
 """
+
 from __future__ import annotations
 
 import abc
@@ -1130,14 +1131,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Return True if the Operator has been assigned to a DAG."""
         return self._dag is not None
 
-    deps: frozenset[BaseTIDep] = frozenset(
-        {
-            NotInRetryPeriodDep(),
-            PrevDagrunDep(),
-            TriggerRuleDep(),
-            NotPreviouslySkippedDep(),
-        }
-    )
+    deps: frozenset[BaseTIDep] = frozenset({
+        NotInRetryPeriodDep(),
+        PrevDagrunDep(),
+        TriggerRuleDep(),
+        NotPreviouslySkippedDep(),
+    })
     """
     Returns the set of dependencies for the operator. These differ from execution
     context dependencies in that they are specific to tasks and can be

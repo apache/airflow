@@ -645,9 +645,9 @@ def build_docs(
             include_not_ready=include_not_ready_providers,
         ),
     )
-    cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join(
-        [shlex.quote(arg) for arg in doc_builder.args_doc_builder]
-    )
+    cmd = "/opt/airflow/scripts/in_container/run_docs_build.sh " + " ".join([
+        shlex.quote(arg) for arg in doc_builder.args_doc_builder
+    ])
     shell_params = ShellParams(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,

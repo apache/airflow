@@ -1725,13 +1725,11 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         pytest.param(
             (),
             {
-                "providers-compatibility-checks": json.dumps(
-                    [
-                        check
-                        for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
-                        if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-                    ]
-                ),
+                "providers-compatibility-checks": json.dumps([
+                    check
+                    for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                    if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+                ]),
             },
             id="Regular tests",
         ),

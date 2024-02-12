@@ -50,8 +50,7 @@ POD_NAME = "test-pod"
 NAMESPACE = "test-namespace"
 
 
-class DeprecationRemovalRequired(AirflowException):
-    ...
+class DeprecationRemovalRequired(AirflowException): ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"
@@ -95,12 +94,10 @@ class TestKubernetesHook:
             (
                 "sidecar_container_resources",
                 {
-                    "xcom_sidecar_container_resources": json.dumps(
-                        {
-                            "requests": {"cpu": "1m", "memory": "10Mi"},
-                            "limits": {"cpu": "1m", "memory": "50Mi"},
-                        }
-                    ),
+                    "xcom_sidecar_container_resources": json.dumps({
+                        "requests": {"cpu": "1m", "memory": "10Mi"},
+                        "limits": {"cpu": "1m", "memory": "50Mi"},
+                    }),
                 },
             ),
             ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),

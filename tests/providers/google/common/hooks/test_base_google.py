@@ -816,14 +816,12 @@ class TestProvideAuthorizedGcloud:
         # This file always exists.
         mock_cloud_sdk.get_application_default_credentials_path.return_value = __file__
 
-        file_content = json.dumps(
-            {
-                "client_id": "CLIENT_ID",
-                "client_secret": "CLIENT_SECRET",
-                "refresh_token": "REFRESH_TOKEN",
-                "type": "authorized_user",
-            }
-        )
+        file_content = json.dumps({
+            "client_id": "CLIENT_ID",
+            "client_secret": "CLIENT_SECRET",
+            "refresh_token": "REFRESH_TOKEN",
+            "type": "authorized_user",
+        })
         with mock.patch(MODULE_NAME + ".open", mock.mock_open(read_data=file_content)):
             with self.instance.provide_authorized_gcloud():
                 # Do nothing

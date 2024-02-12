@@ -23,6 +23,7 @@ AWS Batch service waiters.
     - https://boto3.amazonaws.com/v1/documentation/api/latest/guide/clients.html#waiters
     - https://github.com/boto/botocore/blob/develop/botocore/waiter.py
 """
+
 from __future__ import annotations
 
 import json

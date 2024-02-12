@@ -115,12 +115,10 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
         else:
             if return_code == 0:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": "Pipeline has finished SUCCESSFULLY",
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "success",
+                    "message": "Pipeline has finished SUCCESSFULLY",
+                })
             else:
                 yield TriggerEvent({"status": "error", "message": "Operation failed"})
         return
@@ -241,12 +239,10 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
         if return_code == 0:
-            yield TriggerEvent(
-                {
-                    "status": "success",
-                    "message": "Pipeline has finished SUCCESSFULLY",
-                }
-            )
+            yield TriggerEvent({
+                "status": "success",
+                "message": "Pipeline has finished SUCCESSFULLY",
+            })
         else:
             yield TriggerEvent({"status": "error", "message": "Operation failed"})
         return

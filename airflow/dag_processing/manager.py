@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Processes DAGs."""
+
 from __future__ import annotations
 
 import enum
@@ -853,17 +854,15 @@ class DagFileProcessorManager(LoggingMixin):
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
-            formatted_rows.append(
-                (
-                    file_path,
-                    pid,
-                    f"{runtime.total_seconds():.2f}s" if runtime else None,
-                    num_dags,
-                    num_errors,
-                    f"{last_runtime:.2f}s" if last_runtime else None,
-                    last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
-                )
-            )
+            formatted_rows.append((
+                file_path,
+                pid,
+                f"{runtime.total_seconds():.2f}s" if runtime else None,
+                num_dags,
+                num_errors,
+                f"{last_runtime:.2f}s" if last_runtime else None,
+                last_run.strftime("%Y-%m-%dT%H:%M:%S") if last_run else None,
+            ))
         log_str = (
             "\n"
             + "=" * 80
@@ -1156,9 +1155,9 @@ class DagFileProcessorManager(LoggingMixin):
             random.Random(get_hostname()).shuffle(file_paths)
 
         if file_paths_to_stop_watching:
-            self.set_file_paths(
-                [path for path in self._file_paths if path not in file_paths_to_stop_watching]
-            )
+            self.set_file_paths([
+                path for path in self._file_paths if path not in file_paths_to_stop_watching
+            ])
 
         files_paths_at_run_limit = [
             file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs

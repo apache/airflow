@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs."""
+
 from __future__ import annotations
 
 import collections.abc
@@ -53,22 +54,20 @@ Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
 
-DEFAULT_SENSITIVE_FIELDS = frozenset(
-    {
-        "access_token",
-        "api_key",
-        "apikey",
-        "authorization",
-        "passphrase",
-        "passwd",
-        "password",
-        "private_key",
-        "secret",
-        "token",
-        "keyfile_dict",
-        "service_account",
-    }
-)
+DEFAULT_SENSITIVE_FIELDS = frozenset({
+    "access_token",
+    "api_key",
+    "apikey",
+    "authorization",
+    "passphrase",
+    "passwd",
+    "password",
+    "private_key",
+    "secret",
+    "token",
+    "keyfile_dict",
+    "service_account",
+})
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
 SECRETS_TO_SKIP_MASKING_FOR_TESTS = {"airflow"}

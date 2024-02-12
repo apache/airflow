@@ -777,15 +777,13 @@ class WeaviateHook(BaseHook):
             data_objects = (
                 self.conn.query.get(properties=[document_column], class_name=class_name)
                 .with_additional([uuid_column])
-                .with_where(
-                    {
-                        "operator": "Or",
-                        "operands": [
-                            {"valueText": key, "path": document_column, "operator": "Equal"}
-                            for key in document_keys
-                        ],
-                    }
-                )
+                .with_where({
+                    "operator": "Or",
+                    "operands": [
+                        {"valueText": key, "path": document_column, "operator": "Equal"}
+                        for key in document_keys
+                    ],
+                })
                 .with_offset(offset)
                 .with_limit(limit)
                 .do()["data"]["Get"][class_name]

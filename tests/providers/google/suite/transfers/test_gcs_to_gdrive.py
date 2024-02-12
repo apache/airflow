@@ -45,31 +45,27 @@ class TestGcsToGDriveOperator:
 
         task.execute(mock.MagicMock())
 
-        mock_gcs_hook.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=None,
-                ),
-                mock.call().download(
-                    bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
-                ),
-            ]
-        )
+        mock_gcs_hook.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=None,
+            ),
+            mock.call().download(
+                bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
+            ),
+        ])
 
-        mock_gdrive.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=None,
-                ),
-                mock.call().upload_file(
-                    local_location="TMP1",
-                    remote_location="copied_sales/2017/january-backup.avro",
-                    folder_id="root",
-                ),
-            ]
-        )
+        mock_gdrive.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=None,
+            ),
+            mock.call().upload_file(
+                local_location="TMP1",
+                remote_location="copied_sales/2017/january-backup.avro",
+                folder_id="root",
+            ),
+        ])
 
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
@@ -88,31 +84,27 @@ class TestGcsToGDriveOperator:
 
         task.execute(mock.MagicMock())
 
-        mock_gcs_hook.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=None,
-                ),
-                mock.call().download(
-                    bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
-                ),
-            ]
-        )
+        mock_gcs_hook.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=None,
+            ),
+            mock.call().download(
+                bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
+            ),
+        ])
 
-        mock_gdrive.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=None,
-                ),
-                mock.call().upload_file(
-                    local_location="TMP1",
-                    remote_location="copied_sales/2017/january-backup.avro",
-                    folder_id="aAopls6bE4tUllZVGJvRUU",
-                ),
-            ]
-        )
+        mock_gdrive.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=None,
+            ),
+            mock.call().upload_file(
+                local_location="TMP1",
+                remote_location="copied_sales/2017/january-backup.avro",
+                folder_id="aAopls6bE4tUllZVGJvRUU",
+            ),
+        ])
 
     #
     @mock.patch(MODULE + ".GCSHook")
@@ -133,39 +125,29 @@ class TestGcsToGDriveOperator:
         )
 
         task.execute(mock.MagicMock())
-        mock_gcs_hook.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=IMPERSONATION_CHAIN,
-                ),
-                mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
-                # TODO: After deprecating delimiter and wildcards in source objects,
-                #       remove previous line and uncomment the following:
-                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
-                mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
-                mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
-                mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
-            ]
-        )
+        mock_gcs_hook.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            ),
+            mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove previous line and uncomment the following:
+            # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
+            mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
+            mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
+            mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
+        ])
 
-        mock_gdrive.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=IMPERSONATION_CHAIN,
-                ),
-                mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
-                ),
-                mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
-                ),
-                mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
-                ),
-            ]
-        )
+        mock_gdrive.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            ),
+            mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro", folder_id="root"),
+            mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro", folder_id="root"),
+            mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro", folder_id="root"),
+        ])
 
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
@@ -184,42 +166,32 @@ class TestGcsToGDriveOperator:
         )
 
         task.execute(mock.MagicMock())
-        mock_gcs_hook.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=IMPERSONATION_CHAIN,
-                ),
-                mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
-                # TODO: After deprecating delimiter and wildcards in source objects,
-                #       remove previous line and uncomment the following:
-                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
-                mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
-                mock.call().delete("data", "sales/A.avro"),
-                mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
-                mock.call().delete("data", "sales/B.avro"),
-                mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
-                mock.call().delete("data", "sales/C.avro"),
-            ]
-        )
+        mock_gcs_hook.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            ),
+            mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove previous line and uncomment the following:
+            # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
+            mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
+            mock.call().delete("data", "sales/A.avro"),
+            mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
+            mock.call().delete("data", "sales/B.avro"),
+            mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
+            mock.call().delete("data", "sales/C.avro"),
+        ])
 
-        mock_gdrive.assert_has_calls(
-            [
-                mock.call(
-                    gcp_conn_id="google_cloud_default",
-                    impersonation_chain=IMPERSONATION_CHAIN,
-                ),
-                mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
-                ),
-                mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
-                ),
-                mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
-                ),
-            ]
-        )
+        mock_gdrive.assert_has_calls([
+            mock.call(
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain=IMPERSONATION_CHAIN,
+            ),
+            mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro", folder_id="root"),
+            mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro", folder_id="root"),
+            mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro", folder_id="root"),
+        ])
 
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")

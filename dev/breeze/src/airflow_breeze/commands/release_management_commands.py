@@ -1625,12 +1625,10 @@ def release_prod_images(
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     """Check if package has been prepared in dist folder."""
     return any(
-        file.startswith(
-            (
-                f'apache_airflow_providers_{package.replace(".", "_")}',
-                f'apache-airflow-providers-{package.replace(".", "-")}',
-            )
-        )
+        file.startswith((
+            f'apache_airflow_providers_{package.replace(".", "_")}',
+            f'apache-airflow-providers-{package.replace(".", "-")}',
+        ))
         for file in dist_files
     )
 

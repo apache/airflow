@@ -316,7 +316,7 @@ class TestAwsS3Hook:
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
-        bucket.put_object(Key="my_key", Body=b"Cont\xC3\xA9nt")
+        bucket.put_object(Key="my_key", Body=b"Cont\xc3\xa9nt")
 
         assert hook.read_key("my_key", s3_bucket) == "Contént"
 
@@ -324,7 +324,7 @@ class TestAwsS3Hook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = {
-            "Payload": [{"Records": {"Payload": b"Cont\xC3"}}, {"Records": {"Payload": b"\xA9nt"}}]
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
         hook = S3Hook()
         assert hook.select_key("my_key", s3_bucket) == "Contént"
@@ -382,14 +382,14 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
-        assert resource.get()["Body"].read() == b"Cont\xC3\xA9nt"
+        assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, compression="gzip")
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         data = gz.decompress(resource.get()["Body"].read())
-        assert data == b"Cont\xC3\xA9nt"
+        assert data == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress_exception(self, s3_bucket):
         hook = S3Hook()

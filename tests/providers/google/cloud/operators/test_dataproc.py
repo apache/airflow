@@ -617,18 +617,16 @@ class TestsClusterGenerator:
             auto_delete_time=datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
-            secondary_worker_instance_flexibility_policy=InstanceFlexibilityPolicy(
-                [
-                    InstanceSelection(
-                        [
-                            "projects/project_id/zones/zone/machineTypes/machine1",
-                            "projects/project_id/zones/zone/machineTypes/machine2",
-                        ],
-                        0,
-                    ),
-                    InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
-                ]
-            ),
+            secondary_worker_instance_flexibility_policy=InstanceFlexibilityPolicy([
+                InstanceSelection(
+                    [
+                        "projects/project_id/zones/zone/machineTypes/machine1",
+                        "projects/project_id/zones/zone/machineTypes/machine2",
+                    ],
+                    0,
+                ),
+                InstanceSelection(["projects/project_id/zones/zone/machineTypes/machine3"], 1),
+            ]),
         )
         cluster = generator.make()
         assert CONFIG_WITH_FLEX_MIG == cluster

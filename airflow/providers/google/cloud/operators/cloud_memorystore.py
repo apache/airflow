@@ -23,6 +23,7 @@ Operators for Google Cloud Memorystore service.
     FieldMask
     memcache
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

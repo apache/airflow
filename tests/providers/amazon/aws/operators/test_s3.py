@@ -236,9 +236,9 @@ class TestS3FileTransformOperator:
         )
         op.execute(None)
 
-        mock_log.info.assert_has_calls(
-            [mock.call(line.decode(sys.getdefaultencoding())) for line in process_output]
-        )
+        mock_log.info.assert_has_calls([
+            mock.call(line.decode(sys.getdefaultencoding())) for line in process_output
+        ])
 
     @mock.patch("subprocess.Popen")
     @mock_aws

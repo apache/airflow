@@ -162,48 +162,44 @@ class TestWorkerStart:
         celery_hostname = "celery_hostname"
         queues = "queue"
         autoscale = "2,5"
-        args = self.parser.parse_args(
-            [
-                "celery",
-                "worker",
-                "--autoscale",
-                autoscale,
-                "--concurrency",
-                concurrency,
-                "--celery-hostname",
-                celery_hostname,
-                "--queues",
-                queues,
-                "--without-mingle",
-                "--without-gossip",
-            ]
-        )
+        args = self.parser.parse_args([
+            "celery",
+            "worker",
+            "--autoscale",
+            autoscale,
+            "--concurrency",
+            concurrency,
+            "--celery-hostname",
+            celery_hostname,
+            "--queues",
+            queues,
+            "--without-mingle",
+            "--without-gossip",
+        ])
 
         celery_command.worker(args)
 
-        mock_celery_app.worker_main.assert_called_once_with(
-            [
-                "worker",
-                "-O",
-                "fair",
-                "--queues",
-                queues,
-                "--concurrency",
-                int(concurrency),
-                "--hostname",
-                celery_hostname,
-                "--loglevel",
-                conf.get("logging", "CELERY_LOGGING_LEVEL"),
-                "--pidfile",
-                pid_file,
-                "--autoscale",
-                autoscale,
-                "--without-mingle",
-                "--without-gossip",
-                "--pool",
-                "prefork",
-            ]
-        )
+        mock_celery_app.worker_main.assert_called_once_with([
+            "worker",
+            "-O",
+            "fair",
+            "--queues",
+            queues,
+            "--concurrency",
+            int(concurrency),
+            "--hostname",
+            celery_hostname,
+            "--loglevel",
+            conf.get("logging", "CELERY_LOGGING_LEVEL"),
+            "--pidfile",
+            pid_file,
+            "--autoscale",
+            autoscale,
+            "--without-mingle",
+            "--without-gossip",
+            "--pool",
+            "prefork",
+        ])
 
 
 @pytest.mark.backend("mysql", "postgres")
@@ -235,38 +231,34 @@ class TestFlowerCommand:
 
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command(self, mock_celery_app):
-        args = self.parser.parse_args(
-            [
-                "celery",
-                "flower",
-                "--basic-auth",
-                "admin:admin",
-                "--broker-api",
-                "http://username:password@rabbitmq-server-name:15672/api/",
-                "--flower-conf",
-                "flower_config",
-                "--hostname",
-                "my-hostname",
-                "--port",
-                "3333",
-                "--url-prefix",
-                "flower-monitoring",
-            ]
-        )
+        args = self.parser.parse_args([
+            "celery",
+            "flower",
+            "--basic-auth",
+            "admin:admin",
+            "--broker-api",
+            "http://username:password@rabbitmq-server-name:15672/api/",
+            "--flower-conf",
+            "flower_config",
+            "--hostname",
+            "my-hostname",
+            "--port",
+            "3333",
+            "--url-prefix",
+            "flower-monitoring",
+        ])
 
         celery_command.flower(args)
-        mock_celery_app.start.assert_called_once_with(
-            [
-                "flower",
-                conf.get("celery", "BROKER_URL"),
-                "--address=my-hostname",
-                "--port=3333",
-                "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",
-                "--url-prefix=flower-monitoring",
-                "--basic-auth=admin:admin",
-                "--conf=flower_config",
-            ]
-        )
+        mock_celery_app.start.assert_called_once_with([
+            "flower",
+            conf.get("celery", "BROKER_URL"),
+            "--address=my-hostname",
+            "--port=3333",
+            "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",
+            "--url-prefix=flower-monitoring",
+            "--basic-auth=admin:admin",
+            "--conf=flower_config",
+        ])
 
     @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
@@ -279,49 +271,45 @@ class TestFlowerCommand:
             mock.MagicMock(name="stderr"),
             mock.MagicMock(name="INVALID"),
         )
-        args = self.parser.parse_args(
-            [
-                "celery",
-                "flower",
-                "--basic-auth",
-                "admin:admin",
-                "--broker-api",
-                "http://username:password@rabbitmq-server-name:15672/api/",
-                "--flower-conf",
-                "flower_config",
-                "--hostname",
-                "my-hostname",
-                "--log-file",
-                "/tmp/flower.log",
-                "--pid",
-                "/tmp/flower.pid",
-                "--port",
-                "3333",
-                "--stderr",
-                "/tmp/flower-stderr.log",
-                "--stdout",
-                "/tmp/flower-stdout.log",
-                "--url-prefix",
-                "flower-monitoring",
-                "--daemon",
-            ]
-        )
+        args = self.parser.parse_args([
+            "celery",
+            "flower",
+            "--basic-auth",
+            "admin:admin",
+            "--broker-api",
+            "http://username:password@rabbitmq-server-name:15672/api/",
+            "--flower-conf",
+            "flower_config",
+            "--hostname",
+            "my-hostname",
+            "--log-file",
+            "/tmp/flower.log",
+            "--pid",
+            "/tmp/flower.pid",
+            "--port",
+            "3333",
+            "--stderr",
+            "/tmp/flower-stderr.log",
+            "--stdout",
+            "/tmp/flower-stdout.log",
+            "--url-prefix",
+            "flower-monitoring",
+            "--daemon",
+        ])
         mock_open = mock.mock_open()
         with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
-        mock_celery_app.start.assert_called_once_with(
-            [
-                "flower",
-                conf.get("celery", "BROKER_URL"),
-                "--address=my-hostname",
-                "--port=3333",
-                "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",
-                "--url-prefix=flower-monitoring",
-                "--basic-auth=admin:admin",
-                "--conf=flower_config",
-            ]
-        )
+        mock_celery_app.start.assert_called_once_with([
+            "flower",
+            conf.get("celery", "BROKER_URL"),
+            "--address=my-hostname",
+            "--port=3333",
+            "--broker-api=http://username:password@rabbitmq-server-name:15672/api/",
+            "--url-prefix=flower-monitoring",
+            "--basic-auth=admin:admin",
+            "--conf=flower_config",
+        ])
         assert mock_daemon.mock_calls[:3] == [
             mock.call.DaemonContext(
                 pidfile=mock_pid_file.return_value,

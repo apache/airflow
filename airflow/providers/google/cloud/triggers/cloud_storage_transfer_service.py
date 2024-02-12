@@ -75,12 +75,10 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
 
                 for job, operation in zip(jobs, operations):
                     if operation is None:
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": f"Transfer job {job.name} has no latest operation.",
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": "error",
+                            "message": f"Transfer job {job.name} has no latest operation.",
+                        })
                         return
                     elif operation.status == TransferOperation.Status.SUCCESS:
                         jobs_completed_successfully += 1
@@ -88,13 +86,11 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                         TransferOperation.Status.FAILED,
                         TransferOperation.Status.ABORTED,
                     ):
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": f"Transfer operation {operation.name} failed with status "
-                                f"{TransferOperation.Status(operation.status).name}",
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": "error",
+                            "message": f"Transfer operation {operation.name} failed with status "
+                            f"{TransferOperation.Status(operation.status).name}",
+                        })
                         return
             except (GoogleAPIError, AirflowException) as ex:
                 yield TriggerEvent({"status": "error", "message": str(ex)})
@@ -105,12 +101,10 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
             if jobs_completed_successfully == jobs_total:
                 s = "s" if jobs_total > 1 else ""
                 job_names = ", ".join(j for j in self.job_names)
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "message": f"Transfer job{s} {job_names} completed successfully",
-                    }
-                )
+                yield TriggerEvent({
+                    "status": "success",
+                    "message": f"Transfer job{s} {job_names} completed successfully",
+                })
                 return
 
             self.log.info("Sleeping for %s seconds", self.poll_interval)

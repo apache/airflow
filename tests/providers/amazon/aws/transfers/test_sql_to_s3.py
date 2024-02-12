@@ -210,23 +210,19 @@ class TestSqlToS3Operator:
         data.sort(key=lambda d: d[0])
         team, df = data[0]
         assert df.equals(
-            pd.DataFrame(
-                {
-                    "Team": ["Australia", "Australia"],
-                    "Player": ["Ricky", "David Warner"],
-                    "Runs": [345, 490],
-                }
-            )
+            pd.DataFrame({
+                "Team": ["Australia", "Australia"],
+                "Player": ["Ricky", "David Warner"],
+                "Runs": [345, 490],
+            })
         )
         team, df = data[1]
         assert df.equals(
-            pd.DataFrame(
-                {
-                    "Team": ["India", "India"],
-                    "Player": ["Virat Kohli", "Rohit Sharma"],
-                    "Runs": [672, 560],
-                }
-            )
+            pd.DataFrame({
+                "Team": ["India", "India"],
+                "Player": ["Virat Kohli", "Rohit Sharma"],
+                "Runs": [672, 560],
+            })
         )
 
     def test_without_groupby_kwarg(self):
@@ -262,13 +258,11 @@ class TestSqlToS3Operator:
         assert len(data) == 1
         team, df = data[0]
         assert df.equals(
-            pd.DataFrame(
-                {
-                    "Team": ["Australia", "Australia", "India", "India"],
-                    "Player": ["Ricky", "David Warner", "Virat Kohli", "Rohit Sharma"],
-                    "Runs": [345, 490, 672, 560],
-                }
-            )
+            pd.DataFrame({
+                "Team": ["Australia", "Australia", "India", "India"],
+                "Player": ["Ricky", "David Warner", "Virat Kohli", "Rohit Sharma"],
+                "Runs": [345, 490, 672, 560],
+            })
         )
 
     def test_with_max_rows_per_file(self):
@@ -304,23 +298,19 @@ class TestSqlToS3Operator:
         data.sort(key=lambda d: d[0])
         team, df = data[0]
         assert df.equals(
-            pd.DataFrame(
-                {
-                    "Team": ["Australia", "Australia", "India"],
-                    "Player": ["Ricky", "David Warner", "Virat Kohli"],
-                    "Runs": [345, 490, 672],
-                }
-            )
+            pd.DataFrame({
+                "Team": ["Australia", "Australia", "India"],
+                "Player": ["Ricky", "David Warner", "Virat Kohli"],
+                "Runs": [345, 490, 672],
+            })
         )
         team, df = data[1]
         assert df.equals(
-            pd.DataFrame(
-                {
-                    "Team": ["India"],
-                    "Player": ["Rohit Sharma"],
-                    "Runs": [560],
-                }
-            )
+            pd.DataFrame({
+                "Team": ["India"],
+                "Player": ["Rohit Sharma"],
+                "Runs": [560],
+            })
         )
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")

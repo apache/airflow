@@ -148,12 +148,10 @@ class TestSchedulerCommand:
     ):
         health_check_host = "192.168.0.0"
         health_check_port = 1111
-        with conf_vars(
-            {
-                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST"): health_check_host,
-                ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(health_check_port),
-            }
-        ):
+        with conf_vars({
+            ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_HOST"): health_check_host,
+            ("scheduler", "SCHEDULER_HEALTH_CHECK_SERVER_PORT"): str(health_check_port),
+        }):
             serve_health_check()
         assert http_server_mock.call_args.args[0] == (health_check_host, health_check_port)
 

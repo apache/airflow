@@ -107,24 +107,20 @@ class TestStats:
         importlib.reload(airflow.stats)
 
     def test_load_custom_statsd_client(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.CustomStatsd",
-            }
-        ):
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "statsd_custom_client_path"): f"{__name__}.CustomStatsd",
+        }):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.statsd, CustomStatsd)
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
     def test_load_invalid_custom_stats_client(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
-            }
-        ), pytest.raises(
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "statsd_custom_client_path"): f"{__name__}.InvalidCustomStatsd",
+        }), pytest.raises(
             AirflowConfigException,
             match=re.escape(
                 "Your custom StatsD client must extend the statsd."
@@ -136,12 +132,10 @@ class TestStats:
         importlib.reload(airflow.stats)
 
     def test_load_allow_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_allow_list"): "name1,name2",
-            }
-        ):
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "metrics_allow_list"): "name1,name2",
+        }):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
@@ -149,12 +143,10 @@ class TestStats:
         importlib.reload(airflow.stats)
 
     def test_load_block_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_block_list"): "name1,name2",
-            }
-        ):
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "metrics_block_list"): "name1,name2",
+        }):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.metrics_validator, BlockListValidator)
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
@@ -162,13 +154,11 @@ class TestStats:
         importlib.reload(airflow.stats)
 
     def test_load_allow_and_block_list_validator_loads_only_allow_list_validator(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "metrics_allow_list"): "name1,name2",
-                ("metrics", "metrics_block_list"): "name1,name2",
-            }
-        ):
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "metrics_allow_list"): "name1,name2",
+            ("metrics", "metrics_block_list"): "name1,name2",
+        }):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
@@ -458,12 +448,10 @@ class TestDogStatsWithDisabledMetricsTags:
 
 class TestStatsWithInfluxDBEnabled:
     def setup_method(self):
-        with conf_vars(
-            {
-                ("metrics", "statsd_on"): "True",
-                ("metrics", "statsd_influxdb_enabled"): "True",
-            }
-        ):
+        with conf_vars({
+            ("metrics", "statsd_on"): "True",
+            ("metrics", "statsd_influxdb_enabled"): "True",
+        }):
             self.statsd_client = Mock(spec=statsd.StatsClient)
             self.stats = SafeStatsdLogger(
                 self.statsd_client,
@@ -501,48 +489,40 @@ def always_valid(stat_name):
 
 
 class TestCustomStatsName:
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
-        }
-    )
+    @conf_vars({
+        ("metrics", "statsd_on"): "True",
+        ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
+    })
     @mock.patch("statsd.StatsClient")
     def test_does_not_send_stats_using_statsd_when_the_name_is_not_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.assert_not_called()
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
-        }
-    )
+    @conf_vars({
+        ("metrics", "statsd_datadog_enabled"): "True",
+        ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
+    })
     @mock.patch("datadog.DogStatsd")
     def test_does_not_send_stats_using_dogstatsd_when_the_name_is_not_valid(self, mock_dogstatsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("empty_key")
         mock_dogstatsd.return_value.assert_not_called()
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_on"): "True",
-            ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
-        }
-    )
+    @conf_vars({
+        ("metrics", "statsd_on"): "True",
+        ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
+    })
     @mock.patch("statsd.StatsClient")
     def test_does_send_stats_using_statsd_when_the_name_is_valid(self, mock_statsd):
         importlib.reload(airflow.stats)
         airflow.stats.Stats.incr("empty_key")
         mock_statsd.return_value.incr.assert_called_once_with("empty_key", 1, 1)
 
-    @conf_vars(
-        {
-            ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
-        }
-    )
+    @conf_vars({
+        ("metrics", "statsd_datadog_enabled"): "True",
+        ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
+    })
     @mock.patch("datadog.DogStatsd")
     def test_does_send_stats_using_dogstatsd_when_the_name_is_valid(self, mock_dogstatsd):
         importlib.reload(airflow.stats)

@@ -191,11 +191,9 @@ class DockerHook(BaseHook):
                 "login": "Username",
             },
             "placeholders": {
-                "extra": json.dumps(
-                    {
-                        "reauth": False,
-                        "email": "Jane.Doe@example.org",
-                    }
-                )
+                "extra": json.dumps({
+                    "reauth": False,
+                    "email": "Jane.Doe@example.org",
+                })
             },
         }

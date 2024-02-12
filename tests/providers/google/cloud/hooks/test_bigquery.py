@@ -1230,34 +1230,32 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.executemany("SELECT %(foo)s", [{"foo": "bar"}, {"foo": "baz"}])
         assert mock_insert.call_count == 2
-        mock_insert.assert_has_calls(
-            [
-                mock.call(
-                    location=None,
-                    configuration={
-                        "query": {
-                            "query": "SELECT 'bar'",
-                            "priority": "INTERACTIVE",
-                            "useLegacySql": True,
-                            "schemaUpdateOptions": [],
-                        }
-                    },
-                    project_id=PROJECT_ID,
-                ),
-                mock.call(
-                    location=None,
-                    configuration={
-                        "query": {
-                            "query": "SELECT 'baz'",
-                            "priority": "INTERACTIVE",
-                            "useLegacySql": True,
-                            "schemaUpdateOptions": [],
-                        }
-                    },
-                    project_id=PROJECT_ID,
-                ),
-            ]
-        )
+        mock_insert.assert_has_calls([
+            mock.call(
+                location=None,
+                configuration={
+                    "query": {
+                        "query": "SELECT 'bar'",
+                        "priority": "INTERACTIVE",
+                        "useLegacySql": True,
+                        "schemaUpdateOptions": [],
+                    }
+                },
+                project_id=PROJECT_ID,
+            ),
+            mock.call(
+                location=None,
+                configuration={
+                    "query": {
+                        "query": "SELECT 'baz'",
+                        "priority": "INTERACTIVE",
+                        "useLegacySql": True,
+                        "schemaUpdateOptions": [],
+                    }
+                },
+                project_id=PROJECT_ID,
+            ),
+        ])
 
     def test_format_schema_for_description(self):
         test_query_result = {

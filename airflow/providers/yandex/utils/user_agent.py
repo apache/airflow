@@ -31,13 +31,11 @@ def provider_user_agent() -> str | None:
         manager = ProvidersManager()
         provider_name = manager.hooks[conn_type].package_name  # type: ignore[union-attr]
         provider = manager.providers[provider_name]
-        return " ".join(
-            (
-                conf.get("yandex", "sdk_user_agent_prefix", fallback=""),
-                f"apache-airflow/{airflow_version}",
-                f"{provider_name}/{provider.version}",
-            )
-        ).strip()
+        return " ".join((
+            conf.get("yandex", "sdk_user_agent_prefix", fallback=""),
+            f"apache-airflow/{airflow_version}",
+            f"{provider_name}/{provider.version}",
+        )).strip()
     except KeyError:
         warnings.warn(
             f"Hook '{hook_name}' info is not initialized in airflow.ProviderManager",

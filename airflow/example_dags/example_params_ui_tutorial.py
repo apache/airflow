@@ -20,6 +20,7 @@
 The DAG attribute `params` is used to define a default dictionary of parameters which are usually passed
 to the DAG and which are used to render a trigger form.
 """
+
 from __future__ import annotations
 
 import datetime

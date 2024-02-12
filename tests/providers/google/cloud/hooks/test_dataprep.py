@@ -588,20 +588,16 @@ class TestGoogleDataprepFlowPathHooks:
             "name": "test_name",
             "description": "Test description",
         }
-        self._expected_copy_flow_hook_data = json.dumps(
-            {
-                "name": "",
-                "description": "",
-                "copyDatasources": False,
-            }
-        )
+        self._expected_copy_flow_hook_data = json.dumps({
+            "name": "",
+            "description": "",
+            "copyDatasources": False,
+        })
         self._expected_run_flow_hook_data = json.dumps({})
-        self._expected_create_flow_hook_data = json.dumps(
-            {
-                "name": "test_name",
-                "description": "Test description",
-            }
-        )
+        self._expected_create_flow_hook_data = json.dumps({
+            "name": "test_name",
+            "description": "Test description",
+        })
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = EXTRA
             self.hook = GoogleDataprepHook(dataprep_conn_id="dataprep_default")

@@ -90,19 +90,17 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             entity_id,
         )
 
-        request_params = prune_dict(
-            {
-                "policyStoreId": self.avp_policy_store_id,
-                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
-                "action": {
-                    "actionType": get_entity_type(AvpEntities.ACTION),
-                    "actionId": get_action_id(entity_type, method),
-                },
-                "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
-                "entities": {"entityList": entity_list},
-                "context": self._build_context(context),
-            }
-        )
+        request_params = prune_dict({
+            "policyStoreId": self.avp_policy_store_id,
+            "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+            "action": {
+                "actionType": get_entity_type(AvpEntities.ACTION),
+                "actionId": get_action_id(entity_type, method),
+            },
+            "resource": {"entityType": get_entity_type(entity_type), "entityId": entity_id or "*"},
+            "entities": {"entityList": entity_list},
+            "context": self._build_context(context),
+        })
 
         resp = self.avp_client.is_authorized(**request_params)
 

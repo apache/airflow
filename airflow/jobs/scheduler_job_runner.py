@@ -286,9 +286,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
-        return ConcurrencyMap.from_concurrency_map(
-            {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
-        )
+        return ConcurrencyMap.from_concurrency_map({
+            (dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query
+        })
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
@@ -551,9 +551,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 " this task has been reached.",
                                 task_instance,
                             )
-                            starved_tasks_task_dagrun_concurrency.add(
-                                (task_instance.dag_id, task_instance.run_id, task_instance.task_id)
-                            )
+                            starved_tasks_task_dagrun_concurrency.add((
+                                task_instance.dag_id,
+                                task_instance.run_id,
+                                task_instance.task_id,
+                            ))
                             continue
 
                 executable_tis.append(task_instance)

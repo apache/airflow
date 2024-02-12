@@ -3600,12 +3600,10 @@ class TestSchedulerJob:
         dag3 = dag_maker.dag
 
         session = dag_maker.session
-        session.add_all(
-            [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
-            ]
-        )
+        session.add_all([
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+        ])
         session.flush()
 
         scheduler_job = Job(executor=self.null_exec)
@@ -3670,19 +3668,17 @@ class TestSchedulerJob:
         # Assert dr state is running
         assert dr.state == State.RUNNING
 
-        stats_timing.assert_has_calls(
-            [
-                mock.call(
-                    "dagrun.schedule_delay.test_start_dag_runs",
-                    datetime.timedelta(seconds=9),
-                ),
-                mock.call(
-                    "dagrun.schedule_delay",
-                    datetime.timedelta(seconds=9),
-                    tags={"dag_id": "test_start_dag_runs"},
-                ),
-            ]
-        )
+        stats_timing.assert_has_calls([
+            mock.call(
+                "dagrun.schedule_delay.test_start_dag_runs",
+                datetime.timedelta(seconds=9),
+            ),
+            mock.call(
+                "dagrun.schedule_delay",
+                datetime.timedelta(seconds=9),
+                tags={"dag_id": "test_start_dag_runs"},
+            ),
+        ])
 
         assert dag.get_last_dagrun().creating_job_id == scheduler_job.id
 
@@ -5247,18 +5243,16 @@ class TestSchedulerJobQueriesCount:
                 "PERF_SCHEDULE_INTERVAL": "30m",
                 "PERF_SHAPE": "no_structure",
             },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                ("core", "load_examples"): "False",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
-        ):
+        ), conf_vars({
+            ("scheduler", "use_job_schedule"): "True",
+            ("core", "load_examples"): "False",
+            # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+            # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+            # This will increase the count of serliazied_dag.py.get() count.
+            # That's why we keep the values high
+            ("core", "min_serialized_dag_update_interval"): "100",
+            ("core", "min_serialized_dag_fetch_interval"): "100",
+        }):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
             dagbag.sync_to_db()
@@ -5340,17 +5334,15 @@ class TestSchedulerJobQueriesCount:
                 "PERF_SCHEDULE_INTERVAL": schedule_interval,
                 "PERF_SHAPE": shape,
             },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
-        ):
+        ), conf_vars({
+            ("scheduler", "use_job_schedule"): "True",
+            # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+            # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+            # This will increase the count of serliazied_dag.py.get() count.
+            # That's why we keep the values high
+            ("core", "min_serialized_dag_update_interval"): "100",
+            ("core", "min_serialized_dag_fetch_interval"): "100",
+        }):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()
 

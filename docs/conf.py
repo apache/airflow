@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Configuration of Airflow Docs"""
+
 from __future__ import annotations
 
 # Airflow documentation build configuration file, created by
@@ -154,40 +155,34 @@ extensions = [
     "sphinx_design",
 ]
 if PACKAGE_NAME == "apache-airflow":
-    extensions.extend(
-        [
-            "sphinx_jinja",
-            "sphinx.ext.graphviz",
-            "sphinxcontrib.httpdomain",
-            "sphinxcontrib.httpdomain",
-            "extra_files_with_substitutions",
-            # First, generate redoc
-            "sphinxcontrib.redoc",
-            # Second, update redoc script
-            "sphinx_script_update",
-        ]
-    )
+    extensions.extend([
+        "sphinx_jinja",
+        "sphinx.ext.graphviz",
+        "sphinxcontrib.httpdomain",
+        "sphinxcontrib.httpdomain",
+        "extra_files_with_substitutions",
+        # First, generate redoc
+        "sphinxcontrib.redoc",
+        # Second, update redoc script
+        "sphinx_script_update",
+    ])
 
 if PACKAGE_NAME == "apache-airflow-providers":
-    extensions.extend(
-        [
-            "sphinx_jinja",
-            "operators_and_hooks_ref",
-            "providers_packages_ref",
-        ]
-    )
+    extensions.extend([
+        "sphinx_jinja",
+        "operators_and_hooks_ref",
+        "providers_packages_ref",
+    ])
 elif PACKAGE_NAME == "helm-chart":
     extensions.append("sphinx_jinja")
 elif PACKAGE_NAME == "docker-stack":
     extensions.append("extra_files_with_substitutions")
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    extensions.extend(
-        [
-            "extra_provider_files_with_substitutions",
-            "autoapi.extension",
-            "providers_extensions",
-        ]
-    )
+    extensions.extend([
+        "extra_provider_files_with_substitutions",
+        "autoapi.extension",
+        "providers_extensions",
+    ])
 else:
     extensions.append("autoapi.extension")
 # List of patterns, relative to source directory, that match files and
@@ -204,11 +199,9 @@ if PACKAGE_NAME == "apache-airflow":
         "README.rst",
     ]
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    extensions.extend(
-        [
-            "sphinx_jinja",
-        ]
-    )
+    extensions.extend([
+        "sphinx_jinja",
+    ])
     exclude_patterns = ["operators/_partials"]
 else:
     exclude_patterns = []
@@ -433,9 +426,11 @@ def get_configs_and_deprecations(
     package_version: Version,
 ) -> tuple[dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]]:
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
-    for (section, key), (
-        (deprecated_section, deprecated_key, since_version)
-    ) in AirflowConfigParser.deprecated_options.items():
+    for (section, key), ((
+        deprecated_section,
+        deprecated_key,
+        since_version,
+    )) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
     for (section, key), deprecated in AirflowConfigParser.many_to_one_deprecated_options.items():
@@ -545,15 +540,13 @@ elif PACKAGE_NAME == "helm-chart":
             prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
             section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
             if section_name and schema["description"] and "default" in schema:
-                out.append(
-                    {
-                        "section": section_name,
-                        "name": prefixed_name,
-                        "description": schema["description"],
-                        "default": _format_default(schema["default"]),
-                        "examples": _format_examples(param_name, schema),
-                    }
-                )
+                out.append({
+                    "section": section_name,
+                    "name": prefixed_name,
+                    "description": schema["description"],
+                    "default": _format_default(schema["default"]),
+                    "examples": _format_examples(param_name, schema),
+                })
             if schema.get("properties"):
                 out += _get_params(schema["properties"], prefixed_name, section_name)
         return out
@@ -692,40 +685,38 @@ intersphinx_mapping = {
     ]
 }
 if PACKAGE_NAME in ("apache-airflow-providers-google", "apache-airflow"):
-    intersphinx_mapping.update(
-        {
-            pkg_name: (
-                f"{THIRD_PARTY_INDEXES[pkg_name]}/",
-                (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
-            )
-            for pkg_name in [
-                "google-api-core",
-                "google-cloud-automl",
-                "google-cloud-bigquery",
-                "google-cloud-bigquery-datatransfer",
-                "google-cloud-bigquery-storage",
-                "google-cloud-bigtable",
-                "google-cloud-container",
-                "google-cloud-core",
-                "google-cloud-datacatalog",
-                "google-cloud-datastore",
-                "google-cloud-dlp",
-                "google-cloud-kms",
-                "google-cloud-language",
-                "google-cloud-monitoring",
-                "google-cloud-pubsub",
-                "google-cloud-redis",
-                "google-cloud-spanner",
-                "google-cloud-speech",
-                "google-cloud-storage",
-                "google-cloud-tasks",
-                "google-cloud-texttospeech",
-                "google-cloud-translate",
-                "google-cloud-videointelligence",
-                "google-cloud-vision",
-            ]
-        }
-    )
+    intersphinx_mapping.update({
+        pkg_name: (
+            f"{THIRD_PARTY_INDEXES[pkg_name]}/",
+            (f"{INVENTORY_CACHE_DIR}/{pkg_name}/objects.inv",),
+        )
+        for pkg_name in [
+            "google-api-core",
+            "google-cloud-automl",
+            "google-cloud-bigquery",
+            "google-cloud-bigquery-datatransfer",
+            "google-cloud-bigquery-storage",
+            "google-cloud-bigtable",
+            "google-cloud-container",
+            "google-cloud-core",
+            "google-cloud-datacatalog",
+            "google-cloud-datastore",
+            "google-cloud-dlp",
+            "google-cloud-kms",
+            "google-cloud-language",
+            "google-cloud-monitoring",
+            "google-cloud-pubsub",
+            "google-cloud-redis",
+            "google-cloud-spanner",
+            "google-cloud-speech",
+            "google-cloud-storage",
+            "google-cloud-tasks",
+            "google-cloud-texttospeech",
+            "google-cloud-translate",
+            "google-cloud-videointelligence",
+            "google-cloud-vision",
+        ]
+    })
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html

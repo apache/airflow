@@ -32,25 +32,23 @@ from airflow.providers.papermill.hooks.kernel import (
 
 @pytest.fixture(scope="session", autouse=True)
 def remote_kernel(request):
-    proc = subprocess.Popen(
-        [
-            "python3",
-            "-m",
-            "ipykernel",
-            '--Session.key=b""',
-            f"--hb={JUPYTER_KERNEL_HB_PORT}",
-            f"--shell={JUPYTER_KERNEL_SHELL_PORT}",
-            f"--iopub={JUPYTER_KERNEL_IOPUB_PORT}",
-            f"--stdin={JUPYTER_KERNEL_STDIN_PORT}",
-            f"--control={JUPYTER_KERNEL_CONTROL_PORT}",
-            "--ip=0.0.0.0",
-        ]
-    )
+    proc = subprocess.Popen([
+        "python3",
+        "-m",
+        "ipykernel",
+        '--Session.key=b""',
+        f"--hb={JUPYTER_KERNEL_HB_PORT}",
+        f"--shell={JUPYTER_KERNEL_SHELL_PORT}",
+        f"--iopub={JUPYTER_KERNEL_IOPUB_PORT}",
+        f"--stdin={JUPYTER_KERNEL_STDIN_PORT}",
+        f"--control={JUPYTER_KERNEL_CONTROL_PORT}",
+        "--ip=0.0.0.0",
+    ])
     request.addfinalizer(proc.kill)
 
 
 @pytest.fixture(scope="session", autouse=True)
 def airflow_conn(remote_kernel):
-    os.environ[
-        "AIRFLOW_CONN_JUPYTER_KERNEL_DEFAULT"
-    ] = '{"host": "localhost", "extra": {"shell_port": 60316} }'
+    os.environ["AIRFLOW_CONN_JUPYTER_KERNEL_DEFAULT"] = (
+        '{"host": "localhost", "extra": {"shell_port": 60316} }'
+    )

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for additional Package Indexes (Python)."""
+
 from __future__ import annotations
 
 import subprocess

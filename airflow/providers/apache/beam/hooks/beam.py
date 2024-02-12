@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Apache Beam Hook."""
+
 from __future__ import annotations
 
 import asyncio
@@ -271,9 +272,11 @@ class BeamHook(BaseHook):
             command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
-                subprocess.check_output(
-                    [py_interpreter, "-c", "import apache_beam; print(apache_beam.__version__)"]
-                )
+                subprocess.check_output([
+                    py_interpreter,
+                    "-c",
+                    "import apache_beam; print(apache_beam.__version__)",
+                ])
                 .decode()
                 .strip()
             )
@@ -489,9 +492,11 @@ class BeamAsyncHook(BeamHook):
                 )
             command_prefix: list[str] = [py_interpreter] + (py_options or []) + [py_file]
             beam_version = (
-                subprocess.check_output(
-                    [py_interpreter, "-c", "import apache_beam; print(apache_beam.__version__)"]
-                )
+                subprocess.check_output([
+                    py_interpreter,
+                    "-c",
+                    "import apache_beam; print(apache_beam.__version__)",
+                ])
                 .decode()
                 .strip()
             )

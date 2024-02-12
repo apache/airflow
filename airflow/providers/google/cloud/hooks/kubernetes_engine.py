@@ -23,6 +23,7 @@ This module contains a Google Kubernetes Engine Hook.
     gapic
     enums
 """
+
 from __future__ import annotations
 
 import contextlib

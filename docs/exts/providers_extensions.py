@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Module for provider's custom Sphinx extensions that will be loaded in all providers' documentation."""
+
 from __future__ import annotations
 
 import ast

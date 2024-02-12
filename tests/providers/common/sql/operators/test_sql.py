@@ -412,22 +412,20 @@ class TestTableCheckOperator:
         )
 
         hook = operator.get_db_hook()
-        hook.run(
-            [
-                """
+        hook.run([
+            """
                 CREATE TABLE IF NOT EXISTS employees (
                     employee_name VARCHAR(50) NOT NULL,
                     employment_year INT NOT NULL
                 );
                 """,
-                "INSERT INTO employees VALUES ('Adam', 2021)",
-                "INSERT INTO employees VALUES ('Chris', 2021)",
-                "INSERT INTO employees VALUES ('Frank', 2021)",
-                "INSERT INTO employees VALUES ('Fritz', 2021)",
-                "INSERT INTO employees VALUES ('Magda', 2022)",
-                "INSERT INTO employees VALUES ('Phil', 2021)",
-            ]
-        )
+            "INSERT INTO employees VALUES ('Adam', 2021)",
+            "INSERT INTO employees VALUES ('Chris', 2021)",
+            "INSERT INTO employees VALUES ('Frank', 2021)",
+            "INSERT INTO employees VALUES ('Fritz', 2021)",
+            "INSERT INTO employees VALUES ('Magda', 2022)",
+            "INSERT INTO employees VALUES ('Phil', 2021)",
+        ])
         try:
             operator.execute({})
         finally:
@@ -453,22 +451,20 @@ class TestTableCheckOperator:
         )
 
         hook = operator.get_db_hook()
-        hook.run(
-            [
-                """
+        hook.run([
+            """
                 CREATE TABLE IF NOT EXISTS employees (
                     employee_name VARCHAR(50) NOT NULL,
                     employment_year INT NOT NULL
                 );
                 """,
-                "INSERT INTO employees VALUES ('Adam', 2021)",
-                "INSERT INTO employees VALUES ('Chris', 2021)",
-                "INSERT INTO employees VALUES ('Frank', 2021)",
-                "INSERT INTO employees VALUES ('Fritz', 2021)",
-                "INSERT INTO employees VALUES ('Magda', 2022)",
-                "INSERT INTO employees VALUES ('Phil', 2021)",
-            ]
-        )
+            "INSERT INTO employees VALUES ('Adam', 2021)",
+            "INSERT INTO employees VALUES ('Chris', 2021)",
+            "INSERT INTO employees VALUES ('Frank', 2021)",
+            "INSERT INTO employees VALUES ('Fritz', 2021)",
+            "INSERT INTO employees VALUES ('Magda', 2022)",
+            "INSERT INTO employees VALUES ('Phil', 2021)",
+        ])
         try:
             operator.render_template_fields({"params": {"year": 2021}})
             operator.execute({})

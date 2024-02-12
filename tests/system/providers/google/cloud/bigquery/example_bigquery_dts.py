@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that creates and deletes Bigquery data transfer configurations.
 """
+
 from __future__ import annotations
 
 import os

@@ -73,26 +73,24 @@ class TestPodManager:
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")
         assert type(logs) == PodLogsConsumer
         assert mock.sentinel.logs == logs.response
-        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
-            [
-                mock.call(
-                    _preload_content=False,
-                    container="base",
-                    follow=True,
-                    timestamps=False,
-                    name=mock.sentinel.metadata.name,
-                    namespace=mock.sentinel.metadata.namespace,
-                ),
-                mock.call(
-                    _preload_content=False,
-                    container="base",
-                    follow=True,
-                    timestamps=False,
-                    name=mock.sentinel.metadata.name,
-                    namespace=mock.sentinel.metadata.namespace,
-                ),
-            ]
-        )
+        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls([
+            mock.call(
+                _preload_content=False,
+                container="base",
+                follow=True,
+                timestamps=False,
+                name=mock.sentinel.metadata.name,
+                namespace=mock.sentinel.metadata.namespace,
+            ),
+            mock.call(
+                _preload_content=False,
+                container="base",
+                follow=True,
+                timestamps=False,
+                name=mock.sentinel.metadata.name,
+                namespace=mock.sentinel.metadata.namespace,
+            ),
+        ])
 
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -113,19 +111,17 @@ class TestPodManager:
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base", tail_lines=100)
         assert type(logs) == PodLogsConsumer
         assert mock.sentinel.logs == logs.response
-        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
-            [
-                mock.call(
-                    _preload_content=False,
-                    container="base",
-                    follow=True,
-                    timestamps=False,
-                    name=mock.sentinel.metadata.name,
-                    namespace=mock.sentinel.metadata.namespace,
-                    tail_lines=100,
-                ),
-            ]
-        )
+        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls([
+            mock.call(
+                _preload_content=False,
+                container="base",
+                follow=True,
+                timestamps=False,
+                name=mock.sentinel.metadata.name,
+                namespace=mock.sentinel.metadata.namespace,
+                tail_lines=100,
+            ),
+        ])
 
     def test_read_pod_logs_successfully_with_since_seconds(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -133,19 +129,17 @@ class TestPodManager:
         logs = self.pod_manager.read_pod_logs(mock.sentinel, "base", since_seconds=2)
         assert type(logs) == PodLogsConsumer
         assert mock.sentinel.logs == logs.response
-        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
-            [
-                mock.call(
-                    _preload_content=False,
-                    container="base",
-                    follow=True,
-                    timestamps=False,
-                    name=mock.sentinel.metadata.name,
-                    namespace=mock.sentinel.metadata.namespace,
-                    since_seconds=2,
-                ),
-            ]
-        )
+        self.mock_kube_client.read_namespaced_pod_log.assert_has_calls([
+            mock.call(
+                _preload_content=False,
+                container="base",
+                follow=True,
+                timestamps=False,
+                name=mock.sentinel.metadata.name,
+                namespace=mock.sentinel.metadata.namespace,
+                since_seconds=2,
+            ),
+        ])
 
     def test_read_pod_events_successfully_returns_events(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -161,18 +155,16 @@ class TestPodManager:
         ]
         events = self.pod_manager.read_pod_events(mock.sentinel)
         assert mock.sentinel.events == events
-        self.mock_kube_client.list_namespaced_event.assert_has_calls(
-            [
-                mock.call(
-                    namespace=mock.sentinel.metadata.namespace,
-                    field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
-                ),
-                mock.call(
-                    namespace=mock.sentinel.metadata.namespace,
-                    field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
-                ),
-            ]
-        )
+        self.mock_kube_client.list_namespaced_event.assert_has_calls([
+            mock.call(
+                namespace=mock.sentinel.metadata.namespace,
+                field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
+            ),
+            mock.call(
+                namespace=mock.sentinel.metadata.namespace,
+                field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
+            ),
+        ])
 
     def test_read_pod_events_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -198,12 +190,10 @@ class TestPodManager:
         ]
         pod_info = self.pod_manager.read_pod(mock.sentinel)
         assert mock.sentinel.pod_info == pod_info
-        self.mock_kube_client.read_namespaced_pod.assert_has_calls(
-            [
-                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
-                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
-            ]
-        )
+        self.mock_kube_client.read_namespaced_pod.assert_has_calls([
+            mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
+            mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
+        ])
 
     def test_monitor_pod_empty_logs(self):
         mock.sentinel.metadata = mock.MagicMock()
@@ -305,12 +295,10 @@ class TestPodManager:
         mock_container_is_running.return_value = False
 
         self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-        mock_callbacks.progress_callback.assert_has_calls(
-            [
-                mock.call(line=message, client=self.pod_manager._client, mode="sync"),
-                mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
-            ]
-        )
+        mock_callbacks.progress_callback.assert_has_calls([
+            mock.call(line=message, client=self.pod_manager._client, mode="sync"),
+            mock.call(line=no_ts_message, client=self.pod_manager._client, mode="sync"),
+        ])
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     def test_fetch_container_logs_failures(self, mock_container_is_running):
@@ -528,14 +516,12 @@ class TestPodManager:
     )
     def test_container_is_terminated_with_waiting_state(self, container_state, expected_is_terminated):
         container_status = MagicMock()
-        container_status.configure_mock(
-            **{
-                "name": "base",
-                "state.waiting": True if container_state == "waiting" else None,
-                "state.running": True if container_state == "running" else None,
-                "state.terminated": True if container_state == "terminated" else None,
-            }
-        )
+        container_status.configure_mock(**{
+            "name": "base",
+            "state.waiting": True if container_state == "waiting" else None,
+            "state.running": True if container_state == "running" else None,
+            "state.terminated": True if container_state == "terminated" else None,
+        })
         pod_info = MagicMock()
         pod_info.status.container_statuses = [container_status]
         assert container_is_terminated(pod_info, "base") == expected_is_terminated

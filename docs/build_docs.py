@@ -20,6 +20,7 @@ Builds documentation and runs spell checking
 
 # isort:skip_file (needed to workaround isort bug)
 """
+
 from __future__ import annotations
 
 import argparse

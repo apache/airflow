@@ -62,9 +62,12 @@ class TestLivyTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
-            TriggerEvent(
-                {"status": "success", "batch_id": 1, "response": "Batch 1 succeeded", "log_lines": None}
-            )
+            TriggerEvent({
+                "status": "success",
+                "batch_id": 1,
+                "response": "Batch 1 succeeded",
+                "log_lines": None,
+            })
             == actual
         )
 

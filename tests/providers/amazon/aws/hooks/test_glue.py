@@ -45,16 +45,14 @@ class TestGlueJobHook:
         boto3.client("iam").create_role(
             Path=role_path,
             RoleName=expected_role,
-            AssumeRolePolicyDocument=json.dumps(
-                {
-                    "Version": "2012-10-17",
-                    "Statement": {
-                        "Effect": "Allow",
-                        "Principal": {"Service": "glue.amazonaws.com"},
-                        "Action": "sts:AssumeRole",
-                    },
-                }
-            ),
+            AssumeRolePolicyDocument=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": {
+                    "Effect": "Allow",
+                    "Principal": {"Service": "glue.amazonaws.com"},
+                    "Action": "sts:AssumeRole",
+                },
+            }),
         )
 
         hook = GlueJobHook(

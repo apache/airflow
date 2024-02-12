@@ -96,46 +96,38 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
 
                 if state == TransferState.SUCCEEDED:
                     self.log.info("Job has completed its work.")
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "run_id": self.run_id,
-                            "message": "Job completed",
-                            "config_id": self.config_id,
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "success",
+                        "run_id": self.run_id,
+                        "message": "Job completed",
+                        "config_id": self.config_id,
+                    })
                     return
                 elif state == TransferState.FAILED:
                     self.log.info("Job has failed")
-                    yield TriggerEvent(
-                        {
-                            "status": "failed",
-                            "run_id": self.run_id,
-                            "message": "Job has failed",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "failed",
+                        "run_id": self.run_id,
+                        "message": "Job has failed",
+                    })
                     return
                 if state == TransferState.CANCELLED:
                     self.log.info("Job has been cancelled.")
-                    yield TriggerEvent(
-                        {
-                            "status": "cancelled",
-                            "run_id": self.run_id,
-                            "message": "Job was cancelled",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "status": "cancelled",
+                        "run_id": self.run_id,
+                        "message": "Job was cancelled",
+                    })
                     return
                 else:
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
         except Exception as e:
-            yield TriggerEvent(
-                {
-                    "status": "failed",
-                    "message": f"Trigger failed with exception: {e}",
-                }
-            )
+            yield TriggerEvent({
+                "status": "failed",
+                "message": f"Trigger failed with exception: {e}",
+            })
 
     def _get_async_hook(self) -> AsyncBiqQueryDataTransferServiceHook:
         return AsyncBiqQueryDataTransferServiceHook(

@@ -97,9 +97,9 @@ class TestJob:
     )
     def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
         """Ensure heartrate is set correctly after jobs are queried from the DB"""
-        with create_session() as session, conf_vars(
-            {(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}
-        ):
+        with create_session() as session, conf_vars({
+            (job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec
+        }):
             job = Job()
             job_runner(job=job)
             session.add(job)
@@ -215,12 +215,10 @@ class TestJob:
 
         assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
 
-    @conf_vars(
-        {
-            ("scheduler", "max_tis_per_query"): "100",
-            ("core", "executor"): "SequentialExecutor",
-        }
-    )
+    @conf_vars({
+        ("scheduler", "max_tis_per_query"): "100",
+        ("core", "executor"): "SequentialExecutor",
+    })
     @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")

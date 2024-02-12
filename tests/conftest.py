@@ -1239,14 +1239,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
                 x: str(getattr(warning.message, x)) for x in dir(warning.message) if not x.startswith("__")
             }
 
-            serialized_warning.update(
-                {
-                    "path": cut_path(warning.filename),
-                    "lineno": warning.lineno,
-                    "count": 1,
-                    "warning_message": str(warning.message),
-                }
-            )
+            serialized_warning.update({
+                "path": cut_path(warning.filename),
+                "lineno": warning.lineno,
+                "count": 1,
+                "warning_message": str(warning.message),
+            })
 
             # How we format the warnings: pylint parseable format
             # {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}

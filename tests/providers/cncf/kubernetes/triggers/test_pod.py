@@ -120,13 +120,11 @@ class TestKubernetesPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.TERMINATED
 
-        expected_event = TriggerEvent(
-            {
-                "pod_name": POD_NAME,
-                "namespace": NAMESPACE,
-                "status": "done",
-            }
-        )
+        expected_event = TriggerEvent({
+            "pod_name": POD_NAME,
+            "namespace": NAMESPACE,
+            "status": "done",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -186,13 +184,11 @@ class TestKubernetesPodTrigger:
         )
         mock_method.return_value = ContainerState.FAILED
 
-        expected_event = TriggerEvent(
-            {
-                "pod_name": POD_NAME,
-                "namespace": NAMESPACE,
-                "status": "done",
-            }
-        )
+        expected_event = TriggerEvent({
+            "pod_name": POD_NAME,
+            "namespace": NAMESPACE,
+            "status": "done",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event

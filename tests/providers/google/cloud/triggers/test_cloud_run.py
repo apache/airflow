@@ -88,12 +88,10 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "status": RunJobStatus.SUCCESS.value,
-                    "job_name": JOB_NAME,
-                }
-            )
+            TriggerEvent({
+                "status": RunJobStatus.SUCCESS.value,
+                "job_name": JOB_NAME,
+            })
             == actual
         )
 
@@ -118,14 +116,12 @@ class TestCloudBatchJobFinishedTrigger:
 
         actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
-            TriggerEvent(
-                {
-                    "status": RunJobStatus.FAIL.value,
-                    "operation_error_code": ERROR_CODE,
-                    "operation_error_message": ERROR_MESSAGE,
-                    "job_name": JOB_NAME,
-                }
-            )
+            TriggerEvent({
+                "status": RunJobStatus.FAIL.value,
+                "operation_error_code": ERROR_CODE,
+                "operation_error_message": ERROR_MESSAGE,
+                "job_name": JOB_NAME,
+            })
             == actual
         )
 
@@ -150,11 +146,9 @@ class TestCloudBatchJobFinishedTrigger:
         actual = await generator.asend(None)  # type:ignore[attr-defined]
 
         assert (
-            TriggerEvent(
-                {
-                    "status": RunJobStatus.TIMEOUT,
-                    "job_name": JOB_NAME,
-                }
-            )
+            TriggerEvent({
+                "status": RunJobStatus.TIMEOUT,
+                "job_name": JOB_NAME,
+            })
             == actual
         )

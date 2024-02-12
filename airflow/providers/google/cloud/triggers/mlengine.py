@@ -96,13 +96,11 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
                 # Poll for job execution status
                 response_from_hook = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if response_from_hook == "success":
-                    yield TriggerEvent(
-                        {
-                            "job_id": self.job_id,
-                            "status": "success",
-                            "message": "Job completed",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_id": self.job_id,
+                        "status": "success",
+                        "message": "Job completed",
+                    })
                 elif response_from_hook == "pending":
                     self.log.info("Job is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)

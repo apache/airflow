@@ -133,12 +133,10 @@ class TestDataprocClusterCreateOperator:
             labels=None,
             initialization_actions=None,
         )
-        context["task_instance"].xcom_push.assert_has_calls(
-            [
-                call(key="cluster_id", value=mock_create_cluster().response.id),
-                call(key="yandexcloud_connection_id", value=CONNECTION_ID),
-            ]
-        )
+        context["task_instance"].xcom_push.assert_has_calls([
+            call(key="cluster_id", value=mock_create_cluster().response.id),
+            call(key="yandexcloud_connection_id", value=CONNECTION_ID),
+        ])
 
     @patch("airflow.providers.yandex.utils.credentials.get_credentials")
     @patch("airflow.hooks.base.BaseHook.get_connection")
@@ -166,12 +164,10 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.return_value = "my_cluster_id"
         operator.execute(context)
 
-        context["task_instance"].xcom_pull.assert_has_calls(
-            [
-                call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
-            ]
-        )
+        context["task_instance"].xcom_pull.assert_has_calls([
+            call(key="cluster_id"),
+            call(key="yandexcloud_connection_id"),
+        ])
 
         mock_create_hive_job.assert_called_once_with(
             cluster_id="my_cluster_id",
@@ -216,12 +212,10 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.return_value = "my_cluster_id"
         operator.execute(context)
 
-        context["task_instance"].xcom_pull.assert_has_calls(
-            [
-                call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
-            ]
-        )
+        context["task_instance"].xcom_pull.assert_has_calls([
+            call(key="cluster_id"),
+            call(key="yandexcloud_connection_id"),
+        ])
 
         mock_create_mapreduce_job.assert_called_once_with(
             archive_uris=None,
@@ -285,12 +279,10 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.return_value = "my_cluster_id"
         operator.execute(context)
 
-        context["task_instance"].xcom_pull.assert_has_calls(
-            [
-                call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
-            ]
-        )
+        context["task_instance"].xcom_pull.assert_has_calls([
+            call(key="cluster_id"),
+            call(key="yandexcloud_connection_id"),
+        ])
 
         mock_create_spark_job.assert_called_once_with(
             archive_uris=["s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip"],
@@ -348,12 +340,10 @@ class TestDataprocClusterCreateOperator:
         context["task_instance"].xcom_pull.return_value = "my_cluster_id"
         operator.execute(context)
 
-        context["task_instance"].xcom_pull.assert_has_calls(
-            [
-                call(key="cluster_id"),
-                call(key="yandexcloud_connection_id"),
-            ]
-        )
+        context["task_instance"].xcom_pull.assert_has_calls([
+            call(key="cluster_id"),
+            call(key="yandexcloud_connection_id"),
+        ])
 
         mock_create_pyspark_job.assert_called_once_with(
             archive_uris=["s3a://some-in-bucket/jobs/sources/data/country-codes.csv.zip"],

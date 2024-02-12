@@ -19,6 +19,7 @@
 This module contains various unit tests for
 functions in CloudDLPHook
 """
+
 from __future__ import annotations
 
 from typing import Any

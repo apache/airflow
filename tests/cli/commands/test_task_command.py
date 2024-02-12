@@ -119,9 +119,13 @@ class TestCliTasks:
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
-        args = self.parser.parse_args(
-            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
-        )
+        args = self.parser.parse_args([
+            "tasks",
+            "test",
+            "example_python_operator",
+            "print_the_context",
+            "2018-01-01",
+        ])
 
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
@@ -207,9 +211,9 @@ class TestCliTasks:
         # should be able to find the dag.
         new_file_path = tmp_path / orig_file_path.name
         new_dags_folder = new_file_path.parent
-        with move_back(orig_file_path, new_file_path), conf_vars(
-            {("core", "dags_folder"): new_dags_folder.as_posix()}
-        ):
+        with move_back(orig_file_path, new_file_path), conf_vars({
+            ("core", "dags_folder"): new_dags_folder.as_posix()
+        }):
             ser_dag = (
                 session.query(SerializedDagModel)
                 .filter(SerializedDagModel.dag_id == "test_dags_folder")
@@ -224,17 +228,15 @@ class TestCliTasks:
 
             assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
             task_command.task_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "run",
-                        "--ignore-all-dependencies",
-                        "--local",
-                        "test_dags_folder",
-                        "task",
-                        "abc123",
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "run",
+                    "--ignore-all-dependencies",
+                    "--local",
+                    "test_dags_folder",
+                    "task",
+                    "abc123",
+                ])
             )
         ti = (
             session.query(TaskInstance)
@@ -340,46 +342,40 @@ class TestCliTasks:
 
     def test_cli_test_with_params(self):
         task_command.task_test(
-            self.parser.parse_args(
-                [
-                    "tasks",
-                    "test",
-                    "example_passing_params_via_test_command",
-                    "run_this",
-                    DEFAULT_DATE.isoformat(),
-                    "--task-params",
-                    '{"foo":"bar"}',
-                ]
-            )
+            self.parser.parse_args([
+                "tasks",
+                "test",
+                "example_passing_params_via_test_command",
+                "run_this",
+                DEFAULT_DATE.isoformat(),
+                "--task-params",
+                '{"foo":"bar"}',
+            ])
         )
         task_command.task_test(
-            self.parser.parse_args(
-                [
-                    "tasks",
-                    "test",
-                    "example_passing_params_via_test_command",
-                    "also_run_this",
-                    DEFAULT_DATE.isoformat(),
-                    "--task-params",
-                    '{"foo":"bar"}',
-                ]
-            )
+            self.parser.parse_args([
+                "tasks",
+                "test",
+                "example_passing_params_via_test_command",
+                "also_run_this",
+                DEFAULT_DATE.isoformat(),
+                "--task-params",
+                '{"foo":"bar"}',
+            ])
         )
 
     def test_cli_test_with_env_vars(self):
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "test",
-                        "example_passing_params_via_test_command",
-                        "env_var_test_task",
-                        DEFAULT_DATE.isoformat(),
-                        "--env-vars",
-                        '{"foo":"bar"}',
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "test",
+                    "example_passing_params_via_test_command",
+                    "env_var_test_task",
+                    DEFAULT_DATE.isoformat(),
+                    "--env-vars",
+                    '{"foo":"bar"}',
+                ])
             )
         output = stdout.getvalue()
         assert "foo=bar" in output
@@ -400,33 +396,29 @@ class TestCliTasks:
             match="Option --raw does not work with some of the other options on this command.",
         ):
             task_command.task_run(
-                self.parser.parse_args(
-                    [  # type: ignore
-                        "tasks",
-                        "run",
-                        "example_bash_operator",
-                        "runme_0",
-                        DEFAULT_DATE.isoformat(),
-                        "--raw",
-                        option,
-                    ]
-                )
+                self.parser.parse_args([  # type: ignore
+                    "tasks",
+                    "run",
+                    "example_bash_operator",
+                    "runme_0",
+                    DEFAULT_DATE.isoformat(),
+                    "--raw",
+                    option,
+                ])
             )
 
     def test_cli_run_mutually_exclusive(self):
         with pytest.raises(AirflowException, match="Option --raw and --local are mutually exclusive."):
             task_command.task_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "run",
-                        "example_bash_operator",
-                        "runme_0",
-                        DEFAULT_DATE.isoformat(),
-                        "--raw",
-                        "--local",
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "run",
+                    "example_bash_operator",
+                    "runme_0",
+                    DEFAULT_DATE.isoformat(),
+                    "--raw",
+                    "--local",
+                ])
             )
 
     def test_task_render(self):
@@ -449,17 +441,15 @@ class TestCliTasks:
         """
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "render",
-                        "test_mapped_classic",
-                        "consumer_literal",
-                        "2022-01-01",
-                        "--map-index",
-                        "0",
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "render",
+                    "test_mapped_classic",
+                    "consumer_literal",
+                    "2022-01-01",
+                    "--map-index",
+                    "0",
+                ])
             )
         # the dag test_mapped_classic has op_args=[[1], [2], [3]], so the first mapping task should have
         # op_args=[1]
@@ -486,17 +476,15 @@ class TestCliTasks:
 
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "render",
-                        "test_dag",
-                        "some_command",
-                        "2022-01-01",
-                        "--map-index",
-                        "0",
-                    ]
-                ),
+                self.parser.parse_args([
+                    "tasks",
+                    "render",
+                    "test_dag",
+                    "some_command",
+                    "2022-01-01",
+                    "--map-index",
+                    "0",
+                ]),
                 dag=dag,
             )
 
@@ -529,25 +517,27 @@ class TestCliTasks:
             match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
         ):
             task_command.task_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "run",
-                        "example_bash_operator",
-                        "runme_0",
-                        DEFAULT_DATE.isoformat(),
-                        "--pickle",
-                        pickle_id,
-                    ]
-                ),
+                self.parser.parse_args([
+                    "tasks",
+                    "run",
+                    "example_bash_operator",
+                    "runme_0",
+                    DEFAULT_DATE.isoformat(),
+                    "--pickle",
+                    pickle_id,
+                ]),
                 self.dag,
             )
 
     def test_task_state(self):
         task_command.task_state(
-            self.parser.parse_args(
-                ["tasks", "state", self.dag_id, "print_the_context", DEFAULT_DATE.isoformat()]
-            )
+            self.parser.parse_args([
+                "tasks",
+                "state",
+                self.dag_id,
+                "print_the_context",
+                DEFAULT_DATE.isoformat(),
+            ])
         )
 
     def test_task_states_for_dag_run(self):
@@ -570,16 +560,14 @@ class TestCliTasks:
 
         with redirect_stdout(StringIO()) as stdout:
             task_command.task_states_for_dag_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "states-for-dag-run",
-                        "example_python_operator",
-                        default_date2.isoformat(),
-                        "--output",
-                        "json",
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "states-for-dag-run",
+                    "example_python_operator",
+                    default_date2.isoformat(),
+                    "--output",
+                    "json",
+                ])
             )
         actual_out = json.loads(stdout.getvalue())
 
@@ -600,32 +588,38 @@ class TestCliTasks:
         with pytest.raises(DagRunNotFound):
             default_date2 = timezone.datetime(2016, 1, 9)
             task_command.task_states_for_dag_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "states-for-dag-run",
-                        "not_exists_dag",
-                        default_date2.isoformat(),
-                        "--output",
-                        "json",
-                    ]
-                )
+                self.parser.parse_args([
+                    "tasks",
+                    "states-for-dag-run",
+                    "not_exists_dag",
+                    default_date2.isoformat(),
+                    "--output",
+                    "json",
+                ])
             )
 
     def test_subdag_clear(self):
         args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator", "--yes"])
         task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator", "--yes", "--exclude-subdags"]
-        )
+        args = self.parser.parse_args([
+            "tasks",
+            "clear",
+            "example_subdag_operator",
+            "--yes",
+            "--exclude-subdags",
+        ])
         task_command.task_clear(args)
 
     def test_parentdag_downstream_clear(self):
         args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator.section-1", "--yes"])
         task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator.section-1", "--yes", "--exclude-parentdag"]
-        )
+        args = self.parser.parse_args([
+            "tasks",
+            "clear",
+            "example_subdag_operator.section-1",
+            "--yes",
+            "--exclude-parentdag",
+        ])
         task_command.task_clear(args)
 
 

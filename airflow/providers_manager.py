@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all providers."""
+
 from __future__ import annotations
 
 import fnmatch
@@ -1128,9 +1129,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("config"):
-                self._provider_configs[provider_package] = (
-                    provider.data.get("config")  # type: ignore[assignment]
-                )
+                self._provider_configs[provider_package] = provider.data.get("config")  # type: ignore[assignment]
 
     def _discover_plugins(self) -> None:
         """Retrieve all plugins defined in the providers."""

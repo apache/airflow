@@ -20,6 +20,7 @@ Search in emails for a specific attachment and also to download it.
 
 It uses the smtplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import collections.abc

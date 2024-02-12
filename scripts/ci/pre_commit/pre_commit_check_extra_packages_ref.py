@@ -19,6 +19,7 @@
 """
 Checks if all the libraries in setup.py are listed in installation.rst file
 """
+
 from __future__ import annotations
 
 import re
@@ -62,21 +63,17 @@ for dependency in optional_dependencies:
         is_devel_dep = dependency.startswith("devel") or dependency in ["doc", "doc-gen"]
         short_dep = dependency.replace("devel-", "")
         if is_devel_dep:
-            suggestions_devel.append(
-                (
-                    dependency,
-                    f"pip install -e '.[{dependency}]'",
-                    f"Adds all test libraries needed to test {short_dep}",
-                )
-            )
+            suggestions_devel.append((
+                dependency,
+                f"pip install -e '.[{dependency}]'",
+                f"Adds all test libraries needed to test {short_dep}",
+            ))
         else:
-            suggestions.append(
-                (
-                    dependency,
-                    f"pip install apache-airflow[{dependency}]",
-                    f"{dependency.capitalize()} hooks and operators",
-                )
-            )
+            suggestions.append((
+                dependency,
+                f"pip install apache-airflow[{dependency}]",
+                f"{dependency.capitalize()} hooks and operators",
+            ))
 
 HEADERS = ["extra", "install command", "enables"]
 if errors:

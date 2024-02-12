@@ -149,17 +149,15 @@ class ExasolHook(DbApiHook):
         """
         cols = []
         for k, v in statement.columns().items():
-            cols.append(
-                (
-                    k,
-                    v.get("type", None),
-                    v.get("size", None),
-                    v.get("size", None),
-                    v.get("precision", None),
-                    v.get("scale", None),
-                    True,
-                )
-            )
+            cols.append((
+                k,
+                v.get("type", None),
+                v.get("size", None),
+                v.get("size", None),
+                v.get("precision", None),
+                v.get("scale", None),
+                True,
+            ))
         return cols
 
     @overload  # type: ignore[override]
@@ -171,8 +169,7 @@ class ExasolHook(DbApiHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -183,8 +180,7 @@ class ExasolHook(DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,

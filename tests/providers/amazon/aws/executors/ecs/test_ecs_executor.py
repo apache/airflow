@@ -868,12 +868,12 @@ class TestEcsExecutorConfig:
 
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
-        ] = "container-name"
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()
-        ] = "some-task-def"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = (
+            "container-name"
+        )
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = (
+            "some-task-def"
+        )
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
@@ -884,9 +884,9 @@ class TestEcsExecutorConfig:
         assert raised.match("At least one subnet is required to run a task.")
 
     def test_config_defaults_are_applied(self, assign_subnets):
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
-        ] = "container-name"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = (
+            "container-name"
+        )
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
         task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs())
@@ -941,9 +941,9 @@ class TestEcsExecutorConfig:
         assert task_kwargs["platformVersion"] == first_explicit_version
 
         # Provide a value via template and assert that it is applied over the explicit value.
-        os.environ[run_task_kwargs_env_key] = json.dumps(
-            {AllEcsConfigKeys.PLATFORM_VERSION: templated_version}
-        )
+        os.environ[run_task_kwargs_env_key] = json.dumps({
+            AllEcsConfigKeys.PLATFORM_VERSION: templated_version
+        })
         task_kwargs = ecs_executor_config.build_task_kwargs()
 
         assert task_kwargs["platformVersion"] == templated_version
@@ -1090,18 +1090,18 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
-        ] = "False"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = (
+            "False"
+        )
 
         executor.start()
 
         ecs_mock.stop_task.assert_not_called()
 
     def test_providing_both_capacity_provider_and_launch_type_fails(self, set_env_vars):
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
-        ] = "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()] = (
+            "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
+        )
         expected_error = (
             "capacity_provider_strategy and launch_type are mutually exclusive, you can not provide both."
         )
@@ -1116,9 +1116,9 @@ class TestEcsExecutorConfig:
             "[{'capacityProvider': 'cp1', 'weight': 5}, {'capacityProvider': 'cp2', 'weight': 1}]"
         )
 
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()
-        ] = valid_capacity_provider
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CAPACITY_PROVIDER_STRATEGY}".upper()] = (
+            valid_capacity_provider
+        )
         os.environ.pop(f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper())
 
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config

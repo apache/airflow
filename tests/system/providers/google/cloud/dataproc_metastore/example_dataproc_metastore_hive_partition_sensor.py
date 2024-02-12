@@ -21,6 +21,7 @@ using Dataproc Metastore Sensor.
 
 Note that Metastore service must be configured to use gRPC endpoints.
 """
+
 from __future__ import annotations
 
 import datetime

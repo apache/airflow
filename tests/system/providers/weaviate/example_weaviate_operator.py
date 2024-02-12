@@ -268,11 +268,9 @@ def example_weaviate_using_operator():
         weaviate_hook = WeaviateHook()
         # Class definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes(
-            [
-                "QuestionWithOpenAIVectorizerUsingOperator",
-            ]
-        )
+        weaviate_hook.delete_classes([
+            "QuestionWithOpenAIVectorizerUsingOperator",
+        ])
 
     @teardown
     @task
@@ -285,11 +283,9 @@ def example_weaviate_using_operator():
         weaviate_hook = WeaviateHook()
         # Class definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes(
-            [
-                "QuestionWithoutVectorizerUsingOperator",
-            ]
-        )
+        weaviate_hook.delete_classes([
+            "QuestionWithoutVectorizerUsingOperator",
+        ])
 
     @teardown
     @task

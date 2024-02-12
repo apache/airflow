@@ -105,16 +105,14 @@ def get_suspended_provider_args() -> list[str]:
     pytest_args = []
     suspended_folders = get_suspended_provider_folders()
     for providers in suspended_folders:
-        pytest_args.extend(
-            [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
-            ]
-        )
+        pytest_args.extend([
+            "--ignore",
+            f"tests/providers/{providers}",
+            "--ignore",
+            f"tests/system/providers/{providers}",
+            "--ignore",
+            f"tests/integration/providers/{providers}",
+        ])
     return pytest_args
 
 
@@ -293,35 +291,33 @@ def generate_args_for_pytest(
         args = convert_test_type_to_pytest_args(
             test_type=test_type, skip_provider_tests=skip_provider_tests, helm_test_package=helm_test_package
         )
-    args.extend(
-        [
-            "--verbosity=0",
-            "--strict-markers",
-            "--durations=100",
-            "--maxfail=50",
-            "--color=yes",
-            f"--junitxml={result_log_file}",
-            # timeouts in seconds for individual tests
-            "--timeouts-order",
-            "moi",
-            f"--setup-timeout={test_timeout}",
-            f"--execution-timeout={test_timeout}",
-            f"--teardown-timeout={test_timeout}",
-            "--disable-warnings",
-            # Only display summary for non-expected cases
-            #
-            # f - failed
-            # E - error
-            # X - xpassed (passed even if expected to fail)
-            #
-            # The following cases are not displayed:
-            # x - xfailed (expected to fail and failed)
-            # p - passed
-            # P - passed with output
-            #
-            "-rfEX",
-        ]
-    )
+    args.extend([
+        "--verbosity=0",
+        "--strict-markers",
+        "--durations=100",
+        "--maxfail=50",
+        "--color=yes",
+        f"--junitxml={result_log_file}",
+        # timeouts in seconds for individual tests
+        "--timeouts-order",
+        "moi",
+        f"--setup-timeout={test_timeout}",
+        f"--execution-timeout={test_timeout}",
+        f"--teardown-timeout={test_timeout}",
+        "--disable-warnings",
+        # Only display summary for non-expected cases
+        #
+        # f - failed
+        # E - error
+        # X - xpassed (passed even if expected to fail)
+        #
+        # The following cases are not displayed:
+        # x - xfailed (expected to fail and failed)
+        # p - passed
+        # P - passed with output
+        #
+        "-rfEX",
+    ])
     if skip_db_tests:
         args.append("--skip-db-tests")
     if run_db_tests_only:
@@ -340,23 +336,19 @@ def generate_args_for_pytest(
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
     if enable_coverage:
-        args.extend(
-            [
-                "--cov=airflow",
-                "--cov-config=pyproject.toml",
-                f"--cov-report=xml:{coverage_file}",
-            ]
-        )
+        args.extend([
+            "--cov=airflow",
+            "--cov-config=pyproject.toml",
+            f"--cov-report=xml:{coverage_file}",
+        ])
     else:
         args.append("--no-cov")
     if collect_only:
-        args.extend(
-            [
-                "--collect-only",
-                "-qqqq",
-                "--disable-warnings",
-            ]
-        )
+        args.extend([
+            "--collect-only",
+            "-qqqq",
+            "--disable-warnings",
+        ])
     return args
 
 

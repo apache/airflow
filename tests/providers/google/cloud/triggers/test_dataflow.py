@@ -86,13 +86,11 @@ class TestTemplateJobStartTrigger:
     async def test_run_loop_return_success_event(self, mock_job_status, trigger):
         mock_job_status.return_value = JobState.JOB_STATE_DONE
 
-        expected_event = TriggerEvent(
-            {
-                "job_id": JOB_ID,
-                "status": "success",
-                "message": "Job completed",
-            }
-        )
+        expected_event = TriggerEvent({
+            "job_id": JOB_ID,
+            "status": "success",
+            "message": "Job completed",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -102,12 +100,10 @@ class TestTemplateJobStartTrigger:
     async def test_run_loop_return_failed_event(self, mock_job_status, trigger):
         mock_job_status.return_value = JobState.JOB_STATE_FAILED
 
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Dataflow job with id {JOB_ID} has failed its execution",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": f"Dataflow job with id {JOB_ID} has failed its execution",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
@@ -116,12 +112,10 @@ class TestTemplateJobStartTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
     async def test_run_loop_return_stopped_event(self, mock_job_status, trigger):
         mock_job_status.return_value = JobState.JOB_STATE_STOPPED
-        expected_event = TriggerEvent(
-            {
-                "status": "stopped",
-                "message": f"Dataflow job with id {JOB_ID} was stopped",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "stopped",
+            "message": f"Dataflow job with id {JOB_ID} was stopped",
+        })
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event

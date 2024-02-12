@@ -278,13 +278,11 @@ class TestSmtpHook:
         self, create_default_context, mock_smtp, mock_smtp_ssl
     ):
         mock_smtp_ssl.return_value = Mock()
-        with conf_vars(
-            {
-                ("smtp", "smtp_ssl"): "True",
-                ("email", "ssl_context"): "default",
-                ("smtp_provider", "ssl_context"): "none",
-            }
-        ):
+        with conf_vars({
+            ("smtp", "smtp_ssl"): "True",
+            ("email", "ssl_context"): "default",
+            ("smtp_provider", "ssl_context"): "none",
+        }):
             with SmtpHook() as smtp_hook:
                 smtp_hook.send_email_smtp(
                     to="to", subject="subject", html_content="content", from_email="from"
@@ -300,13 +298,11 @@ class TestSmtpHook:
         self, create_default_context, mock_smtp, mock_smtp_ssl
     ):
         mock_smtp_ssl.return_value = Mock()
-        with conf_vars(
-            {
-                ("smtp", "smtp_ssl"): "True",
-                ("email", "ssl_context"): "none",
-                ("smtp_provider", "ssl_context"): "default",
-            }
-        ):
+        with conf_vars({
+            ("smtp", "smtp_ssl"): "True",
+            ("email", "ssl_context"): "none",
+            ("smtp_provider", "ssl_context"): "default",
+        }):
             with SmtpHook() as smtp_hook:
                 smtp_hook.send_email_smtp(
                     to="to", subject="subject", html_content="content", from_email="from"

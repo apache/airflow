@@ -165,9 +165,11 @@ class TestUtils:
 
         with cached_app(testing=True).test_request_context():
             html = str(
-                utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "execution_date": datetime.now()}
-                )
+                utils.task_instance_link({
+                    "dag_id": "<a&1>",
+                    "task_id": "<b2>",
+                    "execution_date": datetime.now(),
+                })
             )
 
         assert "%3Ca%261%3E" in html

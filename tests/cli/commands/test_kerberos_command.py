@@ -55,23 +55,21 @@ class TestKerberosCommand:
             mock.MagicMock(name="stderr"),
             mock.MagicMock(name="INVALID"),
         )
-        args = self.parser.parse_args(
-            [
-                "kerberos",
-                "PRINCIPAL",
-                "--keytab",
-                "/tmp/airflow.keytab",
-                "--log-file",
-                "/tmp/kerberos.log",
-                "--pid",
-                "/tmp/kerberos.pid",
-                "--stderr",
-                "/tmp/kerberos-stderr.log",
-                "--stdout",
-                "/tmp/kerberos-stdout.log",
-                "--daemon",
-            ]
-        )
+        args = self.parser.parse_args([
+            "kerberos",
+            "PRINCIPAL",
+            "--keytab",
+            "/tmp/airflow.keytab",
+            "--log-file",
+            "/tmp/kerberos.log",
+            "--pid",
+            "/tmp/kerberos.pid",
+            "--stderr",
+            "/tmp/kerberos-stderr.log",
+            "--stdout",
+            "/tmp/kerberos-stdout.log",
+            "--daemon",
+        ])
         mock_open = mock.mock_open()
         with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             kerberos_command.kerberos(args)
@@ -123,9 +121,13 @@ class TestKerberosCommand:
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_with_mode_one_time(self, mock_krb):
-        args = self.parser.parse_args(
-            ["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab", "--one-time"]
-        )
+        args = self.parser.parse_args([
+            "kerberos",
+            "PRINCIPAL",
+            "--keytab",
+            "/tmp/airflow.keytab",
+            "--one-time",
+        ])
 
         kerberos_command.kerberos(args)
         mock_krb.run.assert_called_once_with(

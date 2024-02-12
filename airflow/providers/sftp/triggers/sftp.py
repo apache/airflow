@@ -107,12 +107,10 @@ class SFTPTrigger(BaseTrigger):
                         else:
                             files_sensed.append(file.filename)
                     if files_sensed:
-                        yield TriggerEvent(
-                            {
-                                "status": "success",
-                                "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
-                            }
-                        )
+                        yield TriggerEvent({
+                            "status": "success",
+                            "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
+                        })
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:

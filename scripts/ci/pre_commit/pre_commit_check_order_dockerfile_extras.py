@@ -19,6 +19,7 @@
 """
 Check if extras in Dockerfile are reflected in docker build-arg-ref.rst and global constants.
 """
+
 from __future__ import annotations
 
 import sys

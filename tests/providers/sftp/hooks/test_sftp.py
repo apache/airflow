@@ -283,11 +283,9 @@ class TestSFTPHook:
         connection = Connection(
             login="login",
             host="host",
-            extra=json.dumps(
-                {
-                    "private_key": key_content_str,
-                }
-            ),
+            extra=json.dumps({
+                "private_key": key_content_str,
+            }),
         )
         get_connection.return_value = connection
         hook = SFTPHook()
@@ -299,11 +297,9 @@ class TestSFTPHook:
         connection = Connection(
             login="login",
             host="host",
-            extra=json.dumps(
-                {
-                    "key_file": TEST_KEY_FILE,
-                }
-            ),
+            extra=json.dumps({
+                "key_file": TEST_KEY_FILE,
+            }),
         )
         get_connection.return_value = connection
         hook = SFTPHook()

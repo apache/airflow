@@ -425,24 +425,20 @@ def find_all_entities(
         ):
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
-                    wrong_entities.append(
-                        (
-                            the_class,
-                            f"The class name {class_name} is wrong. "
-                            f"It should match {expected_class_name_pattern}",
-                        )
-                    )
+                    wrong_entities.append((
+                        the_class,
+                        f"The class name {class_name} is wrong. "
+                        f"It should match {expected_class_name_pattern}",
+                    ))
                     continue
                 if unexpected_class_name_patterns:
                     for unexpected_class_name_pattern in unexpected_class_name_patterns:
                         if re.match(unexpected_class_name_pattern, class_name):
-                            wrong_entities.append(
-                                (
-                                    the_class,
-                                    f"The class name {class_name} is wrong. "
-                                    f"It should not match {unexpected_class_name_pattern}",
-                                )
-                            )
+                            wrong_entities.append((
+                                the_class,
+                                f"The class name {class_name} is wrong. "
+                                f"It should not match {unexpected_class_name_pattern}",
+                            ))
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
@@ -762,12 +758,10 @@ if __name__ == "__main__":
     all_imported_classes, all_classes_with_potential_for_circular_import = verify_provider_classes()
     try:
         AIRFLOW_LOCAL_SETTINGS_PATH.write_text(
-            "\n".join(
-                [
-                    "from {} import {}".format(*class_name.rsplit(".", 1))
-                    for class_name in all_classes_with_potential_for_circular_import
-                ]
-            )
+            "\n".join([
+                "from {} import {}".format(*class_name.rsplit(".", 1))
+                for class_name in all_classes_with_potential_for_circular_import
+            ])
         )
         console.print(
             "[bright_blue]Importing all provider classes with potential for circular imports"

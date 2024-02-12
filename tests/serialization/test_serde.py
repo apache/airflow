@@ -225,11 +225,9 @@ class TestSerDe:
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "airflow.*",
-        }
-    )
+    @conf_vars({
+        ("core", "allowed_deserialization_classes"): "airflow.*",
+    })
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_for_imports(self):
         i = Z(10)
@@ -239,21 +237,17 @@ class TestSerDe:
 
         assert f"{qualname(Z)} was not found in allow list" in str(ex.value)
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "tests.airflow.*",
-        }
-    )
+    @conf_vars({
+        ("core", "allowed_deserialization_classes"): "tests.airflow.*",
+    })
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match(self):
         assert _match("tests.airflow.deep")
         assert _match("tests.wrongpath") is False
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
-        }
-    )
+    @conf_vars({
+        ("core", "allowed_deserialization_classes"): "tests.airflow.deep",
+    })
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_class(self):
         """Test the match function when passing a full classname as
@@ -262,12 +256,10 @@ class TestSerDe:
         assert _match("tests.airflow.deep")
         assert _match("tests.airflow.FALSE") is False
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
-        }
-    )
+    @conf_vars({
+        ("core", "allowed_deserialization_classes"): "",
+        ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+    })
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_regexp(self):
         """Test the match function when passing a path as
@@ -276,12 +268,10 @@ class TestSerDe:
         assert _match("tests.airflow.deep")
         assert _match("tests.wrongpath") is False
 
-    @conf_vars(
-        {
-            ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
-        }
-    )
+    @conf_vars({
+        ("core", "allowed_deserialization_classes"): "",
+        ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+    })
     @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_match_class_regexp(self):
         """Test the match function when passing a full classname as
@@ -291,22 +281,18 @@ class TestSerDe:
         assert _match("tests.airflow.FALSE") is False
 
     def test_incompatible_version(self):
-        data = dict(
-            {
-                "__classname__": Y.__module__ + "." + Y.__qualname__,
-                "__version__": 2,
-            }
-        )
+        data = dict({
+            "__classname__": Y.__module__ + "." + Y.__qualname__,
+            "__version__": 2,
+        })
         with pytest.raises(TypeError, match="newer than"):
             deserialize(data)
 
     def test_raise_undeserializable(self):
-        data = dict(
-            {
-                "__classname__": X.__module__ + "." + X.__qualname__,
-                "__version__": 0,
-            }
-        )
+        data = dict({
+            "__classname__": X.__module__ + "." + X.__qualname__,
+            "__version__": 0,
+        })
         with pytest.raises(TypeError, match="No deserializer"):
             deserialize(data)
 

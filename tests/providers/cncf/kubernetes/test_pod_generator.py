@@ -197,33 +197,29 @@ class TestPodGenerator:
         assert result_dict == expected_dict
 
     def test_from_obj(self):
-        result = PodGenerator.from_obj(
-            {
-                "pod_override": k8s.V1Pod(
-                    api_version="v1",
-                    kind="Pod",
-                    metadata=k8s.V1ObjectMeta(name="foo", annotations={"test": "annotation"}),
-                    spec=k8s.V1PodSpec(
-                        containers=[
-                            k8s.V1Container(
-                                name="base",
-                                volume_mounts=[
-                                    k8s.V1VolumeMount(
-                                        mount_path="/foo/", name="example-kubernetes-test-volume"
-                                    )
-                                ],
-                            )
-                        ],
-                        volumes=[
-                            k8s.V1Volume(
-                                name="example-kubernetes-test-volume",
-                                host_path=k8s.V1HostPathVolumeSource(path="/tmp/"),
-                            )
-                        ],
-                    ),
-                )
-            }
-        )
+        result = PodGenerator.from_obj({
+            "pod_override": k8s.V1Pod(
+                api_version="v1",
+                kind="Pod",
+                metadata=k8s.V1ObjectMeta(name="foo", annotations={"test": "annotation"}),
+                spec=k8s.V1PodSpec(
+                    containers=[
+                        k8s.V1Container(
+                            name="base",
+                            volume_mounts=[
+                                k8s.V1VolumeMount(mount_path="/foo/", name="example-kubernetes-test-volume")
+                            ],
+                        )
+                    ],
+                    volumes=[
+                        k8s.V1Volume(
+                            name="example-kubernetes-test-volume",
+                            host_path=k8s.V1HostPathVolumeSource(path="/tmp/"),
+                        )
+                    ],
+                ),
+            )
+        })
         result = self.k8s_client.sanitize_for_serialization(result)
 
         assert {
@@ -243,46 +239,40 @@ class TestPodGenerator:
                 "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
             },
         } == result
-        result = PodGenerator.from_obj(
-            {
-                "KubernetesExecutor": {
-                    "annotations": {"test": "annotation"},
-                    "volumes": [
-                        {
-                            "name": "example-kubernetes-test-volume",
-                            "hostPath": {"path": "/tmp/"},
-                        },
-                    ],
-                    "volume_mounts": [
-                        {
-                            "mountPath": "/foo/",
-                            "name": "example-kubernetes-test-volume",
-                        },
-                    ],
-                }
+        result = PodGenerator.from_obj({
+            "KubernetesExecutor": {
+                "annotations": {"test": "annotation"},
+                "volumes": [
+                    {
+                        "name": "example-kubernetes-test-volume",
+                        "hostPath": {"path": "/tmp/"},
+                    },
+                ],
+                "volume_mounts": [
+                    {
+                        "mountPath": "/foo/",
+                        "name": "example-kubernetes-test-volume",
+                    },
+                ],
             }
-        )
+        })
 
-        result_from_pod = PodGenerator.from_obj(
-            {
-                "pod_override": k8s.V1Pod(
-                    metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}),
-                    spec=k8s.V1PodSpec(
-                        containers=[
-                            k8s.V1Container(
-                                name="base",
-                                volume_mounts=[
-                                    k8s.V1VolumeMount(
-                                        name="example-kubernetes-test-volume", mount_path="/foo/"
-                                    )
-                                ],
-                            )
-                        ],
-                        volumes=[k8s.V1Volume(name="example-kubernetes-test-volume", host_path="/tmp/")],
-                    ),
-                )
-            }
-        )
+        result_from_pod = PodGenerator.from_obj({
+            "pod_override": k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(annotations={"test": "annotation"}),
+                spec=k8s.V1PodSpec(
+                    containers=[
+                        k8s.V1Container(
+                            name="base",
+                            volume_mounts=[
+                                k8s.V1VolumeMount(name="example-kubernetes-test-volume", mount_path="/foo/")
+                            ],
+                        )
+                    ],
+                    volumes=[k8s.V1Volume(name="example-kubernetes-test-volume", host_path="/tmp/")],
+                ),
+            )
+        })
 
         result = self.k8s_client.sanitize_for_serialization(result)
         result_from_pod = self.k8s_client.sanitize_for_serialization(result_from_pod)

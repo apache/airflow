@@ -95,13 +95,11 @@ def test_configure_trigger_log_handler_s3():
     task: S3TH
     result: wrap
     """
-    with conf_vars(
-        {
-            ("logging", "remote_logging"): "True",
-            ("logging", "remote_log_conn_id"): "some_aws",
-            ("logging", "remote_base_log_folder"): "s3://some-folder",
-        }
-    ):
+    with conf_vars({
+        ("logging", "remote_logging"): "True",
+        ("logging", "remote_log_conn_id"): "some_aws",
+        ("logging", "remote_base_log_folder"): "s3://some-folder",
+    }):
         importlib.reload(airflow_local_settings)
         configure_logging()
 
@@ -177,14 +175,12 @@ def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg):
     root_logger = logging.getLogger()
     clear_logger_handlers(root_logger)
 
-    with conf_vars(
-        {
-            (
-                "logging",
-                "logging_config_class",
-            ): f"tests.jobs.test_triggerer_job_logging.{cfg}",
-        }
-    ):
+    with conf_vars({
+        (
+            "logging",
+            "logging_config_class",
+        ): f"tests.jobs.test_triggerer_job_logging.{cfg}",
+    }):
         importlib.reload(airflow_local_settings)
         configure_logging()
 
@@ -231,11 +227,9 @@ def test_configure_trigger_log_handler_fallback_task():
     task: FTH
     result: wrap
     """
-    with conf_vars(
-        {
-            ("logging", "logging_config_class"): "tests.jobs.test_triggerer_job_logging.fallback_task",
-        }
-    ):
+    with conf_vars({
+        ("logging", "logging_config_class"): "tests.jobs.test_triggerer_job_logging.fallback_task",
+    }):
         importlib.reload(airflow_local_settings)
         configure_logging()
 
@@ -280,14 +274,12 @@ def test_configure_trigger_log_handler_root_has_task_handler():
     root logger: single handler that supports triggerer
     result: wrap
     """
-    with conf_vars(
-        {
-            (
-                "logging",
-                "logging_config_class",
-            ): "tests.jobs.test_triggerer_job_logging.root_has_task_handler",
-        }
-    ):
+    with conf_vars({
+        (
+            "logging",
+            "logging_config_class",
+        ): "tests.jobs.test_triggerer_job_logging.root_has_task_handler",
+    }):
         configure_logging()
 
     # check custom config used
@@ -337,14 +329,12 @@ def test_configure_trigger_log_handler_root_not_file_task():
         * wrap and use the task logger handler
         * other root handlers filter trigger logging
     """
-    with conf_vars(
-        {
-            (
-                "logging",
-                "logging_config_class",
-            ): "tests.jobs.test_triggerer_job_logging.root_not_file_task",
-        }
-    ):
+    with conf_vars({
+        (
+            "logging",
+            "logging_config_class",
+        ): "tests.jobs.test_triggerer_job_logging.root_not_file_task",
+    }):
         configure_logging()
 
     # check custom config used
@@ -402,14 +392,12 @@ def test_configure_trigger_log_handler_root_old_file_task():
         * other root handlers filter trigger logging
     """
 
-    with conf_vars(
-        {
-            (
-                "logging",
-                "logging_config_class",
-            ): "tests.jobs.test_triggerer_job_logging.root_logger_old_file_task",
-        }
-    ):
+    with conf_vars({
+        (
+            "logging",
+            "logging_config_class",
+        ): "tests.jobs.test_triggerer_job_logging.root_logger_old_file_task",
+    }):
         configure_logging()
 
     # check custom config used

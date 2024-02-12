@@ -680,9 +680,12 @@ def test___generate_uuids(generate_uuid5, weaviate_hook):
             df=df, class_name="test", unique_columns=["name", "age", "gender", "last_name"]
         )
 
-    df = pd.DataFrame.from_dict(
-        {"id": [1, 2], "name": ["ross", "bob"], "age": ["12", "22"], "gender": ["m", "m"]}
-    )
+    df = pd.DataFrame.from_dict({
+        "id": [1, 2],
+        "name": ["ross", "bob"],
+        "age": ["12", "22"],
+        "gender": ["m", "m"],
+    })
     with pytest.raises(
         ValueError, match=r"Property 'id' already in dataset. Consider renaming or specify 'uuid_column'"
     ):
@@ -761,15 +764,13 @@ def test___get_segregated_documents(_get_documents_to_uuid_map, _prepare_documen
 def test_error_option_of_create_or_replace_document_objects(
     _generate_uuids, _get_segregated_documents, weaviate_hook
 ):
-    df = pd.DataFrame.from_dict(
-        {
-            "id": ["1", "2", "3"],
-            "name": ["ross", "bob", "joy"],
-            "age": ["12", "22", "15"],
-            "gender": ["m", "m", "f"],
-            "doc": ["abc.xml", "zyx.html", "zyx.html"],
-        }
-    )
+    df = pd.DataFrame.from_dict({
+        "id": ["1", "2", "3"],
+        "name": ["ross", "bob", "joy"],
+        "age": ["12", "22", "15"],
+        "gender": ["m", "m", "f"],
+        "doc": ["abc.xml", "zyx.html", "zyx.html"],
+    })
 
     _get_segregated_documents.return_value = ({}, {"abc.xml"}, {}, {"zyx.html"})
     _generate_uuids.return_value = (df, "id")
@@ -786,15 +787,13 @@ def test_error_option_of_create_or_replace_document_objects(
 def test_skip_option_of_create_or_replace_document_objects(
     _generate_uuids, _get_segregated_documents, batch_data, _delete_objects, weaviate_hook
 ):
-    df = pd.DataFrame.from_dict(
-        {
-            "id": ["1", "2", "3"],
-            "name": ["ross", "bob", "joy"],
-            "age": ["12", "22", "15"],
-            "gender": ["m", "m", "f"],
-            "doc": ["abc.xml", "zyx.html", "zyx.html"],
-        }
-    )
+    df = pd.DataFrame.from_dict({
+        "id": ["1", "2", "3"],
+        "name": ["ross", "bob", "joy"],
+        "age": ["12", "22", "15"],
+        "gender": ["m", "m", "f"],
+        "doc": ["abc.xml", "zyx.html", "zyx.html"],
+    })
 
     class_name = "test"
     documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (
@@ -827,15 +826,13 @@ def test_skip_option_of_create_or_replace_document_objects(
 def test_replace_option_of_create_or_replace_document_objects(
     _generate_uuids, _get_segregated_documents, batch_data, _delete_all_documents_objects, weaviate_hook
 ):
-    df = pd.DataFrame.from_dict(
-        {
-            "id": ["1", "2", "3"],
-            "name": ["ross", "bob", "joy"],
-            "age": ["12", "22", "15"],
-            "gender": ["m", "m", "f"],
-            "doc": ["abc.xml", "zyx.html", "zyx.html"],
-        }
-    )
+    df = pd.DataFrame.from_dict({
+        "id": ["1", "2", "3"],
+        "name": ["ross", "bob", "joy"],
+        "age": ["12", "22", "15"],
+        "gender": ["m", "m", "f"],
+        "doc": ["abc.xml", "zyx.html", "zyx.html"],
+    })
 
     class_name = "test"
     documents_to_uuid_map, changed_documents, unchanged_documents, new_documents = (

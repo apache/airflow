@@ -100,31 +100,25 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
 
                 status: JobStatus.State = job.status.state
                 if status == JobStatus.State.SUCCEEDED:
-                    yield TriggerEvent(
-                        {
-                            "job_name": self.job_name,
-                            "status": "success",
-                            "message": "Job completed",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_name": self.job_name,
+                        "status": "success",
+                        "message": "Job completed",
+                    })
                     return
                 elif status == JobStatus.State.FAILED:
-                    yield TriggerEvent(
-                        {
-                            "job_name": self.job_name,
-                            "status": "error",
-                            "message": f"Batch job with name {self.job_name} has failed its execution",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_name": self.job_name,
+                        "status": "error",
+                        "message": f"Batch job with name {self.job_name} has failed its execution",
+                    })
                     return
                 elif status == JobStatus.State.DELETION_IN_PROGRESS:
-                    yield TriggerEvent(
-                        {
-                            "job_name": self.job_name,
-                            "status": "deleted",
-                            "message": f"Batch job with name {self.job_name} is being deleted",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "job_name": self.job_name,
+                        "status": "deleted",
+                        "message": f"Batch job with name {self.job_name} is being deleted",
+                    })
                     return
                 else:
                     self.log.info("Current job status is: %s", status)
@@ -141,13 +135,11 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
             return
 
         self.log.exception(f"Job with name [{self.job_name}] timed out")
-        yield TriggerEvent(
-            {
-                "job_name": self.job_name,
-                "status": "timed out",
-                "message": f"Batch job with name {self.job_name} timed out",
-            }
-        )
+        yield TriggerEvent({
+            "job_name": self.job_name,
+            "status": "timed out",
+            "message": f"Batch job with name {self.job_name} timed out",
+        })
 
     def _get_async_hook(self) -> CloudBatchAsyncHook:
         return CloudBatchAsyncHook(

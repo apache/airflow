@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS SES Hook."""
+
 from __future__ import annotations
 
 from typing import Any, Iterable

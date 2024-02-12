@@ -58,15 +58,13 @@ class TestSecretsManagerBackend:
         secret_id = "airflow/connections/test_postgres"
         create_param = {
             "Name": secret_id,
-            "SecretString": json.dumps(
-                {
-                    "conn_type": "postgresql",
-                    "login": "is%20url%20encoded",
-                    "password": "not url encoded",
-                    "host": "not%2520idempotent",
-                    "extra": json.dumps({"foo": "bar"}),
-                }
-            ),
+            "SecretString": json.dumps({
+                "conn_type": "postgresql",
+                "login": "is%20url%20encoded",
+                "password": "not url encoded",
+                "host": "not%2520idempotent",
+                "extra": json.dumps({"foo": "bar"}),
+            }),
         }
 
         secrets_manager_backend = SecretsManagerBackend(
@@ -87,15 +85,13 @@ class TestSecretsManagerBackend:
         secret_id = "airflow/connections/test_postgres"
         create_param = {
             "Name": secret_id,
-            "SecretString": json.dumps(
-                {
-                    "conn_type": "postgresql",
-                    "user": "airflow",
-                    "password": "airflow",
-                    "host": "airflow",
-                    "extra": {"foo": "bar"},
-                }
-            ),
+            "SecretString": json.dumps({
+                "conn_type": "postgresql",
+                "user": "airflow",
+                "password": "airflow",
+                "host": "airflow",
+                "extra": {"foo": "bar"},
+            }),
         }
 
         secrets_manager_backend = SecretsManagerBackend(full_url_mode=False)

@@ -351,13 +351,11 @@ def find_matching_long_package_names(
             f"Some filters did not find any package: {invalid_filters}, Please check if they are correct."
         )
 
-    return tuple(
-        [
-            p
-            for p in all_packages_including_removed
-            if any(fnmatch.fnmatch(p, f) for f in processed_package_filters)
-        ]
-    )
+    return tuple([
+        p
+        for p in all_packages_including_removed
+        if any(fnmatch.fnmatch(p, f) for f in processed_package_filters)
+    ])
 
 
 def get_source_package_path(provider_id: str) -> Path:

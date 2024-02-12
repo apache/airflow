@@ -36,6 +36,7 @@ dataset_consumes_1_and_2 should run.
 Dags dataset_consumes_1_never_scheduled and dataset_consumes_unknown_never_scheduled should not run because
 they depend on datasets that never get updated.
 """
+
 from __future__ import annotations
 
 import pendulum

@@ -602,14 +602,12 @@ with DAG(
         force_delete=True,
     )
 
-    log_cleanup = prune_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            ("/aws/sagemaker/ProcessingJobs", env_id),
-            ("/aws/sagemaker/TrainingJobs", env_id),
-            ("/aws/sagemaker/TransformJobs", env_id),
-        ]
-    )
+    log_cleanup = prune_logs([
+        # Format: ('log group name', 'log stream prefix')
+        ("/aws/sagemaker/ProcessingJobs", env_id),
+        ("/aws/sagemaker/TrainingJobs", env_id),
+        ("/aws/sagemaker/TransformJobs", env_id),
+    ])
 
     chain(
         # TEST SETUP

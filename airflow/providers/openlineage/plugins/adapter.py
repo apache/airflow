@@ -335,12 +335,10 @@ class OpenLineageAdapter(LoggingMixin):
                 namespace=_DAG_NAMESPACE,
                 name=parent_job_name or job_name,
             )
-            facets.update(
-                {
-                    "parent": parent_run_facet,
-                    "parentRun": parent_run_facet,  # Keep sending this for the backward compatibility
-                }
-            )
+            facets.update({
+                "parent": parent_run_facet,
+                "parentRun": parent_run_facet,  # Keep sending this for the backward compatibility
+            })
 
         if run_facets:
             facets.update(run_facets)
@@ -362,13 +360,11 @@ class OpenLineageAdapter(LoggingMixin):
         if code_location:
             facets.update({"sourceCodeLocation": SourceCodeLocationJobFacet("", url=code_location)})
         if owners:
-            facets.update(
-                {
-                    "ownership": OwnershipJobFacet(
-                        owners=[OwnershipJobFacetOwners(name=owner) for owner in owners]
-                    )
-                }
-            )
+            facets.update({
+                "ownership": OwnershipJobFacet(
+                    owners=[OwnershipJobFacetOwners(name=owner) for owner in owners]
+                )
+            })
         if job_facets:
             facets = {**facets, **job_facets}
 

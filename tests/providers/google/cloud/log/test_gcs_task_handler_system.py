@@ -84,13 +84,11 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
         self.assert_remote_logs("INFO - Task exited with return code 0", ti)
 
     def assert_remote_logs(self, expected_message, ti):
-        with provide_gcp_context(GCP_GCS_KEY), conf_vars(
-            {
-                ("logging", "remote_logging"): "True",
-                ("logging", "remote_base_log_folder"): f"gs://{self.bucket_name}/path/to/logs",
-                ("logging", "remote_log_conn_id"): "google_cloud_default",
-            }
-        ):
+        with provide_gcp_context(GCP_GCS_KEY), conf_vars({
+            ("logging", "remote_logging"): "True",
+            ("logging", "remote_base_log_folder"): f"gs://{self.bucket_name}/path/to/logs",
+            ("logging", "remote_log_conn_id"): "google_cloud_default",
+        }):
             from airflow.config_templates import airflow_local_settings
 
             importlib.reload(airflow_local_settings)

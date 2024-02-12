@@ -156,13 +156,11 @@ class SlackHook(BaseHook):
             conn_type=self.conn_type, conn_id=conn.conn_id, extra=conn.extra_dejson
         )
         # Merge Hook parameters with Connection config
-        conn_params.update(
-            {
-                "timeout": self.timeout or extra_config.getint("timeout", default=None),
-                "base_url": self.base_url or extra_config.get("base_url", default=None),
-                "proxy": self.proxy or extra_config.get("proxy", default=None),
-            }
-        )
+        conn_params.update({
+            "timeout": self.timeout or extra_config.getint("timeout", default=None),
+            "base_url": self.base_url or extra_config.get("base_url", default=None),
+            "proxy": self.proxy or extra_config.get("proxy", default=None),
+        })
         # Add additional client args
         conn_params.update(self.extra_client_args)
         return {k: v for k, v in conn_params.items() if v is not None}

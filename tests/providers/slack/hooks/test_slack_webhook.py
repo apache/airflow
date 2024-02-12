@@ -476,12 +476,10 @@ class TestSlackWebhookHook:
     def test_empty_string_ignored_prefixed(self):
         with patch.dict(
             in_dict=os.environ,
-            AIRFLOW_CONN_MY_CONN=json.dumps(
-                {
-                    "password": "hi",
-                    "extra": {"extra__slackwebhook__proxy": ""},
-                }
-            ),
+            AIRFLOW_CONN_MY_CONN=json.dumps({
+                "password": "hi",
+                "extra": {"extra__slackwebhook__proxy": ""},
+            }),
         ):
             hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             params = hook._get_conn_params()

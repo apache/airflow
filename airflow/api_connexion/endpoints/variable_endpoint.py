@@ -84,12 +84,10 @@ def get_variables(
     query = select(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     variables = session.scalars(query.offset(offset).limit(limit)).all()
-    return variable_collection_schema.dump(
-        {
-            "variables": variables,
-            "total_entries": total_entries,
-        }
-    )
+    return variable_collection_schema.dump({
+        "variables": variables,
+        "total_entries": total_entries,
+    })
 
 
 @security.requires_access_variable("PUT")

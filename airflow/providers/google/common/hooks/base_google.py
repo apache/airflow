@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud API base hook."""
+
 from __future__ import annotations
 
 import datetime
@@ -560,14 +561,12 @@ class GoogleBaseHook(BaseHook):
             if CREDENTIALS in os.environ:
                 # This solves most cases when we are logged in using the service key in Airflow.
                 # Don't display stdout/stderr for security reason
-                check_output(
-                    [
-                        "gcloud",
-                        "auth",
-                        "activate-service-account",
-                        f"--key-file={os.environ[CREDENTIALS]}",
-                    ]
-                )
+                check_output([
+                    "gcloud",
+                    "auth",
+                    "activate-service-account",
+                    f"--key-file={os.environ[CREDENTIALS]}",
+                ])
             elif os.path.exists(credentials_path):
                 # If we are logged in by `gcloud auth application-default` then we need to log in manually.
                 # This will make the `gcloud auth application-default` and `gcloud auth` credentials equals.
@@ -576,19 +575,21 @@ class GoogleBaseHook(BaseHook):
                     # Don't display stdout/stderr for security reason
                     check_output(["gcloud", "config", "set", "auth/client_id", creds_content["client_id"]])
                     # Don't display stdout/stderr for security reason
-                    check_output(
-                        ["gcloud", "config", "set", "auth/client_secret", creds_content["client_secret"]]
-                    )
+                    check_output([
+                        "gcloud",
+                        "config",
+                        "set",
+                        "auth/client_secret",
+                        creds_content["client_secret"],
+                    ])
                     # Don't display stdout/stderr for security reason
-                    check_output(
-                        [
-                            "gcloud",
-                            "auth",
-                            "activate-refresh-token",
-                            creds_content["client_id"],
-                            creds_content["refresh_token"],
-                        ]
-                    )
+                    check_output([
+                        "gcloud",
+                        "auth",
+                        "activate-refresh-token",
+                        creds_content["client_id"],
+                        creds_content["refresh_token"],
+                    ])
 
             if project_id:
                 # Don't display stdout/stderr for security reason

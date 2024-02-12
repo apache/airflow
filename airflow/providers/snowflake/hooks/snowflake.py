@@ -264,13 +264,11 @@ class SnowflakeHook(DbApiHook):
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
-        return URL(
-            **{
-                k: v
-                for k, v in conn_params.items()
-                if v and k not in ["session_parameters", "insecure_mode", "private_key"]
-            }
-        )
+        return URL(**{
+            k: v
+            for k, v in conn_params.items()
+            if v and k not in ["session_parameters", "insecure_mode", "private_key"]
+        })
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
@@ -312,8 +310,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -325,8 +322,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,

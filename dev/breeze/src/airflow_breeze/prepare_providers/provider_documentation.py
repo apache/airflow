@@ -230,17 +230,15 @@ def _convert_git_changes_to_table(
         if line == "":
             continue
         change = _get_change_from_line(line, version)
-        table_data.append(
-            (
-                f"[{change.short_hash}]({base_url}{change.full_hash})"
-                if markdown
-                else f"`{change.short_hash} <{base_url}{change.full_hash}>`_",
-                change.date,
-                f"`{change.message_without_backticks}`"
-                if markdown
-                else f"``{change.message_without_backticks}``",
-            )
-        )
+        table_data.append((
+            f"[{change.short_hash}]({base_url}{change.full_hash})"
+            if markdown
+            else f"`{change.short_hash} <{base_url}{change.full_hash}>`_",
+            change.date,
+            f"`{change.message_without_backticks}`"
+            if markdown
+            else f"``{change.message_without_backticks}``",
+        ))
         changes_list.append(change)
     header = ""
     if not table_data:
@@ -839,13 +837,11 @@ def _generate_new_changelog(
             # change log exist but without version 1.0.0 entry
             classified_changes = None
 
-        new_context.update(
-            {
-                "version": latest_version,
-                "version_header": "." * len(latest_version),
-                "classified_changes": classified_changes,
-            }
-        )
+        new_context.update({
+            "version": latest_version,
+            "version_header": "." * len(latest_version),
+            "classified_changes": classified_changes,
+        })
         generated_new_changelog = render_template(
             template_name="CHANGELOG", context=new_context, extension=".rst"
         )

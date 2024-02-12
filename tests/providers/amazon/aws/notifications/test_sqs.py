@@ -75,16 +75,14 @@ class TestSqsNotifier:
             region_name="{{ var_region }}",
         )
         with mock.patch("airflow.providers.amazon.aws.notifications.sqs.SqsHook") as m:
-            notifier(
-                {
-                    "dag": dag,
-                    "var_username": "truman",
-                    "var_region": "ca-central-1",
-                    "var_account": "123321123321",
-                    "var_queue": "AwesomeQueue",
-                    "var_group_id": "spam",
-                }
-            )
+            notifier({
+                "dag": dag,
+                "var_username": "truman",
+                "var_region": "ca-central-1",
+                "var_account": "123321123321",
+                "var_queue": "AwesomeQueue",
+                "var_group_id": "spam",
+            })
             # Hook initialisation
             m.assert_called_once_with(aws_conn_id="test_sns_notifier_templated", region_name="ca-central-1")
             # Send message

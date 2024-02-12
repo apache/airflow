@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Publish message to SNS queue."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

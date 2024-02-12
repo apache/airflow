@@ -97,12 +97,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
             for job_name in JOB_NAMES
         ]
-        expected_event = TriggerEvent(
-            {
-                "status": "success",
-                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "success",
+            "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
+        })
         generator = trigger.run()
         actual_event = await generator.asend(None)
 
@@ -132,12 +130,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
             for job_name in JOB_NAMES
         ]
-        expected_event = TriggerEvent(
-            {
-                "status": "success",
-                "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "success",
+            "message": f"Transfer jobs {JOB_0}, {JOB_1} completed successfully",
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -165,12 +161,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             else None
             for job_name in latest_operations_names
         ]
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Transfer job {expected_failed_job} has no latest operation.",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": f"Transfer job {expected_failed_job} has no latest operation.",
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -219,12 +213,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             create_mock_operation(status=status, name=operation_name)
             for status, operation_name in zip(job_statuses, LATEST_OPERATION_NAMES)
         ]
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"Transfer operation {failed_operation} failed with status {expected_status}",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": f"Transfer operation {failed_operation} failed with status {expected_status}",
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -242,12 +234,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
             create_mock_operation(status=TransferOperation.Status.SUCCESS, name="operation_" + job_name)
             for job_name in JOB_NAMES
         ]
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": expected_error_message,
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": expected_error_message,
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -262,12 +252,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         expected_error_message = "Mock error message"
         get_latest_operation.side_effect = AirflowException(expected_error_message)
 
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": expected_error_message,
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": expected_error_message,
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)
@@ -284,12 +272,10 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         error_message = "Mock error message"
         get_latest_operation.side_effect = GoogleAPICallError(error_message)
 
-        expected_event = TriggerEvent(
-            {
-                "status": "error",
-                "message": f"{None} {error_message}",
-            }
-        )
+        expected_event = TriggerEvent({
+            "status": "error",
+            "message": f"{None} {error_message}",
+        })
 
         generator = trigger.run()
         actual_event = await generator.asend(None)

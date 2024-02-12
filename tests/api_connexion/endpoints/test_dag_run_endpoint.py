@@ -2020,11 +2020,9 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         )
         assert response.status_code == 404
 
-    @conf_vars(
-        {
-            ("api", "auth_backends"): "airflow.api.auth.backend.default",
-        }
-    )
+    @conf_vars({
+        ("api", "auth_backends"): "airflow.api.auth.backend.default",
+    })
     def test_should_respond_200_with_anonymous_user(self, dag_maker, session):
         from airflow.www import app as application
 

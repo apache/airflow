@@ -100,13 +100,11 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
                     pipeline_type=DataFusionPipelineType.from_str(self.pipeline_type),
                 )
                 if response_from_hook == "success":
-                    yield TriggerEvent(
-                        {
-                            "pipeline_id": self.pipeline_id,
-                            "status": "success",
-                            "message": "Pipeline is running",
-                        }
-                    )
+                    yield TriggerEvent({
+                        "pipeline_id": self.pipeline_id,
+                        "status": "success",
+                        "message": "Pipeline is running",
+                    })
                     return
                 elif response_from_hook == "pending":
                     self.log.info("Pipeline is not still in running state...")

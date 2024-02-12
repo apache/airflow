@@ -69,9 +69,11 @@ class TestRedshiftDataTrigger:
             ),
             (
                 False,
-                TriggerEvent(
-                    {"status": "error", "message": f"{TEST_TASK_ID} failed", "statement_id": "uuid"}
-                ),
+                TriggerEvent({
+                    "status": "error",
+                    "message": f"{TEST_TASK_ID} failed",
+                    "statement_id": "uuid",
+                }),
             ),
         ],
     )

@@ -592,21 +592,19 @@ class TestPgbouncerExporter:
         assert "postgresql://postgres:postgres@127.0.0.1:6543/pgbouncer?sslmode=disable" == connection
 
     def test_exporter_secret_with_overrides(self):
-        connection = self._get_connection(
-            {
-                "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
-                "data": {
-                    "metadataConnection": {
-                        "user": "username@123123",
-                        "pass": "password@!@#$^&*()",
-                        "host": "somehost",
-                        "port": 7777,
-                        "db": "somedb",
-                    },
+        connection = self._get_connection({
+            "pgbouncer": {"enabled": True, "metricsExporterSidecar": {"sslmode": "require"}},
+            "data": {
+                "metadataConnection": {
+                    "user": "username@123123",
+                    "pass": "password@!@#$^&*()",
+                    "host": "somehost",
+                    "port": 7777,
+                    "db": "somedb",
                 },
-                "ports": {"pgbouncer": 1111},
-            }
-        )
+            },
+            "ports": {"pgbouncer": 1111},
+        })
         assert (
             "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
             "/pgbouncer?sslmode=require" == connection

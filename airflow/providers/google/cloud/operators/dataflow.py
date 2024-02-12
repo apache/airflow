@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+
 from __future__ import annotations
 
 import copy
@@ -363,9 +364,9 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
-        options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
@@ -401,9 +402,9 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         pipeline_options["project"] = self.project_id or self.dataflow_hook.project_id
         pipeline_options["region"] = self.location
         pipeline_options.update(self.options)
-        pipeline_options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        pipeline_options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
         pipeline_options.update(self.options)
 
         def set_current_job_id(job_id):
@@ -1165,9 +1166,9 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         self.py_options = py_options or []
         self.dataflow_default_options = dataflow_default_options or {}
         self.options = options or {}
-        self.options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
+        self.options.setdefault("labels", {}).update({
+            "airflow-version": "v" + version.replace(".", "-").replace("+", "-")
+        })
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages

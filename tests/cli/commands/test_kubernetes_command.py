@@ -42,16 +42,14 @@ class TestGenerateDagYamlCommand:
     def test_generate_dag_yaml(self, tmp_path):
         path = tmp_path / "miscellaneous_test_dag_run_after_loop_2020-11-03T00_00_00_plus_00_00.yml"
         kubernetes_command.generate_pod_yaml(
-            self.parser.parse_args(
-                [
-                    "kubernetes",
-                    "generate-dag-yaml",
-                    "miscellaneous_test_dag",
-                    "2020-11-03",
-                    "--output-path",
-                    os.fspath(path.parent),
-                ]
-            )
+            self.parser.parse_args([
+                "kubernetes",
+                "generate-dag-yaml",
+                "miscellaneous_test_dag",
+                "2020-11-03",
+                "--output-path",
+                os.fspath(path.parent),
+            ])
         )
         assert sum(1 for _ in path.parent.iterdir()) == 1
         output_path = path.parent / "airflow_yaml_output"

@@ -97,14 +97,12 @@ def configured_app(minimal_app_for_api):
     )
     # For some reason, "DAG:example_python_operator" is not synced when in the above list of perms,
     # so do it manually here:
-    app.appbuilder.sm.bulk_sync_roles(
-        [
-            {
-                "role": "TestReadOnlyOneDag",
-                "perms": [(permissions.ACTION_CAN_READ, "DAG:example_python_operator")],
-            }
-        ]
-    )
+    app.appbuilder.sm.bulk_sync_roles([
+        {
+            "role": "TestReadOnlyOneDag",
+            "perms": [(permissions.ACTION_CAN_READ, "DAG:example_python_operator")],
+        }
+    ])
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
@@ -922,13 +920,11 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
     def test_should_respond_200_when_task_instance_properties_are_none(
         self, task_instances, payload, expected_ti_count, session
     ):
-        self.ti_extras.update(
-            {
-                "start_date": None,
-                "end_date": None,
-                "state": None,
-            }
-        )
+        self.ti_extras.update({
+            "start_date": None,
+            "end_date": None,
+            "state": None,
+        })
         self.create_task_instances(
             session,
             dag_id="latest_only",

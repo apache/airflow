@@ -251,28 +251,22 @@ def test_autodetect_docker_context(context_output: str, selected_context: str, c
             assert console_output in mock_get_console.return_value.print.call_args[0][0]
 
 
-SOCKET_INFO = json.dumps(
-    [
-        {
-            "Name": "default",
-            "Metadata": {},
-            "Endpoints": {"docker": {"Host": "unix:///not-standard/docker.sock", "SkipTLSVerify": False}},
-            "TLSMaterial": {},
-            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
-        }
-    ]
-)
+SOCKET_INFO = json.dumps([
+    {
+        "Name": "default",
+        "Metadata": {},
+        "Endpoints": {"docker": {"Host": "unix:///not-standard/docker.sock", "SkipTLSVerify": False}},
+        "TLSMaterial": {},
+        "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+    }
+])
 
-SOCKET_INFO_DESKTOP_LINUX = json.dumps(
-    [
-        {
-            "Name": "desktop-linux",
-            "Metadata": {},
-            "Endpoints": {
-                "docker": {"Host": "unix:///VERY_NON_STANDARD/docker.sock", "SkipTLSVerify": False}
-            },
-            "TLSMaterial": {},
-            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
-        }
-    ]
-)
+SOCKET_INFO_DESKTOP_LINUX = json.dumps([
+    {
+        "Name": "desktop-linux",
+        "Metadata": {},
+        "Endpoints": {"docker": {"Host": "unix:///VERY_NON_STANDARD/docker.sock", "SkipTLSVerify": False}},
+        "TLSMaterial": {},
+        "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+    }
+])
