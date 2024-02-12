@@ -128,7 +128,9 @@ def _get_parser():
         "--package-filter",
         action="append",
         help=(
-            "Filter specifying for which packages the documentation is to be built. Wildcard are supported."
+            "Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+            "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+            "several similarly named packages together."
         ),
     )
     parser.add_argument("--docs-only", dest="docs_only", action="store_true", help="Only build documentation")
