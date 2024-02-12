@@ -102,6 +102,8 @@ TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
 
+import pydevd_pycharm
+pydevd_pycharm.settrace('192.168.1.5', port=40011, stdoutToServer=True, stderrToServer=True)
 
 @pytest.fixture
 def clear_dags():
@@ -1350,6 +1352,34 @@ class TestDag:
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         assert orm_dag.is_paused
         session.close()
+
+    def test_existing_dag_is_paused_after_limit(self):
+        dag_id = "dag_paused_after_limit"
+        dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=1)
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        # it should not follow the pause flag upon creation
+        assert not dag.get_is_paused()
+
+        task = BashOperator(
+            task_id="task",
+            bash_command="exit 1;",
+        )
+        dag.add_task(task)
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=TEST_DATE,
+            state=State.FAILED,
+        )
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            execution_date=TEST_DATE,
+            state=State.RUNNING,
+        )
+        assert dag.get_is_paused()
+        # dag.clear()
+        # self._clean_up(dag_id)
+        # now, we will run with 2 failed tasks and check this should be paused
 
     def test_existing_dag_default_view(self):
         with create_session() as session:
