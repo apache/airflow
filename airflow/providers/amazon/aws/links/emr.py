@@ -56,7 +56,7 @@ class EmrLogsLink(BaseAwsLink):
 
 def get_serverless_log_uri(*, s3_log_uri: str, application_id: str, job_run_id: str) -> str:
     """
-    Retrieves the S3 URI to EMR Serverless Job logs.
+    Retrieve the S3 URI to EMR Serverless Job logs.
 
     Any EMR Serverless job may have a different S3 logging location (or none), which is an S3 URI.
     The logging location is then {s3_uri}/applications/{application_id}/jobs/{job_run_id}.
