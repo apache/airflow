@@ -30,6 +30,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import kubernetes
+from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
@@ -759,6 +760,7 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
             )
 
+    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
     def execute_complete(self, context: Context, event: dict, **kwargs):
         self.trigger_reentry(context=context, event=event)
 
