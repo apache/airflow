@@ -419,6 +419,72 @@ class GKEDeploymentHook(GoogleBaseHook, KubernetesHook):
         raise AirflowException("Deployment timed out")
 
 
+class GKECustomResourceHook(GoogleBaseHook, KubernetesHook):
+    """Google Kubernetes Engine Custom Resource APIs."""
+
+    def __init__(
+        self,
+        cluster_url: str,
+        ssl_ca_cert: str,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._cluster_url = cluster_url
+        self._ssl_ca_cert = ssl_ca_cert
+
+    @cached_property
+    def api_client(self) -> client.ApiClient:
+        self.log.info("in get conn")
+        return self.get_conn()
+
+    @cached_property
+    def core_v1_client(self) -> client.CoreV1Api:
+        return client.CoreV1Api(self.api_client)
+
+    @cached_property
+    def batch_v1_client(self) -> client.BatchV1Api:
+        return client.BatchV1Api(self.api_client)
+
+    @cached_property
+    def apps_v1_client(self) -> client.AppsV1Api:
+        return client.AppsV1Api(api_client=self.api_client)
+
+    @cached_property
+    def custom_object_client(self) -> client.CustomObjectsApi:
+        self.log.info("in custom hook obj")
+        return client.CustomObjectsApi(api_client=self.api_client)
+
+    def get_conn(self) -> client.ApiClient:
+        configuration = self._get_config()
+        configuration.refresh_api_key_hook = self._refresh_api_key_hook
+        return client.ApiClient(configuration)
+
+    def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
+        configuration.api_key = {"authorization": self._get_token(self.get_credentials())}
+
+    def _get_config(self) -> client.configuration.Configuration:
+        configuration = client.Configuration(
+            host=self._cluster_url,
+            api_key_prefix={"authorization": "Bearer"},
+            api_key={"authorization": self._get_token(self.get_credentials())},
+        )
+        configuration.ssl_ca_cert = FileOrData(
+            {
+                "certificate-authority-data": self._ssl_ca_cert,
+            },
+            file_key_name="certificate-authority",
+        ).as_file()
+        return configuration
+
+    @staticmethod
+    def _get_token(creds: google.auth.credentials.Credentials) -> str:
+        if creds.token is None or creds.expired:
+            auth_req = google_requests.Request()
+            creds.refresh(auth_req)
+        return creds.token
+
+
 class GKEAsyncHook(GoogleBaseAsyncHook):
     """Asynchronous client of GKE."""
 
@@ -523,6 +589,7 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
 
         if self.disable_tcp_keepalive is not True:
             _enable_tcp_keepalive()
+        self.log.info("in get_conn")
 
         return client.ApiClient(configuration)
 

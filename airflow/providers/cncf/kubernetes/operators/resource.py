@@ -109,16 +109,22 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
 
     def create_custom_from_yaml_object(self, body: dict):
         group, version, namespace, plural = self.get_crd_fields(body)
-        self.custom_object_client.create_namespaced_custom_object(group, version, namespace, plural, body)
+        self.custom_object_client.create_namespaced_custom_object(group=group, version=version,
+                                                                  namespace=namespace, plural=plural,
+                                                                  body=body)
 
     def execute(self, context) -> None:
         resources = yaml.safe_load_all(self.yaml_conf)
         if not self.custom_resource_definition:
-            create_from_yaml(
-                k8s_client=self.client,
-                yaml_objects=resources,
-                namespace=self.get_namespace(),
-            )
+            try:
+                create_from_yaml(
+                    k8s_client=self.client,
+                    yaml_objects=resources,
+                    verbose=True,
+                    namespace=self.get_namespace(),
+                )
+            except Exception as exc:
+                self.log.info("Some error happened: %s", exc)
         else:
             k8s_resource_iterator(self.create_custom_from_yaml_object, resources)
 
