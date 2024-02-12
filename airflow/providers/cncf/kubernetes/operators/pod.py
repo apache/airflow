@@ -699,10 +699,10 @@ class KubernetesPodOperator(BaseOperator):
         If ``logging_interval`` is not None, it could be that the pod is still running and we'll just
         grab the latest logs and defer back to the trigger again.
         """
-        remote_pod = None
+        pod = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
-            self.pod = self.find_pod(
+            pod = self.find_pod(
                 namespace=self.namespace or self.pod_request_obj.metadata.namespace,
                 context=context,
             )
@@ -710,7 +710,7 @@ class KubernetesPodOperator(BaseOperator):
             # we try to find pod before possibly raising so that on_kill will have `pod` attr
             self.raise_for_trigger_status(event)
 
-            if not self.pod:
+            if not pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
             if self.get_logs:
@@ -718,7 +718,7 @@ class KubernetesPodOperator(BaseOperator):
                 if last_log_time:
                     self.log.info("Resuming logs read from time %r", last_log_time)
                 pod_log_status = self.pod_manager.fetch_container_logs(
-                    pod=self.pod,
+                    pod=pod,
                     container_name=self.BASE_CONTAINER_NAME,
                     follow=self.logging_interval is None,
                     since_time=last_log_time,
@@ -728,22 +728,22 @@ class KubernetesPodOperator(BaseOperator):
                     self.invoke_defer_method(pod_log_status.last_log_time)
 
             if self.do_xcom_push:
-                result = self.extract_xcom(pod=self.pod)
-            remote_pod = self.pod_manager.await_pod_completion(self.pod)
+                result = self.extract_xcom(pod=pod)
+                return result
+            pod = self.pod_manager.await_pod_completion(pod)
         except TaskDeferred:
             raise
-        except Exception:
-            self.cleanup(
-                pod=self.pod or self.pod_request_obj,
-                remote_pod=remote_pod,
-            )
-            raise
-        self.cleanup(
-            pod=self.pod or self.pod_request_obj,
-            remote_pod=remote_pod,
-        )
-        if self.do_xcom_push:
-            return result
+        finally:
+            istio_enabled = self.is_istio_enabled(pod)
+            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+            # on the ErrImagePull or ContainerCreating step and it will never complete
+            if event["status"] != "timeout":
+                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
+            if pod is not None:
+                self.post_complete_action(
+                    pod=pod,
+                    remote_pod=pod,
+                )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
         self.log.debug("Triggered with event: %s", event)
