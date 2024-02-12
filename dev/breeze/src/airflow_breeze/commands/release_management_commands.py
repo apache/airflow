@@ -67,6 +67,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_skip_constraints,
+    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -1102,6 +1103,7 @@ def install_provider_packages(
 @option_airflow_skip_constraints
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints
 @option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
@@ -1119,6 +1121,7 @@ def verify_provider_packages(
     airflow_constraints_reference: str,
     airflow_extras: str,
     github_repository: str,
+    install_airflow_with_constraints: bool,
     install_selected_providers: str,
     mount_sources: str,
     package_format: str,
@@ -1144,6 +1147,7 @@ def verify_provider_packages(
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
         github_repository=github_repository,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         mount_sources=mount_sources,
         package_format=package_format,
         providers_constraints_location=providers_constraints_location,

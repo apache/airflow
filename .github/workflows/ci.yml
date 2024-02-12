@@ -1001,6 +1001,7 @@ jobs:
           --use-airflow-version wheel
           --airflow-constraints-reference constraints-${{matrix.airflow-version}}
           --providers-skip-constraints
+          --install-airflow-with-constraints
 
   test-airflow-release-commands:
     timeout-minutes: 80
