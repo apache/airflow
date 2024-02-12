@@ -52,6 +52,7 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - sqlparse>=0.4.2
+  - more-itertools>=9.0.0
 
 additional-extras:
   - name: pandas
