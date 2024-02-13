@@ -458,8 +458,9 @@ class DAG(LoggingMixin):
         concurrency: int | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-        max_consecutive_failed_dag_runs: int = airflow_conf.getint("core",
-                                                                   "max_consecutive_failed_dag_runs_per_dag"),
+        max_consecutive_failed_dag_runs: int = airflow_conf.getint(
+            "core", "max_consecutive_failed_dag_runs_per_dag"
+        ),
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
@@ -3658,8 +3659,9 @@ class DagModel(Base):
             self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
 
         if self.max_consecutive_failed_dag_runs is None:
-            self.max_consecutive_failed_dag_runs = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag")
-
+            self.max_consecutive_failed_dag_runs = airflow_conf.getint(
+                "core", "max_consecutive_failed_dag_runs_per_dag"
+            )
 
         if self.has_task_concurrency_limits is None:
             # Be safe -- this will be updated later once the DAG is parsed
@@ -3958,7 +3960,9 @@ def dag(
     concurrency: int | None = None,
     max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
     max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-    max_consecutive_failed_dag_runs: int = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag"),
+    max_consecutive_failed_dag_runs: int = airflow_conf.getint(
+        "core", "max_consecutive_failed_dag_runs_per_dag"
+    ),
     dagrun_timeout: timedelta | None = None,
     sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),

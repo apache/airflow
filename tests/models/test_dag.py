@@ -1355,7 +1355,7 @@ class TestDag:
         def add_failed_dag_run(id, execution_date):
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
-                run_id="run_id_"+id,
+                run_id="run_id_" + id,
                 execution_date=execution_date,
                 state=State.FAILED,
             )
@@ -1372,7 +1372,10 @@ class TestDag:
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
-        add_failed_dag_run("1", TEST_DATE,)
+        add_failed_dag_run(
+            "1",
+            TEST_DATE,
+        )
         add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
         assert dag.get_is_paused()
         dag.clear()
