@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import ParseResult, quote_plus, urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.models import XCom
@@ -64,6 +64,33 @@ def get_serverless_log_uri(*, s3_log_uri: str, application_id: str, job_run_id: 
     return f"{s3_log_uri}/applications/{application_id}/jobs/{job_run_id}"
 
 
+def get_serverless_dashboard_url(
+    *, aws_conn_id: str | None = None, emrs_client: boto3.client = None, application_id: str, job_run_id: str
+) -> ParseResult | None:
+    """
+    Retrieve the URL to EMR Serverless dashboard.
+
+    The URL is a one-use, ephemeral link that expires in 1 hour and is accessible without authentication.
+
+    Either an AWS connection ID or existing EMR Serverless client must be passed.
+    If the connection ID is passed, a client is generated using that connection.
+    """
+    if not exactly_one(aws_conn_id, emrs_client):
+        raise AirflowException("Requires either an AWS connection ID or an EMR Serverless Client.")
+
+    if aws_conn_id:
+        # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
+        # so that the rest of the links load in a reasonable time frame.
+        hook = EmrServerlessHook(aws_conn_id=aws_conn_id, config={"retries": {"total_max_attempts": 1}})
+        emrs_client = hook.conn
+
+    response = emrs_client.get_dashboard_for_job_run(applicationId=application_id, jobRunId=job_run_id)
+    if "url" not in response:
+        return None
+    log_uri = urlparse(response["url"])
+    return log_uri
+
+
 def get_log_uri(
     *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
 ) -> str | None:
@@ -90,32 +117,14 @@ class EmrServerlessLogsLink(BaseAwsLink):
     name = "Spark Driver stdout"
     key = "emr_serverless_logs"
 
-    def get_link(
-        self,
-        operator: BaseOperator,
-        *,
-        ti_key: TaskInstanceKey,
-    ) -> str:
-        """
-        Pre-signed URL to the Spark stdout log.
-
-        :param operator: airflow operator
-        :param ti_key: TaskInstance ID to return link for
-        :return: Pre-signed URL to Spark stdout log. Empty string if no Spark stdout log is available.
-        """
-        conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        if not conf:
+    def format_link(self, application_id: str, job_run_id: str, **kwargs) -> str:
+        url = get_serverless_dashboard_url(
+            aws_conn_id=kwargs.get("conn_id"), application_id=application_id, job_run_id=job_run_id
+        )
+        if url:
+            return url._replace(path="/logs/SPARK_DRIVER/stdout.gz").geturl()
+        else:
             return ""
-        # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
-        # so that the rest of the links load in a reasonable time frame.
-        hook = EmrServerlessHook(
-            aws_conn_id=conf.get("conn_id"), config={"retries": {"total_max_attempts": 1}}
-        )
-        resp = hook.conn.get_dashboard_for_job_run(
-            applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
-        )
-        o = urlparse(resp["url"])
-        return o._replace(path="/logs/SPARK_DRIVER/stdout.gz").geturl()
 
 
 class EmrServerlessDashboardLink(BaseAwsLink):
@@ -124,33 +133,14 @@ class EmrServerlessDashboardLink(BaseAwsLink):
     name = "EMR Serverless Dashboard"
     key = "emr_serverless_dashboard"
 
-    def get_link(
-        self,
-        operator: BaseOperator,
-        *,
-        ti_key: TaskInstanceKey,
-    ) -> str:
-        """
-        Pre-signed URL to the application UI for the EMR Serverless job.
-
-        :param operator: airflow operator
-        :param ti_key: TaskInstance ID to return link for
-        :return: Pre-signed URL to application UI.
-        """
-        conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        if not conf:
+    def format_link(self, application_id: str, job_run_id: str, **kwargs) -> str:
+        url = get_serverless_dashboard_url(
+            aws_conn_id=kwargs.get("conn_id"), application_id=application_id, job_run_id=job_run_id
+        )
+        if url:
+            return url.geturl()
+        else:
             return ""
-        # If get_dashboard_for_job_run fails for whatever reason, fail after 1 attempt
-        # so that the rest of the links load in a reasonable time frame.
-        hook = EmrServerlessHook(
-            aws_conn_id=conf.get("conn_id"), config={"retries": {"total_max_attempts": 1}}
-        )
-        # Dashboard cannot be served when job is pending/scheduled,
-        # in which case an empty string still gets returned.
-        resp = hook.conn.get_dashboard_for_job_run(
-            applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
-        )
-        return resp["url"]
 
 
 class EmrServerlessS3LogsLink(BaseAwsLink):
