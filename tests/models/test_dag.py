@@ -102,8 +102,6 @@ TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
 
-import pydevd_pycharm
-pydevd_pycharm.settrace('192.168.1.5', port=40011, stdoutToServer=True, stderrToServer=True)
 
 @pytest.fixture
 def clear_dags():
