@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-12T21:29:02.180541
+# This constraints file was automatically generated on 2024-02-12T23:24:54.515610
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -117,7 +117,7 @@ bcrypt==4.1.2
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
-black==24.1.1
+black==24.2.0
 blinker==1.7.0
 boto3==1.33.13
 botocore==1.33.13
@@ -142,7 +142,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.46
+cohere==4.47
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
