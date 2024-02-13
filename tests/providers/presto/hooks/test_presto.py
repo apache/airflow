@@ -193,7 +193,7 @@ class TestPrestoHookConn:
         [
             ("False", False),
             ("false", False),
-            ("true", True),
+            ("True", True),
             ("true", True),
             ("/tmp/cert.crt", "/tmp/cert.crt"),
         ],

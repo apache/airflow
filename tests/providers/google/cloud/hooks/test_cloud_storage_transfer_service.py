@@ -484,15 +484,6 @@ class TestGCPTransferServiceHookWithPassedProjectId:
                 [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
                 (GcpTransferOperationStatus.IN_PROGRESS,),
             ),
-            ([GcpTransferOperationStatus.ABORTED], (GcpTransferOperationStatus.IN_PROGRESS,)),
-            (
-                [GcpTransferOperationStatus.SUCCESS, GcpTransferOperationStatus.ABORTED],
-                (GcpTransferOperationStatus.IN_PROGRESS,),
-            ),
-            (
-                [GcpTransferOperationStatus.PAUSED, GcpTransferOperationStatus.ABORTED],
-                (GcpTransferOperationStatus.IN_PROGRESS,),
-            ),
         ],
     )
     def test_operations_contain_expected_statuses_red_path(self, statuses, expected_statuses):
