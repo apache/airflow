@@ -29,7 +29,7 @@ class TestTeradataToTeradataTransfer:
         dest_teradata_conn_id = "dest_teradata_conn_id"
         destination_table = "destination_table"
         source_teradata_conn_id = "source_teradata_conn_id"
-        sql = (r"""select DATE where DATE > {{ source_sql_params.ref_date }};""",)
+        sql = (r"""select DATE where DATE > {{ sql_params.ref_date }};""",)
         sql_params = {"ref_date": "2018-01-01"}
         rows_chunk = 5000
         cursor_description = [
