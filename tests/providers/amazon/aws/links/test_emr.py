@@ -160,7 +160,7 @@ def test_get_serverless_dashboard_url_with_client(mocked_emr_serverless_hook, da
     mocked_client.get_dashboard_for_job_run.return_value = dashboard_info
 
     url = get_serverless_dashboard_url(
-        emrs_client=mocked_client, application_id="anything", job_run_id="anything"
+        emr_serverless_client=mocked_client, application_id="anything", job_run_id="anything"
     )
     assert url and url.geturl() == expected_uri
     mocked_emr_serverless_hook.assert_not_called()
@@ -199,7 +199,7 @@ def test_get_serverless_dashboard_url_parameters():
         AirflowException, match="Requires either an AWS connection ID or an EMR Serverless Client"
     ):
         get_serverless_dashboard_url(
-            aws_conn_id="a", emrs_client="b", application_id="anything", job_run_id="anything"
+            aws_conn_id="a", emr_serverless_client="b", application_id="anything", job_run_id="anything"
         )
 
 
