@@ -1654,6 +1654,9 @@ def test_error_when_contributing_to_existing_section():
         assert conf.get("celery", "celery_app_name") == "test"
 
 
+# Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
+# Because the `_cleanup` method might cause side-effect for parallel-run tests
+@pytest.mark.db_test
 class TestWriteDefaultAirflowConfigurationIfNeeded:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, tmp_path_factory):
