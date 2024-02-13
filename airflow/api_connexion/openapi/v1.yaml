@@ -3171,15 +3171,6 @@ components:
           description: Custom notes left by users for this Dag Run.
           type: string
 
-    DeleteQueueEvent:
-      type: object
-      properties:
-        cutoff_time:
-          description: The cutoff time of DatasetDagQueue.
-          format: date-time
-          type: string
-          nullable: true
-
     EventLog:
       type: object
       description: Log of user operations via CLI or Web UI.

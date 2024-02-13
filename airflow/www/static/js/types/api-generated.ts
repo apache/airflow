@@ -1210,13 +1210,6 @@ export interface components {
       /** @description Custom notes left by users for this Dag Run. */
       note?: string;
     };
-    DeleteQueueEvent: {
-      /**
-       * Format: date-time
-       * @description The cutoff time of DatasetDagQueue.
-       */
-      cutoff_time?: string | null;
-    };
     /** @description Log of user operations via CLI or Web UI. */
     EventLog: {
       /** @description The event log ID */
@@ -5031,9 +5024,6 @@ export type DagWarningCollection = CamelCasedPropertiesDeep<
 >;
 export type SetDagRunNote = CamelCasedPropertiesDeep<
   components["schemas"]["SetDagRunNote"]
->;
-export type DeleteQueueEvent = CamelCasedPropertiesDeep<
-  components["schemas"]["DeleteQueueEvent"]
 >;
 export type EventLog = CamelCasedPropertiesDeep<
   components["schemas"]["EventLog"]
