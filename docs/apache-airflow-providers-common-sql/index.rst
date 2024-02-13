@@ -18,6 +18,20 @@
 ``apache-airflow-providers-common-sql``
 =======================================
 
+Supported Database Types
+------------------------
+
+The ``apache-airflow-providers-common-sql`` provider is compatible with the following
+database types:
+
+- :doc:`PostgreSQL <apache-airflow-providers-postgres:index>`
+- :doc:`MySQL <apache-airflow-providers-mysql:index>`
+- :doc:`Microsoft SQL Server <apache-airflow-providers-microsoft-mssql:index>`
+- :doc:`SQLite <apache-airflow-providers-sqlite:index>`
+- :doc:`Oracle <apache-airflow-providers-oracle:index>`
+- :doc:`Snowflake <apache-airflow-providers-snowflake:index>`
+- :doc:`Exasol <apache-airflow-providers-exasol:index>`
+- :doc:`BigQuery <apache-airflow-providers-google:index>`
 
 .. toctree::
     :hidden:
