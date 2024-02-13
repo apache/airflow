@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowTemplatedJobStartOperator,
 )
 from airflow.version import version
+from airflow.exceptions import AirflowException
 
 TASK_ID = "test-dataflow-operator"
 JOB_ID = "test-dataflow-pipeline-id"
@@ -577,6 +578,24 @@ class TestDataflowTemplatedJobStartOperator:
         assert not kwargs["variables"]
         assert kwargs["location"] == TEST_LOCATION
 
+    @pytest.mark.parametrize(
+        "status, message",
+        [
+            ("error", f"Dataflow job with id {JOB_ID} has failed its execution"),
+            ("stopped", f"Dataflow job with id {JOB_ID} was stopped"),
+            ("cancelled", f"Dataflow job with id {JOB_ID} was cancelled"),
+        ]
+    )
+    def test_execute_complete_exception(self, deferrable_operator, status, message):
+        event = {
+            "status": status,
+            "message": message,
+        }
+        with pytest.raises(AirflowException) as exc_info:
+            deferrable_operator.execute_complete(mock.MagicMock(), event)
+
+        assert str(exc_info.value) == message
+
 
 class TestDataflowStartFlexTemplateOperator:
     @pytest.fixture
@@ -588,6 +607,7 @@ class TestDataflowStartFlexTemplateOperator:
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
             expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
+            poll_sleep=POLL_SLEEP,
         )
 
     @pytest.fixture
@@ -599,6 +619,7 @@ class TestDataflowStartFlexTemplateOperator:
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
             deferrable=True,
+            poll_sleep=POLL_SLEEP,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
@@ -636,6 +657,7 @@ class TestDataflowStartFlexTemplateOperator:
             "project_id": TEST_PROJECT,
             "wait_until_finished": True,
             "deferrable": True,
+            "poll_sleep": POLL_SLEEP,
         }
         with pytest.raises(ValueError):
             DataflowStartFlexTemplateOperator(**init_kwargs)
@@ -652,6 +674,41 @@ class TestDataflowStartFlexTemplateOperator:
             on_new_job_callback=mock.ANY,
         )
         mock_defer_method.assert_called_once()
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
+    def test_execute_complete(self, mock_hook, deferrable_operator):
+        success_event = {
+            "job_id": JOB_ID,
+            "status": "success",
+            "message": "Job completed",
+        }
+        result = deferrable_operator.execute_complete(mock.MagicMock(), success_event)
+
+        mock_hook.return_value.get_job.assert_called_once_with(
+            job_id=JOB_ID,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION
+        )
+
+        assert result == mock_hook.return_value.get_job.return_value
+
+    @pytest.mark.parametrize(
+        "status, message",
+        [
+            ("error", f"Dataflow job with id {JOB_ID} has failed its execution"),
+            ("stopped", f"Dataflow job with id {JOB_ID} was stopped"),
+            ("cancelled", f"Dataflow job with id {JOB_ID} was cancelled"),
+        ]
+    )
+    def test_execute_complete_exception(self, deferrable_operator, status, message):
+        event = {
+            "status": status,
+            "message": message,
+        }
+        with pytest.raises(AirflowException) as exc_info:
+            deferrable_operator.execute_complete(mock.MagicMock(), event)
+
+        assert str(exc_info.value) == message
 
 
 class TestDataflowStartSqlJobOperator:
