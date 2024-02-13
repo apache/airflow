@@ -52,6 +52,11 @@ env:
   INCLUDE_NOT_READY_PROVIDERS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
   MOUNT_SOURCES: "skip"
+  # Version of Python used for reproducibility of the packages built
+  # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
+  # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
+  # TODO: remove me when we switch to Python 3.9 as minimal version
+  REPRODUCIBLE_PYTHON_VERSION: "3.9"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -496,6 +501,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         run: breeze ci-image pull --run-in-parallel --tag-as-latest
       - name: Verify CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
@@ -849,6 +856,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -908,6 +917,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: sdist"
@@ -975,6 +986,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{matrix.python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
@@ -1087,6 +1100,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: Setup git for tagging
         run: |
           git config --global user.email "name@example.com"
@@ -1853,6 +1868,8 @@ jobs:
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -2407,6 +2424,8 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         env:
           # Always use default Python version of CI image for preparing packages
           PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
