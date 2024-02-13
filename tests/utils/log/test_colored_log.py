@@ -32,7 +32,7 @@ def test_format_time_uses_tz_aware(mock_fmt):
     # get a logger that uses CustomTTYColoredFormatter
     logger = logging.getLogger("test_format_time")
     h = logging.StreamHandler()
-    h.setFormatter(CustomTTYColoredFormatter())
+    h.setFormatter(CustomTTYColoredFormatter(fmt="%(asctime)s: %(log_color)s%(message)s%(reset)s"))
     logger.addHandler(h)
 
     # verify that it uses TimezoneAware.formatTime
