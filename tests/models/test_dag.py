@@ -1354,6 +1354,20 @@ class TestDag:
         session.close()
 
     def test_existing_dag_is_paused_after_limit(self):
+        def add_failed_dag_run(dag, id, session):
+            op1 = BashOperator(task_id="task"+id, bash_command="exit 1;")
+            dag.add_task(op1)
+            dr = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id="run_id_"+id,
+                execution_date=TEST_DATE,
+                state=State.FAILED,
+            )
+            ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+            ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
+            dr.update_state(session=session)
+            # assert State.FAILED == dr.state
+
         dag_id = "dag_paused_after_limit"
         dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=1)
         session = settings.Session()
@@ -1361,24 +1375,12 @@ class TestDag:
         # it should not follow the pause flag upon creation
         assert not dag.get_is_paused()
 
-        task = BashOperator(
-            task_id="task",
-            bash_command="exit 1;",
-        )
-        dag.add_task(task)
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=TEST_DATE,
-            state=State.FAILED,
-        )
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            execution_date=TEST_DATE,
-            state=State.RUNNING,
-        )
+        add_failed_dag_run(dag,  "1", session=session)
+        # add_failed_dag_run(dag,  "2", session=session)
+
         assert dag.get_is_paused()
-        # dag.clear()
-        # self._clean_up(dag_id)
+        dag.clear()
+        self._clean_up(dag_id)
         # now, we will run with 2 failed tasks and check this should be paused
 
     def test_existing_dag_default_view(self):
