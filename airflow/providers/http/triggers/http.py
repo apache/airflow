@@ -98,6 +98,7 @@ class HttpTrigger(BaseTrigger):
                 data=self.data,
                 headers=self.headers,
                 extra_options=self.extra_options,
+                data_type="dict",
             )
             response = await self._convert_response(client_response)
             yield TriggerEvent(
@@ -185,6 +186,7 @@ class HttpSensorTrigger(BaseTrigger):
                     data=self.data,
                     headers=self.headers,
                     extra_options=self.extra_options,
+                    data_type="dict",
                 )
                 yield TriggerEvent(True)
             except AirflowException as exc:

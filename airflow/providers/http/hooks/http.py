@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import aiohttp
 import requests
@@ -315,6 +315,7 @@ class HttpAsyncHook(BaseHook):
         data: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
+        data_type: Literal["json", "dict"] = "json",
     ) -> ClientResponse:
         """Perform an asynchronous HTTP request call.
 
@@ -324,6 +325,7 @@ class HttpAsyncHook(BaseHook):
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
+        :param data_type: Type of data to be passed. Default is 'json'.
         """
         extra_options = extra_options or {}
 
@@ -379,10 +381,16 @@ class HttpAsyncHook(BaseHook):
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
+            if self.method in ("POST", "PUT", "PATCH"):
+                if data_type == "json":
+                    extra_options["json"] = data
+                elif data_type == "dict":
+                    extra_options["data"] = data
+                else:
+                    raise AirflowException(f"Unexpected data type: {data_type}")
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,
