@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import re
@@ -80,7 +81,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
-from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -657,7 +657,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
-        trigger_start_time = utcnow()
+        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
                 pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
@@ -714,7 +714,7 @@ class KubernetesPodOperator(BaseOperator):
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            if self.callbacks:
+            if self.callbacks and event["status"] != "running":
                 self.callbacks.on_operator_resuming(
                     pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
@@ -736,9 +736,12 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=self.pod)
                 if event["status"] in ("error", "failed", "timeout"):
-                    raise AirflowException(event)
+                    if "stack_trace" in event:
+                        message = f"{event['message']}\n{event['stack_trace']}"
+                    else:
+                        message = event["message"]
+                    raise AirflowException(message)
                 return result
-            # self.pod = self.pod_manager.await_pod_completion(self.pod)
         except TaskDeferred:
             raise
         finally:
@@ -747,6 +750,8 @@ class KubernetesPodOperator(BaseOperator):
     def _clean(self, event: dict[str, Any]):
         if event["status"] == "running":
             return
+        if self.get_logs:
+            self.write_logs(self.pod)
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
