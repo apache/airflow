@@ -229,11 +229,6 @@ def _fake_ctx_output(*names: str) -> str:
             "[info]Using desktop-linux as context",
         ),
         (
-            _fake_ctx_output("a", "default", "desktop-linux"),
-            "desktop-linux",
-            "[info]Using desktop-linux as context",
-        ),
-        (
             '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
             "desktop-linux",
             "[info]Using desktop-linux as context",

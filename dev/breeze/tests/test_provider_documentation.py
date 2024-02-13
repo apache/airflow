@@ -226,7 +226,6 @@ def test_verify_changelog_exists():
         (["Breaking change in"], True, True, 1, 0, 0, 0),
         (["Breaking change in", "Added feature y"], True, True, 1, 1, 0, 0),
         (["Fix change in", "Breaking feature y"], False, True, 0, 0, 1, 1),
-        (["Fix change in", "Breaking feature y"], False, True, 0, 0, 1, 1),
     ],
 )
 def test_classify_changes_automatically(
