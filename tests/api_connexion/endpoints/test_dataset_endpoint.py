@@ -54,6 +54,7 @@ def configured_app(minimal_app_for_api):
         username="test_queue_event",
         role_name="TestQueueEvent",
         permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
         ],

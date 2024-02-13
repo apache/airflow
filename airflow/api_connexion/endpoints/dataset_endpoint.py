@@ -153,6 +153,7 @@ def _generate_queue_event_where_clause(
 
 
 @security.requires_access_dataset("GET")
+@security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -174,6 +175,7 @@ def get_dag_dataset_queue_event(
 
 
 @security.requires_access_dataset("DELETE")
+@security.requires_access_dag("GET")
 @provide_session
 def delete_dag_dataset_queue_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -192,6 +194,7 @@ def delete_dag_dataset_queue_event(
 
 
 @security.requires_access_dataset("GET")
+@security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -219,6 +222,7 @@ def get_dag_dataset_queue_events(
 
 
 @security.requires_access_dataset("DELETE")
+@security.requires_access_dag("GET")
 @provide_session
 def delete_dag_dataset_queue_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
