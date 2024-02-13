@@ -40,6 +40,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -138,6 +139,7 @@ def _generate_queue_event_where_clause(
     dataset_id: int | None = None,
     uri: str | None = None,
     before: str | None = None,
+    permitted_dag_ids: set[str] | None = None,
 ) -> list:
     """Get DatasetDagRunQueue where clause."""
     where_clause = []
@@ -149,6 +151,8 @@ def _generate_queue_event_where_clause(
         where_clause.append(DatasetModel.uri == uri)
     if before is not None:
         where_clause.append(DatasetDagRunQueue.created_at < format_datetime(before))
+    if permitted_dag_ids is not None:
+        where_clause.append(DatasetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
 
 
@@ -246,7 +250,10 @@ def get_dataset_queue_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued Dataset events for a Dataset."""
-    where_clause = _generate_queue_event_where_clause(uri=uri, before=before)
+    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    where_clause = _generate_queue_event_where_clause(
+        uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
+    )
     query = (
         select(DatasetDagRunQueue, DatasetModel.uri)
         .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
@@ -274,7 +281,10 @@ def delete_dataset_queue_events(
 ) -> APIResponse:
     """Delete queued Dataset events for a Dataset."""
     dataset_id = session.scalars(select(DatasetModel.id).where(DatasetModel.uri == uri)).one_or_none()
-    where_clause = _generate_queue_event_where_clause(dataset_id=dataset_id, before=before)
+    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    where_clause = _generate_queue_event_where_clause(
+        dataset_id=dataset_id, before=before, permitted_dag_ids=permitted_dag_ids
+    )
 
     delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
     result = session.execute(delete_stmt)
