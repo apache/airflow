@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-13T15:58:27.406765
+# This constraints file was automatically generated on 2024-02-13T20:52:04.584193
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -277,7 +277,7 @@ dnspython==2.5.0
 docker==7.0.0
 docopt==0.6.2
 docutils==0.20.1
-duckdb==0.9.2
+duckdb==0.10.0
 ecdsa==0.18.0
 editables==0.5
 elastic-transport==8.12.0
@@ -292,7 +292,7 @@ exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
 facebook_business==19.0.0
-fastavro==1.9.3
+fastavro==1.9.4
 fasteners==0.19
 fastjsonschema==2.19.1
 filelock==3.13.1
@@ -435,7 +435,7 @@ looker-sdk==24.0.0
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.1.0
+marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.20.2
 matplotlib-inline==0.1.6
