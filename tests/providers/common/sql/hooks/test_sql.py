@@ -68,6 +68,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1],
             [[1, 2], [11, 12]],
             id="The return_last set and no split statements set on single query in string",
         ),
@@ -79,6 +80,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1],
             [[1, 2], [11, 12]],
             id="The return_last not set and no split statements set on single query in string",
         ),
@@ -90,6 +92,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1],
             [[1, 2], [11, 12]],
             id="The return_last set and split statements set on single query in string",
         ),
@@ -101,6 +104,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1],
             [[[1, 2], [11, 12]]],
             id="The return_last not set and split statements set on single query in string",
         ),
@@ -112,6 +116,7 @@ index = 0
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id2",), ("value2",)]],
+            [1],
             [[3, 4], [13, 14]],
             id="The return_last set and split statements set on multiple queries in string",
         ),  # Failing
@@ -123,6 +128,7 @@ index = 0
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
+            [1],
             [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
             id="The return_last not set and split statements set on multiple queries in string",
         ),
@@ -134,6 +140,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1],
             [[[1, 2], [11, 12]]],
             id="The return_last set on single query in list",
         ),
@@ -145,6 +152,7 @@ index = 0
             [["id", "value"]],
             ([[1, 2], [11, 12]],),
             [[("id",), ("value",)]],
+            [1, 1],
             [[[1, 2], [11, 12]]],
             id="The return_last not set on single query in list",
         ),
@@ -156,6 +164,7 @@ index = 0
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id2",), ("value2",)]],
+            [2],
             [[3, 4], [13, 14]],
             id="The return_last set on multiple queries in list",
         ),
@@ -167,6 +176,7 @@ index = 0
             [["id", "value"], ["id2", "value2"]],
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id",), ("value",)], [("id2",), ("value2",)]],
+            [2, 2],
             [[[1, 2], [11, 12]], [[3, 4], [13, 14]]],
             id="The return_last not set on multiple queries not set",
         ),
@@ -180,6 +190,7 @@ def test_query(
     cursor_descriptions,
     cursor_results,
     hook_descriptions,
+    hook_rowcounts,
     hook_results,
 ):
     modified_descriptions = [
@@ -204,6 +215,7 @@ def test_query(
         sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
     )
 
+    assert dbapi_hook.rowcounts == hook_rowcounts
     assert dbapi_hook.descriptions == hook_descriptions
     assert dbapi_hook.last_description == hook_descriptions[-1]
     assert results == hook_results

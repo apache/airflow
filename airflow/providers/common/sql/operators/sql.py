@@ -248,7 +248,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None], rowcount: list[int | None]) -> list[Any]:
         """
         Process output before it is returned by the operator.
 
@@ -263,7 +263,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         do_xcom_push is set to True, it will be set as XCom returned.
 
         :param results: results in the form of list of rows.
-        :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI
+        :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI.
+        :param rowcount: list of row counts returned by ``cur.rowcount`` in the Python DBAPI.
         """
         if self.show_return_value_in_logs:
             self.log.info("Operator output is: %s", results)

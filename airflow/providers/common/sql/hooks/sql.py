@@ -164,6 +164,7 @@ class DbApiHook(BaseHook):
         self.__schema = schema
         self.log_sql = log_sql
         self.descriptions: list[Sequence[Sequence] | None] = []
+        self.rowcounts: list[int | None] = []
         self._placeholder: str = "%s"
         self._insert_statement_format: str = kwargs.get(
             "insert_statement_format", "INSERT INTO {} {} VALUES ({})"
@@ -408,9 +409,11 @@ class DbApiHook(BaseHook):
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
+                            _last_rowcount = cur.rowcount
                         else:
                             results.append(result)
                             self.descriptions.append(cur.description)
+                            self.rowcounts.append(cur.rowcount)
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -420,6 +423,7 @@ class DbApiHook(BaseHook):
             return None
         if return_single_query_results(sql, return_last, split_statements):
             self.descriptions = [_last_description]
+            self.rowcounts = [_last_rowcount]
             return _last_result
         else:
             return results
