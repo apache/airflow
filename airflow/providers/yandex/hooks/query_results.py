@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Any, Optional
 import base64
 import pprint
@@ -9,15 +10,12 @@ from decimal import Decimal
 class YQResults:
     """Holds and formats query execution results"""
 
-    def __init__(self, results: list[dict[str:Any]] | dict[str:Any]):
-        self._raw_results = results if results is list else [results]
+    def __init__(self, results: dict[str, Any]):
+        self._raw_results = results
         self._results = None
 
-    def _convert(self):
-        return [YQResults._convert_single(result) for result in self._raw_results]
-
     @staticmethod
-    def _convert_from_float(value: float|str) -> float:
+    def _convert_from_float(value: float | str) -> float:
         # special values, e.g inf encoded as str, normal values are in float
         return float(value)
 
@@ -261,14 +259,13 @@ class YQResults:
         # unsupported type
         return YQResults.id
 
-    @staticmethod
-    def _convert_single(results: dict[str, Any]) -> dict[str, Any]:
+    def _convert(self):
         converters = []
         converted_results = []
-        for column in results["columns"]:
+        for column in self._raw_results["columns"]:
             converters.append(YQResults._get_converter(column["type"]))
 
-        for row in results["rows"]:
+        for row in self._raw_results["rows"]:
             new_row = []
             for index, value in enumerate(row):
                 converter = converters[index]
@@ -277,7 +274,7 @@ class YQResults:
 
             converted_results.append(new_row)
 
-        return {"rows": converted_results, "columns": results["columns"]}
+        self._results = {"rows": converted_results, "columns": self._raw_results["columns"]}
 
     def _repr_pretty_(self, p, cycle):
         p.text(pprint.pformat(self._results))
@@ -285,7 +282,7 @@ class YQResults:
     @property
     def results(self):
         if self._results is None:
-            self._results = self._convert()
+            self._convert()
 
         return self._results
 
@@ -293,11 +290,11 @@ class YQResults:
     def raw_results(self):
         return self._raw_results
 
-    def to_table(self, index: int = 0):
-        return self.results[index]["rows"]
+    def to_table(self):
+        return self._results["rows"]
 
-    def to_dataframe(self, index: int = 0):
-        result_set = self.results[index]
+    def to_dataframe(self):
+        result_set = self._results
         columns = [column["name"] for column in result_set["columns"]]
         import pandas
         return pandas.DataFrame(result_set["rows"], columns=columns)

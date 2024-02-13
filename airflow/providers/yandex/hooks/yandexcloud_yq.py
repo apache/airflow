@@ -40,9 +40,10 @@ requests_log.setLevel(logging.DEBUG)
 requests_log.propagate = True
 
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
-from airflow.providers.yandex.hooks.http_client import YQHttpClientConfig, YQHttpClient
 from airflow.exceptions import AirflowException
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
+
+from .http_client import YQHttpClientConfig, YQHttpClient
 
 class QueryType(Enum):
     ANALYTICS = 1

@@ -9,6 +9,8 @@ from requests.adapters import HTTPAdapter
 from typing import Any
 from urllib3.util.retry import Retry
 
+from .query_results import YQResults
+
 MAX_RETRY_FOR_SESSION = 4
 BACK_OFF_FACTOR = 0.3
 TIME_BETWEEN_RETRIES = 1000
@@ -259,7 +261,11 @@ class YQHttpClient(object):
 
             offset += limit
 
-        return {"rows": rows, "columns": columns}
+        result = {"rows": rows, "columns": columns}
+        if raw_format:
+            return result
+        
+        return YQResults(result).results
 
     def get_query_all_result_sets(self, query_id: str, result_set_count: int, raw_format: bool = False) -> Any:
         result = list()
@@ -274,7 +280,6 @@ class YQHttpClient(object):
                 return r
 
             result.append(r)
-
         return result
 
     def get_openapi_spec(self) -> str:
