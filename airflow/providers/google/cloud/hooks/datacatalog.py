@@ -73,7 +73,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self._client: DataCatalogClient | None = None
 
     def get_conn(self) -> DataCatalogClient:
-        """Retrieves client library object that allow access to Cloud Data Catalog service."""
+        """Retrieve client library object that allow access to Cloud Data Catalog service."""
         if not self._client:
             self._client = DataCatalogClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
@@ -91,7 +91,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
-        Creates an entry.
+        Create an entry.
 
         Currently only entries of 'FILESET' type can be created.
 
@@ -133,7 +133,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> EntryGroup:
         """
-        Creates an EntryGroup.
+        Create an EntryGroup.
 
         :param location: Required. The location of the entry group to create.
         :param entry_group_id: Required. The id of the entry group to create. The id must begin with a letter
@@ -179,7 +179,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
-        Creates a tag on an entry.
+        Create a tag on an entry.
 
         :param location: Required. The location of the tag to create.
         :param entry_group: Required. Entry group ID under which the tag is created.
@@ -242,7 +242,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
-        Creates a tag template.
+        Create a tag template.
 
         :param location: Required. The location of the tag template to create.
         :param tag_template_id: Required. The id of the tag template to create.
@@ -301,7 +301,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplateField:
         r"""
-        Creates a field in a tag template.
+        Create a field in a tag template.
 
         :param location: Required. The location of the tag template field to create.
         :param tag_template: Required. The id of the tag template to create.
@@ -353,7 +353,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes an existing entry.
+        Delete an existing entry.
 
         :param location: Required. The location of the entry to delete.
         :param entry_group: Required. Entry group ID for entries that is deleted.
@@ -383,7 +383,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes an EntryGroup.
+        Delete an EntryGroup.
 
         Only entry groups that do not contain entries can be deleted.
 
@@ -419,7 +419,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a tag.
+        Delete a tag.
 
         :param location: Required. The location of the tag to delete.
         :param entry_group: Entry group ID for tag that is deleted.
@@ -454,7 +454,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a tag template and all tags using the template.
+        Delete a tag template and all tags using the template.
 
         :param location: Required. The location of the tag template to delete.
         :param tag_template: ID for tag template that is deleted.
@@ -491,7 +491,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a field in a tag template and all uses of that field.
+        Delete a field in a tag template and all uses of that field.
 
         :param location: Required. The location of the tag template to delete.
         :param tag_template: Tag Template ID for tag template field that is deleted.
@@ -526,7 +526,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
-        Gets an entry.
+        Get an entry.
 
         :param location: Required. The location of the entry to get.
         :param entry_group: Required. The entry group of the entry to get.
@@ -562,7 +562,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> EntryGroup:
         """
-        Gets an entry group.
+        Get an entry group.
 
         :param location: Required. The location of the entry group to get.
         :param entry_group: The ID of the entry group to get.
@@ -605,7 +605,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
-        Gets a tag template.
+        Get a tag template.
 
         :param location: Required. The location of the tag template to get.
         :param tag_template: Required. The ID of the tag template to get.
@@ -643,7 +643,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Lists the tags on an Entry.
+        List the tags on an Entry.
 
         :param location: Required. The location of the tags to get.
         :param entry_group: Required. The entry group of the tags to get.
@@ -688,7 +688,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
-        Gets for a tag with a specific template for a specific entry.
+        Get for a tag with a specific template for a specific entry.
 
         :param location: Required. The location which contains the entry to search for.
         :param entry_group: The entry group ID which contains the entry to search for.
@@ -779,7 +779,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplateField:
         """
-        Renames a field in a tag template.
+        Rename a field in a tag template.
 
         :param location: Required. The location of the tag template field to rename.
         :param tag_template: The tag template ID for field that is renamed.
@@ -824,7 +824,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         r"""
-        Searches Data Catalog for multiple resources like entries, tags that match a query.
+        Search Data Catalog for multiple resources like entries, tags that match a query.
 
         This does not return the complete resource, only the resource identifier and high level fields.
         Clients can subsequently call ``Get`` methods.
@@ -898,7 +898,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
-        Updates an existing entry.
+        Update an existing entry.
 
         :param entry: Required. The updated entry. The "name" field must be set.
 
@@ -968,7 +968,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
-        Updates an existing tag.
+        Update an existing tag.
 
         :param tag: Required. The updated tag. The "name" field must be set.
 
@@ -1038,7 +1038,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
-        Updates a tag template.
+        Update a tag template.
 
         This method cannot be used to update the fields of a template. The tag
         template fields are represented as separate resources and should be updated using their own
@@ -1112,7 +1112,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Updates a field in a tag template. This method cannot be used to update the field type.
+        Update a field in a tag template. This method cannot be used to update the field type.
 
         :param tag_template_field: Required. The template to update.
 

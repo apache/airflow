@@ -129,7 +129,10 @@ class TableauHook(BaseHook):
         category=AirflowProviderDeprecationWarning,
     )
     def _auth_via_token(self) -> Auth.contextmgr:
-        """The method is deprecated. Please, use the authentication via password instead."""
+        """Authenticate via personal access token.
+
+        This method is deprecated. Please, use the authentication via password instead.
+        """
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
             personal_access_token=self.conn.extra_dejson["personal_access_token"],

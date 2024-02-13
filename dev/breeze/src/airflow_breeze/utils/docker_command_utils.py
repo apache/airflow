@@ -98,6 +98,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
+    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 

@@ -21,7 +21,9 @@ import importlib
 import logging
 import os
 from io import StringIO
+from unittest import mock
 
+import httpx
 import pytest
 from rich.console import Console
 
@@ -181,18 +183,17 @@ class TestInfoCommandMockHttpx:
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
-    def test_show_info_anonymize_fileio(self, httpx_mock, setup_parser):
-        httpx_mock.add_response(
-            url="https://file.io",
-            method="post",
-            json={
-                "success": True,
-                "key": "f9U3zs3I",
-                "link": "https://file.io/TEST",
-                "expiry": "14 days",
-            },
-            status_code=200,
-        )
-        with contextlib.redirect_stdout(StringIO()) as stdout:
-            info_command.show_info(setup_parser.parse_args(["info", "--file-io"]))
-        assert "https://file.io/TEST" in stdout.getvalue()
+    def test_show_info_anonymize_fileio(self, setup_parser):
+        with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
+            post.return_value = httpx.Response(
+                status_code=200,
+                json={
+                    "success": True,
+                    "key": "f9U3zs3I",
+                    "link": "https://file.io/TEST",
+                    "expiry": "14 days",
+                },
+            )
+            with contextlib.redirect_stdout(StringIO()) as stdout:
+                info_command.show_info(setup_parser.parse_args(["info", "--file-io", "--anonymize"]))
+            assert "https://file.io/TEST" in stdout.getvalue()

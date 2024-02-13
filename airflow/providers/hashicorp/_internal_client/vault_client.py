@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from functools import cached_property
 
 import hvac
@@ -125,7 +126,7 @@ class _VaultClient(LoggingMixin):
             raise VaultError(
                 f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
-        if auth_type == "token" and not token and not token_path:
+        if auth_type == "token" and not token and not token_path and "VAULT_TOKEN" not in os.environ:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")
         if auth_type == "github" and not token and not token_path:
             raise VaultError("The 'github' authentication type requires 'token' or 'token_path'")
@@ -151,7 +152,7 @@ class _VaultClient(LoggingMixin):
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs
-        self.token = token
+        self.token = token or os.getenv("VAULT_TOKEN", None)
         self.token_path = token_path
         self.auth_mount_point = auth_mount_point
         self.mount_point = mount_point

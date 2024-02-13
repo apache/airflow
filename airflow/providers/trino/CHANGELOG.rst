@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+
 5.6.1
 .....
 

@@ -28,6 +28,15 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 3.6.0
 .....
 

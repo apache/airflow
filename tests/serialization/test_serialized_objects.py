@@ -291,6 +291,7 @@ def test_backcompat_deserialize_connection(conn_uri):
 )
 def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
     """If use_pydantic_models=True the objects should be serialized to Pydantic objects."""
+    pytest.importorskip("pydantic", minversion="2.0.0")
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
