@@ -138,6 +138,7 @@ executor/celery.rst core-concepts/executor/celery.rst
 executor/local.rst core-concepts/executor/local.rst
 executor/sequential.rst core-concepts/executor/sequential.rst
 upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst
+core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 
 # Python API
 python-api-ref.rst public-airflow-interface.rst
