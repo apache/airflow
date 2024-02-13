@@ -1370,10 +1370,6 @@ combine-as-imports = true
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
-"airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/triggers/airbyte.py" = ["D401"]
 "airflow/providers/common/io/xcom/backend.py" = ["D401"]
 "airflow/providers/databricks/hooks/databricks.py" = ["D401"]
 "airflow/providers/databricks/operators/databricks.py" = ["D401"]
