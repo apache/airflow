@@ -61,6 +61,10 @@ additional-extras:
     dependencies:
       - apache-beam[gcp]
 
+# Apache Beam currently does not support Python 3.12
+# There is an issue tracking it https://github.com/apache/beam/issues/29149
+excluded-python-versions: ['3.12']
+
 integrations:
   - integration-name: Apache Beam
     external-doc-url: https://beam.apache.org/

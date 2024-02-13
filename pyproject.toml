@@ -571,8 +571,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "s3fs>=2023.10.0",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
-  "apache-beam>=2.53.0",
-  "pyarrow>=14.0.1",
+  "apache-beam>=2.53.0;python_version != \"3.12\"",
+  "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
   "cassandra-driver>=3.13.0",
@@ -865,9 +865,9 @@ pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
   "pdpyras>=4.1.2",
 ]
 papermill = [ # source: airflow/providers/papermill/provider.yaml
-  "ipykernel",
-  "papermill[all]>=2.4.0",
-  "scrapbook[all]",
+  "ipykernel;python_version != \"3.12\"",
+  "papermill[all]>=2.4.0;python_version != \"3.12\"",
+  "scrapbook[all];python_version != \"3.12\"",
 ]
 pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "apache-airflow[postgres]",
