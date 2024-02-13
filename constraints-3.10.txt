@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-08T08:16:51.373364
+# This constraints file was automatically generated on 2024-02-13T01:50:59.758865
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -39,7 +39,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.1.0
 Flask-JWT-Extended==4.6.0
-Flask-Limiter==3.5.0
+Flask-Limiter==3.5.1
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -53,7 +53,7 @@ Js2Py==0.74
 Mako==1.3.2
 Markdown==3.5.2
 MarkupSafe==2.1.5
-PyAthena==3.2.1
+PyAthena==3.3.0
 PyGithub==2.2.0
 PyHive==0.7.0
 PyJWT==2.8.0
@@ -78,14 +78,14 @@ aiosignal==1.3.1
 alabaster==0.7.16
 alembic==1.13.1
 alibabacloud-adb20211201==1.2.8
+alibabacloud-credentials==0.3.2
+alibabacloud-endpoint-util==0.0.3
+alibabacloud-gateway-spi==0.0.1
+alibabacloud-openapi-util==0.2.2
+alibabacloud-tea-openapi==0.3.8
+alibabacloud-tea-util==0.3.11
+alibabacloud-tea-xml==0.0.2
 alibabacloud-tea==0.3.5
-alibabacloud_credentials==0.3.2
-alibabacloud_endpoint_util==0.0.3
-alibabacloud_gateway_spi==0.0.1
-alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.8
-alibabacloud_tea_util==0.3.11
-alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.14.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
@@ -191,7 +191,7 @@ asttokens==2.4.1
 async-timeout==4.0.3
 asyncssh==2.14.2
 atlasclient==1.0.0
-atlassian-python-api==3.41.9
+atlassian-python-api==3.41.10
 attrs==23.2.0
 aws-sam-translator==1.84.0
 aws-xray-sdk==2.12.1
@@ -225,7 +225,7 @@ bcrypt==4.1.2
 beautifulsoup4==4.12.3
 billiard==4.2.0
 bitarray==2.9.2
-black==24.1.1
+black==24.2.0
 blinker==1.7.0
 boto3==1.33.13
 botocore==1.33.13
@@ -237,7 +237,7 @@ celery==5.3.6
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.85.0
+cfn-lint==0.85.1
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -250,7 +250,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.46
+cohere==4.47
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -265,7 +265,7 @@ curlify==2.2.1
 databricks-sql-connector==2.9.3
 datadog==0.48.0
 db-dtypes==1.2.0
-debugpy==1.8.0
+debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.15.3
@@ -308,12 +308,12 @@ gevent==23.9.1
 gitdb==4.0.11
 google-ads==23.0.0
 google-analytics-admin==0.22.5
-google-api-core==2.16.2
-google-api-python-client==2.116.0
+google-api-core==2.17.0
+google-api-python-client==2.117.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.27.0
-google-cloud-aiplatform==1.40.0
+google-cloud-aiplatform==1.41.0
 google-cloud-appengine-logging==1.4.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.1
@@ -340,7 +340,7 @@ google-cloud-memcache==1.9.1
 google-cloud-monitoring==2.19.1
 google-cloud-orchestration-airflow==1.11.1
 google-cloud-os-login==2.14.1
-google-cloud-pubsub==2.19.1
+google-cloud-pubsub==2.19.4
 google-cloud-redis==2.15.1
 google-cloud-resource-manager==1.12.1
 google-cloud-run==0.10.3
@@ -381,7 +381,7 @@ humanize==4.9.0
 hvac==2.1.0
 hyperlink==21.0.0
 icdiff==2.0.7
-identify==2.5.33
+identify==2.5.34
 idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
@@ -445,16 +445,16 @@ msal-extensions==1.1.0
 msal==1.26.0
 msrest==0.7.1
 msrestazure==0.6.4
-multi_key_dict==2.0.3
+multi-key-dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
 mypy-boto3-rds==1.34.30
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
-mypy==1.2.0
+mypy==1.8.0
 mysql-connector-python==8.3.0
-mysqlclient==2.2.3
+mysqlclient==2.2.4
 nbclient==0.9.0
 nbformat==5.9.2
 neo4j==5.17.0
@@ -465,7 +465,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.6.1
-openai==1.11.1
+openai==1.12.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.8.0
@@ -512,7 +512,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.8.2
 pprintpp==0.4.0
-pre-commit==3.6.0
+pre-commit==3.6.1
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus-client==0.19.0
@@ -552,9 +552,8 @@ pyparsing==3.1.1
 pypsrp==0.8.1
 pyspark==3.5.0
 pyspnego==0.10.2
-pytest-asyncio==0.23.4
+pytest-asyncio==0.23.5
 pytest-cov==4.1.0
-pytest-httpx==0.21.3
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.12.0
@@ -571,7 +570,7 @@ python-jenkins==1.8.2
 python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
-python-slugify==8.0.3
+python-slugify==8.0.4
 python-telegram-bot==20.2
 python3-saml==1.16.0
 pytz==2024.1
@@ -591,7 +590,7 @@ requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
 responses==0.24.1
-restructuredtext_lint==1.4.0
+restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
@@ -608,7 +607,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==1.40.2
+sentry-sdk==1.40.3
 setproctitle==1.3.3
 shapely==2.0.2
 shellingham==1.5.4
@@ -642,9 +641,9 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.13
 sqlalchemy-bigquery==1.9.0
+sqlalchemy-drill==1.1.4
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
-sqlalchemy_drill==1.1.4
 sqlparse==0.4.4
 sshpubkeys==3.3.1
 sshtunnel==0.4.0
@@ -666,11 +665,11 @@ tomli_w==1.0.0
 tomlkit==0.12.3
 tornado==6.4
 towncrier==23.11.0
-tqdm==4.66.1
+tqdm==4.66.2
 traitlets==5.14.1
 trino==0.327.0
 trove-classifiers==2024.1.31
-twine==4.0.2
+twine==5.0.0
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
 types-PyMySQL==1.1.0.1
@@ -692,9 +691,9 @@ types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
 typing_extensions==4.9.0
-tzdata==2023.4
+tzdata==2024.1
 tzlocal==5.2
-uc-micro-py==1.0.2
+uc-micro-py==1.0.3
 unicodecsv==0.14.1
 universal-pathlib==0.1.4
 uritemplate==4.1.1
@@ -712,7 +711,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.34.0
-yandexcloud==0.257.0
+yandexcloud==0.258.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.46
