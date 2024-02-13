@@ -2448,14 +2448,14 @@ jobs:
       - name: "Copy dist packages to docker-context files"
         run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
-        run: >
-          breeze prod-image build
-          --builder airflow_cache
-          --install-packages-from-context
-          --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-          --prepare-buildx-cache
-          --platform ${{ matrix.platform }}
+        run: |
+          # Do not run parallel builds here as they often fail due to github token expiry issues similar to
+          # those described in https://github.com/moby/buildkit/issues/2367
+          for python in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
+            breeze prod-image build --builder airflow_cache --install-packages-from-context \
+            --airflow-constraints-mode constraints-source-providers --prepare-buildx-cache \
+            --platform ${{ matrix.platform }} --python ${python}
+          done
         env:
           COMMIT_SHA: ${{ github.sha }}
       - name: "Push PROD latest image ${{ matrix.platform }}"
