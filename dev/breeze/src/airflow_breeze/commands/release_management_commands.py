@@ -887,7 +887,7 @@ def generate_constraints(
     list_generated_constraints(output=None)
 
 
-SDIST_FILENAME_PREFIX = "apache-airflow-providers-"
+SDIST_FILENAME_PREFIX = "apache_airflow_providers_"
 WHEEL_FILENAME_PREFIX = "apache_airflow_providers-"
 
 SDIST_FILENAME_PATTERN = re.compile(rf"{SDIST_FILENAME_PREFIX}(.*)-[0-9].*\.tar\.gz")
@@ -1033,7 +1033,7 @@ def install_provider_packages(
         provider_chunks = [chunk for chunk in provider_chunks if chunk]
         if not provider_chunks:
             get_console().print("[info]No providers to install")
-            return
+            sys.exit(1)
         total_num_providers = 0
         for index, chunk in enumerate(provider_chunks):
             get_console().print(f"Chunk {index}: {chunk} ({len(chunk)} providers)")
