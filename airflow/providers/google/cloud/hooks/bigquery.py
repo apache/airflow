@@ -20,6 +20,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -3242,16 +3243,58 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             session=cast(Session, session),
         )
 
-    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
-        async with ClientSession() as s:
-            job_client = await self.get_job_instance(project_id, job_id, s)
-            job = await job_client.get_job()
-            status = job.get("status", {})
-            if status["state"] == "DONE":
-                if "errorResult" in status:
-                    return {"status": "error", "message": status["errorResult"]["message"]}
-                return {"status": "success", "message": "Job completed"}
-            return {"status": status["state"].lower(), "message": "Job running"}
+    async def _get_job(
+        self, job_id: str | None, project_id: str | None = None, location: str | None = None
+    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
+        """
+        Get BigQuery job by its ID, project ID and location.
+
+        WARNING.
+        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
+            https://github.com/apache/airflow/issues/35833
+            https://github.com/talkiq/gcloud-aio/issues/584
+
+        This method was developed, because neither the `google-cloud-bigquery` nor the `gcloud-aio-bigquery`
+        provides asynchronous access to a BigQuery jobs with location parameter. That's why this method wraps
+        synchronous client call with the event loop's run_in_executor() method.
+
+        This workaround must be deleted along with the method _get_job_sync() and replaced by more robust and
+        cleaner solution in one of two cases:
+            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
+            optional parameter `location`
+            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
+        """
+        loop = asyncio.get_event_loop()
+        job = await loop.run_in_executor(None, self._get_job_sync, job_id, project_id, location)
+        return job
+
+    def _get_job_sync(self, job_id, project_id, location):
+        """
+        Get BigQuery job by its ID, project ID and location synchronously.
+
+        WARNING
+        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
+            https://github.com/apache/airflow/issues/35833
+            https://github.com/talkiq/gcloud-aio/issues/584
+
+        This workaround must be deleted along with the method _get_job() and replaced by more robust and
+        cleaner solution in one of two cases:
+            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
+            optional parameter `location`
+            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
+        """
+        hook = BigQueryHook(**self._hook_kwargs)
+        return hook.get_job(job_id=job_id, project_id=project_id, location=location)
+
+    async def get_job_status(
+        self, job_id: str | None, project_id: str | None = None, location: str | None = None
+    ) -> dict[str, str]:
+        job = await self._get_job(job_id=job_id, project_id=project_id, location=location)
+        if job.state == "DONE":
+            if job.error_result:
+                return {"status": "error", "message": job.error_result["message"]}
+            return {"status": "success", "message": "Job completed"}
+        return {"status": str(job.state).lower(), "message": "Job running"}
 
     async def get_job_output(
         self,

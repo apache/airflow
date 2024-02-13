@@ -44,6 +44,8 @@ TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
 
 mock_test_method = mock.MagicMock()
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
 
 @pytest.fixture(scope="session")
 def minimal_app_for_internal_api() -> Flask:

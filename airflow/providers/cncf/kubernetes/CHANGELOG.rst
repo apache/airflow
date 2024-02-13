@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+8.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In the case of Kube API exceeded quota errors, we have introduced the ``task_publish_max_retries``
+flag to control the re-queuing task behavior. Changed the default behavior from unlimited
+retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
+unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
+``task_publish_max_retries`` to any positive integer.
+
+* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
+
+Features
+~~~~~~~~
+
+* ``Add logging_interval in KubernetesPodOperator to log container log periodically (#37279)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
+* ``Fix hanging KPO on deferrable task with do_xcom_push (#37300)``
+* ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
+* ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Kubernetes version bump (#37040)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add d401 support to kubernetes provider (#37301)``
+
 7.14.0
 ......
 
@@ -51,17 +87,6 @@ Misc
 * ``Change field type for kube_config (#36752)``
 * ``Changing wording in docstring for CNCF provider (#36547)``
 * ``Add support of Pendulum 3 (#36281)``
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-In the case of Kube API exceeded quota errors, we have introduced the ``task_publish_max_retries``
-flag to control the re-queuing task behavior. Changed the default behavior from unlimited
-retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
-unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
-``task_publish_max_retries`` to any positive integer.
-
-* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

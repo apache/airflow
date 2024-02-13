@@ -70,26 +70,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-common-sql
+apache-airflow-providers-common-sql package
 ------------------------------------------------------
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.10.1
+Release: 1.11.0
 
 Provider package
 ----------------
 
-This is a provider package for ``common.sql`` provider. All classes for this provider package
-are in ``airflow.providers.common.sql`` python package.
+This package is for the ``common.sql`` provider.
+All classes for this package are included in the ``airflow.providers.common.sql`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-common-sql``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-common-sql``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -128,5 +128,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-sql 1.10.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.10.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.10.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.10.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-sql 1.10.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.10.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.10.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.10.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.11.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.11.0-py3-none-any.whl.sha512>`__)

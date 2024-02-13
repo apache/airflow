@@ -1104,7 +1104,8 @@ jobs:
           breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
           --skip-tag-signing --version 0.0.0 --version-suffix dev0
       - name: Generate GPG key for signing
-        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default
+        # Sometimes the key will be already added to the keyring, so we ignore the error
+        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default || true
       - name: "Helm release package"
         run: >
           breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
@@ -1177,57 +1178,7 @@ jobs:
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
-  tests-postgres-boto:
-    timeout-minutes: 130
-    name: >
-      DB:LatestBoto${{needs.build-info.outputs.default-postgres-version}},
-      Py${{needs.build-info.outputs.default-python-version}}:
-      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
-      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
-      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "postgres"
-      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
-      UPGRADE_BOTO: "true"
-      JOB_ID: >
-        postgres-boto-${{needs.build-info.outputs.default-python-version}}-
-        ${{needs.build-info.outputs.default-postgres-version}}
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
-    steps:
-      - name: Cleanup repo
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: >
-          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: >
-          breeze testing db-tests
-          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      - name: >
-          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
-        uses: ./.github/actions/post_tests_success
-        if: success()
-      - name: >
-          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
-
-  tests-postgres-min-sqlalchemy:
+  tests-min-sqlalchemy:
     timeout-minutes: 130
     name: >
       DB:MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
@@ -1249,7 +1200,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       DOWNGRADE_SQLALCHEMY: "true"
       JOB_ID: >
-        postgres-min-sqlalchemy-${{needs.build-info.outputs.default-python-version}}-
+        min-sqlalchemy-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1277,11 +1228,111 @@ jobs:
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
-  tests-postgres-pendulum-2:
+  tests-boto:
     timeout-minutes: 130
     name: >
-      DB:Postgres${{needs.build-info.outputs.default-postgres-version}},
-      Pendulum2,Py${{needs.build-info.outputs.default-python-version}}:
+      LatestBoto-Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      UPGRADE_BOTO: "true"
+      JOB_ID: >
+        boto-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing tests --run-in-parallel
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: >
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:LatestBoto"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:LatestBoto"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-pydantic:
+    timeout-minutes: 130
+    name: >
+      Pydantic-${{ matrix.pydantic }}-Py${{needs.build-info.outputs.default-python-version}}:
+      ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    strategy:
+      matrix:
+        pydantic: ["v1", "none"]
+    needs: [build-info, wait-for-ci-images]
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
+      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
+      PYDANTIC: ${{ matrix.pydantic }}
+      JOB_ID: >
+        pydantic-${{ matrix.pydantic }}-${{needs.build-info.outputs.default-python-version}}-
+        ${{needs.build-info.outputs.default-postgres-version}}
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: >
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing tests --run-in-parallel
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: >
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:NoPydantic"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:NoPydantic"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
+  tests-pendulum-2:
+    timeout-minutes: 130
+    name: >
+      Pendulum2-Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1299,7 +1350,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       DOWNGRADE_PENDULUM: "true"
       JOB_ID: >
-        postgres-pendulum-2-${{needs.build-info.outputs.default-python-version}}-
+        pendulum-2-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1316,7 +1367,7 @@ jobs:
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: >
-          breeze testing db-tests
+          breeze testing tests --run-in-parallel
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Pendulum2"
@@ -1327,11 +1378,10 @@ jobs:
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
-  tests-postgres-in-progress-features-disabled:
+  tests-in-progress-features-disabled:
     timeout-minutes: 130
     name: >
-      DB:InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
-      Py${{needs.build-info.outputs.default-python-version}}:
+      InProgressDisabled-Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1349,7 +1399,7 @@ jobs:
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       AIRFLOW_ENABLE_AIP_44: "false"
       JOB_ID: >
-        postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
+        in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
     steps:
@@ -1366,7 +1416,7 @@ jobs:
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: >
-          breeze testing db-tests
+          breeze testing tests --run-in-parallel
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
@@ -2369,7 +2419,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./dev/prod_image_installed_providers.txt
+          --package-list-file ./prod_image_installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"

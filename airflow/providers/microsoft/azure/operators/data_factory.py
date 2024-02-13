@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
-    """Constructs a link to monitor a pipeline run in Azure Data Factory."""
+    """Construct a link to monitor a pipeline run in Azure Data Factory."""
 
     name = "Monitor Pipeline Run"
 
@@ -77,7 +77,7 @@ class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):
 
 class AzureDataFactoryRunPipelineOperator(BaseOperator):
     """
-    Executes a data factory pipeline.
+    Execute a data factory pipeline.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -235,7 +235,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

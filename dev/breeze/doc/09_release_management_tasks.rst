@@ -462,7 +462,7 @@ use the ``release-management publish-docs`` command:
 
      breeze release-management publish-docs
 
-The publishing documentation consists  steps:
+The publishing documentation consists of the following steps:
 
 * checking out the latest ``main`` of cloned ``airflow-site``
 * copying the documentation to ``airflow-site``
@@ -470,11 +470,21 @@ The publishing documentation consists  steps:
 
 .. code-block:: bash
 
-     breeze release-management publish-docs --package-filter apache-airflow-providers-amazon
+     breeze release-management publish-docs <provider id>
 
-The flag ``--package-filter`` can be used to selectively publish docs during a release. It can take
-values such as apache-airflow, helm-chart, apache-airflow-providers, or any individual providers.
-The documentation publication happens based on this flag.
+Where ``provider id`` is a short form of provider name.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs amazon
+
+The flag ``--package-filter`` can be used to selectively publish docs during a release. The filters are glob
+pattern matching full package names and can be used to select more than one package with single filter.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs "apache-airflow-providers-microsoft*"
+
 
 .. code-block:: bash
 

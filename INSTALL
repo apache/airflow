@@ -253,10 +253,10 @@ gcp_api, github, github-enterprise, google, google-auth, graphviz, grpc, hashico
 http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft-azure,
 microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, odbc, openai,
 openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
-pgvector, pinecone, pinot, postgres, presto, qdrant, rabbitmq, redis, s3, s3fs, salesforce, samba,
-saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh,
-statsd, tableau, tabular, telegram, teradata, trino, vertica, virtualenv, weaviate, webhdfs, winrm,
-yandex, zendesk
+pgvector, pinecone, pinot, postgres, presto, pydantic, qdrant, rabbitmq, redis, s3, s3fs,
+salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
+spark, sqlite, ssh, statsd, tableau, tabular, telegram, teradata, trino, vertica, virtualenv, weaviate,
+webhdfs, winrm, yandex, zendesk
 
 # END REGULAR EXTRAS HERE
 

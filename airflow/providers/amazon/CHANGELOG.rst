@@ -26,6 +26,39 @@
 Changelog
 ---------
 
+8.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Executor - Add backoff on failed task retry (#37109)``
+* ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
+* ``Adding Amazon Neptune Hook and Operators (#37000)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'log_query' to format SQL statement correctly in 'AthenaOperator' (#36962)``
+* ``check sagemaker training job status before deferring 'SageMakerTrainingOperator' (#36685)``
+
+Misc
+~~~~
+
+* ``Merge all ECS executor configs following recursive python dict update (#37137)``
+* ``Update default value for 'BatchSensor' (#37234)``
+* ``remove info log from download_file (#37211)``
+* ``S3ToRedshiftOperator templating aws_conn_id (#37195)``
+* ``Updates to ECS Docs (#37125)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 support in amazon provider (#37275)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+   * ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
+   * ``Limit moto to version below 5.0.0 (#37054)``
+
 8.17.0
 ......
 

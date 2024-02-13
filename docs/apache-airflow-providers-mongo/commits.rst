@@ -35,6 +35,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2024-02-12
+
+=================================================================================================  ===========  =================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================
+`ed346c78ae <https://github.com/apache/airflow/commit/ed346c78ae2f3a44e81698c51b880dc5da6074dc>`_  2024-02-12   ``Typo fix in changelog for mongo provider (#37350)``
+`c297f55d7a <https://github.com/apache/airflow/commit/c297f55d7aa39fda69530887f1dcfcea8a951463>`_  2024-02-08   ``Fixing the version for mongo provider (#37250)``
+`0d338e6051 <https://github.com/apache/airflow/commit/0d338e6051f54c9940d34dceef9197224583e37c>`_  2024-02-08   ``Change docs type in insert_many to list of dicts (#37230)``
+`a5a6549e5b <https://github.com/apache/airflow/commit/a5a6549e5b6609c8feeab992731854ebffddcd1c>`_  2024-02-08   ``Adding certificate validation for ssl in mongo hook (#37214)``
+`c3c1fce629 <https://github.com/apache/airflow/commit/c3c1fce629ef7cc559a276cc59ac4c9a4a5b7d3f>`_  2024-01-30   ``Change 'MongoHook.conn_name_attr' to 'mongo_conn_id' (#37104)``
+=================================================================================================  ===========  =================================================================
+
 3.6.0
 .....
 
@@ -43,6 +58,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `78b179f0c1 <https://github.com/apache/airflow/commit/78b179f0c1cba0dfb38d3db7df037b85e208d19c>`_  2024-01-19   ``Switch to 'mongo_conn_id' argument into the MongoHook constructor (#36896)``

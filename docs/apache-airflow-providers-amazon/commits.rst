@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.18.0
+......
+
+Latest change: 2024-02-10
+
+=================================================================================================  ===========  =============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================
+`8fac799a25 <https://github.com/apache/airflow/commit/8fac799a250a222bf85d484947a9b3f2065d5ba4>`_  2024-02-10   ``D401 support in amazon provider (#37275)``
+`48bfb1a970 <https://github.com/apache/airflow/commit/48bfb1a970f5b47ba1b385ad809b8324923ddf3e>`_  2024-02-09   ``Merge all ECS executor configs following recursive python dict update (#37137)``
+`90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``
+`1f1fa2f7e3 <https://github.com/apache/airflow/commit/1f1fa2f7e38a434c367d30129693b68fc9c3243a>`_  2024-02-07   ``Update default value for 'BatchSensor' (#37234)``
+`d8ce75cd53 <https://github.com/apache/airflow/commit/d8ce75cd53dd3dd76ec86c65083dee32d6ae3bda>`_  2024-02-07   ``remove info log from download_file (#37211)``
+`af30e1b619 <https://github.com/apache/airflow/commit/af30e1b619701cc093ce6170246eddb53bc6dd51>`_  2024-02-06   ``feature: S3ToRedshiftOperator templating aws_conn_id (#37195)``
+`41ebf28103 <https://github.com/apache/airflow/commit/41ebf28103007d4894d86783dbcdc3afc16ec2f6>`_  2024-02-05   ``ECS Executor - Add backoff on failed task retry (#37109)``
+`2e95a2a4ca <https://github.com/apache/airflow/commit/2e95a2a4ca236df112679ec4b445dd99525c3f91>`_  2024-02-05   ``check sagemaker training job status before deferring 'SageMakerTrainingOperator' (#36685)``
+`55cc7bda56 <https://github.com/apache/airflow/commit/55cc7bda56cde5e5a95afb1f1c48b9a1b024989d>`_  2024-02-01   ``Updates to ECS Docs (#37125)``
+`fa29ddbb81 <https://github.com/apache/airflow/commit/fa29ddbb811a029459cdfe5888a4866884b7df60>`_  2024-01-31   ``Fix 'log_query' to format SQL statement correctly in 'AthenaOperator' (#36962)``
+`7ea40fe972 <https://github.com/apache/airflow/commit/7ea40fe972fd0488c4a514759c2ae23f35a6b6ff>`_  2024-01-30   ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+`8914e49551 <https://github.com/apache/airflow/commit/8914e49551d8ae5ece7418950b011c1f338b4634>`_  2024-01-30   ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
+`d576c72c20 <https://github.com/apache/airflow/commit/d576c72c20258e4ad56bbbec05ffac5a3e07207e>`_  2024-01-28   ``Limit moto to version below 5.0.0 (#37054)``
+`004d1d3a84 <https://github.com/apache/airflow/commit/004d1d3a84224ac728f0bcfee68dae13522fe907>`_  2024-01-26   ``Adding Amazon Neptune Hook and Operators (#37000)``
+=================================================================================================  ===========  =============================================================================================
+
 8.17.0
 ......
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `d18c01a7a2 <https://github.com/apache/airflow/commit/d18c01a7a2f04449262606d79b4f663bdb200414>`_  2024-01-18   ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
 `9563dc573b <https://github.com/apache/airflow/commit/9563dc573bc53b2c84640c88371b62cccdd811ff>`_  2024-01-18   ``add deferrable mode to RedshiftDataOperator (#36586)``

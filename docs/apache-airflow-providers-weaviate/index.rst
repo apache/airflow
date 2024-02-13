@@ -73,26 +73,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-weaviate
+apache-airflow-providers-weaviate package
 ------------------------------------------------------
 
 `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 
-Release: 1.3.1
+Release: 1.3.2
 
 Provider package
 ----------------
 
-This is a provider package for ``weaviate`` provider. All classes for this provider package
-are in ``airflow.providers.weaviate`` python package.
+This package is for the ``weaviate`` provider.
+All classes for this package are included in the ``airflow.providers.weaviate`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-weaviate``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-weaviate``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

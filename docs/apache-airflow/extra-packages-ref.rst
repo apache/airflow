@@ -73,6 +73,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| pydantic            | ``pip install 'apache-airflow[pydantic]'``          | Pydantic serialization for internal-api                                    |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
@@ -409,7 +411,7 @@ to get minimal, complete test environment with usual tools and dependencies need
 | devel-all-dbs       | ``pip install -e '.[devel-all-dbs]'``               | Adds all libraries needed to test database providers                   |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | devel-all           | ``pip install -e '.[devel-all]'``                   | Everything needed for development including Hadoop, all devel extras,  |
-|                     |                                                     | all doc extras. Generally: all possible dependencies                   |
+|                     |                                                     | all doc extras. Generally: all possible dependencies except providers  |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | devel-ci            | ``pip install -e '.[devel-ci]'``                    | All dependencies required for CI tests (same as ``devel-all``)         |
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
