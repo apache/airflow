@@ -280,20 +280,6 @@ class TestKubernetesExecutor:
                 id="400 BadRequest (task_publish_max_retries=1)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
-                0,
-                False,
-                State.FAILED,
-                id="400 BadRequest",
-            ),
-            pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
-                1,
-                False,
-                State.FAILED,
-                id="400 BadRequest (task_publish_max_retries=1)",
-            ),
-            pytest.param(
                 HTTPResponse(body='{"message": "any message"}', status=403),
                 0,
                 False,

@@ -1312,6 +1312,7 @@ extend-select = [
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
 ]
 ignore = [
     "D203",
