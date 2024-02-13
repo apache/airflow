@@ -115,7 +115,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Invoke this callback when the trigger fires; return immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
