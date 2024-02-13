@@ -110,7 +110,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for function that require authentication."""
+    """Act as a Decorator for function that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):

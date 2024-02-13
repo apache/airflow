@@ -41,7 +41,6 @@ import re2
 import typing_extensions
 
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -195,7 +194,6 @@ class DecoratedOperator(BaseOperator):
         task_id: str,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
-        multiple_outputs: bool = False,
         kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
@@ -227,7 +225,6 @@ class DecoratedOperator(BaseOperator):
         else:
             signature.bind(*op_args, **op_kwargs)
 
-        self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
@@ -257,23 +254,6 @@ class DecoratedOperator(BaseOperator):
             for item in return_value:
                 if isinstance(item, Dataset):
                     self.outlets.append(item)
-        if not self.multiple_outputs or return_value is None:
-            return return_value
-        if isinstance(return_value, dict):
-            for key in return_value.keys():
-                if not isinstance(key, str):
-                    raise AirflowException(
-                        "Returned dictionary keys must be strings when using "
-                        f"multiple_outputs, found {key} ({type(key)}) instead"
-                    )
-            for key, value in return_value.items():
-                if isinstance(value, Dataset):
-                    self.outlets.append(value)
-                xcom_push(context, key, value)
-        else:
-            raise AirflowException(
-                f"Returned output was type {type(return_value)} expected dictionary for multiple_outputs"
-            )
         return return_value
 
     def _hook_apply_defaults(self, *args, **kwargs):

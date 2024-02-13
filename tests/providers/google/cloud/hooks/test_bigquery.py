@@ -2155,23 +2155,18 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert isinstance(result, Job)
 
     @pytest.mark.parametrize(
-        "job_status, expected",
+        "job_state, error_result, expected",
         [
-            ({"status": {"state": "DONE"}}, {"status": "success", "message": "Job completed"}),
-            (
-                {"status": {"state": "DONE", "errorResult": {"message": "Timeout"}}},
-                {"status": "error", "message": "Timeout"},
-            ),
-            ({"status": {"state": "running"}}, {"status": "running", "message": "Job running"}),
+            ("DONE", None, {"status": "success", "message": "Job completed"}),
+            ("DONE", {"message": "Timeout"}, {"status": "error", "message": "Timeout"}),
+            ("RUNNING", None, {"status": "running", "message": "Job running"}),
         ],
     )
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status(self, mock_job_instance, job_status, expected):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook._get_job")
+    async def test_get_job_status(self, mock_get_job, job_state, error_result, expected):
         hook = BigQueryAsyncHook()
-        mock_job_client = AsyncMock(Job)
-        mock_job_instance.return_value = mock_job_client
-        mock_job_instance.return_value.get_job.return_value = job_status
+        mock_get_job.return_value = mock.MagicMock(state=job_state, error_result=error_result)
         resp = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
         assert resp == expected
 

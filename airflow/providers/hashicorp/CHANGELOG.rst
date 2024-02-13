@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hashicorp): Fix 'VAULT_TOKEN' support (#37337)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 3.6.2
 .....
 

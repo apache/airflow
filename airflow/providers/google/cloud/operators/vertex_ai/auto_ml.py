@@ -91,7 +91,7 @@ class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.hook: AutoMLHook | None = None
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_auto_ml_job()
 

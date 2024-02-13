@@ -44,7 +44,6 @@ spec:
     component: webserver
     release: {{ .Release.Name }}
   ports:
-  ports:
   {{ range .Values.webserver.service.ports }}
     -
       {{- range $key, $val := . }}

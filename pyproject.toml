@@ -122,13 +122,14 @@ dependencies = [
     "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
-    "pydantic>=2.3.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
     "python-dateutil>=2.3",
     "python-nvd3>=0.15.0",
     "python-slugify>=5.0",
+    # Requests 3 if it will be released, will be heavily breaking.
+    "requests>=2.27.0,<3",
     "rfc3339-validator>=0.1.4",
     "rich-argparse>=1.0.0",
     "rich>=12.4.4",
@@ -147,7 +148,15 @@ dependencies = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    "universal-pathlib>=0.1.4",
+    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
+    # In 0.1. *It was not very well defined for extension, so the way how we use it for 0.1.*
+    # so we used a lot of private methods and attributes that were not defined in the interface
+    # an they are broken with version 0.2.0 which is much better suited for extension and supports
+    # Python 3.12. We should limit it, unti we migrate to 0.2.0
+    # See: https://github.com/fsspec/universal_pathlib/pull/173#issuecomment-1937090528
+    # This is prerequistite to make Airflow compatible with Python 3.12
+    # Tracked in https://github.com/apache/airflow/pull/36755
+    "universal-pathlib>=0.1.4,<0.2.0",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
@@ -177,7 +186,7 @@ cgroups = [
     "cgroupspy>=0.2.2",
 ]
 deprecated-api = [
-    "requests>=2.26.0",
+    "requests>=2.27.0,<3",
 ]
 github-enterprise = [
     "apache-airflow[fab]",
@@ -211,6 +220,9 @@ pandas = [
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
+]
+pydantic = [
+    "pydantic>=2.3.0",
 ]
 rabbitmq = [
     "amqp",
@@ -260,6 +272,7 @@ all-core = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -332,7 +345,6 @@ devel-tests = [
     "coverage>=7.2",
     "pytest-asyncio>=0.23.3",
     "pytest-cov>=4.1.0",
-    "pytest-httpx>=0.21.3",
     "pytest-icdiff>=0.9",
     "pytest-instafail>=0.5.0",
     "pytest-mock>=3.12.0",
@@ -408,8 +420,10 @@ all-dbs = [
     "apache-airflow[vertica]",
 ]
 devel = [
-    "apache-airflow[common.io]",
-    "apache-airflow[common.sql]",
+    "apache-airflow[celery]",
+    "apache-airflow[cncf-kubernetes]",
+    "apache-airflow[common-io]",
+    "apache-airflow[common-sql]",
     "apache-airflow[devel-debuggers]",
     "apache-airflow[devel-devscripts]",
     "apache-airflow[devel-duckdb]",
@@ -478,7 +492,7 @@ cassandra = [
 crypto = [
 ]
 druid = [
-    "pache-airflow[apache-druid]",
+    "apache-airflow[apache-druid]",
 ]
 gcp = [
     "apache-airflow[google]",
@@ -579,7 +593,7 @@ apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
   "pandas>=1.2.5",
-  "pyhive[hive-pure-sasl]>=0.7.0",
+  "pyhive[hive_pure_sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
 apache-impala = [ # source: airflow/providers/apache/impala/provider.yaml
@@ -640,13 +654,14 @@ cohere = [ # source: airflow/providers/cohere/provider.yaml
 ]
 common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
+  "more-itertools>=9.0.0",
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
   "aiohttp>=3.9.2, <4",
   "apache-airflow[common_sql]",
   "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
-  "requests>=2.27,<3",
+  "requests>=2.27.0,<3",
   # Devel dependencies for the databricks provider
   "deltalake>=0.12.0",
 ]
@@ -761,13 +776,13 @@ hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
 http = [ # source: airflow/providers/http/provider.yaml
   "aiohttp>=3.9.2",
   "asgiref",
-  "requests>=2.26.0",
+  "requests>=2.27.0,<3",
   "requests_toolbelt",
 ]
 imap = [] # source: airflow/providers/imap/provider.yaml
 influxdb = [ # source: airflow/providers/influxdb/provider.yaml
   "influxdb-client>=1.19.0",
-  "requests>=2.26.0",
+  "requests>=2.27.0,<3",
 ]
 jdbc = [ # source: airflow/providers/jdbc/provider.yaml
   "apache-airflow[common_sql]",
@@ -961,6 +976,7 @@ all = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -1212,13 +1228,13 @@ features = []
 path = "airflow/__init__.py"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -1348,142 +1364,27 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/openai/hooks/test_openai.py" = ["E402"]
+"tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
+"tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
 "airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
 "airflow/providers/airbyte/operators/airbyte.py" = ["D401"]
 "airflow/providers/airbyte/sensors/airbyte.py" = ["D401"]
 "airflow/providers/airbyte/triggers/airbyte.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/callbacks.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/operators/custom_object_launcher.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/operators/spark_kubernetes.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/configmap.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/env_variable.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/secret.py" = ["D401"]
 "airflow/providers/common/io/xcom/backend.py" = ["D401"]
 "airflow/providers/databricks/hooks/databricks.py" = ["D401"]
 "airflow/providers/databricks/operators/databricks.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/automl.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/bigquery_dts.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/bigtable.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_batch.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_build.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_composer.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_memorystore.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_run.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_sql.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/cloud_storage_transfer_service.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/compute.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/datacatalog.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dataflow.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dataform.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/datafusion.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/datapipeline.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dataplex.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dataprep.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dataproc_metastore.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/datastore.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/dlp.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/gcs.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/gdm.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/kms.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/kubernetes_engine.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/life_sciences.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/looker.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/mlengine.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/natural_language.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/os_login.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/pubsub.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/secret_manager.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/spanner.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/speech_to_text.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/stackdriver.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/tasks.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/text_to_speech.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/translate.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/auto_ml.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/batch_prediction_job.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/custom_job.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/dataset.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/endpoint_service.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/hyperparameter_tuning_job.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/model_service.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vertex_ai/pipeline_job.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/video_intelligence.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/vision.py" = ["D401"]
-"airflow/providers/google/cloud/hooks/workflows.py" = ["D401"]
-"airflow/providers/google/cloud/links/vertex_ai.py" = ["D401"]
-"airflow/providers/google/cloud/log/stackdriver_task_handler.py" = ["D401"]
-"airflow/providers/google/cloud/operators/bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/operators/bigquery_dts.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_base.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_build.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_sql.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataflow.py" = ["D401"]
-"airflow/providers/google/cloud/operators/datafusion.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataplex.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["D401"]
-"airflow/providers/google/cloud/operators/functions.py" = ["D401"]
-"airflow/providers/google/cloud/operators/gcs.py" = ["D401"]
-"airflow/providers/google/cloud/operators/kubernetes_engine.py" = ["D401"]
-"airflow/providers/google/cloud/operators/mlengine.py" = ["D401"]
-"airflow/providers/google/cloud/operators/pubsub.py" = ["D401"]
-"airflow/providers/google/cloud/operators/spanner.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/auto_ml.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/batch_prediction_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/custom_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/hyperparameter_tuning_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/pipeline_job.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/cloud_composer.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/gcs.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/pubsub.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/bigquery_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/bigquery_to_sql.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/cassandra_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/gcs_to_bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/gcs_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/local_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/s3_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/trino_to_gcs.py" = ["D401"]
-"airflow/providers/google/common/auth_backend/google_openid.py" = ["D401"]
 "airflow/providers/hashicorp/_internal_client/vault_client.py" = ["D401"]
 "airflow/providers/hashicorp/hooks/vault.py" = ["D401"]
 "airflow/providers/imap/hooks/imap.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/adx.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/asb.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/base_azure.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/batch.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_instance.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_registry.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_volume.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/cosmos.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/data_lake.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/fileshare.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/synapse.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/log/wasb_task_handler.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/adx.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/asb.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["D401"]
-"airflow/providers/microsoft/azure/sensors/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/sensors/wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/transfers/sftp_to_wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/triggers/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/triggers/wasb.py" = ["D401"]
-"airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D401"]
 "airflow/providers/mongo/hooks/mongo.py" = ["D401"]
 "airflow/providers/mysql/hooks/mysql.py" = ["D401"]
 "airflow/providers/mysql/transfers/s3_to_mysql.py" = ["D401"]
 "airflow/providers/neo4j/hooks/neo4j.py" = ["D401"]
 "airflow/providers/openfaas/hooks/openfaas.py" = ["D401"]
-"airflow/providers/openlineage/plugins/adapter.py" = ["D401"]
-"airflow/providers/openlineage/sqlparser.py" = ["D401"]
-"airflow/providers/openlineage/utils/sql.py" = ["D401"]
 "airflow/providers/opensearch/hooks/opensearch.py" = ["D401"]
 "airflow/providers/opensearch/operators/opensearch.py" = ["D401"]
 "airflow/providers/oracle/hooks/oracle.py" = ["D401"]
@@ -1499,11 +1400,6 @@ combine-as-imports = true
 "airflow/providers/samba/hooks/samba.py" = ["D401"]
 "airflow/providers/samba/transfers/gcs_to_samba.py" = ["D401"]
 "airflow/providers/segment/hooks/segment.py" = ["D401"]
-"airflow/providers/slack/hooks/slack.py" = ["D401"]
-"airflow/providers/slack/hooks/slack_webhook.py" = ["D401"]
-"airflow/providers/slack/operators/slack.py" = ["D401"]
-"airflow/providers/tableau/hooks/tableau.py" = ["D401"]
-"airflow/providers/tableau/operators/tableau.py" = ["D401"]
 "airflow/providers/telegram/hooks/telegram.py" = ["D401"]
 "airflow/providers/telegram/operators/telegram.py" = ["D401"]
 "airflow/providers/trino/hooks/trino.py" = ["D401"]

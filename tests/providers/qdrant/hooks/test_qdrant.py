@@ -18,6 +18,10 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
+qdrant_client = pytest.importorskip("qdrant_client")
+
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook
 
 

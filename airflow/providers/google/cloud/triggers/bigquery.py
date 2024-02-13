@@ -33,6 +33,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     :param conn_id: Reference to google cloud connection id
     :param job_id:  The ID of the job. It will be suffixed with hash of job configuration
     :param project_id: Google Cloud Project where the job is running
+    :param location: The dataset location.
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
     :param poll_interval: polling period in seconds to check for the status. (templated)
@@ -51,6 +52,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         conn_id: str,
         job_id: str | None,
         project_id: str | None,
+        location: str | None,
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
@@ -63,6 +65,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self._job_conn = None
         self.dataset_id = dataset_id
         self.project_id = project_id
+        self.location = location
         self.table_id = table_id
         self.poll_interval = poll_interval
         self.impersonation_chain = impersonation_chain
@@ -76,6 +79,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
@@ -87,7 +91,9 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         hook = self._get_async_hook()
         try:
             while True:
-                job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
+                job_status = await hook.get_job_status(
+                    job_id=self.job_id, project_id=self.project_id, location=self.location
+                )
                 if job_status["status"] == "success":
                     yield TriggerEvent(
                         {
@@ -127,6 +133,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
@@ -201,6 +208,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "job_id": self.job_id,
                 "dataset_id": self.dataset_id,
                 "project_id": self.project_id,
+                "location": self.location,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
@@ -253,6 +261,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table: table name
     :param metrics_thresholds: dictionary of ratios indexed by metrics
+    :param location: The dataset location.
     :param date_filter_column: column name. (templated)
     :param days_back: number of days between ds and the ds we want to check against. (templated)
     :param ratio_formula: ration formula. (templated)
@@ -277,6 +286,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         project_id: str | None,
         table: str,
         metrics_thresholds: dict[str, int],
+        location: str | None = None,
         date_filter_column: str | None = "ds",
         days_back: SupportsAbs[int] = -7,
         ratio_formula: str = "max_over_min",
@@ -290,6 +300,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
             conn_id=conn_id,
             job_id=first_job_id,
             project_id=project_id,
+            location=location,
             dataset_id=dataset_id,
             table_id=table_id,
             poll_interval=poll_interval,
@@ -317,6 +328,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table": self.table,
                 "metrics_thresholds": self.metrics_thresholds,
+                "location": self.location,
                 "date_filter_column": self.date_filter_column,
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,
@@ -414,6 +426,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
     :param tolerance: certain metrics for tolerance. (templated)
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
+    :param location: The dataset location
     :param poll_interval: polling period in seconds to check for the status. (templated)
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -435,6 +448,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         tolerance: Any = None,
         dataset_id: str | None = None,
         table_id: str | None = None,
+        location: str | None = None,
         poll_interval: float = 4.0,
         impersonation_chain: str | Sequence[str] | None = None,
     ):
@@ -444,6 +458,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
+            location=location,
             poll_interval=poll_interval,
             impersonation_chain=impersonation_chain,
         )
@@ -464,6 +479,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 "sql": self.sql,
                 "table_id": self.table_id,
                 "tolerance": self.tolerance,
+                "location": self.location,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
             },

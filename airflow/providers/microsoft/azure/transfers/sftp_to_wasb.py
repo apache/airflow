@@ -134,7 +134,7 @@ class SFTPToWasbOperator(BaseOperator):
         return sftp_files
 
     def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
-        """Extracts from source path the tree behavior to interact with the remote folder."""
+        """Extract from source path the tree behavior to interact with the remote folder."""
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:

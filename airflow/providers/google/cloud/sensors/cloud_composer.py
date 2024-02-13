@@ -99,7 +99,7 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

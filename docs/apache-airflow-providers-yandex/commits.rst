@@ -27,13 +27,29 @@
 Package apache-airflow-providers-yandex
 ------------------------------------------------------
 
-Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
+This package is for Yandex, including:
+
+    - `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``yandex``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
+
+3.9.0
+.....
+
+Latest change: 2024-02-08
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`08036e5df5 <https://github.com/apache/airflow/commit/08036e5df5ae3ec9f600219361f86a1a3e8e9d19>`_  2024-02-08   ``D401 Support in Providers (simple) (#37258)``
+`cea58c1111 <https://github.com/apache/airflow/commit/cea58c11118cb6776cc14b9460d674b251888bad>`_  2024-02-02   ``fix: using endpoint from connection if not specified (#37076)``
+`3ec781946a <https://github.com/apache/airflow/commit/3ec781946a7fcb5fa5bc99449d59d5981e6257ab>`_  2024-02-01   ``Add secrets-backends section into the Yandex provider yaml definition (#37065)``
+`0e752383a8 <https://github.com/apache/airflow/commit/0e752383a8f199dea1894462a3514e15961301d0>`_  2024-01-31   ``docs: update description in airflow provider.yaml (#37096)``
+=================================================================================================  ===========  ==================================================================================
 
 3.8.0
 .....
@@ -43,6 +59,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `12ccb5f0ac <https://github.com/apache/airflow/commit/12ccb5f0ac34007b6cbea4f6a6d9cc6811d71268>`_  2024-01-25   ``feat: add Yandex Cloud Lockbox secrets backend (#36449)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``

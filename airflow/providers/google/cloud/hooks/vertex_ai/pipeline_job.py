@@ -60,7 +60,7 @@ class PipelineJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> PipelineServiceClient:
-        """Returns PipelineServiceClient."""
+        """Return PipelineServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -84,7 +84,7 @@ class PipelineJobHook(GoogleBaseHook):
         location: str | None = None,
         failure_policy: str | None = None,
     ) -> PipelineJob:
-        """Returns PipelineJob object."""
+        """Return PipelineJob object."""
         return PipelineJob(
             display_name=display_name,
             template_path=template_path,
@@ -103,11 +103,11 @@ class PipelineJobHook(GoogleBaseHook):
 
     @staticmethod
     def extract_pipeline_job_id(obj: dict) -> str:
-        """Returns unique id of the pipeline_job."""
+        """Return unique id of the pipeline_job."""
         return obj["name"].rpartition("/")[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -131,7 +131,7 @@ class PipelineJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Creates a PipelineJob. A PipelineJob will run immediately when created.
+        Create a PipelineJob. A PipelineJob will run immediately when created.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -265,7 +265,7 @@ class PipelineJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Gets a PipelineJob.
+        Get a PipelineJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -301,7 +301,7 @@ class PipelineJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListPipelineJobsPager:
         """
-        Lists PipelineJobs in a Location.
+        List PipelineJobs in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -386,7 +386,7 @@ class PipelineJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a PipelineJob.
+        Delete a PipelineJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

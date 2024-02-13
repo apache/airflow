@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Avoid 'pendulum.from_timestamp' usage (#37160)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 5.3.2
 .....
 

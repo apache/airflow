@@ -87,7 +87,7 @@ class LifeSciencesHook(GoogleBaseHook):
 
     def get_conn(self) -> build:
         """
-        Retrieves the connection to Cloud Life Sciences.
+        Retrieve the connection to Cloud Life Sciences.
 
         :return: Google Cloud Life Sciences service object.
         """
@@ -99,7 +99,7 @@ class LifeSciencesHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def run_pipeline(self, body: dict, location: str, project_id: str) -> dict:
         """
-        Runs a pipeline.
+        Run a pipeline.
 
         :param body: The request body.
         :param location: The location of the project. For example: "us-east1".
@@ -137,7 +137,7 @@ class LifeSciencesHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the asynchronous call.
+        Wait for the named operation to complete - checks status of the asynchronous call.
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.

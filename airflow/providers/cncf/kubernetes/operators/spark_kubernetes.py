@@ -280,5 +280,5 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
     def dry_run(self) -> None:
-        """Prints out the spark job that would be created by this operator."""
+        """Print out the spark job that would be created by this operator."""
         print(prune_dict(self.launcher.body, mode="strict"))

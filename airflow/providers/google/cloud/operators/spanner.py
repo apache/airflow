@@ -297,7 +297,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
     @staticmethod
     def sanitize_queries(queries: list[str]) -> None:
         """
-        Drops empty query in queries.
+        Drop empty query in queries.
 
         :param queries: queries
         """

@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
+    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -335,6 +336,14 @@ option_upgrade_boto = click.option(
     help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
     is_flag=True,
     envvar="UPGRADE_BOTO",
+)
+option_pydantic = click.option(
+    "--pydantic",
+    help="Determines which pydantic should be used during tests.",
+    type=BetterChoice(ALLOWED_PYDANTIC_VERSIONS),
+    show_default=True,
+    default=ALLOWED_PYDANTIC_VERSIONS[0],
+    envvar="PYDANTIC",
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

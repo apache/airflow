@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, ConfigDict, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
 from airflow.models import Operator
@@ -29,16 +28,23 @@ from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.pydantic import (
+    BaseModel as BaseModelPydantic,
+    ConfigDict,
+    PlainSerializer,
+    PlainValidator,
+    is_pydantic_2_installed,
+)
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import pendulum
-    from pydantic_core.core_schema import ValidationInfo
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
     from airflow.utils.context import Context
+    from airflow.utils.pydantic import ValidationInfo
     from airflow.utils.state import DagRunState
 
 
@@ -430,4 +436,5 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         )
 
 
-TaskInstancePydantic.model_rebuild()
+if is_pydantic_2_installed():
+    TaskInstancePydantic.model_rebuild()

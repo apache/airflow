@@ -89,7 +89,7 @@ class DataFusionHook(GoogleBaseHook):
         self.api_version = api_version
 
     def wait_for_operation(self, operation: dict[str, Any]) -> dict[str, Any]:
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             time.sleep(time_to_wait)
             operation = (
@@ -112,7 +112,7 @@ class DataFusionHook(GoogleBaseHook):
         failure_states: list[str] | None = None,
         timeout: int = 5 * 60,
     ) -> None:
-        """Polls pipeline state and raises an exception if the state fails or times out."""
+        """Poll for pipeline state and raises an exception if the state fails or times out."""
         failure_states = failure_states or FAILURE_STATES
         success_states = success_states or SUCCESS_STATES
         start_time = time.monotonic()
@@ -184,7 +184,7 @@ class DataFusionHook(GoogleBaseHook):
             )
 
     def get_conn(self) -> Resource:
-        """Retrieves connection to DataFusion."""
+        """Retrieve connection to DataFusion."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -219,7 +219,7 @@ class DataFusionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(self, instance_name: str, location: str, project_id: str) -> Operation:
         """
-        Deletes a single Date Fusion instance.
+        Delete a single Date Fusion instance.
 
         :param instance_name: The name of the instance to delete.
         :param location: The Cloud Data Fusion location in which to handle the request.
@@ -244,7 +244,7 @@ class DataFusionHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
         """
-        Creates a new Data Fusion instance in the specified project and location.
+        Create a new Data Fusion instance in the specified project and location.
 
         :param instance_name: The name of the instance to create.
         :param instance: An instance of Instance.
@@ -269,7 +269,7 @@ class DataFusionHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(self, instance_name: str, location: str, project_id: str) -> dict[str, Any]:
         """
-        Gets details of a single Data Fusion instance.
+        Get details of a single Data Fusion instance.
 
         :param instance_name: The name of the instance.
         :param location: The Cloud Data Fusion location in which to handle the request.
@@ -312,7 +312,7 @@ class DataFusionHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
         """
-        Updates a single Data Fusion instance.
+        Update a single Data Fusion instance.
 
         :param instance_name: The name of the instance to create.
         :param instance: An instance of Instance.
@@ -348,7 +348,7 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> None:
         """
-        Creates a batch Cloud Data Fusion pipeline.
+        Create a batch Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
         :param pipeline: The pipeline definition. For more information check:
@@ -372,7 +372,7 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> None:
         """
-        Deletes a batch Cloud Data Fusion pipeline.
+        Delete a batch Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
         :param version_id: Version of pipeline to delete
@@ -406,7 +406,7 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> dict:
         """
-        Lists Cloud Data Fusion pipelines.
+        List Cloud Data Fusion pipelines.
 
         :param artifact_version: Artifact version to filter instances
         :param artifact_name: Artifact name to filter instances
@@ -462,7 +462,7 @@ class DataFusionHook(GoogleBaseHook):
         runtime_args: dict[str, Any] | None = None,
     ) -> str:
         """
-        Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
+        Start a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
         :param pipeline_type: Optional pipeline type (BATCH by default).
@@ -500,7 +500,7 @@ class DataFusionHook(GoogleBaseHook):
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """
-        Stops a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
+        Stop a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
@@ -522,7 +522,7 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def cdap_program_type(pipeline_type: DataFusionPipelineType) -> str:
-        """Retrieves CDAP Program type depending on the pipeline type.
+        """Retrieve CDAP Program type depending on the pipeline type.
 
         :param pipeline_type: Pipeline type.
         """
@@ -534,7 +534,7 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def cdap_program_id(pipeline_type: DataFusionPipelineType) -> str:
-        """Retrieves CDAP Program id depending on the pipeline type.
+        """Retrieve CDAP Program id depending on the pipeline type.
 
         :param pipeline_type: Pipeline type.
         """
@@ -611,7 +611,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         success_states: list[str] | None = None,
     ) -> str:
         """
-        Gets a Cloud Data Fusion pipeline status asynchronously.
+        Get a Cloud Data Fusion pipeline status asynchronously.
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
