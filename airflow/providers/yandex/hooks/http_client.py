@@ -43,13 +43,14 @@ class YQHttpClientConfig(object):
         # urls should not contain trailing /
         self.endpoint: str = "https://api.yandex-query.cloud.yandex.net"
         self.web_base_url: str = "https://yq.cloud.yandex.ru"
+        self.token_prefix = "Bearer "
 
 
 class YQHttpClientException(Exception):
-    def __init__(self, prefix_message: str, status: str, message: str, details: Any) -> None:
-        super().__init__(f"{prefix_message} : {message}")
+    def __init__(self, message: str, status: str, msg: str, details: Any) -> None:
+        super().__init__(message)
         self.status = status
-        self.message = message
+        self.msg = msg
         self.details = details
 
 
@@ -66,7 +67,7 @@ class YQHttpClient(object):
 
     def _build_headers(self, idempotency_key=None, request_id=None) -> dict[str, str]:
         headers = {
-            "Authorization": f"Bearer {self.config.token}"
+            "Authorization": f"{self.config.token_prefix}{self.config.token}"
         }
         if idempotency_key is not None:
             headers["Idempotency-Key"] = idempotency_key
@@ -97,10 +98,13 @@ class YQHttpClient(object):
         if response.status_code != expected_code:
             if response.headers.get("Content-Type", "").startswith("application/json"):
                 body = response.json()
-                raise YQHttpClientException(f"Error occurred: {response.status_code}",
-                                            status=body.get("status"),
-                                            message=body.get("message"),
-                                            details=body.get("details")
+                status = body.get("status")
+                msg = body.get("message")
+                details = body.get("details")
+                raise YQHttpClientException(f"Error occurred. http code={response.status_code}, status={status}, msg={msg}, details={details}",
+                                            status=status,
+                                            msg=msg,
+                                            details=details
                                             )
 
             raise YQHttpClientException(f"Error occurred: {response.status_code}, {response.text}")
