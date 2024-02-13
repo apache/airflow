@@ -43,7 +43,7 @@ An example usage of the MsSqlOperator is as follows:
     :start-after: [START howto_operator_mssql]
     :end-before: [END howto_operator_mssql]
 
-You can also use an external file to execute the SQL commands. External sql file must be at the same level as DAG.py file.
+You can also use an external file to execute the SQL commands. Script folder must be at the same level as DAG.py file.
 This way you can easily maintain the SQL queries separated from the code.
 
 .. exampleinclude:: /../../tests/system/providers/microsoft/mssql/example_mssql.py
@@ -54,7 +54,7 @@ This way you can easily maintain the SQL queries separated from the code.
 
 Your ``dags/create_table.sql`` should look like this:
 
-.. code-block:: sql
+.. code-block::sql
 
       -- create Users table
       CREATE TABLE Users (
