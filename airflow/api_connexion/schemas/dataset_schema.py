@@ -151,35 +151,35 @@ dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()
 
 
-class QueueEvent(NamedTuple):
-    """QueueEvent."""
+class QueuedEvent(NamedTuple):
+    """QueuedEvent."""
 
     uri: str
     dag_id: str
     created_at: datetime
 
 
-class QueueEventSchema(Schema):
-    """QueueEvent schema."""
+class QueuedEventSchema(Schema):
+    """QueuedEvent schema."""
 
     uri = fields.String()
     dag_id = fields.String()
     created_at = fields.DateTime()
 
 
-class QueueEventCollection(NamedTuple):
-    """List of QueueEvent with meta."""
+class QueuedEventCollection(NamedTuple):
+    """List of QueuedEvent with meta."""
 
-    queue_events: list[QueueEvent]
+    queued_events: list[QueuedEvent]
     total_entries: int
 
 
-class QueueEventCollectionSchema(Schema):
-    """QueueEvent Collection Schema."""
+class QueuedEventCollectionSchema(Schema):
+    """QueuedEvent Collection Schema."""
 
-    queue_events = fields.List(fields.Nested(QueueEventSchema))
+    queued_events = fields.List(fields.Nested(QueuedEventSchema))
     total_entries = fields.Int()
 
 
-queue_event_schema = QueueEventSchema()
-queue_event_collection_schema = QueueEventCollectionSchema()
+queued_event_schema = QueuedEventSchema()
+queued_event_collection_schema = QueuedEventCollectionSchema()

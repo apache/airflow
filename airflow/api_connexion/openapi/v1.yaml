@@ -986,7 +986,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/eventQueue/{uri}:
+  /dags/{dag_id}/datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DatasetURI"
@@ -998,7 +998,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queue_event
+      operationId: get_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1008,7 +1008,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueueEvent"
+                $ref: "#/components/schemas/QueuedEvent"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1023,7 +1023,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queue_event
+      operationId: delete_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1039,7 +1039,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/eventQueue:
+  /dags/{dag_id}/datasets/queuedEvent:
     parameters:
       - $ref: "#/components/parameters/DAGID"
 
@@ -1050,7 +1050,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dag_dataset_queue_events
+      operationId: get_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1060,7 +1060,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueueEventCollection"
+                $ref: "#/components/schemas/QueuedEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1075,7 +1075,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dag_dataset_queue_events
+      operationId: delete_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1091,7 +1091,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/eventQueue/{uri}:
+  /datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
 
@@ -1102,7 +1102,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: get_dataset_queue_events
+      operationId: get_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -1112,7 +1112,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/QueueEventCollection"
+                $ref: "#/components/schemas/QueuedEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1127,7 +1127,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: delete_dataset_queue_events
+      operationId: delete_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Dataset]
@@ -4258,7 +4258,7 @@ components:
           description: The dataset event creation time
           nullable: false
 
-    QueueEvent:
+    QueuedEvent:
       type: object
       properties:
         uri:
@@ -4270,9 +4270,9 @@ components:
         created_at:
           type: string
           format: date-time
-          description: The creation time of QueueEvent
+          description: The creation time of QueuedEvent
 
-    QueueEventCollection:
+    QueuedEventCollection:
       description: |
         A collection of Dataset Dag Run Queues.
 
@@ -4284,7 +4284,7 @@ components:
             datasets:
               type: array
               items:
-                $ref: "#/components/schemas/QueueEvent"
+                $ref: "#/components/schemas/QueuedEvent"
         - $ref: "#/components/schemas/CollectionInfo"
 
     BasicDAGRun:

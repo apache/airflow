@@ -231,19 +231,19 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/eventQueue/{uri}": {
+  "/dags/{dag_id}/datasets/queuedEvent/{uri}": {
     /**
      * Get a queued Dataset event for a DAG.
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dag_dataset_queue_event"];
+    get: operations["get_dag_dataset_queued_event"];
     /**
      * Delete a queued Dataset event for a DAG.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_queue_event"];
+    delete: operations["delete_dag_dataset_queued_event"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -253,19 +253,19 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/eventQueue": {
+  "/dags/{dag_id}/datasets/queuedEvent": {
     /**
      * Get queued Dataset events for a DAG.
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dag_dataset_queue_events"];
+    get: operations["get_dag_dataset_queued_events"];
     /**
      * Delete queued Dataset events for a DAG.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_queue_events"];
+    delete: operations["delete_dag_dataset_queued_events"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -273,19 +273,19 @@ export interface paths {
       };
     };
   };
-  "/datasets/eventQueue/{uri}": {
+  "/datasets/queuedEvent/{uri}": {
     /**
      * Get queued Dataset events for a Dataset
      *
      * *New in version 2.9.0*
      */
-    get: operations["get_dataset_queue_events"];
+    get: operations["get_dataset_queued_events"];
     /**
      * Delete queued Dataset events for a Dataset.
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dataset_queue_events"];
+    delete: operations["delete_dataset_queued_events"];
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -1819,14 +1819,14 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
-    QueueEvent: {
+    QueuedEvent: {
       /** @description The datata uri. */
       uri?: string;
       /** @description The DAG ID. */
       dag_id?: string;
       /**
        * Format: date-time
-       * @description The creation time of QueueEvent
+       * @description The creation time of QueuedEvent
        */
       created_at?: string;
     };
@@ -1835,8 +1835,8 @@ export interface components {
      *
      * *New in version 2.9.0*
      */
-    QueueEventCollection: {
-      datasets?: components["schemas"]["QueueEvent"][];
+    QueuedEventCollection: {
+      datasets?: components["schemas"]["QueuedEvent"][];
     } & components["schemas"]["CollectionInfo"];
     BasicDAGRun: {
       /** @description Run ID. */
@@ -3325,7 +3325,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  get_dag_dataset_queue_event: {
+  get_dag_dataset_queued_event: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3342,7 +3342,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["QueueEvent"];
+          "application/json": components["schemas"]["QueuedEvent"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3355,7 +3355,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_queue_event: {
+  delete_dag_dataset_queued_event: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3382,7 +3382,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  get_dag_dataset_queue_events: {
+  get_dag_dataset_queued_events: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3397,7 +3397,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["QueueEventCollection"];
+          "application/json": components["schemas"]["QueuedEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3410,7 +3410,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_queue_events: {
+  delete_dag_dataset_queued_events: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3435,7 +3435,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  get_dataset_queue_events: {
+  get_dataset_queued_events: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -3450,7 +3450,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["QueueEventCollection"];
+          "application/json": components["schemas"]["QueuedEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3463,7 +3463,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  delete_dataset_queue_events: {
+  delete_dataset_queued_events: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -5145,11 +5145,11 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
-export type QueueEvent = CamelCasedPropertiesDeep<
-  components["schemas"]["QueueEvent"]
+export type QueuedEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["QueuedEvent"]
 >;
-export type QueueEventCollection = CamelCasedPropertiesDeep<
-  components["schemas"]["QueueEventCollection"]
+export type QueuedEventCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["QueuedEventCollection"]
 >;
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]
@@ -5323,29 +5323,29 @@ export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
 >;
-export type GetDagDatasetQueueEventVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_dataset_queue_event"]["parameters"]["path"] &
-    operations["get_dag_dataset_queue_event"]["parameters"]["query"]
+export type GetDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queued_event"]["parameters"]["path"] &
+    operations["get_dag_dataset_queued_event"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetQueueEventVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_queue_event"]["parameters"]["path"] &
-    operations["delete_dag_dataset_queue_event"]["parameters"]["query"]
+export type DeleteDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queued_event"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queued_event"]["parameters"]["query"]
 >;
-export type GetDagDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_dataset_queue_events"]["parameters"]["path"] &
-    operations["get_dag_dataset_queue_events"]["parameters"]["query"]
+export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queued_events"]["parameters"]["path"] &
+    operations["get_dag_dataset_queued_events"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_queue_events"]["parameters"]["path"] &
-    operations["delete_dag_dataset_queue_events"]["parameters"]["query"]
+export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
 >;
-export type GetDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_dataset_queue_events"]["parameters"]["path"] &
-    operations["get_dataset_queue_events"]["parameters"]["query"]
+export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dataset_queued_events"]["parameters"]["path"] &
+    operations["get_dataset_queued_events"]["parameters"]["query"]
 >;
-export type DeleteDatasetQueueEventsVariables = CamelCasedPropertiesDeep<
-  operations["delete_dataset_queue_events"]["parameters"]["path"] &
-    operations["delete_dataset_queue_events"]["parameters"]["query"]
+export type DeleteDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dataset_queued_events"]["parameters"]["path"] &
+    operations["delete_dataset_queued_events"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]
