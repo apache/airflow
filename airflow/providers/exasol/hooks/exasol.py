@@ -163,7 +163,7 @@ class ExasolHook(DbApiHook):
         return cols
 
     @overload  # type: ignore[override]
-    def run(
+    def run(  # type: ignore[overload-overlap]
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,

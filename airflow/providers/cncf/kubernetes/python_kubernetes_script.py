@@ -80,7 +80,7 @@ def write_python_script(
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
     template_env: jinja2.Environment
     if render_template_as_native_obj:
-        template_env = jinja2.nativetypes.NativeEnvironment(
+        template_env = jinja2.nativetypes.NativeEnvironment(  # type: ignore[attr-defined]
             loader=template_loader, undefined=jinja2.StrictUndefined
         )
     else:
