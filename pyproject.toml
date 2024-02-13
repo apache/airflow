@@ -1248,7 +1248,8 @@ exclude = [
 artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
-    "/generated/"
+    "/generated/",
+    "airflow_pre_installed_providers.txt",
 ]
 
 
