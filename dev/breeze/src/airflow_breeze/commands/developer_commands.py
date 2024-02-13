@@ -663,7 +663,7 @@ def build_docs(
             "[info]To view the built documentation, you have two options:\n\n"
             "1. Start the webserver in breeze and access the built docs at "
             "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_docs_server.sh for a lighter resource option and view"
+            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view"
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
