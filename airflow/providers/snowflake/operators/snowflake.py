@@ -116,7 +116,9 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None], rowcounts: list[int | None]
+    ) -> list[Any]:
         validated_descriptions: list[Sequence[Sequence]] = []
         for idx, description in enumerate(descriptions):
             if not description:

@@ -248,7 +248,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
 
-    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None], rowcount: list[int | None]) -> list[Any]:
+    def _process_output(
+        self, results: list[Any], descriptions: list[Sequence[Sequence] | None], rowcounts: list[int | None]
+    ) -> list[Any]:
         """
         Process output before it is returned by the operator.
 
@@ -264,7 +266,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         :param results: results in the form of list of rows.
         :param descriptions: list of descriptions returned by ``cur.description`` in the Python DBAPI.
-        :param rowcount: list of row counts returned by ``cur.rowcount`` in the Python DBAPI.
+        :param rowcounts: list of row counts returned by ``cur.rowcount`` in the Python DBAPI.
         """
         if self.show_return_value_in_logs:
             self.log.info("Operator output is: %s", results)
@@ -294,8 +296,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             # For simplicity, we pass always list as input to _process_output, regardless if
             # single query results are going to be returned, and we return the first element
             # of the list in this case from the (always) list returned by _process_output
-            return self._process_output([output], hook.descriptions)[-1]
-        return self._process_output(output, hook.descriptions)
+            return self._process_output([output], hook.descriptions, hook.rowcounts)[-1]
+        return self._process_output(output, hook.descriptions, hook.rowcounts)
 
     def prepare_template(self) -> None:
         """Parse template file for attribute parameters."""

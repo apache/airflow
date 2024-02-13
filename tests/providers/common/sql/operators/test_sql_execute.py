@@ -160,15 +160,16 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    "sql, return_last, split_statement, hook_results, hook_rowcounts, hook_descriptions, expected_results",
     [
         pytest.param(
             "select * from dummy",
             True,
             True,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            [2],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
             id="Scalar: Single SQL statement, return_last, split statement",
         ),
         pytest.param(
@@ -176,8 +177,9 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             True,
             True,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            [2],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
             id="Scalar: Multiple SQL statements, return_last, split statement",
         ),
         pytest.param(
@@ -185,8 +187,9 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             False,
             False,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            [2],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
             id="Scalar: Single SQL statements, no return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -194,8 +197,9 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             True,
             False,
             [Row(id="1", value="value1"), Row(id="2", value="value2")],
+            [2],
             [[("id",), ("value",)]],
-            ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+            ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
             id="Scalar: Single SQL statements, return_last (doesn't matter), no split statement",
         ),
         pytest.param(
@@ -203,8 +207,9 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             False,
             False,
             [[Row(id="1", value="value1"), Row(id="2", value="value2")]],
+            [2],
             [[("id",), ("value",)]],
-            [([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")])],
+            [([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")])],
             id="Non-Scalar: Single SQL statements in list, no return_last, no split statement",
         ),
         pytest.param(
@@ -215,10 +220,15 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
                 [Row(id="1", value="value1"), Row(id="2", value="value2")],
                 [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
             ],
+            [2, 2],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
-                ([("id2",), ("value2",)], [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")]),
+                ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+                (
+                    [("id2",), ("value2",)],
+                    [2],
+                    [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, no return_last (no matter), no split statement",
         ),
@@ -230,17 +240,22 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
                 [Row(id="1", value="value1"), Row(id="2", value="value2")],
                 [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
             ],
+            [2, 2],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([("id",), ("value",)], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
-                ([("id2",), ("value2",)], [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")]),
+                ([("id",), ("value",)], [2], [Row(id="1", value="value1"), Row(id="2", value="value2")]),
+                (
+                    [("id2",), ("value2",)],
+                    [2],
+                    [Row2(id2="1", value2="value1"), Row2(id2="2", value2="value2")],
+                ),
             ],
             id="Non-Scalar: Multiple SQL statements in list, return_last (no matter), no split statement",
         ),
     ],
 )
 def test_exec_success_with_process_output(
-    sql, return_last, split_statement, hook_results, hook_descriptions, expected_results
+    sql, return_last, split_statement, hook_results, hook_rowcounts, hook_descriptions, expected_results
 ):
     """
     Test the execute function in case where SQL query was successful.
@@ -253,9 +268,12 @@ def test_exec_success_with_process_output(
             return self._mock_db_api_hook
 
         def _process_output(
-            self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
+            self,
+            results: list[Any],
+            descriptions: list[Sequence[Sequence] | None],
+            rowcount: list[int | None],
         ) -> list[Any]:
-            return list(zip(descriptions, results))
+            return list(zip(descriptions, rowcount, results))
 
     op = SQLExecuteQueryOperatorForTestWithProcessOutput(
         task_id=TASK_ID,
@@ -266,6 +284,7 @@ def test_exec_success_with_process_output(
     )
 
     op._mock_db_api_hook.run.return_value = hook_results
+    op._mock_db_api_hook.rowcounts = hook_rowcounts
     op._mock_db_api_hook.descriptions = hook_descriptions
 
     execute_results = op.execute(None)
