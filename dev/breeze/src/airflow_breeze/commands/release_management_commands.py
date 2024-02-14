@@ -901,7 +901,7 @@ def _get_all_providers_in_dist(
         matched = filename_pattern.match(file.name)
         if not matched:
             raise Exception(f"Cannot parse provider package name from {file.name}")
-        provider_package_id = matched.group(1).replace("-", ".")
+        provider_package_id = matched.group(1).replace("_", ".")
         yield provider_package_id
 
 
