@@ -58,7 +58,7 @@ class YQHook(YandexCloudBaseHook):
         super().__init__(*args, **kwargs)
 
         config = YQHttpClientConfig(
-            token=self.get_iam_token(),
+            token=self._get_iam_token(),
             project=self.default_folder_id,
             user_agent=provider_user_agent()
         )
@@ -96,7 +96,7 @@ class YQHook(YandexCloudBaseHook):
 
         return self.client.get_query_all_result_sets(query_id=query_id, result_set_count=result_set_count)
 
-    def get_iam_token(self) -> str:
+    def _get_iam_token(self) -> str:
         if "token" in self.credentials:
             return self.credentials["token"]
         if "service_account_key" in self.credentials:

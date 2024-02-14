@@ -1,3 +1,23 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This file is a copy of https://github.com/ydb-platform/ydb/tree/284b7efb67edcdade0b12c849b7fad40739ad62b/ydb/core/fq/libs/http_api_client
+# It is highly recommended to modify original file first in YDB project and merge it here afterwards
+
 from __future__ import annotations
 
 import logging
@@ -209,7 +229,7 @@ class YQHttpClient(object):
         query = self.get_query(query_id)
         if status != "COMPLETED":
             issues = query["issues"]
-            raise RuntimeError(f"Query {query_id} failed", issues=issues)
+            raise RuntimeError(f"Query {query_id} failed with issues={issues}")
 
         return len(query["result_sets"])
 
@@ -289,3 +309,9 @@ class YQHttpClient(object):
 
     def compose_query_web_link(self, query_id) -> str:
         return self._compose_web_url(f"/folders/{self.config.project}/ide/queries/{query_id}")
+
+    @staticmethod
+    def result_set_to_dataframe(data):
+        import pandas as pd
+        column_names = [column["name"] for column in data["columns"]]
+        return pd.DataFrame(data["rows"], columns=column_names)

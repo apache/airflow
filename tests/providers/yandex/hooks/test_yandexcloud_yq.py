@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import responses
 from datetime import datetime
 from dateutil.tz import tzutc
