@@ -111,7 +111,6 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
-    "markdown>=3.0",
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
@@ -568,8 +567,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "s3fs>=2023.10.0",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
-  "apache-beam>=2.53.0",
-  "pyarrow>=14.0.1",
+  "apache-beam>=2.53.0;python_version != \"3.12\"",
+  "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
   "cassandra-driver>=3.13.0",
@@ -868,9 +867,9 @@ pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
   "pdpyras>=4.1.2",
 ]
 papermill = [ # source: airflow/providers/papermill/provider.yaml
-  "ipykernel",
-  "papermill[all]>=2.4.0",
-  "scrapbook[all]",
+  "ipykernel;python_version != \"3.12\"",
+  "papermill[all]>=2.4.0;python_version != \"3.12\"",
+  "scrapbook[all];python_version != \"3.12\"",
 ]
 pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "apache-airflow[postgres]",
@@ -1248,7 +1247,8 @@ exclude = [
 artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
-    "/generated/"
+    "/generated/",
+    "airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1312,6 +1312,7 @@ extend-select = [
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
 ]
 ignore = [
     "D203",
