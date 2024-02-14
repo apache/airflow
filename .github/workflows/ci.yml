@@ -1936,11 +1936,11 @@ jobs:
           needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
-        with:
-          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -1990,6 +1990,8 @@ jobs:
           needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -2046,6 +2048,8 @@ jobs:
           needs.build-info.outputs.default-branch == 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch == 'main'
@@ -2101,6 +2105,8 @@ jobs:
           needs.build-info.outputs.default-branch != 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch != 'main'
@@ -2153,6 +2159,8 @@ jobs:
           needs.build-info.outputs.default-branch != 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch != 'main'
@@ -2209,6 +2217,8 @@ jobs:
           needs.build-info.outputs.default-branch != 'main'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
         if: >
           needs.build-info.outputs.in-workflow-build == 'true' &&
           needs.build-info.outputs.default-branch != 'main'
