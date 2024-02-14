@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -71,21 +72,30 @@ class TeradataToTeradataOperator(BaseOperator):
         self.sql_params = sql_params
         self.rows_chunk = rows_chunk
 
-    def _execute(self, src_hook, dest_hook, context) -> None:
+    @cached_property
+    def src_hook(self) -> TeradataHook:
+        return TeradataHook(teradata_conn_id=self.source_teradata_conn_id)
+
+    @cached_property
+    def dest_hook(self) -> TeradataHook:
+        return TeradataHook(teradata_conn_id=self.dest_teradata_conn_id)
+
+    def execute(self, context: Context) -> None:
+        src_hook = self.src_hook
+        dest_hook = self.dest_hook
         with src_hook.get_conn() as src_conn:
             cursor = src_conn.cursor()
             cursor.execute(self.sql, self.sql_params)
             target_fields = [field[0] for field in cursor.description]
             rows_total = 0
-            for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):
-                dest_hook.bulk_insert_rows(
-                    self.destination_table, rows, target_fields=target_fields, commit_every=self.rows_chunk
-                )
-                rows_total += len(rows)
+            if len(target_fields) != 0:
+                for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):
+                    dest_hook.bulk_insert_rows(
+                        self.destination_table,
+                        rows,
+                        target_fields=target_fields,
+                        commit_every=self.rows_chunk,
+                    )
+                    rows_total += len(rows)
             self.log.info("Finished data transfer. Total number of rows transferred - %s", rows_total)
             cursor.close()
-
-    def execute(self, context: Context) -> None:
-        src_hook = TeradataHook(teradata_conn_id=self.source_teradata_conn_id)
-        dest_hook = TeradataHook(teradata_conn_id=self.dest_teradata_conn_id)
-        self._execute(src_hook, dest_hook, context)
