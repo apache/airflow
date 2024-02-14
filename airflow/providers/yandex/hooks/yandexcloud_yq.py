@@ -79,7 +79,7 @@ class YQHook(YandexCloudBaseHook):
         )
 
     def stop_query(self, query_id: str) -> None:
-        self.stop_query(query_id)
+        self.client.stop_query(query_id)
 
     def get_query(self, query_id: str) -> Any:
         return self.client.get_query(query_id)
@@ -97,11 +97,11 @@ class YQHook(YandexCloudBaseHook):
         return self.client.get_query_all_result_sets(query_id=query_id, result_set_count=result_set_count)
 
     def get_iam_token(self) -> str:
-        if "oauth" in self.credentials:
-            return self.credentials["oauth"]
+        if "token" in self.credentials:
+            return self.credentials["token"]
         if "service_account_key" in self.credentials:
             return YQHook._resolve_service_account_key(self.credentials["service_account_key"])
-        raise AirflowException(f"Unknown credentials type {self.credentials.keys()}")
+        raise AirflowException(f"Unknown credentials type, available keys {self.credentials.keys()}")
 
     def compose_query_web_link(self, query_id:str):
         return self.client.compose_query_web_link(query_id)
