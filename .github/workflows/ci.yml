@@ -874,7 +874,9 @@ jobs:
       - name: "Prepare airflow package: wheel"
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
-        run: pipx install twine --force && twine check dist/*.whl
+        run: |
+          pipx uninstall twine || true
+          pipx install twine && twine check dist/*.whl
       - name: "Test providers issue generation automatically"
         run: >
           breeze release-management generate-issue-content-providers
@@ -934,7 +936,9 @@ jobs:
           breeze release-management prepare-airflow-package
           --version-suffix-for-pypi dev0 --package-format sdist
       - name: "Verify sdist packages with twine"
-        run: pipx install twine --force && twine check dist/*.tar.gz
+        run: |
+          pipx uninstall twine || true
+          pipx install twine && twine check dist/*.whl
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
