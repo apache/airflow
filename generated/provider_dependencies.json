@@ -474,7 +474,7 @@
     "devel-deps": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "facebook": {
     "deps": [
