@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-13T16:55:25.237052
+# This constraints file was automatically generated on 2024-02-13T23:13:15.786004
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -182,7 +182,7 @@ eventlet==0.35.1
 execnet==2.0.2
 executing==2.0.1
 facebook_business==19.0.0
-fastavro==1.9.3
+fastavro==1.9.4
 fasteners==0.19
 fastjsonschema==2.19.1
 filelock==3.13.1
@@ -321,7 +321,7 @@ looker-sdk==24.0.0
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
-marshmallow-oneofschema==3.1.0
+marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.20.2
 matplotlib-inline==0.1.6
@@ -480,14 +480,14 @@ requests-ntlm==1.2.0
 requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
-responses==0.24.1
+responses==0.25.0
 restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
 rich-click==1.7.3
 rich==13.7.0
-rpds-py==0.17.1
+rpds-py==0.18.0
 rsa==4.9
 ruff==0.2.1
 s3fs==2023.12.2
