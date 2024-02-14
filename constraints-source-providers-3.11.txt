@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-13T23:13:15.786004
+# This constraints file was automatically generated on 2024-02-14T08:08:35.126650
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -376,7 +376,7 @@ opentelemetry-semantic-conventions==0.43b0
 opsgenie-sdk==2.1.5
 oracledb==2.0.1
 ordered-set==4.1.0
-orjson==3.9.13
+orjson==3.9.14
 oss2==2.18.4
 packaging==23.2
 pandas-gbq==0.21.0
