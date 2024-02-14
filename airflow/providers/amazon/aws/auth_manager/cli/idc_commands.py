@@ -108,7 +108,7 @@ def _create_application(client: BaseClient, instance_arn: str | None, args) -> s
     if len(existing_applications) > 0:
         print(
             f"There is already an application named '{args.application_name}' in AWS IAM Identity Center: '{existing_applications[0]['ApplicationArn']}'. "
-            f"Using this application."
+            "Using this application."
         )
         return existing_applications[0]["ApplicationArn"]
     else:
