@@ -21,26 +21,26 @@ Supported Database Types
 The ``apache-airflow-providers-common-sql`` provider is compatible with the following
 database types:
 
-- :doc:`PostgreSQL <apache-airflow-providers-postgres:index>`
-- :doc:`Apache Impala <apache-airflow-providers-apache-impala:index>`
-- :doc:`Elastic Search <apache-airflow-providers-elasticsearch:index>`
-- :doc:`Microsoft SQL Server <apache-airflow-providers-microsoft-mssql:index>`
-- :doc:`Slack <apache-airflow-providers-slack:index>`
-- :doc:`Databricks <apache-airflow-providers-databricks:index>`
-- :doc:`Vertica <apache-airflow-providers-vertica:index>`
-- :doc:`JDBC <apache-airflow-providers-jdbc:index>`
-- :doc:`Apache Hive <apache-airflow-providers-apache-hive:index>`
-- :doc:`Apache Druid <apache-airflow-providers-apache-druid:index>`
-- :doc:`MySQL <apache-airflow-providers-mysql:index>`
-- :doc:`ODBC <apache-airflow-providers-odbc:index>`
-- :doc:`Snowflake <apache-airflow-providers-snowflake:index>`
 - :doc:`Amazon <apache-airflow-providers-amazon:index>`
-- :doc:`Presto <apache-airflow-providers-presto:index>`
-- :doc:`Trino <apache-airflow-providers-trino:index>`
+- :doc:`Apache Druid <apache-airflow-providers-apache-druid:index>`
+- :doc:`Apache Drill <apache-airflow-providers-apache-drill:index>`
+- :doc:`Apache Hive <apache-airflow-providers-apache-hive:index>`
+- :doc:`Apache Impala <apache-airflow-providers-apache-impala:index>`
 - :doc:`Apache Pinot <apache-airflow-providers-apache-pinot:index>`
-- :doc:`Pgvector <apache-airflow-providers-pgvector:index>`
-- :doc:`SQLite <apache-airflow-providers-sqlite:index>`
+- :doc:`Databricks <apache-airflow-providers-databricks:index>`
+- :doc:`Elastic Search <apache-airflow-providers-elasticsearch:index>`
 - :doc:`Exasol <apache-airflow-providers-exasol:index>`
 - :doc:`Google <apache-airflow-providers-google:index>`
+- :doc:`JDBC <apache-airflow-providers-jdbc:index>`
+- :doc:`Microsoft SQL Server <apache-airflow-providers-microsoft-mssql:index>`
+- :doc:`MySQL <apache-airflow-providers-mysql:index>`
+- :doc:`ODBC <apache-airflow-providers-odbc:index>`
 - :doc:`Open Lineage <apache-airflow-providers-openlineage:index>`
-- :doc:`Apache Drill <apache-airflow-providers-apache-drill:index>`
+- :doc:`Pgvector <apache-airflow-providers-pgvector:index>`
+- :doc:`PostgreSQL <apache-airflow-providers-postgres:index>`
+- :doc:`Presto <apache-airflow-providers-presto:index>`
+- :doc:`Slack <apache-airflow-providers-slack:index>`
+- :doc:`Snowflake <apache-airflow-providers-snowflake:index>`
+- :doc:`SQLite <apache-airflow-providers-sqlite:index>`
+- :doc:`Trino <apache-airflow-providers-trino:index>`
+- :doc:`Vertica <apache-airflow-providers-vertica:index>`
