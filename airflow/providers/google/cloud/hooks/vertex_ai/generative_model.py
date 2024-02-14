@@ -53,7 +53,7 @@ class GenerativeModelHook(GoogleBaseHook):
         top_k: int,
     ) -> str:
         """
-        Uses the Vertex AI PaLM API to generate natural language text.
+        Use the Vertex AI PaLM API to generate natural language text.
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
@@ -89,7 +89,7 @@ class GenerativeModelHook(GoogleBaseHook):
         self, prompt: str, chat: ChatSession | None = None, pretrained_model: str = "gemini-pro"
     ) -> str:
         """
-        Uses the Vertex AI Gemini Pro foundation model to generate natural language text.
+        Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
