@@ -51,3 +51,15 @@ Extra (optional)
 
     More details on all MSSQL parameters supported can be found in
     `MSSQL documentation <https://docs.microsoft.com/en-us/sql/connect/jdbc/setting-the-connection-properties?view=sql-server-ver15>`_.
+
+When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
+following the standard syntax of DB connections - where extras are passed as parameters
+of the URI. Note that all components of the URI should be URL-encoded.
+
+For example:
+
+.. code-block:: bash
+
+   export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server:1433/database_name'
+
+..
