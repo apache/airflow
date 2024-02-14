@@ -227,7 +227,11 @@ const Details = ({
               <MarkInstanceAs
                 taskId={taskId}
                 runId={runId}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
@@ -348,7 +352,11 @@ const Details = ({
                 mapIndex={mapIndex}
                 executionDate={run?.executionDate}
                 tryNumber={instance?.tryNumber}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
               />
             </TabPanel>
           )}

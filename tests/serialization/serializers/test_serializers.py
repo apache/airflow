@@ -28,9 +28,6 @@ from dateutil.tz import tzutc
 from deltalake import DeltaTable
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
-from pyiceberg.catalog import Catalog
-from pyiceberg.io import FileIO
-from pyiceberg.table import Table
 
 from airflow import PY39
 from airflow.models.param import Param, ParamsDict
@@ -190,22 +187,28 @@ class TestSerializers:
         d = deserialize(e)
         assert i.equals(d)
 
-    @patch.object(Catalog, "__abstractmethods__", set())
-    @patch.object(FileIO, "__abstractmethods__", set())
-    @patch("pyiceberg.catalog.Catalog.load_table")
-    @patch("pyiceberg.catalog.load_catalog")
-    def test_iceberg(self, mock_load_catalog, mock_load_table):
-        uri = "http://rest.no.where"
-        catalog = Catalog("catalog", uri=uri)
-        identifier = ("catalog", "schema", "table")
-        mock_load_catalog.return_value = catalog
+    def test_iceberg(self):
+        pytest.importorskip("pyiceberg", minversion="2.0.0")
+        from pyiceberg.catalog import Catalog
+        from pyiceberg.io import FileIO
+        from pyiceberg.table import Table
 
-        i = Table(identifier, "bar", catalog=catalog, metadata_location="", io=FileIO())
-        mock_load_table.return_value = i
+        with patch.object(Catalog, "__abstractmethods__", set()), patch.object(
+            FileIO, "__abstractmethods__", set()
+        ), patch("pyiceberg.catalog.Catalog.load_table") as mock_load_table, patch(
+            "pyiceberg.catalog.load_catalog"
+        ) as mock_load_catalog:
+            uri = "http://rest.no.where"
+            catalog = Catalog("catalog", uri=uri)
+            identifier = ("catalog", "schema", "table")
+            mock_load_catalog.return_value = catalog
 
-        e = serialize(i)
-        d = deserialize(e)
-        assert i == d
+            i = Table(identifier, "bar", catalog=catalog, metadata_location="", io=FileIO())
+            mock_load_table.return_value = i
+
+            e = serialize(i)
+            d = deserialize(e)
+            assert i == d
         mock_load_catalog.assert_called_with("catalog", uri=uri)
         mock_load_table.assert_called_with((identifier[1], identifier[2]))
 

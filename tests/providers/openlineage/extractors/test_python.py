@@ -87,6 +87,8 @@ def test_python_extraction_disabled_operator():
     extractor = PythonExtractor(operator)
     metadata = extractor.extract()
     assert metadata is None
+    metadata = extractor.extract_on_complete(None)
+    assert metadata is None
 
 
 @patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})

@@ -1022,7 +1022,7 @@ except ImportError:
 
 @deprecated(
     reason=(
-        "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory "
+        "`airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory` "
         "has been deprecated and will be removed in future"
     ),
     category=AirflowProviderDeprecationWarning,
@@ -1116,7 +1116,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
 
 @deprecated(
     reason=(
-        "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook "
+        "`airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook` "
         "has been deprecated and will be removed in future"
     ),
     category=AirflowProviderDeprecationWarning,

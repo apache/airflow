@@ -49,7 +49,7 @@ class DataPipelineHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> build:
-        """Returns a Google Cloud Data Pipelines service object."""
+        """Return a Google Cloud Data Pipelines service object."""
         http_authorized = self._authorize()
         return build("datapipelines", "v1", http=http_authorized, cache_discovery=False)
 
@@ -61,7 +61,7 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Creates a new Data Pipelines instance from the Data Pipelines API.
+        Create a new Data Pipelines instance from the Data Pipelines API.
 
         :param body: The request body (contains instance of Pipeline). See:
             https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
@@ -93,7 +93,7 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Runs a Data Pipelines Instance using the Data Pipelines API.
+        Run a Data Pipelines Instance using the Data Pipelines API.
 
         :param data_pipeline_name:  The display name of the pipeline. In example
             projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.

@@ -323,6 +323,8 @@ class WorkflowInfo(NamedTuple):
             and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
         ):
             return "true"
+        if "canary" in self.pull_request_labels and self.head_repo == "apache/airflow":
+            return "true"
         return "false"
 
     def run_coverage(self) -> str:

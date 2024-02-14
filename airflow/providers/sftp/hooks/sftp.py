@@ -117,7 +117,7 @@ class SFTPHook(SSHHook):
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
-        """Opens an SFTP connection to the remote host."""
+        """Open an SFTP connection to the remote host."""
         if self.conn is None:
             # TODO: remove support for ssh_hook when it is removed from SFTPOperator
             if self.ssh_hook is not None:
@@ -127,7 +127,7 @@ class SFTPHook(SSHHook):
         return self.conn
 
     def close_conn(self) -> None:
-        """Closes the SFTP connection."""
+        """Close the SFTP connection."""
         if self.conn is not None:
             self.conn.close()
             self.conn = None
@@ -516,7 +516,7 @@ class SFTPHookAsync(BaseHook):
         return ssh_client_conn
 
     async def list_directory(self, path: str = "") -> list[str] | None:
-        """Returns a list of files on the SFTP server at the provided path."""
+        """Return a list of files on the SFTP server at the provided path."""
         ssh_conn = await self._get_conn()
         sftp_client = await ssh_conn.start_sftp_client()
         try:
@@ -526,7 +526,7 @@ class SFTPHookAsync(BaseHook):
             return None
 
     async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:
-        """Returns a list of files along with their attributes on the SFTP server at the provided path."""
+        """Return a list of files along with their attributes on the SFTP server at the provided path."""
         ssh_conn = await self._get_conn()
         sftp_client = await ssh_conn.start_sftp_client()
         try:
@@ -551,7 +551,7 @@ class SFTPHookAsync(BaseHook):
 
     async def get_mod_time(self, path: str) -> str:
         """
-        Makes SFTP async connection.
+        Make SFTP async connection.
 
         Looks for last modified time in the specific file path and returns last modification time for
          the file path.

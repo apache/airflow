@@ -339,7 +339,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def register_views(self):
         """Register FAB auth manager related views."""
-        if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
+        if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
 
         if self.auth_user_registration:
@@ -416,7 +416,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 category="Security",
             )
         self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
             self.appbuilder.add_view(
                 self.actionmodelview,
                 "Actions",
@@ -424,7 +424,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Actions"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
             self.appbuilder.add_view(
                 self.resourcemodelview,
                 "Resources",
@@ -432,7 +432,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Resources"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
                 "Permission Pairs",
@@ -517,27 +517,27 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_type(self):
         """Get the auth type."""
-        return self.appbuilder.app.config["AUTH_TYPE"]
+        return self.appbuilder.get_app.config["AUTH_TYPE"]
 
     @property
     def is_auth_limited(self) -> bool:
         """Is the auth rate limited."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMITED"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
 
     @property
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMIT"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
 
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
 
     @property
     def oauth_providers(self):
         """Oauth providers."""
-        return self.appbuilder.app.config["OAUTH_PROVIDERS"]
+        return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
     def auth_ldap_tls_cacertdir(self):
@@ -698,7 +698,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def create_builtin_roles(self):
         """Return FAB builtin roles."""
-        return self.appbuilder.app.config.get("FAB_ROLES", {})
+        return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
     @property
     def builtin_roles(self):
@@ -859,7 +859,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 Base.metadata.create_all(engine)
                 log.info(const.LOGMSG_INF_SEC_ADD_DB)
 
-            roles_mapping = self.appbuilder.app.config.get("FAB_ROLES_MAPPING", {})
+            roles_mapping = self.appbuilder.get_app.config.get("FAB_ROLES_MAPPING", {})
             for pk, name in roles_mapping.items():
                 self.update_role(pk, name)
             for role_name in self._builtin_roles:
