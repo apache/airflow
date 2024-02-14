@@ -282,6 +282,7 @@ with DAG(
     )
     # [END howto_operator_emr_container]
     job_starter.wait_for_completion = False
+    job_starter.job_retry_max_attempts = 5
 
     # [START howto_sensor_emr_container]
     job_waiter = EmrContainerSensor(
