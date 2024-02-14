@@ -46,7 +46,7 @@ class TestYQExecuteQueryOperator:
 
     @responses.activate()
     @patch("airflow.hooks.base.BaseHook.get_connection")
-    def test_create_cluster(self, mock_get_connection):
+    def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
         operator = YQExecuteQueryOperator(
             task_id="simple_sql",
