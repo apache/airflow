@@ -275,7 +275,7 @@ with DAG(
         task_id="start_job",
         virtual_cluster_id=str(create_emr_eks_cluster.output),
         execution_role_arn=job_role_arn,
-        release_label="emr-6.3.0-latest",
+        release_label="emr-7.0.0-latest",
         job_driver=job_driver_arg,
         configuration_overrides=configuration_overrides_arg,
         name="pi.py",
