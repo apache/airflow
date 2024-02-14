@@ -60,6 +60,20 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server:1433/database_name'
+   export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server.com:1433/database_name'
+
+..
+If serializing with JSON:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MSSQL_DEFAULT='{
+        "conn_type": "mssql",
+        "login": "username",
+        "password": "password",
+        "host": "server.com",
+        "port": 1433,
+        "schema": "database_name"
+    }'
 
 ..
