@@ -584,7 +584,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
-                if e.status != 404:
+                if str(e.status) != "404":
                     raise
 
     async def read_logs(self, name: str, namespace: str):
