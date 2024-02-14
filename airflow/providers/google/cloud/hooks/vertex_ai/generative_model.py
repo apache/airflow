@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud Vertex AI Generative AI Model hooks."""
+"""This module contains a Google Cloud Vertex AI Generative Model hook."""
 
 from __future__ import annotations
 
@@ -27,8 +27,8 @@ from vertexai.preview.generative_models import ChatSession, GenerativeModel
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
-class LanguageModelHook(GoogleBaseHook):
-    """Hook for Google Cloud Vertex AI Language Model APIs."""
+class GenerativeModelHook(GoogleBaseHook):
+    """Hook for Google Cloud Vertex AI Generative Model APIs."""
 
     def __init__(
         self,
@@ -43,7 +43,7 @@ class LanguageModelHook(GoogleBaseHook):
             )
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
-    def generate_text(
+    def prompt_language_model(
         self,
         prompt: str,
         pretrained_model: str,
@@ -85,24 +85,7 @@ class LanguageModelHook(GoogleBaseHook):
         )
         return response.text
 
-
-class MultimodalModelHook(GoogleBaseHook):
-    """Hook for Google Cloud Vertex AI Multimodal Model APIs."""
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
-
-    def chat_prompt_request(
+    def prompt_multimodal_model(
         self, prompt: str, chat: ChatSession | None = None, pretrained_model: str = "gemini-pro"
     ) -> str:
         """

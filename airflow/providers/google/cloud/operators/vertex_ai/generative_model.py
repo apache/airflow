@@ -22,8 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
-    LanguageModelHook,
-    MultimodalModelHook,
+    GenerativeModelHook
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
@@ -32,7 +31,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LanguageModelGenerateTextOperator(GoogleCloudBaseOperator):
+class PromptLanguageModelOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI PaLM API to generate natural language text.
 
@@ -84,12 +83,12 @@ class LanguageModelGenerateTextOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        self.hook = LanguageModelHook(
+        self.hook = GenerativeModelHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
         self.log.info("Submitting prompt")
-        response = self.hook.generate_text(
+        response = self.hook.prompt_language_model(
             prompt=self.prompt,
             pretrained_model=self.pretrained_model,
             temperature=self.temperature,
@@ -104,7 +103,7 @@ class LanguageModelGenerateTextOperator(GoogleCloudBaseOperator):
         return response
 
 
-class MultimodalModelChatOperator(GoogleCloudBaseOperator):
+class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
     """
     Use a Vertex AI Multimodal model to generate natural language text.
 
@@ -146,10 +145,10 @@ class MultimodalModelChatOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        self.hook = MultimodalModelHook(
+        self.hook = GenerativeModelHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
-        response = self.hook.chat_prompt_request(
+        response = self.hook.prompt_multimodal_model(
             prompt=self.prompt, chat=self.chat, pretrained_model=self.pretrained_model
         )
 
