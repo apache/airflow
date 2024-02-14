@@ -177,7 +177,9 @@ class TestKubernetesPodTrigger:
         )
         mock_method.return_value = ContainerState.FAILED
 
-        expected_event = TriggerEvent({"status": "failed", "namespace": "default", "name": "test-pod-name"})
+        expected_event = TriggerEvent(
+            {"status": "failed", "namespace": "default", "name": "test-pod-name", "message": "pod failed"}
+        )
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event

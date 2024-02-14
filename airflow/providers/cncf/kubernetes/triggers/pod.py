@@ -167,6 +167,15 @@ class KubernetesPodTrigger(BaseTrigger):
                         "message": "All containers inside pod have started successfully.",
                     }
                 )
+            elif state == ContainerState.FAILED:
+                event = TriggerEvent(
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "pod failed",
+                    }
+                )
             else:
                 event = await self._wait_for_container_completion()
             yield event
