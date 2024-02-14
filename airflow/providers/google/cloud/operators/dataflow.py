@@ -801,6 +801,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     :param expected_terminal_state: The expected final status of the operator on which the corresponding
         Airflow task succeeds. When not specified, it will be determined by the hook.
     :param append_job_name: True if unique suffix has to be appended to job name.
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
