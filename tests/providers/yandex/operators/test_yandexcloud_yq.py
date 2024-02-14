@@ -106,4 +106,3 @@ class TestYQExecuteQueryOperator:
 
         with pytest.raises(RuntimeError, match=re.escape("""Query query1 failed with issues=['some error']""")):
             operator.execute(context)
-    

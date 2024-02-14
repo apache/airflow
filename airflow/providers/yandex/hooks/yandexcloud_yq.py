@@ -69,11 +69,11 @@ class YQHook(YandexCloudBaseHook):
         self.client.close()
 
     def create_query(self, query_text: str|None, name: str|None=None, description: str | None = None, query_type: QueryType = QueryType.ANALYTICS) -> str:
-        type = "ANALYTICS" if query_type == QueryType.ANALYTICS else "STREAMING"
+        t = "ANALYTICS" if query_type == QueryType.ANALYTICS else "STREAMING"
         
         return self.client.create_query(
             name=name,
-            type=type,
+            query_type=t,
             query_text=query_text,
             description=description
         )

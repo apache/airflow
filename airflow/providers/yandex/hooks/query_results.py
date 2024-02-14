@@ -66,7 +66,7 @@ class YQResults:
         b = base64.b64decode(value)
         try:
             return b.decode("utf-8")
-        except:
+        except UnicodeDecodeError:
             return b
 
     @staticmethod
@@ -106,7 +106,7 @@ class YQResults:
     @staticmethod
     def _split_type_list(type_list: str) -> list[str]:
         # naive implementation
-        # todo fix it
+        # fixme: fix it
         return type_list.split(",")
 
     @staticmethod

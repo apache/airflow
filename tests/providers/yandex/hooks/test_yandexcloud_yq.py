@@ -45,7 +45,7 @@ class TestYandexCloudYqHook:
             status=200,
         )
         mock_jwt.return_value = "zzzz"
-        
+
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
@@ -111,7 +111,7 @@ class TestYandexCloudYqHook:
         results = self.hook.wait_results(query_id)
         assert results == {"rows": [[777]], "columns": [
             {"name": "column0", "type": "Int32"}]}
-        
+
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/stop",
             match=[
@@ -124,7 +124,7 @@ class TestYandexCloudYqHook:
         assert self.hook.get_query_status(query_id) == "COMPLETED"
         assert self.hook.get_query(query_id) == {"id": "query1", "result_sets": [{"rows_count": 1, "truncated": False}]}
         self.hook.stop_query(query_id)
-        
+
     @responses.activate()
     @mock.patch("jwt.encode")
     def test_integral_results(self, mock_jwt):

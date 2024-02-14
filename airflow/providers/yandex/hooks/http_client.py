@@ -69,7 +69,7 @@ class YQHttpClientConfig(object):
 
 
 class YQHttpClientException(Exception):
-    def __init__(self, message: str, status: str, msg: str, details: Any) -> None:
+    def __init__(self, message: str, status: str = None, msg: str = None, details: Any = None) -> None:
         super().__init__(message)
         self.status = status
         self.msg = msg
@@ -133,7 +133,7 @@ class YQHttpClient(object):
 
     def create_query(self,
                      query_text=None,
-                     type=None,
+                     query_type=None,
                      name=None,
                      description=None,
                      idempotency_key=None,
@@ -143,8 +143,8 @@ class YQHttpClient(object):
         if query_text is not None:
             body["text"] = query_text
 
-        if type is not None:
-            body["type"] = type
+        if query_type is not None:
+            body["type"] = query_type
 
         if name is not None:
             body["name"] = name
@@ -284,11 +284,11 @@ class YQHttpClient(object):
         result = {"rows": rows, "columns": columns}
         if raw_format:
             return result
-        
+
         return YQResults(result).results
 
     def get_query_all_result_sets(self, query_id: str, result_set_count: int, raw_format: bool = False) -> Any:
-        result = list()
+        result = []
         for i in range(0, result_set_count):
             r = self.get_query_result_set(
                 query_id,
