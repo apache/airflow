@@ -21,7 +21,7 @@
 Supported Database Types
 ------------------------
 
-:doc:`Supported Database Types <supported-database-types/index>`
+:doc:`Supported Database Types <supported-database-types>`
 
 .. toctree::
     :hidden:
