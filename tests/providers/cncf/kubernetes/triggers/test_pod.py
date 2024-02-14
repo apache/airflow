@@ -238,12 +238,12 @@ class TestKubernetesPodTrigger:
             ),
         ],
     )
-    @mock.patch(
-        "kubernetes_asyncio.client.CoreV1Api.read_namespaced_pod",
-        new=get_read_pod_mock_containers([1, 1, None, None]),
-    )
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
-    async def test_running_log_interval(self, mock_container_state, logging_interval, exp_event):
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
+    async def test_running_log_interval(
+        self, mock_get_pod, mock_wait_for_pod_start, define_container_state, logging_interval, exp_event
+    ):
         """
         If log interval given, should emit event with running status and last log time.
         Otherwise, should make it to second loop and emit "done" event.
@@ -253,6 +253,7 @@ class TestKubernetesPodTrigger:
         interval is None, the second "running" status will just result in continuation of the loop.  And
         when in the next loop we get a non-running status, the trigger fires a "done" event.
         """
+        define_container_state.return_value = "running"
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
@@ -260,7 +261,7 @@ class TestKubernetesPodTrigger:
             base_container_name=BASE_CONTAINER_NAME,
             startup_timeout=5,
             poll_interval=1,
-            logging_interval=logging_interval,
+            logging_interval=1,
             last_log_time=DateTime(2022, 1, 1),
         )
         assert await trigger.run().__anext__() == TriggerEvent(exp_event)
