@@ -689,7 +689,6 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
-        self.log.info("dadadadad %s", event)
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
