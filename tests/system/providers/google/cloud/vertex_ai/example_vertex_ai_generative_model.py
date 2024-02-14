@@ -37,13 +37,13 @@ with models.DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generativeai"],
 ) as dag:
-    text_generation_model_task = PromptLanguageModelOperator(
-        task_id="text_generation_model_task",
+    prompt_language_model_task = PromptLanguageModelOperator(
+        task_id="prompt_language_model_task",
         prompt="Give me a sample itinerary for a trip to New Zealand.",
         pretrained_model="text-bison",
     )
 
-    generative_model_task = PromptMultimodalModelOperator(
+    prompt_multimodal_model_task = PromptMultimodalModelOperator(
         task_id="generative_model_task",
         prompt="Give me a sample itinerary for a trip to Australia.",
         pretrained_model="gemini-pro",

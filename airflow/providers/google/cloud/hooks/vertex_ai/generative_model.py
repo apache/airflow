@@ -69,7 +69,6 @@ class GenerativeModelHook(GoogleBaseHook):
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
         """
-
         parameters = {
             "temperature": temperature,
             "max_output_tokens": max_output_tokens,
@@ -101,7 +100,6 @@ class GenerativeModelHook(GoogleBaseHook):
             Used to interact with responses. Defaults to None, which indicates a
             one-off prompt and response.
         """
-
         model = GenerativeModel(pretrained_model)
 
         if chat is None:  # signals one-off chat request
