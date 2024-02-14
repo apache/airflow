@@ -67,7 +67,7 @@ class PodLaunchFailedException(AirflowException):
 def should_retry_start_pod(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying."""
     if isinstance(exception, ApiException):
-        return exception.status == 409
+        return str(exception.status) == "409"
     return False
 
 
@@ -340,7 +340,7 @@ class PodManager(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     @tenacity.retry(

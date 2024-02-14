@@ -76,7 +76,9 @@
     "cross-providers-deps": [
       "google"
     ],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.12"
+    ],
     "state": "ready"
   },
   "apache.cassandra": {
@@ -472,7 +474,7 @@
     "devel-deps": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "facebook": {
     "deps": [
@@ -880,7 +882,9 @@
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.12"
+    ],
     "state": "ready"
   },
   "pgvector": {

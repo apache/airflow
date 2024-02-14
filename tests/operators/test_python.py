@@ -1208,15 +1208,60 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return 1
 
-        task = PythonVirtualenvOperator(
+        task = ExternalPythonOperator(
             python_callable=f,
             task_id="task",
+            python=sys.executable,
             dag=self.dag,
         )
 
         loads_mock.side_effect = DeserializingResultError
         with pytest.raises(DeserializingResultError):
             task._read_result(path=mock.Mock())
+
+    def test_airflow_version(self):
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+        assert op._get_airflow_version_from_target_env()
+
+    def test_airflow_version_doesnt_match(self, caplog):
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+
+        with mock.patch.object(
+            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+        ) as mock_script:
+            mock_script.return_value = "print('1.10.4')"
+            caplog.set_level("WARNING")
+            caplog.clear()
+            assert op._get_airflow_version_from_target_env() is None
+            assert "(1.10.4) is different than the runtime Airflow version" in caplog.text
+
+    def test_airflow_version_script_error_handle(self, caplog):
+        def f():
+            return 42
+
+        op = ExternalPythonOperator(
+            python_callable=f, task_id="task", python=sys.executable, expect_airflow=True
+        )
+
+        with mock.patch.object(
+            ExternalPythonOperator, "_external_airflow_version_script", new_callable=mock.PropertyMock
+        ) as mock_script:
+            mock_script.return_value = "raise SystemExit('Something went wrong')"
+            caplog.set_level("WARNING")
+            caplog.clear()
+            assert op._get_airflow_version_from_target_env() is None
+            assert "Something went wrong" in caplog.text
+            assert "returned non-zero exit status" in caplog.text
 
 
 class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
