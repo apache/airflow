@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-14T08:08:41.278614
+# This constraints file was automatically generated on 2024-02-14T22:53:59.616492
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -78,7 +78,7 @@ fastavro==1.9.4
 filelock==3.13.1
 frozenlist==1.4.1
 fsspec==2024.2.0
-gevent==23.9.1
+gevent==24.2.1
 google-re2==1.1
 googleapis-common-protos==1.62.0
 graphviz==0.20.1
@@ -88,7 +88,7 @@ gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
 hdfs==2.7.3
-httpcore==1.0.2
+httpcore==1.0.3
 httpx==0.26.0
 idna==3.6
 importlib-metadata==6.11.0
@@ -132,7 +132,7 @@ platformdirs==4.2.0
 pluggy==1.4.0
 plyvel==1.5.1
 prison==0.2.1
-prometheus-client==0.19.0
+prometheus_client==0.20.0
 protobuf==4.25.2
 psutil==5.9.8
 pure-sasl==0.6.2

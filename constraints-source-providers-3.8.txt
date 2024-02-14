@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-14T08:08:35.099508
+# This constraints file was automatically generated on 2024-02-14T22:53:54.400414
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -72,7 +72,7 @@ analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.2.0
-apache-beam==2.53.0
+apache-beam==2.54.0
 apispec==6.4.0
 apprise==1.7.2
 argcomplete==3.2.2
@@ -199,11 +199,11 @@ gcloud-aio-bigquery==7.0.0
 gcloud-aio-storage==9.1.0
 gcsfs==2023.12.2.post1
 geomet==0.2.1.post1
-gevent==23.9.1
+gevent==24.2.1
 gitdb==4.0.11
 google-ads==23.0.0
 google-analytics-admin==0.22.5
-google-api-core==2.17.0
+google-api-core==2.17.1
 google-api-python-client==2.118.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
@@ -359,7 +359,7 @@ nh3==0.2.15
 nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
-objsize==0.6.1
+objsize==0.7.0
 openai==1.12.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
@@ -412,7 +412,7 @@ pprintpp==0.4.0
 pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus-client==0.19.0
+prometheus_client==0.20.0
 prompt-toolkit==3.0.43
 proto-plus==1.23.0
 protobuf==4.25.2
