@@ -538,6 +538,29 @@ To get a pipeline job list you can use
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
+Prompting a Generative Model
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To prompt a language model you can use 
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.LanguageModelGenerateTextOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_language_model_generate_text_operator]
+    :end-before: [END how_to_cloud_vertex_ai_language_model_generate_text_operator]
+
+To prompt a multimodal model you can use 
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.MultimodalModelChatOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_multimodal_model_chat_operator]
+    :end-before: [END how_to_cloud_vertex_ai_multimodal_model_chat_operator]
+
 Reference
 ^^^^^^^^^
 
