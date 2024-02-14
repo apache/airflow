@@ -183,7 +183,7 @@ class TestInfoCommandMockHttpx:
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
         }
     )
-    def test_show_info_anonymize_fileio(self, setup_parser):
+    def test_show_info_anonymize_fileio(self, setup_parser, cleanup_providers_manager):
         with mock.patch("airflow.cli.commands.info_command.httpx.post") as post:
             post.return_value = httpx.Response(
                 status_code=200,

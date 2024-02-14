@@ -1120,6 +1120,18 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
 
 
+@pytest.fixture()
+def cleanup_providers_manager():
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager()._cleanup()
+    ProvidersManager().initialize_providers_configuration()
+    try:
+        yield
+    finally:
+        ProvidersManager()._cleanup()
+
+
 # The code below is a modified version of capture-warning code from
 # https://github.com/athinkingape/pytest-capture-warnings
 
