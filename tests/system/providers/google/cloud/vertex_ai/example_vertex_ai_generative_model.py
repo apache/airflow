@@ -25,8 +25,8 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
-    LanguageModelGenerateTextOperator,
-    MultimodalModelChatOperator,
+    PromptLanguageModelOperator,
+    PromptMultimodalModelOperator,
 )
 
 with models.DAG(
@@ -37,13 +37,13 @@ with models.DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generativeai"],
 ) as dag:
-    text_generation_model_task = LanguageModelGenerateTextOperator(
+    text_generation_model_task = PromptLanguageModelOperator(
         task_id="text_generation_model_task",
         prompt="Give me a sample itinerary for a trip to New Zealand.",
         pretrained_model="text-bison",
     )
 
-    generative_model_task = MultimodalModelChatOperator(
+    generative_model_task = PromptMultimodalModelOperator(
         task_id="generative_model_task",
         prompt="Give me a sample itinerary for a trip to Australia.",
         pretrained_model="gemini-pro",
