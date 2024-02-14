@@ -70,7 +70,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
-    PodLaunchTimeoutException,
     PodManager,
     PodNotFoundException,
     PodOperatorHookProtocol,
@@ -679,37 +678,23 @@ class KubernetesPodOperator(BaseOperator):
             method_name="trigger_reentry",
         )
 
-    @staticmethod
-    def raise_for_trigger_status(event: dict[str, Any]) -> None:
-        """Raise exception if pod is not in expected state."""
-        if event["status"] == "error":
-            error_type = event["error_type"]
-            description = event["description"]
-            if error_type == "PodLaunchTimeoutException":
-                raise PodLaunchTimeoutException(description)
-            else:
-                raise AirflowException(description)
-
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Point of re-entry from trigger.
 
-        If ``logging_interval`` is None, then at this point the pod should be done and we'll just fetch
+        If ``logging_interval`` is None, then at this point, the pod should be done, and we'll just fetch
         the logs and exit.
 
-        If ``logging_interval`` is not None, it could be that the pod is still running and we'll just
+        If ``logging_interval`` is not None, it could be that the pod is still running, and we'll just
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        self.log.info("dadadadad %s", event)
         try:
-            self.pod_request_obj = self.build_pod_request_obj(context)
-            self.pod = self.find_pod(
-                namespace=self.namespace or self.pod_request_obj.metadata.namespace,
-                context=context,
-            )
+            pod_name = event["name"]
+            pod_namespace = event["namespace"]
 
-            # we try to find pod before possibly raising so that on_kill will have `pod` attr
-            self.raise_for_trigger_status(event)
+            self.pod = self.hook.get_pod(pod_name, pod_namespace)
 
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
@@ -719,29 +704,36 @@ class KubernetesPodOperator(BaseOperator):
                     pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
 
-            if self.get_logs:
-                last_log_time = event and event.get("last_log_time")
-                if last_log_time:
-                    self.log.info("Resuming logs read from time %r", last_log_time)
-                pod_log_status = self.pod_manager.fetch_container_logs(
-                    pod=self.pod,
-                    container_name=self.BASE_CONTAINER_NAME,
-                    follow=self.logging_interval is None,
-                    since_time=last_log_time,
-                )
-                if pod_log_status.running:
-                    self.log.info("Container still running; deferring again.")
-                    self.invoke_defer_method(pod_log_status.last_log_time)
+            if event["status"] in ("error", "failed", "timeout"):
+                if self.do_xcom_push:
+                    _ = self.extract_xcom(pod=self.pod)
 
-            if self.do_xcom_push:
-                result = self.extract_xcom(pod=self.pod)
-                if event["status"] in ("error", "failed", "timeout"):
-                    if "stack_trace" in event:
-                        message = f"{event['message']}\n{event['stack_trace']}"
-                    else:
-                        message = event["message"]
-                    raise AirflowException(message)
-                return result
+                message = event.get("stack_trace", event["message"])
+                raise AirflowException(message)
+
+            elif event["status"] == "running":
+                if self.get_logs:
+                    last_log_time = event.get("last_log_time")
+                    self.log.info("Resuming logs read from time %r", last_log_time)
+
+                    pod_log_status = self.pod_manager.fetch_container_logs(
+                        pod=self.pod,
+                        container_name=self.BASE_CONTAINER_NAME,
+                        follow=self.logging_interval is None,
+                        since_time=last_log_time,
+                    )
+
+                    if pod_log_status.running:
+                        self.log.info("Container still running; deferring again.")
+                        self.invoke_defer_method(pod_log_status.last_log_time)
+                else:
+                    self.invoke_defer_method()
+
+            elif event["status"] == "success":
+                if self.do_xcom_push:
+                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
+                    return xcom_sidecar_output
+                return
         except TaskDeferred:
             raise
         finally:

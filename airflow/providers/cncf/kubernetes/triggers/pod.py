@@ -153,13 +153,6 @@ class KubernetesPodTrigger(BaseTrigger):
             },
         )
 
-    def _get_terminal_event(self, state) -> TriggerEvent:
-        if state == PodPhase.SUCCEEDED:
-            status = "success"
-        else:
-            status = "failed"
-        return TriggerEvent({"status": status, "namespace": self.pod_namespace, "name": self.pod_name})
-
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current pod status and yield a TriggerEvent."""
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
@@ -246,7 +239,14 @@ class KubernetesPodTrigger(BaseTrigger):
                     {"status": "failed", "namespace": self.pod_namespace, "name": self.pod_name}
                 )
             if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
-                return TriggerEvent({"status": "running", "last_log_time": self.last_log_time})
+                return TriggerEvent(
+                    {
+                        "status": "running",
+                        "last_log_time": self.last_log_time,
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                    }
+                )
             await asyncio.sleep(self.poll_interval)
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
