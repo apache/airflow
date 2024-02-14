@@ -74,7 +74,7 @@ def _create_instance(client: BaseClient, args) -> str | None:
     if len(instances["Instances"]) > 0:
         print(
             f"There is already an instance configured in AWS IAM Identity Center: '{instances['Instances'][0]['InstanceArn']}'. "
-            f"No need to create a new one."
+            "No need to create a new one."
         )
         return instances["Instances"][0]["InstanceArn"]
     else:
