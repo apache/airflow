@@ -43,6 +43,7 @@ from pathlib import Path
 from subprocess import CalledProcessError, CompletedProcess
 
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, OUT_DIR, REPRODUCIBLE_DIR
+from airflow_breeze.utils.python_versions import check_python_3_9_or_above
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -90,6 +91,7 @@ def repack_deterministically(
         tarinfo.mtime = timestamp
         return tarinfo
 
+    check_python_3_9_or_above()
     OUT_DIR.mkdir(exist_ok=True)
     shutil.rmtree(REPRODUCIBLE_DIR, ignore_errors=True)
     REPRODUCIBLE_DIR.mkdir(exist_ok=True)
@@ -145,6 +147,7 @@ def repack_deterministically(
 
 
 def main():
+    check_python_3_9_or_above()
     parser = ArgumentParser()
     parser.add_argument("-a", "--archive", help="archive to repack")
     parser.add_argument("-o", "--out", help="archive destination")
