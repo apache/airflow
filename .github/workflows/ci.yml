@@ -938,7 +938,7 @@ jobs:
       - name: "Verify sdist packages with twine"
         run: |
           pipx uninstall twine || true
-          pipx install twine && twine check dist/*.whl
+          pipx install twine && twine check dist/*.tar.gz
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
