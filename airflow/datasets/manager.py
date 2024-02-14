@@ -25,7 +25,12 @@ from sqlalchemy.orm import joinedload
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    dataset_event_dagrun_queue_association_table,
+)
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -72,23 +77,22 @@ class DatasetManager(LoggingMixin):
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
             return
-        session.add(
-            DatasetEvent(
-                dataset_id=dataset_model.id,
-                source_task_id=task_instance.task_id,
-                source_dag_id=task_instance.dag_id,
-                source_run_id=task_instance.run_id,
-                source_map_index=task_instance.map_index,
-                extra=extra,
-            )
+        dataset_event = DatasetEvent(
+            dataset_id=dataset_model.id,
+            source_task_id=task_instance.task_id,
+            source_dag_id=task_instance.dag_id,
+            source_run_id=task_instance.run_id,
+            source_map_index=task_instance.map_index,
+            extra=extra,
         )
+        session.add(dataset_event)
         session.flush()
 
         self.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
-            self._queue_dagruns(dataset_model, session)
+            self._queue_dagruns(dataset_model, session, dataset_event)
         session.flush()
 
     def notify_dataset_created(self, dataset: Dataset):
@@ -99,7 +103,7 @@ class DatasetManager(LoggingMixin):
         """Run applicable notification actions when a dataset is changed."""
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
-    def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    def _queue_dagruns(self, dataset: DatasetModel, session: Session, dataset_event: DatasetEvent) -> None:
         # Possible race condition: if multiple dags or multiple (usually
         # mapped) tasks update the same dataset, this can fail with a unique
         # constraint violation.
@@ -110,10 +114,12 @@ class DatasetManager(LoggingMixin):
         # where `ti.state` is changed.
 
         if session.bind.dialect.name == "postgresql":
-            return self._postgres_queue_dagruns(dataset, session)
-        return self._slow_path_queue_dagruns(dataset, session)
+            return self._postgres_queue_dagruns(dataset, session, dataset_event)
+        return self._slow_path_queue_dagruns(dataset, session, dataset_event)
 
-    def _slow_path_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    def _slow_path_queue_dagruns(
+        self, dataset: DatasetModel, session: Session, dataset_event: DatasetEvent
+    ) -> None:
         consuming_dag_ids = [x.dag_id for x in dataset.consuming_dags]
         self.log.debug("consuming dag ids %s", consuming_dag_ids)
 
@@ -123,18 +129,46 @@ class DatasetManager(LoggingMixin):
             item = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset.id)
             try:
                 with session.begin_nested():
-                    session.merge(item)
+                    merged_item = session.merge(item)
+                    session.flush()  # Ensure merged_item has an ID
+                    # Now, create an association entry
+                    session.execute(
+                        dataset_event_dagrun_queue_association_table.insert(),
+                        [{"event_id": dataset_event.id, "dag_run_queue_id": merged_item.id}],
+                    )
             except exc.IntegrityError:
                 self.log.debug("Skipping record %s", item, exc_info=True)
 
-    def _postgres_queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
+    def _postgres_queue_dagruns(
+        self, dataset: DatasetModel, session: Session, dataset_event: DatasetEvent
+    ) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
-        session.execute(
-            stmt,
-            [{"target_dag_id": target_dag.dag_id} for target_dag in dataset.consuming_dags],
-        )
+        consuming_dags = dataset.consuming_dags
+        dag_run_queue_entries = []
+
+        # Insert new DatasetDagRunQueue items or ignore if they already exist
+        for target_dag in consuming_dags:
+            stmt = (
+                insert(DatasetDagRunQueue)
+                .values(dataset_id=dataset.id, target_dag_id=target_dag.dag_id)
+                .on_conflict_do_nothing()
+                .returning(DatasetDagRunQueue.id)  # This assumes your DB supports returning values on insert
+            )
+            result = session.execute(stmt)
+            session.flush()  # Ensure all insertions are flushed so we can retrieve the generated IDs
+
+            # Collect the new DatasetDagRunQueue IDs to associate with the current DatasetEvent
+            for row in result.fetchall():
+                dag_run_queue_id = row[0]
+                if dag_run_queue_id:
+                    dag_run_queue_entries.append(
+                        {"event_id": dataset_event.id, "dag_run_queue_id": dag_run_queue_id}
+                    )
+
+        # Create associations between the new DatasetDagRunQueue entries and the current DatasetEvent
+        if dag_run_queue_entries:
+            session.execute(dataset_event_dagrun_queue_association_table.insert(), dag_run_queue_entries)
 
 
 def resolve_dataset_manager() -> DatasetManager:

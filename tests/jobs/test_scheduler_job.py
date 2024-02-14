@@ -3592,7 +3592,7 @@ class TestSchedulerJob:
         )
         session.add(event2)
 
-        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]):
+        with dag_maker(dag_id="datasets-consumer-multiple", schedule=(dataset1 & dataset2)):
             pass
         dag2 = dag_maker.dag
         with dag_maker(dag_id="datasets-consumer-single", schedule=[dataset1]):
@@ -3640,6 +3640,70 @@ class TestSchedulerJob:
         assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == scheduler_job.id
+
+        dataset3 = Dataset(uri="ds3")
+        dataset4 = Dataset(uri="ds4")
+
+        # Simulate dataset events creation for dataset3 and dataset4...
+
+        with dag_maker(dag_id="datasets-complex-1", schedule=(dataset1 & (dataset2 | dataset3))):
+            pass
+        dag_complex_1 = dag_maker.dag
+
+        with dag_maker(dag_id="datasets-complex-2", schedule=((dataset1 | dataset2) & dataset4)):
+            pass
+        dag_complex_2 = dag_maker.dag
+
+        ds2_id = session.query(DatasetModel.id).filter_by(uri=dataset2.uri).scalar()
+        ds3_id = session.query(DatasetModel.id).filter_by(uri=dataset3.uri).scalar()
+        ds4_id = session.query(DatasetModel.id).filter_by(uri=dataset4.uri).scalar()
+
+        # Simulate dataset events for dataset3 and dataset4 as necessary
+        event3 = DatasetEvent(
+            dataset_id=ds3_id,
+            source_task_id="task3",
+            source_dag_id="some_dag",
+            source_run_id="some_run",
+            source_map_index=-1,
+        )
+        event4 = DatasetEvent(
+            dataset_id=ds4_id,
+            source_task_id="task4",
+            source_dag_id="another_dag",
+            source_run_id="another_run",
+            source_map_index=-1,
+        )
+
+        session.add_all([event3, event4])
+        session.commit()
+
+        # Add DatasetDagRunQueue records for the new complex DAGs
+        session.add_all(
+            [
+                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag_complex_1.dag_id),
+                DatasetDagRunQueue(dataset_id=ds2_id, target_dag_id=dag_complex_1.dag_id),
+                DatasetDagRunQueue(dataset_id=ds3_id, target_dag_id=dag_complex_1.dag_id),
+                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag_complex_2.dag_id),
+                DatasetDagRunQueue(dataset_id=ds2_id, target_dag_id=dag_complex_2.dag_id),
+                DatasetDagRunQueue(dataset_id=ds4_id, target_dag_id=dag_complex_2.dag_id),
+            ]
+        )
+        session.flush()
+
+        # Assuming self.job_runner is set up correctly as in the provided example
+        self.job_runner._create_dagruns_for_dags(session, session)
+        # dag2 DDRQ record should still be there since the dag run was *not* triggered
+        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag2.dag_id).one() is not None
+
+        # Verify dag_complex_1 is triggered according to its condition
+        dag_run_complex_1 = session.query(DagRun).filter(DagRun.dag_id == dag_complex_1.dag_id).one_or_none()
+        assert dag_run_complex_1 is not None, "dag_complex_1 should have been triggered"
+        assert dag_run_complex_1.state == State.QUEUED, "dag_complex_1 run should be in QUEUED state"
+
+        # Verify dag_complex_2 is triggered according to its condition
+        dag_run_complex_2 = session.query(DagRun).filter(DagRun.dag_id == dag_complex_2.dag_id).one_or_none()
+        assert dag_run_complex_2 is not None, "dag_complex_2 should have been triggered"
+        assert dag_run_complex_2.state == State.QUEUED, "dag_complex_2 run should be in QUEUED state"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")

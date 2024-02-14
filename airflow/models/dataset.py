@@ -31,6 +31,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import relationship
@@ -203,16 +204,29 @@ class TaskOutletDatasetReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+dataset_event_dagrun_queue_association_table = Table(
+    "dataset_event_dagrun_queue_association_table",
+    Base.metadata,
+    Column("event_id", ForeignKey("dataset_event.id"), primary_key=True),
+    Column("dag_run_queue_id", ForeignKey("dataset_dag_run_queue.id"), primary_key=True),
+)
+
+
 class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
-    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, nullable=False)
+    target_dag_id = Column(StringID(), nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     dataset = relationship("DatasetModel", viewonly=True)
+    events = relationship(
+        "DatasetEvent", secondary=dataset_event_dagrun_queue_association_table, backref="dag_run_queues"
+    )
+
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
+        # PrimaryKeyConstraint(id, dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
@@ -225,6 +239,7 @@ class DatasetDagRunQueue(Base):
             name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
+        UniqueConstraint("dataset_id", "target_dag_id", name="ddrq_dataset_target_dag_unique"),
     )
 
     def __eq__(self, other):
