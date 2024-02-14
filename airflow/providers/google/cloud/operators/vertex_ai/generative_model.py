@@ -21,13 +21,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
-    GenerativeModelHook
-)
+from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from vertexai.preview.generative_models import ChatSession
+
     from airflow.utils.context import Context
 
 
