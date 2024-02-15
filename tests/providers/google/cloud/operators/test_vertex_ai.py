@@ -62,6 +62,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
 )
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     PromptLanguageModelOperator,
+    PromptMultimodalModelOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
     CreateHyperparameterTuningJobOperator,
@@ -1987,6 +1988,8 @@ class TestVertexAIPromptLanguageModelOperator:
 
         op = PromptLanguageModelOperator(
             task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
             prompt=prompt,
             pretrained_model=pretrained_model,
             temperature=temperature,
@@ -1997,7 +2000,12 @@ class TestVertexAIPromptLanguageModelOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.prompt_language_model.assert_called_once_with(
             prompt=prompt,
             pretrained_model=pretrained_model,
@@ -2005,8 +2013,6 @@ class TestVertexAIPromptLanguageModelOperator:
             max_output_tokens=max_output_tokens,
             top_p=top_p,
             top_k=top_k,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
         )
 
 
@@ -2017,8 +2023,10 @@ class TestVertexAIPromptMultimodalModelOperator:
         pretrained_model = "gemini-pro"
         chat = None
 
-        op = PromptLanguageModelOperator(
+        op = PromptMultimodalModelOperator(
             task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
             prompt=prompt,
             pretrained_model=pretrained_model,
             chat=chat,
@@ -2026,11 +2034,14 @@ class TestVertexAIPromptMultimodalModelOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context={"ti": mock.MagicMock()})
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
         mock_hook.return_value.prompt_multimodal_model.assert_called_once_with(
             prompt=prompt,
             pretrained_model=pretrained_model,
             chat=chat,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
         )

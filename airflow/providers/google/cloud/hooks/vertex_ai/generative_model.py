@@ -33,6 +33,8 @@ class GenerativeModelHook(GoogleBaseHook):
 
     def __init__(
         self,
+        project_id: str,
+        location: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -43,30 +45,21 @@ class GenerativeModelHook(GoogleBaseHook):
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
-
-    def get_text_generation_model(
-        self,
-        pretrained_model: str
-    ):
+    def get_text_generation_model(self, pretrained_model: str):
         """
         Return a Model Garden Model object based on Text Generation.
         """
-
         model = TextGenerationModel.from_pretrained(pretrained_model)
         return model
 
-    def get_generative_model(
-        self,
-        pretrained_model: str
-    ) -> GenerativeModel:
+    def get_generative_model(self, pretrained_model: str) -> GenerativeModel:
         """
         Return a Generative Model object.
         """
-
         model = GenerativeModel(pretrained_model)
         return model
-
 
     def prompt_language_model(
         self,
@@ -109,7 +102,6 @@ class GenerativeModelHook(GoogleBaseHook):
         )
         return response.text
 
-
     def prompt_multimodal_model(
         self, prompt: str, chat: ChatSession | None = None, pretrained_model: str = "gemini-pro"
     ) -> str:
@@ -126,7 +118,6 @@ class GenerativeModelHook(GoogleBaseHook):
             Used to interact with responses. Defaults to None, which indicates a
             one-off prompt and response.
         """
-
         model = self.get_generative_model(pretrained_model)
 
         if chat is None:  # signals one-off chat request

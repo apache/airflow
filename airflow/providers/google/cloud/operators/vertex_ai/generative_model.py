@@ -61,6 +61,8 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
+        project_id: str,
+        location: str,
         prompt: str,
         pretrained_model: str = "text-bison",
         temperature: float = 0.0,
@@ -72,6 +74,8 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
         self.prompt = prompt
         self.pretrained_model = pretrained_model
         self.temperature = temperature
@@ -83,7 +87,10 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.hook = GenerativeModelHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            project_id=self.project_id,
+            location=self.location,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
 
         self.log.info("Submitting prompt")
@@ -129,6 +136,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
+        project_id: str,
+        location: str,
         prompt: str,
         pretrained_model: str = "gemini-pro",
         chat: ChatSession | None = None,
@@ -137,6 +146,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
         self.prompt = prompt
         self.chat = chat
         self.pretrained_model = pretrained_model
@@ -145,7 +156,10 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.hook = GenerativeModelHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            project_id=self.project_id,
+            location=self.location,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
         )
         response = self.hook.prompt_multimodal_model(
             prompt=self.prompt, chat=self.chat, pretrained_model=self.pretrained_model
