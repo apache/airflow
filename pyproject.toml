@@ -1306,9 +1306,6 @@ extend-select = [
     "D2",
     "D3",
     "D400",
-    # We add modules that do not follow the rule `First line should be in imperative mood`
-    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
-    # See: https://github.com/apache/airflow/issues/10742
     "D401",
     "D402",
     "D403",
@@ -1376,38 +1373,6 @@ combine-as-imports = true
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
-
-# All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
-"airflow/providers/common/io/xcom/backend.py" = ["D401"]
-"airflow/providers/databricks/hooks/databricks.py" = ["D401"]
-"airflow/providers/databricks/operators/databricks.py" = ["D401"]
-"airflow/providers/hashicorp/_internal_client/vault_client.py" = ["D401"]
-"airflow/providers/hashicorp/hooks/vault.py" = ["D401"]
-"airflow/providers/imap/hooks/imap.py" = ["D401"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D401"]
-"airflow/providers/mysql/hooks/mysql.py" = ["D401"]
-"airflow/providers/mysql/transfers/s3_to_mysql.py" = ["D401"]
-"airflow/providers/neo4j/hooks/neo4j.py" = ["D401"]
-"airflow/providers/openfaas/hooks/openfaas.py" = ["D401"]
-"airflow/providers/opensearch/hooks/opensearch.py" = ["D401"]
-"airflow/providers/opensearch/operators/opensearch.py" = ["D401"]
-"airflow/providers/oracle/hooks/oracle.py" = ["D401"]
-"airflow/providers/pagerduty/hooks/pagerduty.py" = ["D401"]
-"airflow/providers/pagerduty/hooks/pagerduty_events.py" = ["D401"]
-"airflow/providers/papermill/hooks/kernel.py" = ["D401"]
-"airflow/providers/postgres/hooks/postgres.py" = ["D401"]
-"airflow/providers/presto/hooks/presto.py" = ["D401"]
-"airflow/providers/qdrant/hooks/qdrant.py" = ["D401"]
-"airflow/providers/salesforce/hooks/salesforce.py" = ["D401"]
-"airflow/providers/salesforce/operators/bulk.py" = ["D401"]
-"airflow/providers/salesforce/operators/salesforce_apex_rest.py" = ["D401"]
-"airflow/providers/samba/hooks/samba.py" = ["D401"]
-"airflow/providers/samba/transfers/gcs_to_samba.py" = ["D401"]
-"airflow/providers/segment/hooks/segment.py" = ["D401"]
-"airflow/providers/telegram/hooks/telegram.py" = ["D401"]
-"airflow/providers/telegram/operators/telegram.py" = ["D401"]
-"airflow/providers/trino/hooks/trino.py" = ["D401"]
-"airflow/providers/weaviate/hooks/weaviate.py" = ["D401"]
 
 
 [tool.ruff.lint.flake8-tidy-imports]

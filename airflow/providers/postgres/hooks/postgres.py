@@ -126,7 +126,7 @@ class PostgresHook(DbApiHook):
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
-        """Establishes a connection to a postgres database."""
+        """Establish a connection to a postgres database."""
         conn_id = getattr(self, self.conn_name_attr)
         conn = deepcopy(self.connection or self.get_connection(conn_id))
 
@@ -162,7 +162,7 @@ class PostgresHook(DbApiHook):
         return self.conn
 
     def copy_expert(self, sql: str, filename: str) -> None:
-        """Executes SQL using psycopg2's ``copy_expert`` method.
+        """Execute SQL using psycopg2's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
 
@@ -193,11 +193,11 @@ class PostgresHook(DbApiHook):
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """Loads a tab-delimited file into a database table."""
+        """Load a tab-delimited file into a database table."""
         self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """Dumps a database table into a tab-delimited file."""
+        """Dump a database table into a tab-delimited file."""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
@@ -326,7 +326,7 @@ class PostgresHook(DbApiHook):
         return sql
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
-        """Returns Postgres/Redshift specific information for OpenLineage."""
+        """Return Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         is_redshift = connection.extra_dejson.get("redshift", False)
@@ -363,11 +363,11 @@ class PostgresHook(DbApiHook):
         return f"{cluster_identifier}.{region_name}:{port}"
 
     def get_openlineage_database_dialect(self, connection) -> str:
-        """Returns postgres/redshift dialect."""
+        """Return postgres/redshift dialect."""
         return "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
 
     def get_openlineage_default_schema(self) -> str | None:
-        """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
+        """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
 
     @classmethod

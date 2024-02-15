@@ -173,7 +173,7 @@ class MySqlHook(DbApiHook):
 
     def get_conn(self) -> MySQLConnectionTypes:
         """
-        Connection to a MySQL database.
+        Get connection to a MySQL database.
 
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
@@ -268,7 +268,7 @@ class MySqlHook(DbApiHook):
         self, table: str, tmp_file: str, duplicate_key_handling: str = "IGNORE", extra_options: str = ""
     ) -> None:
         """
-        A more configurable way to load local data from a file into the database.
+        Load local data from a file into the database in a more configurable way.
 
         .. warning:: According to the mysql docs using this function is a
             `security risk <https://dev.mysql.com/doc/refman/8.0/en/load-data-local.html>`_.
@@ -299,7 +299,7 @@ class MySqlHook(DbApiHook):
         conn.close()  # type: ignore[misc]
 
     def get_openlineage_database_info(self, connection):
-        """Returns MySQL specific information for OpenLineage."""
+        """Return MySQL specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -316,7 +316,7 @@ class MySqlHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _):
-        """Returns database dialect."""
+        """Return database dialect."""
         return "mysql"
 
     def get_openlineage_default_schema(self):

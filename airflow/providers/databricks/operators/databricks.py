@@ -257,7 +257,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksCreateJobsOperator``."""
+        """Create a new ``DatabricksCreateJobsOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
