@@ -1492,6 +1492,7 @@ sshHook
 sshtunnel
 SSHTunnelForwarder
 ssl
+sslmode
 ssm
 Stackdriver
 stackdriver
@@ -1607,6 +1608,9 @@ tenantId
 Tensorboard
 tensorflow
 Teradata
+teradata
+TeradataConnection
+teradatasql
 Terraform
 testdata
 testdruid
