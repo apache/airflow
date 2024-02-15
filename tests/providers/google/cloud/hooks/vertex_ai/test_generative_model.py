@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
-    mock_base_gcp_hook_no_default_project_id,
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
@@ -50,7 +49,8 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         ):
             self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    def test_prompt_language_model(self) -> None:
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
+    def test_prompt_language_model(self, mock_model) -> None:
         self.hook.prompt_language_model(
             prompt=TEST_PROMPT,
             pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
@@ -59,21 +59,19 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             top_p=TEST_TOP_P,
             top_k=TEST_TOP_K,
         )
-        self.assert_called_once_with(TEST_GCP_CONN_ID)
-        self.return_value.prompt_language_model.assert_called_once_with(
+        mock_model.assert_called_once_with(TEST_LANGUAGE_PRETRAINED_MODEL)
+        mock_model.return_value.predict.assert_called_once_with(
             prompt=TEST_PROMPT,
-            pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
             temperature=TEST_TEMPERATURE,
             max_output_tokens=TEST_MAX_OUTPUT_TOKENS,
             top_p=TEST_TOP_P,
             top_k=TEST_TOP_K,
         )
 
-    def test_prompt_multimodal_model(self) -> None:
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    def test_prompt_multimodal_model(self, mock_model) -> None:
         self.hook.prompt_multimodal_model(
             prompt=TEST_PROMPT, pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL, chat=TEST_CHAT
         )
-        self.assert_called_once_with(TEST_GCP_CONN_ID)
-        self.return_value.prompt_language_model.assert_called_once_with(
-            prompt=TEST_PROMPT, pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL, chat=TEST_CHAT
-        )
+        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        mock_model.return_value.start_chat.assert_called_once_with()
