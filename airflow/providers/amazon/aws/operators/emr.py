@@ -503,6 +503,8 @@ class EmrContainerOperator(BaseOperator):
     :param max_tries: Deprecated - use max_polling_attempts instead.
     :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
+    :param job_retry_max_attempts: Maximum number of times to retry when the EMR job fails.
+        Defaults to None, which disable the retry.
     :param tags: The tags assigned to job runs.
         Defaults to None
     :param deferrable: Run operator in the deferrable mode.
@@ -534,6 +536,7 @@ class EmrContainerOperator(BaseOperator):
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
+        job_retry_max_attempts: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
@@ -549,6 +552,7 @@ class EmrContainerOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_polling_attempts = max_polling_attempts
+        self.job_retry_max_attempts = job_retry_max_attempts
         self.tags = tags
         self.job_id: str | None = None
         self.deferrable = deferrable
@@ -583,6 +587,7 @@ class EmrContainerOperator(BaseOperator):
             self.configuration_overrides,
             self.client_request_token,
             self.tags,
+            self.job_retry_max_attempts,
         )
         if self.deferrable:
             query_status = self.hook.check_query_status(job_id=self.job_id)
