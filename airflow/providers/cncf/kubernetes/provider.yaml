@@ -22,8 +22,9 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 state: ready
-source-date-epoch: 1705911981
+source-date-epoch: 1707637063
 versions:
+  - 8.0.0
   - 7.14.0
   - 7.13.0
   - 7.12.0
@@ -350,6 +351,15 @@ config:
         type: string
         example: ~
         default: ""
+      task_publish_max_retries:
+        description: |
+          The Maximum number of retries for queuing the task to the kubernetes scheduler when
+          failing due to Kube API exceeded quota errors before giving up and marking task as failed.
+          -1 for unlimited times.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "0"
 
 executors:
   - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

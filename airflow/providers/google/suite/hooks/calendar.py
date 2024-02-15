@@ -69,7 +69,7 @@ class GoogleCalendarHook(GoogleBaseHook):
 
     def get_conn(self) -> Any:
         """
-        Retrieves connection to Google Calendar.
+        Retrieve connection to Google Calendar.
 
         :return: Google Calendar services object.
         """
@@ -99,7 +99,7 @@ class GoogleCalendarHook(GoogleBaseHook):
         updated_min: datetime | None = None,
     ) -> list:
         """
-        Gets events from Google Calendar from a single calendar_id.
+        Get events from Google Calendar from a single calendar_id.
 
         https://developers.google.com/calendar/api/v3/reference/events/list
 

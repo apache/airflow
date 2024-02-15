@@ -65,26 +65,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-tableau
+apache-airflow-providers-tableau package
 ------------------------------------------------------
 
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 4.4.1
+Release: 4.4.2
 
 Provider package
 ----------------
 
-This is a provider package for ``tableau`` provider. All classes for this provider package
-are in ``airflow.providers.tableau`` python package.
+This package is for the ``tableau`` provider.
+All classes for this package are included in the ``airflow.providers.tableau`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-tableau``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-tableau``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

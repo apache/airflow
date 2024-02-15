@@ -42,6 +42,11 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  # Version of Python used for reproducibility of the packages built
+  # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
+  # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
+  # TODO: remove me when we switch to Python 3.9 as minimal version
+  REPRODUCIBLE_PYTHON_VERSION: "3.9"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -294,6 +299,8 @@ jobs:
       ####################################################################################################
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}

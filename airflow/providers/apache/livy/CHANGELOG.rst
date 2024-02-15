@@ -28,6 +28,14 @@
 Changelog
 ---------
 
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+
 3.7.1
 .....
 

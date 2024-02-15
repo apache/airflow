@@ -60,13 +60,6 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
     Installing from sources <installing-providers-from-sources>
 
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
@@ -78,26 +71,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-influxdb
+apache-airflow-providers-influxdb package
 ------------------------------------------------------
 
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.4.0
+Release: 2.4.1
 
 Provider package
 ----------------
 
-This is a provider package for ``influxdb`` provider. All classes for this provider package
-are in ``airflow.providers.influxdb`` python package.
+This package is for the ``influxdb`` provider.
+All classes for this package are included in the ``airflow.providers.influxdb`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-influxdb``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-influxdb``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -109,5 +102,5 @@ PIP package          Version required
 ===================  ==================
 ``apache-airflow``   ``>=2.6.0``
 ``influxdb-client``  ``>=1.19.0``
-``requests``         ``>=2.26.0``
+``requests``         ``>=2.27.0,<3``
 ===================  ==================

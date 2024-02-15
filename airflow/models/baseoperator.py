@@ -643,6 +643,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
+    :param multiple_outputs: if True and do_xcom_push is True, pushes multiple XComs, one for each
+        key in the returned dictionary result. If False and do_xcom_push is True, pushes a single XCom.
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
     :param doc: Add documentation or notes to your Task objects that is visible in
@@ -713,6 +715,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_retry_callback",
         "on_skipped_callback",
         "do_xcom_push",
+        "multiple_outputs",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -782,6 +785,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
+        multiple_outputs: bool = False,
         inlets: Any | None = None,
         outlets: Any | None = None,
         task_group: TaskGroup | None = None,
@@ -929,6 +933,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.multiple_outputs: bool = multiple_outputs
 
         self.doc_md = doc_md
         self.doc_json = doc_json

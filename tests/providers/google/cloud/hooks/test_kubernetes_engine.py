@@ -324,8 +324,8 @@ class TestGKEPodAsyncHook:
     async def test_get_pod(
         self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook, mock_service_file
     ):
-        async_hook.service_file_as_context = mock.MagicMock()
-        async_hook.service_file_as_context.return_value.__aenter__.return_value = mock_service_file
+        async_hook.service_file_as_context = mock.AsyncMock()
+        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
 
         self.make_mock_awaitable(read_namespace_pod_mock)
 
@@ -347,8 +347,8 @@ class TestGKEPodAsyncHook:
     async def test_delete_pod(
         self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook, mock_service_file
     ):
-        async_hook.service_file_as_context = mock.MagicMock()
-        async_hook.service_file_as_context.return_value.__aenter__.return_value = mock_service_file
+        async_hook.service_file_as_context = mock.AsyncMock()
+        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
 
         self.make_mock_awaitable(delete_namespaced_pod)
 
@@ -372,8 +372,8 @@ class TestGKEPodAsyncHook:
     async def test_read_logs(
         self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, mock_service_file, caplog
     ):
-        async_hook.service_file_as_context = mock.MagicMock()
-        async_hook.service_file_as_context.return_value.__aenter__.return_value = mock_service_file
+        async_hook.service_file_as_context = mock.AsyncMock()
+        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
 
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 

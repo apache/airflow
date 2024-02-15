@@ -49,7 +49,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
-        """Retrieves connection to Campaign Manager."""
+        """Retrieve connection to Campaign Manager."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -62,7 +62,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def delete_report(self, profile_id: str, report_id: str) -> Any:
         """
-        Deletes a report by its ID.
+        Delete a report by its ID.
 
         :param profile_id: The DFA user profile ID.
         :param report_id: The ID of the report.
@@ -77,7 +77,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def insert_report(self, profile_id: str, report: dict[str, Any]) -> Any:
         """
-        Creates a report.
+        Create  a report.
 
         :param profile_id: The DFA user profile ID.
         :param report: The report resource to be inserted.
@@ -99,7 +99,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         sort_order: str | None = None,
     ) -> list[dict]:
         """
-        Retrieves list of reports.
+        Retrieve  list of reports.
 
         :param profile_id: The DFA user profile ID.
         :param max_results: Maximum number of results to return.
@@ -125,7 +125,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def patch_report(self, profile_id: str, report_id: str, update_mask: dict) -> Any:
         """
-        Updates a report. This method supports patch semantics.
+        Update  a report. This method supports patch semantics.
 
         :param profile_id: The DFA user profile ID.
         :param report_id: The ID of the report.
@@ -142,7 +142,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def run_report(self, profile_id: str, report_id: str, synchronous: bool | None = None) -> Any:
         """
-        Runs a report.
+        Run a report.
 
         :param profile_id: The DFA profile ID.
         :param report_id: The ID of the report.
@@ -158,7 +158,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def update_report(self, profile_id: str, report_id: str) -> Any:
         """
-        Updates a report.
+        Update a report.
 
         :param profile_id: The DFA user profile ID.
         :param report_id: The ID of the report.
@@ -173,7 +173,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def get_report(self, file_id: str, profile_id: str, report_id: str) -> Any:
         """
-        Retrieves a report file.
+        Retrieve a report file.
 
         :param profile_id: The DFA user profile ID.
         :param report_id: The ID of the report.
@@ -190,7 +190,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def get_report_file(self, file_id: str, profile_id: str, report_id: str) -> http.HttpRequest:
         """
-        Retrieves a media part of report file.
+        Retrieve a media part of report file.
 
         :param profile_id: The DFA user profile ID.
         :param report_id: The ID of the report.
@@ -234,7 +234,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         max_failed_inserts: int = 0,
     ) -> Any:
         """
-        Inserts conversions.
+        Insert conversions.
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to insert, should by type of Conversation:
@@ -278,7 +278,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         max_failed_updates: int = 0,
     ) -> Any:
         """
-        Updates existing conversions.
+        Update existing conversions.
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to update, should by type of Conversation:

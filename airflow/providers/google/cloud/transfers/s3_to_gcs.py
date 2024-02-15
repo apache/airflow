@@ -219,7 +219,7 @@ class S3ToGCSOperator(S3ListOperator):
 
     def s3_to_gcs_object(self, s3_object: str) -> str:
         """
-        Transforms S3 path to GCS path according to the operator's logic.
+        Transform S3 path to GCS path according to the operator's logic.
 
         If apply_gcs_prefix == True then <s3_prefix><content> => <gcs_prefix><content>
         If apply_gcs_prefix == False then <s3_prefix><content> => <gcs_prefix><s3_prefix><content>
@@ -233,7 +233,7 @@ class S3ToGCSOperator(S3ListOperator):
 
     def gcs_to_s3_object(self, gcs_object: str) -> str:
         """
-        Transforms GCS path to S3 path according to the operator's logic.
+        Transform GCS path to S3 path according to the operator's logic.
 
         If apply_gcs_prefix == True then <gcs_prefix><content> => <s3_prefix><content>
         If apply_gcs_prefix == False then <gcs_prefix><s3_prefix><content> => <s3_prefix><content>
@@ -261,7 +261,7 @@ class S3ToGCSOperator(S3ListOperator):
             self.log.info("All done, uploaded %d files to Google Cloud Storage", len(s3_objects))
 
     def transfer_files_async(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> None:
-        """Submits Google Cloud Storage Transfer Service job to copy files from AWS S3 to GCS."""
+        """Submit Google Cloud Storage Transfer Service job to copy files from AWS S3 to GCS."""
         if not len(files):
             raise ValueError("List of transferring files cannot be empty")
         job_names = self.submit_transfer_jobs(files=files, gcs_hook=gcs_hook, s3_hook=s3_hook)
@@ -331,8 +331,7 @@ class S3ToGCSOperator(S3ListOperator):
         return job_names
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
