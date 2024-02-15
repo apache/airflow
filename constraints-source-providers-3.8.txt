@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-14T14:45:37.956835
+# This constraints file was automatically generated on 2024-02-15T20:54:28.171531
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -24,7 +24,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
-GitPython==3.1.41
+GitPython==3.1.42
 JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
@@ -72,7 +72,7 @@ analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.2.0
-apache-beam==2.53.0
+apache-beam==2.54.0
 apispec==6.4.0
 apprise==1.7.2
 argcomplete==3.2.2
@@ -86,7 +86,7 @@ asyncssh==2.14.2
 atlasclient==1.0.0
 atlassian-python-api==3.41.10
 attrs==23.2.0
-aws-sam-translator==1.84.0
+aws-sam-translator==1.85.0
 aws-xray-sdk==2.12.1
 azure-batch==14.1.0
 azure-common==1.1.28
@@ -203,12 +203,12 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==23.0.0
 google-analytics-admin==0.22.5
-google-api-core==2.17.0
+google-api-core==2.17.1
 google-api-python-client==2.118.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
-google-auth==2.27.0
-google-cloud-aiplatform==1.41.0
+google-auth==2.28.0
+google-cloud-aiplatform==1.42.0
 google-cloud-appengine-logging==1.4.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.1
@@ -321,7 +321,7 @@ kubernetes_asyncio==29.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
-limits==3.7.0
+limits==3.8.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
@@ -363,7 +363,7 @@ nh3==0.2.15
 nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
-objsize==0.6.1
+objsize==0.7.0
 openai==1.12.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
@@ -403,7 +403,7 @@ pgvector==0.2.5
 pickleshare==0.7.5
 pinecone-client==2.2.4
 pinotdb==5.1.2
-pipdeptree==2.13.2
+pipdeptree==2.14.0
 pipx==1.4.3
 pkginfo==1.9.6
 pkgutil_resolve_name==1.3.10
@@ -416,7 +416,7 @@ pprintpp==0.4.0
 pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus-client==0.19.0
+prometheus_client==0.20.0
 prompt-toolkit==3.0.43
 proto-plus==1.23.0
 protobuf==4.25.2
@@ -557,6 +557,8 @@ sympy==1.12
 tableauserverclient==0.25
 tabulate==0.9.0
 tenacity==8.2.3
+teradatasql==20.0.0.7
+teradatasqlalchemy==17.20.0.0
 termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
@@ -588,7 +590,7 @@ types-python-slugify==8.0.2.20240127
 types-pytz==2024.1.0.20240203
 types-redis==4.6.0.20240106
 types-requests==2.31.0.6
-types-setuptools==69.0.0.20240125
+types-setuptools==69.1.0.20240215
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
@@ -613,7 +615,7 @@ websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
-yamllint==1.34.0
+yamllint==1.35.0
 yandexcloud==0.259.0
 yarl==1.9.4
 zeep==4.2.1
