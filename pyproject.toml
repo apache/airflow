@@ -1299,9 +1299,6 @@ extend-select = [
     "D2",
     "D3",
     "D400",
-    # We add modules that do not follow the rule `First line should be in imperative mood`
-    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
-    # See: https://github.com/apache/airflow/issues/10742
     "D401",
     "D402",
     "D403",
