@@ -41,6 +41,10 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
     Executes sql code using Yandex Query service.
 
     :param sql: the SQL code to be executed as a single string
+    :param name: name of the query in YandexQuery
+    :param folder_id: cloud folder id where to create query
+    :param connection_id: Airflow connection ID to get parameters from
+    :param folder_id: cloud folder id where to create query
     """
 
     operator_extra_links = (YQLink(),)
@@ -53,7 +57,6 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         self,
         *,
         name: str | None = None,
-        description: str | None = None,
         folder_id: str | None = None,
         connection_id: str | None = None,
         public_ssh_key: str | None = None,
@@ -63,7 +66,6 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.name = name
-        self.description = description
         self.deferrable = deferrable
         self.folder_id = folder_id
         self.connection_id = connection_id
@@ -71,7 +73,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         self.service_account_id = service_account_id
 
         self.hook: YQHook | None = None
-        self.query_id: str | None
+        self.query_id: str | None = None
 
     def execute(self, context: Context) -> Any:
         self.hook = YQHook(
@@ -83,8 +85,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
 
         self.query_id = self.hook.create_query(
             query_text=self.sql,
-            name=self.name,
-            description=self.description
+            name=self.name
         )
 
         # pass to YQLink

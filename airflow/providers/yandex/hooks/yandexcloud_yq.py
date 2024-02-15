@@ -62,25 +62,27 @@ class YQHook(YandexCloudBaseHook):
         self.client: YQHttpClient = YQHttpClient(config=config)
 
     def close(self):
+        """Release all resources"""
         self.client.close()
 
-    def create_query(self, query_text: str|None, name: str|None=None, description: str | None = None) -> str:
+    def create_query(self, query_text: str | None, name: str | None = None) -> str:
+        """Create and run query.
+        
+        :param query_text: SQL text.
+        :param name: name for the query
+        """
+
         return self.client.create_query(
             name=name,
             query_text=query_text,
-            description=description
         )
 
-    def stop_query(self, query_id: str) -> None:
-        self.client.stop_query(query_id)
-
-    def get_query(self, query_id: str) -> Any:
-        return self.client.get_query(query_id)
-
-    def get_query_status(self, query_id: str) -> str:
-        return self.client.get_query_status(query_id)
-
     def wait_results(self, query_id: str, execution_timeout: timedelta = timedelta(minutes=30)) -> Any:
+        """Wait for query complete and get results
+        
+        :param query_id: ID of query.
+        :param execution_timeout: how long to wait for the query to complete.
+        """
         result_set_count = self.client.wait_query_to_succeed(
             query_id,
             execution_timeout=execution_timeout,
@@ -89,6 +91,34 @@ class YQHook(YandexCloudBaseHook):
 
         return self.client.get_query_all_result_sets(query_id=query_id, result_set_count=result_set_count)
 
+    def stop_query(self, query_id: str) -> None:
+        """Stop the query.
+        
+        :param query_id: ID of the query.
+        """
+        self.client.stop_query(query_id)
+
+    def get_query(self, query_id: str) -> Any:
+        """Get query info.
+        
+        :param query_id: ID of the query.
+        """
+        return self.client.get_query(query_id)
+
+    def get_query_status(self, query_id: str) -> str:
+        """Get status fo the query.
+        
+        :param query_id: ID of query.
+        """
+        return self.client.get_query_status(query_id)
+
+    def compose_query_web_link(self, query_id: str):
+        """Compose web link to query in Yandex Query UI
+        
+        :param query_id: ID of query.
+        """
+        return self.client.compose_query_web_link(query_id)
+
     def _get_iam_token(self) -> str:
         if "token" in self.credentials:
             return self.credentials["token"]
@@ -96,12 +126,9 @@ class YQHook(YandexCloudBaseHook):
             return YQHook._resolve_service_account_key(self.credentials["service_account_key"])
         raise AirflowException(f"Unknown credentials type, available keys {self.credentials.keys()}")
 
-    def compose_query_web_link(self, query_id:str):
-        return self.client.compose_query_web_link(query_id)
-    
     @staticmethod
-    def _resolve_service_account_key(sa_info) -> str:
-        with YQHook.create_session() as session:
+    def _resolve_service_account_key(sa_info: dict) -> str:
+        with YQHook._create_session() as session:
             api = 'https://iam.api.cloud.yandex.net/iam/v1/tokens'
             now = int(time.time())
             payload = {
@@ -125,7 +152,7 @@ class YQHook(YandexCloudBaseHook):
             return iam_response.json()["iamToken"]
 
     @staticmethod
-    def create_session() -> requests.Session:
+    def _create_session() -> requests.Session:
         session = requests.Session()
         session.verify = False
         session.timeout = 20

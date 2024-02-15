@@ -51,7 +51,7 @@ class TestYandexCloudYqHook:
             match=[
                 matchers.header_matcher({"Content-Type": "application/json", "Authorization": "Bearer super_token"}),
                 matchers.query_param_matcher({"project": "my_folder_id"}),
-                matchers.json_params_matcher({"description": "my desc", "name": "my query", "text": "select 777"})
+                matchers.json_params_matcher({"name": "my query", "text": "select 777"})
             ],
             json={"id": "query1"},
             status=200,
@@ -82,7 +82,7 @@ class TestYandexCloudYqHook:
         )
 
     def _create_test_query(self):
-        query_id = self.hook.create_query(query_text="select 777", name="my query", description="my desc")
+        query_id = self.hook.create_query(query_text="select 777", name="my query")
         assert query_id == "query1"
         return query_id
     
