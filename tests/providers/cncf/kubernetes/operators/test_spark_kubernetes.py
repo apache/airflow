@@ -496,6 +496,7 @@ class TestSparkKubernetesOperator:
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
         job_spec["kubernetes"]["tolerations"] = [toleration]
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
         assert op.launcher.body["spec"]["driver"]["tolerations"] == [toleration]
         assert op.launcher.body["spec"]["executor"]["tolerations"] == [toleration]
 
