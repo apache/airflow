@@ -59,7 +59,8 @@ class TestYQExecuteQueryOperator:
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
                 matchers.header_matcher({"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}),
-                matchers.query_param_matcher({"project": FOLDER_ID})
+                matchers.query_param_matcher({"project": FOLDER_ID}),
+                matchers.json_params_matcher({"text": "select 987"})
             ],
             json={"id": "query1"},
             status=200,

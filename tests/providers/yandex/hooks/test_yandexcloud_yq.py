@@ -50,7 +50,8 @@ class TestYandexCloudYqHook:
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
                 matchers.header_matcher({"Content-Type": "application/json", "Authorization": "Bearer super_token"}),
-                matchers.query_param_matcher({"project": "my_folder_id"})
+                matchers.query_param_matcher({"project": "my_folder_id"}),
+                matchers.json_params_matcher({"description": "my desc", "name": "my query", "text": "select 777"})
             ],
             json={"id": "query1"},
             status=200,
@@ -80,6 +81,11 @@ class TestYandexCloudYqHook:
             status=200,
         )
 
+    def _create_test_query(self):
+        query_id = self.hook.create_query(query_text="select 777", name="my query", description="my desc")
+        assert query_id == "query1"
+        return query_id
+    
     @responses.activate()
     def test_oauth_token_usage(self):
         responses.post(
@@ -94,8 +100,7 @@ class TestYandexCloudYqHook:
 
         self.connection = Connection(extra={"oauth": OAUTH_TOKEN})
         self._init_hook()
-        query_id = self.hook.create_query(query_text="select 777")
-        assert query_id == "query1"
+        self._create_test_query()
 
     @responses.activate()
     @mock.patch("jwt.encode")
@@ -103,8 +108,7 @@ class TestYandexCloudYqHook:
         self.setup_mocks_for_query_execution(mock_jwt, {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]})
 
         self._init_hook()
-        query_id = self.hook.create_query(query_text="select 777", name="my query", description="my desc")
-        assert query_id == "query1"
+        query_id = self._create_test_query()
 
         assert self.hook.compose_query_web_link(query_id) == "https://yq.cloud.yandex.ru/folders/my_folder_id/ide/queries/query1"
 
@@ -137,8 +141,7 @@ class TestYandexCloudYqHook:
         )
 
         self._init_hook()
-        query_id = self.hook.create_query(query_text="complex_query1", name="my query", description="my desc")
-        assert query_id == "query1"
+        query_id = self._create_test_query()
 
         results = self.hook.wait_results(query_id)
         assert results == {
@@ -171,8 +174,7 @@ class TestYandexCloudYqHook:
         )
 
         self._init_hook()
-        query_id = self.hook.create_query(query_text="complex_query1", name="my query", description="my desc")
-        assert query_id == "query1"
+        query_id = self._create_test_query()
 
         results = self.hook.wait_results(query_id)
         assert results == {

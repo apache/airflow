@@ -17,8 +17,7 @@
 from __future__ import annotations
 from requests.packages.urllib3.util.retry import Retry
 
-from datetime import timedelta, datetime
-from enum import Enum
+from datetime import timedelta
 import logging
 import requests
 import time
@@ -45,9 +44,6 @@ from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
 from .http_client import YQHttpClientConfig, YQHttpClient
 
-class QueryType(Enum):
-    ANALYTICS = 1
-    STREAMING = 2
 
 class YQHook(YandexCloudBaseHook):
     """
@@ -68,12 +64,9 @@ class YQHook(YandexCloudBaseHook):
     def close(self):
         self.client.close()
 
-    def create_query(self, query_text: str|None, name: str|None=None, description: str | None = None, query_type: QueryType = QueryType.ANALYTICS) -> str:
-        t = "ANALYTICS" if query_type == QueryType.ANALYTICS else "STREAMING"
-        
+    def create_query(self, query_text: str|None, name: str|None=None, description: str | None = None) -> str:
         return self.client.create_query(
             name=name,
-            query_type=t,
             query_text=query_text,
             description=description
         )
@@ -87,10 +80,10 @@ class YQHook(YandexCloudBaseHook):
     def get_query_status(self, query_id: str) -> str:
         return self.client.get_query_status(query_id)
 
-    def wait_results(self, query_id: str) -> Any:
+    def wait_results(self, query_id: str, execution_timeout: timedelta = timedelta(minutes=30)) -> Any:
         result_set_count = self.client.wait_query_to_succeed(
             query_id,
-            execution_timeout=timedelta(minutes=30),
+            execution_timeout=execution_timeout,
             stop_on_timeout=True
         )
 

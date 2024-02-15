@@ -87,6 +87,9 @@ class YQHttpClient(object):
     def __exit__(self, *args):
         self.session.close()
 
+    def close(self):
+        self.session.close()
+
     def _build_headers(self, idempotency_key=None, request_id=None) -> dict[str, str]:
         headers = {
             "Authorization": f"{self.config.token_prefix}{self.config.token}"
@@ -116,7 +119,7 @@ class YQHttpClient(object):
         return self.config.web_base_url + path
 
     def _validate_http_error(self, response, expected_code=200) -> None:
-        logging.info(f"Response: {response.status_code}, {response.text}")
+        logging.debug("Response: %s, %s", response.status_code, response.text)
         if response.status_code != expected_code:
             if response.headers.get("Content-Type", "").startswith("application/json"):
                 body = response.json()

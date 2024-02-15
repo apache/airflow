@@ -16,15 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Sequence, Any
-from datetime import timedelta
 from airflow.configuration import conf
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook, QueryType
+from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -54,7 +52,6 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
     def __init__(
         self,
         *,
-        type: QueryType = QueryType.ANALYTICS,
         name: str | None = None,
         description: str | None = None,
         folder_id: str | None = None,
@@ -67,7 +64,6 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         super().__init__(**kwargs)
         self.name = name
         self.description = description
-        self.type = type
         self.deferrable = deferrable
         self.folder_id = folder_id
         self.connection_id = connection_id
@@ -86,7 +82,6 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         )
 
         self.query_id = self.hook.create_query(
-            query_type=self.type,
             query_text=self.sql,
             name=self.name,
             description=self.description
