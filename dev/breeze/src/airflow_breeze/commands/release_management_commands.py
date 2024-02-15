@@ -23,14 +23,16 @@ import random
 import re
 import shutil
 import sys
+import tempfile
 import textwrap
 import time
+import venv
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Iterator, Literal, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -288,6 +290,34 @@ AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile
 AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
 
 
+class DistributionPackageInfo(NamedTuple):
+    filepath: Path
+    package: str
+    version: Version
+    dist_type: Literal["sdist", "wheel"]
+
+    @classmethod
+    def from_sdist(cls, filepath: Path) -> DistributionPackageInfo:
+        from packaging.utils import parse_sdist_filename
+
+        package, version = parse_sdist_filename(filepath.name)
+        return cls(
+            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="sdist"
+        )
+
+    @classmethod
+    def from_wheel(cls, filepath: Path) -> DistributionPackageInfo:
+        from packaging.utils import parse_wheel_filename
+
+        package, version, *_ = parse_wheel_filename(filepath.name)
+        return cls(
+            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="wheel"
+        )
+
+    def __str__(self):
+        return f"{self.filepath.name}: {self.dist_type} {self.package} {self.version}"
+
+
 def _build_local_build_image():
     # This is security feature.
     #
@@ -374,6 +404,58 @@ def _build_airflow_packages_with_hatch(
     )
 
 
+def _dist_packages(
+    *, package_format: str, build_type: Literal["airflow", "providers"]
+) -> Iterator[DistributionPackageInfo]:
+    if build_type == "airflow":
+        default_glob_pattern = "apache[_-]airflow-[0-9]"
+    else:
+        default_glob_pattern = "apache[_-]airflow[_-]providers"
+
+    if package_format in ["sdist", "both"]:
+        for file in DIST_DIR.glob(f"{default_glob_pattern}*tar.gz"):
+            if not file.is_file():
+                continue
+            yield DistributionPackageInfo.from_sdist(filepath=file)
+    if package_format in ["wheel", "both"]:
+        for file in DIST_DIR.glob(f"{default_glob_pattern}*whl"):
+            if not file.is_file():
+                continue
+            yield DistributionPackageInfo.from_wheel(filepath=file)
+
+
+def _check_sdist_to_wheel(dist_info: DistributionPackageInfo):
+    if dist_info.dist_type != "sdist":
+        return
+
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        venv_path = Path(tmp_dir_name) / ".venv"
+        venv.EnvBuilder(with_pip=True).create(venv_path)
+        python_path = venv_path / "bin" / "python"
+        if not python_path.exists():
+            msg = f"Python interpreter is not exist in path {python_path}"
+            raise FileNotFoundError(msg)
+        pip_command = (python_path.__fspath__(), "-m", "pip")
+        run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}", "-U"], check=True)
+        run_command(
+            [
+                *pip_command,
+                "wheel",
+                "--wheel-dir",
+                str(tmp_dir_name),
+                "--no-deps",
+                "--no-cache",
+                "--no-binary",
+                dist_info.package,
+                dist_info.filepath.__fspath__(),
+            ],
+            check=True,
+            # We should run `pip wheel` outside of Project directory for avoid the case
+            # when some files presented into the project directory, but not included in sdist.
+            cwd=str(tmp_dir_name),
+        )
+
+
 @release_management.command(
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
@@ -406,8 +488,19 @@ def prepare_airflow_packages(
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages:")
-    for file in sorted(DIST_DIR.glob("apache_airflow*")):
-        get_console().print(file.name)
+    packages = tuple(_dist_packages(package_format=package_format, build_type="airflow"))
+    for dist_info in packages:
+        get_console().print(str(dist_info))
+    get_console().print()
+    if package_format == "wheel":
+        return
+
+    for dist_info in packages:
+        if dist_info.dist_type == "sdist":
+            get_console().print(
+                f"[info]Validate build wheel from sdist distribution: {dist_info.filepath.name!r}[/]"
+            )
+            _check_sdist_to_wheel(dist_info)
     get_console().print()
 
 
@@ -711,8 +804,8 @@ def prepare_provider_packages(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     get_console().print("\n[info]Packages available in dist:\n")
-    for file in sorted(DIST_DIR.glob("apache*")):
-        get_console().print(file.name)
+    for dist_info in _dist_packages(package_format=package_format, build_type="providers"):
+        get_console().print(str(dist_info))
     get_console().print()
 
 
