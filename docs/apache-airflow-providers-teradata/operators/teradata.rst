@@ -35,6 +35,7 @@ An example usage of the TeradataOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/teradata/example_teradata.py
     :language: python
+    :dedent: 4
     :start-after: [START teradata_operator_howto_guide_create_table]
     :end-before: [END teradata_operator_howto_guide_create_table]
 
