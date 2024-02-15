@@ -18,15 +18,25 @@ from __future__ import annotations
 
 import argparse
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence, cast
 
 from flask import session, url_for
 
+from airflow.auth.managers.models.resource_details import (
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
-from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
+from airflow.providers.amazon.aws.auth_manager.avp.facade import (
+    AwsAuthManagerAmazonVerifiedPermissionsFacade,
+    IsAuthorizedRequest,
+)
 from airflow.providers.amazon.aws.auth_manager.cli.definition import (
     AWS_AUTH_MANAGER_COMMANDS,
 )
@@ -47,15 +57,16 @@ except ImportError:
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
+        IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
+    )
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         ConfigurationDetails,
-        ConnectionDetails,
-        DagAccessEntity,
-        DagDetails,
         DatasetDetails,
-        PoolDetails,
-        VariableDetails,
     )
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
@@ -190,6 +201,93 @@ class AwsAuthManager(BaseAuthManager):
             user=user or self.get_user(),
             entity_id=access_view.value,
         )
+
+    def batch_is_authorized_connection(
+        self,
+        requests: Sequence[IsAuthorizedConnectionRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_connection``.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
+        """
+        facade_requests: Sequence[IsAuthorizedRequest] = [
+            {
+                "method": request["method"],
+                "entity_type": AvpEntities.CONNECTION,
+                "entity_id": cast(ConnectionDetails, request["details"]).conn_id
+                if request.get("details")
+                else None,
+            }
+            for request in requests
+        ]
+        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+
+    def batch_is_authorized_dag(
+        self,
+        requests: Sequence[IsAuthorizedDagRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_dag``.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_dag``
+        """
+        facade_requests: Sequence[IsAuthorizedRequest] = [
+            {
+                "method": request["method"],
+                "entity_type": AvpEntities.DAG,
+                "entity_id": cast(DagDetails, request["details"]).id if request.get("details") else None,
+                "context": {
+                    "dag_entity": {
+                        "string": cast(DagAccessEntity, request["access_entity"]).value,
+                    },
+                }
+                if request.get("access_entity")
+                else None,
+            }
+            for request in requests
+        ]
+        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+
+    def batch_is_authorized_pool(
+        self,
+        requests: Sequence[IsAuthorizedPoolRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_pool``.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_pool``
+        """
+        facade_requests: Sequence[IsAuthorizedRequest] = [
+            {
+                "method": request["method"],
+                "entity_type": AvpEntities.POOL,
+                "entity_id": cast(PoolDetails, request["details"]).name if request.get("details") else None,
+            }
+            for request in requests
+        ]
+        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
+
+    def batch_is_authorized_variable(
+        self,
+        requests: Sequence[IsAuthorizedVariableRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_variable``.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_variable``
+        """
+        facade_requests: Sequence[IsAuthorizedRequest] = [
+            {
+                "method": request["method"],
+                "entity_type": AvpEntities.VARIABLE,
+                "entity_id": cast(VariableDetails, request["details"]).key
+                if request.get("details")
+                else None,
+            }
+            for request in requests
+        ]
+        return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
 
     def get_url_login(self, **kwargs) -> str:
         return url_for("AwsAuthManagerAuthenticationViews.login")

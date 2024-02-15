@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence, TypedDict
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -35,6 +35,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+
+
+class IsAuthorizedRequest(TypedDict, total=False):
+    """Represent the parameters of ``is_authorized`` method in AVP facade."""
+
+    method: ResourceMethod
+    entity_type: AvpEntities
+    entity_id: str | None
+    context: dict | None
 
 
 class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
@@ -115,6 +124,63 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             raise AirflowException("Error occurred while making an authorization decision.")
 
         return resp["decision"] == "ALLOW"
+
+    def batch_is_authorized(
+        self,
+        *,
+        requests: Sequence[IsAuthorizedRequest],
+        user: AwsAuthManagerUser | None,
+    ) -> bool:
+        """
+        Make a batch authorization decision against Amazon Verified Permissions.
+
+        Check whether the user has permissions to access given resources.
+
+        :param requests: the list of requests containing the method, the entity_type and the entity ID
+        :param user: the user
+        """
+        if user is None:
+            return False
+
+        entity_list = self._get_user_role_entities(user)
+
+        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
+
+        avp_requests = [
+            prune_dict(
+                {
+                    "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                    "action": {
+                        "actionType": get_entity_type(AvpEntities.ACTION),
+                        "actionId": get_action_id(request["entity_type"], request["method"]),
+                    },
+                    "resource": {
+                        "entityType": get_entity_type(request["entity_type"]),
+                        "entityId": request.get("entity_id", "*"),
+                    },
+                    "context": self._build_context(request.get("context")),
+                }
+            )
+            for request in requests
+        ]
+
+        resp = self.avp_client.batch_is_authorized(
+            policyStoreId=self.avp_policy_store_id,
+            requests=avp_requests,
+            entities={"entityList": entity_list},
+        )
+
+        self.log.debug("Authorization response: %s", resp)
+
+        has_errors = any(len(result.get("errors", [])) > 0 for result in resp["results"])
+
+        if has_errors:
+            self.log.error(
+                "Error occurred while making a batch authorization decision. Result: %s", resp["results"]
+            )
+            raise AirflowException("Error occurred while making a batch authorization decision.")
+
+        return all(result["decision"] == "ALLOW" for result in resp["results"])
 
     @staticmethod
     def _get_user_role_entities(user: AwsAuthManagerUser) -> list[dict]:
