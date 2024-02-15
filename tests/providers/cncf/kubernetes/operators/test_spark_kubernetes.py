@@ -172,6 +172,7 @@ def create_context(task):
     }
 
 
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.on_kill")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -218,6 +219,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "default_yaml"
         mock_create_job_name.return_value = task_name
@@ -228,6 +230,7 @@ class TestSparkKubernetesOperator:
         )
         context = create_context(op)
         op.execute(context)
+        mock_on_kill.assert_called_once()
         TEST_APPLICATION_DICT["metadata"]["name"] = task_name
         mock_create_namespaced_crd.assert_called_with(
             body=TEST_APPLICATION_DICT,
@@ -265,6 +268,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "default_yaml_template"
         mock_create_job_name.return_value = task_name
@@ -294,6 +298,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "default_yaml_template"
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
@@ -318,6 +323,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "default_env"
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
@@ -360,6 +366,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "default_volume"
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
@@ -404,6 +411,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "test_pull_secret"
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
@@ -423,6 +431,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         task_name = "test_affinity"
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
@@ -475,6 +484,7 @@ class TestSparkKubernetesOperator:
         mock_create_pod,
         mock_await_pod_start,
         mock_await_pod_completion,
+        mock_on_kill,
     ):
         toleration = k8s.V1Toleration(
             key="dedicated",
@@ -486,7 +496,6 @@ class TestSparkKubernetesOperator:
         job_spec = yaml.safe_load(open(join(Path(__file__).parent, "spark_application_template.yaml")))
         job_spec["kubernetes"]["tolerations"] = [toleration]
         op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
-
         assert op.launcher.body["spec"]["driver"]["tolerations"] == [toleration]
         assert op.launcher.body["spec"]["executor"]["tolerations"] == [toleration]
 

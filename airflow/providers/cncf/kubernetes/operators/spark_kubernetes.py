@@ -64,6 +64,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param override_existing: whether to delete the spark-app with same name or not
     """
 
     template_fields = ["application_file", "namespace", "template_spec"]
@@ -88,6 +89,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         reattach_on_restart: bool = True,
         delete_on_termination: bool = True,
         kubernetes_conn_id: str = "kubernetes_default",
+        override_existing: bool = True,
         **kwargs,
     ) -> None:
         if kwargs.get("xcom_push") is not None:
@@ -107,6 +109,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
+        self.override_existing = override_existing
 
     def _render_nested_template_fields(
         self,
@@ -255,6 +258,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def execute(self, context: Context):
         self.log.info("Creating sparkApplication.")
+        if self.override_existing:
+            self.on_kill()
         self.launcher = CustomObjectLauncher(
             name=self.name,
             namespace=self.namespace,
