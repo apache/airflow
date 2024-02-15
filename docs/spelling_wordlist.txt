@@ -860,6 +860,7 @@ jobflow
 jobId
 jobName
 JobRunning
+JobSpec
 JobStatus
 jobtracker
 JobTrigger
@@ -970,6 +971,7 @@ mailto
 makedirs
 makedsn
 Makefile
+manualSelector
 mapred
 Mapreduce
 mapreduce
@@ -1648,6 +1650,7 @@ truthy
 tsql
 tsv
 ttl
+ttlSecondsAfterFinished
 TTY
 Tunables
 tunables
