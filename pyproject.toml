@@ -941,6 +941,11 @@ tabular = [ # source: airflow/providers/tabular/provider.yaml
 telegram = [ # source: airflow/providers/telegram/provider.yaml
   "python-telegram-bot>=20.2",
 ]
+teradata = [ # source: airflow/providers/teradata/provider.yaml
+  "apache-airflow[common_sql]",
+  "teradatasql>=17.20.0.28",
+  "teradatasqlalchemy>=17.20.0.0",
+]
 trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
   "pandas>=1.2.5",
@@ -1070,6 +1075,7 @@ all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
@@ -1170,6 +1176,7 @@ devel-all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
