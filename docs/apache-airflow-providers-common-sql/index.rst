@@ -46,6 +46,7 @@ Supported Database Types
     :caption: References
 
     Python API <_api/airflow/providers/common/sql/index>
+    Supported Database Types </supported-database-types>
 
 .. toctree::
     :hidden:
