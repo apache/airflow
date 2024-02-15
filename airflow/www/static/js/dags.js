@@ -126,18 +126,74 @@ $(".typeahead").typeahead({
       success: callback,
     });
   },
-  displayText(value) {
-    return value.dag_display_name || value.name;
+  matcher(item) {
+    const it = this.displayText(item);
+    const query = this.query.toLowerCase();
+    const queryValue = query.replace(/^([a-z]+:\s*)/i, "");
+
+    return it.toLowerCase().indexOf(queryValue) !== -1;
+  },
+  displayText(item) {
+    if (typeof item !== "undefined" && typeof item.name !== "undefined") {
+      if (item.type === "task") {
+        return `${item.type}: ${item.name} <i>in ${item.dag_id}</i>`;
+      }
+      return `${item.type}: ${item.name}`;
+    }
+    return item.dag_display_name || item.name;
+  },
+  sorter(items) {
+    const beginswith = [];
+    const caseSensitive = [];
+    const caseInsensitive = [];
+    let item;
+    let { query } = this;
+    query = query.replace(/^([a-z]+:\s*)/i, "");
+
+    while (items.length) {
+      item = items.shift();
+      if (!item.name.toLowerCase().indexOf(query.toLowerCase())) {
+        beginswith.push(item);
+      } else if (item.name.indexOf(query) !== -1) {
+        caseSensitive.push(item);
+      } else {
+        caseInsensitive.push(item);
+      }
+    }
+
+    return beginswith.concat(caseSensitive, caseInsensitive);
+  },
+  highlighter(displayText, item) {
+    let { query } = this;
+    query = query.replace(/^([a-z]+:\s*)/i, "");
+
+    if (query === "") {
+      return displayText;
+    }
+
+    let { name } = item;
+    query = query.replace(/[()/.*+?[\]]/g, (mat) => `\\${mat}`);
+    const reg = new RegExp(query, "gi");
+    name = name.replace(name, name.replace(reg, "<strong>$&</strong>"));
+    return displayText.replace(item.name, name);
   },
   autoSelect: false,
   afterSelect(value) {
     const query = new URLSearchParams(window.location.search);
-    query.set("search", value.name);
     if (value.type === "owner") {
+      query.set("search", value.name);
       window.location = `${DAGS_INDEX}?${query}`;
     }
     if (value.type === "dag") {
+      query.set("search", value.name);
       window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
+    }
+    if (value.type === "task") {
+      query.set("search", value.dag_id);
+      window.location = `${gridUrl.replace(
+        "__DAG_ID__",
+        value.dag_id
+      )}?${query}`;
     }
   },
 });

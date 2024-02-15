@@ -247,9 +247,46 @@ def test_index_failure(dag_test_client):
     check_content_not_in_response("example_subdag_operator", resp)
 
 
-def test_dag_autocomplete_success(client_all_dags):
+@pytest.mark.parametrize(
+    "query, expected",
+    [
+        (
+            "flow",
+            [
+                {"name": "airflow", "type": "owner"},
+                {"name": "example_dynamic_task_mapping_with_no_taskflow_operators", "type": "dag"},
+                {"name": "example_setup_teardown_taskflow", "type": "dag"},
+                {"name": "test_mapped_taskflow", "type": "dag"},
+                {"name": "tutorial_taskflow_api", "type": "dag"},
+                {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
+            ],
+        ),
+        (
+            "task: child_",
+            [
+                {
+                    "dag_id": "example_external_task_marker_child",
+                    "name": "child_task1",
+                    "type": "task",
+                },
+                {
+                    "dag_id": "example_external_task_marker_child",
+                    "name": "child_task2",
+                    "type": "task",
+                },
+                {
+                    "dag_id": "example_external_task_marker_child",
+                    "name": "child_task3",
+                    "type": "task",
+                },
+            ],
+        ),
+    ],
+    ids=["dag: flow", "task: child_"],
+)
+def test_dag_autocomplete_success(client_all_dags, query: str, expected: dict):
     resp = client_all_dags.get(
-        "dagmodel/autocomplete?query=flow",
+        f"dagmodel/autocomplete?query={query}",
         follow_redirects=False,
     )
     expected = [
@@ -274,8 +311,11 @@ def test_dag_autocomplete_success(client_all_dags):
         (None, []),
         ("", []),
         ("no-found", []),
+        ("task:", []),
+        ("task: ", []),
+        ("task: no-found", []),
     ],
-    ids=["none", "empty", "not-found"],
+    ids=["none", "empty", "not-found", "task: empty", "task: empty", "task not-found"],
 )
 def test_dag_autocomplete_empty(client_all_dags, query, expected):
     url = "dagmodel/autocomplete"
