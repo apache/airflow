@@ -62,7 +62,6 @@ For example:
 
    export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@server.com:1433/database_name'
 
-..
 If serializing with JSON:
 
 .. code-block:: bash
