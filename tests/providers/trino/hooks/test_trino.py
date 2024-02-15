@@ -227,7 +227,7 @@ class TestTrinoHookConn:
             ("False", False),
             ("false", False),
             ("true", True),
-            ("true", True),
+            ("True", True),
             ("/tmp/cert.crt", "/tmp/cert.crt"),
         ],
     )

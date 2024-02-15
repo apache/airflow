@@ -889,21 +889,44 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 )
             return False
 
+    @property
+    def _external_airflow_version_script(self):
+        """
+        Return python script which determines the version of the Apache Airflow.
+
+        Import airflow as a module might take a while as a result,
+        obtaining a version would take up to 1 second.
+        On the other hand, `importlib.metadata.version` will retrieve the package version pretty fast
+        something below 100ms; this includes new subprocess overhead.
+
+        Possible side effect: it might be a situation that backport package is not available
+        in Python 3.8 and below, which indicates that venv doesn't contain an `apache-airflow`
+        or something wrong with the environment.
+        """
+        return textwrap.dedent(
+            """
+            import sys
+            if sys.version_info >= (3, 9):
+                from importlib.metadata import version
+            else:
+                from importlib_metadata import version
+            print(version("apache-airflow"))
+            """
+        )
+
     def _get_airflow_version_from_target_env(self) -> str | None:
         from airflow import __version__ as airflow_version
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                [self.python, "-c", self._external_airflow_version_script],
                 text=True,
-                # Avoid Airflow logs polluting stdout.
-                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
                 raise AirflowConfigException(
-                    f"The version of Airflow installed for the {self.python}("
-                    f"{target_airflow_version}) is different than the runtime Airflow version: "
+                    f"The version of Airflow installed for the {self.python} "
+                    f"({target_airflow_version}) is different than the runtime Airflow version: "
                     f"{airflow_version}. Make sure your environment has the same Airflow version "
                     f"installed as the Airflow runtime."
                 )

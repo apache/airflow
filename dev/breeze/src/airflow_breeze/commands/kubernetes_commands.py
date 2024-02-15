@@ -46,6 +46,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
+from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
@@ -1223,30 +1224,53 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
     if not k9s_editor:
         env["K9S_EDITOR"] = env["EDITOR"]
     kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-    result = run_command(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-it",
-            "--network",
-            "host",
-            "-e",
-            "EDITOR",
-            "-e",
-            "K9S_EDITOR",
-            "-v",
-            f"{kubeconfig_file}:/root/.kube/config",
-            "quay.io/derailed/k9s",
-            "--namespace",
-            HELM_AIRFLOW_NAMESPACE,
-            *k9s_args,
-        ],
-        env=env,
-        check=False,
-    )
-    if result.returncode != 0:
-        sys.exit(result.returncode)
+    # Until https://github.com/kubernetes-sigs/kind/pull/3511 is merged and released, running AMD images
+    # on ARM is broken with kind cluster running, so we need to run k9s directly on the host
+    arch, _ = get_host_architecture()
+    if arch != Architecture.ARM:
+        result = run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-it",
+                "--network",
+                "host",
+                "-e",
+                "EDITOR",
+                "-e",
+                "K9S_EDITOR",
+                "-v",
+                f"{kubeconfig_file}:/root/.kube/config",
+                "derailed/k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+    else:
+        if shutil.which("k9s") is None:
+            get_console().print(
+                "[error]k9s is not installed. Please install it first "
+                "(for example with `brew install k9s`)."
+            )
+            sys.exit(1)
+        result = run_command(
+            [
+                "k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            sys.exit(result.returncode)
 
 
 def _logs(python: str, kubernetes_version: str):

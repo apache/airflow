@@ -43,3 +43,14 @@ def get_python_version_list(python_versions: str) -> list[str]:
         )
         sys.exit(1)
     return python_version_list
+
+
+def check_python_3_9_or_above():
+    if not sys.version_info >= (3, 9):
+        get_console().print("[error]Python 3.9 or later is required to prepare reproducible archives.\n")
+        get_console().print(
+            "[warning]Please reinstall Breeze in Python3.9+ environment. For example:[/]\n\n"
+            "pipx uninstall apache-airflow-breeze\n\n"
+            "pipx install --python $(which python3.9) -e ./dev/breeze --force\n"
+        )
+        sys.exit(1)

@@ -158,7 +158,7 @@ const DatasetsList = ({ onSelect }: Props) => {
           to learn how to create a dataset.
         </Text>
       )}
-      <Flex>
+      <Flex wrap="wrap">
         <Text mr={2}>Filter datasets with updates in the past:</Text>
         <ButtonGroup size="sm" isAttached variant="outline">
           <Button

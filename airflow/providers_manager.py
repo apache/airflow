@@ -1268,3 +1268,26 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    def _cleanup(self):
+        self._initialized_cache.clear()
+        self._provider_dict.clear()
+        self._hooks_dict.clear()
+        self._fs_set.clear()
+        self._taskflow_decorators.clear()
+        self._hook_provider_dict.clear()
+        self._hooks_lazy_dict.clear()
+        self._connection_form_widgets.clear()
+        self._field_behaviours.clear()
+        self._extra_link_class_name_set.clear()
+        self._logging_class_name_set.clear()
+        self._auth_manager_class_name_set.clear()
+        self._secrets_backend_class_name_set.clear()
+        self._executor_class_name_set.clear()
+        self._provider_configs.clear()
+        self._api_auth_backend_module_names.clear()
+        self._trigger_info_set.clear()
+        self._notification_info_set.clear()
+        self._plugins_set.clear()
+        self._initialized = False
+        self._initialization_stack_trace = None

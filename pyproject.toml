@@ -111,7 +111,6 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
-    "markdown>=3.0",
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
@@ -122,7 +121,6 @@ dependencies = [
     "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
-    "pydantic>=2.3.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -222,6 +220,9 @@ password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
 ]
+pydantic = [
+    "pydantic>=2.3.0",
+]
 rabbitmq = [
     "amqp",
 ]
@@ -270,6 +271,7 @@ all-core = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -565,8 +567,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "s3fs>=2023.10.0",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
-  "apache-beam>=2.53.0",
-  "pyarrow>=14.0.1",
+  "apache-beam>=2.53.0;python_version != \"3.12\"",
+  "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
   "cassandra-driver>=3.13.0",
@@ -865,9 +867,9 @@ pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
   "pdpyras>=4.1.2",
 ]
 papermill = [ # source: airflow/providers/papermill/provider.yaml
-  "ipykernel",
-  "papermill[all]>=2.4.0",
-  "scrapbook[all]",
+  "ipykernel;python_version != \"3.12\"",
+  "papermill[all]>=2.4.0;python_version != \"3.12\"",
+  "scrapbook[all];python_version != \"3.12\"",
 ]
 pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "apache-airflow[postgres]",
@@ -973,6 +975,7 @@ all = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -1244,7 +1247,8 @@ exclude = [
 artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
-    "/generated/"
+    "/generated/",
+    "airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1308,6 +1312,7 @@ extend-select = [
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
 ]
 ignore = [
     "D203",
@@ -1360,12 +1365,12 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/openai/hooks/test_openai.py" = ["E402"]
+"tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
+"tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 
 # All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
-"airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/triggers/airbyte.py" = ["D401"]
 "airflow/providers/common/io/xcom/backend.py" = ["D401"]
 "airflow/providers/databricks/hooks/databricks.py" = ["D401"]
 "airflow/providers/databricks/operators/databricks.py" = ["D401"]
