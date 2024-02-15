@@ -26,6 +26,7 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from airflow import settings
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 from tests.test_utils.config import conf_vars
 
@@ -217,22 +218,35 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
-@pytest.mark.parametrize(
-    ["value", "expectation"],
-    [
-        (
-            "sqlite:///./relative_path.db",
-            pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
-        ),
-        # Should not raise an exception
-        ("sqlite://", contextlib.nullcontext()),
-    ],
-)
-def test_sqlite_relative_path(value, expectation):
-    from airflow import settings
+@pytest.mark.db_test
+class TestSqliteRelativePath:
+    def setup_method(self):
+        self.old_session = settings.Session
+        self.old_engine = settings.engine
+        self.old_conn = settings.SQL_ALCHEMY_CONN
 
-    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
-        "airflow.settings.SQL_ALCHEMY_CONN", value
-    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+    def teardown_method(self):
+        settings.Session = self.old_session
+        settings.engine = self.old_engine
+        settings.SQL_ALCHEMY_CONN = self.old_conn
+
+    @pytest.mark.parametrize(
+        ["value", "expectation"],
+        [
+            (
+                "sqlite:///./relative_path.db",
+                pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
+            ),
+            # Should not raise an exception
+            ("sqlite://", contextlib.nullcontext()),
+        ],
+    )
+    @patch("airflow.settings.setup_event_handlers")
+    @patch("airflow.settings.scoped_session")
+    @patch("airflow.settings.sessionmaker")
+    @patch("airflow.settings.create_engine")
+    def test_sqlite_relative_path(self, mock_create_engine, _a, _b, _c, value, expectation, monkeypatch):
+        monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", value)
         with expectation:
             settings.configure_orm()
+            mock_create_engine.assert_called_once_with(value, connect_args={}, encoding="utf-8", future=True)
