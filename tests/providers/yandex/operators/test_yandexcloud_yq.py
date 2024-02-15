@@ -48,19 +48,17 @@ class TestYQExecuteQueryOperator:
     @patch("airflow.hooks.base.BaseHook.get_connection")
     def test_execute_query(self, mock_get_connection):
         mock_get_connection.return_value = Connection(extra={"oauth": OAUTH_TOKEN})
-        operator = YQExecuteQueryOperator(
-            task_id="simple_sql",
-            sql="select 987",
-            folder_id="my_folder_id"
-        )
+        operator = YQExecuteQueryOperator(task_id="simple_sql", sql="select 987", folder_id="my_folder_id")
         context = {"ti": MagicMock()}
 
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
             match=[
-                matchers.header_matcher({"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}),
+                matchers.header_matcher(
+                    {"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}
+                ),
                 matchers.query_param_matcher({"project": FOLDER_ID}),
-                matchers.json_params_matcher({"text": "select 987"})
+                matchers.json_params_matcher({"text": "select 987"}),
             ],
             json={"id": "query1"},
             status=200,
@@ -89,7 +87,9 @@ class TestYQExecuteQueryOperator:
 
         context["ti"].xcom_push.assert_has_calls(
             [
-                call(key="web_link", value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1"),
+                call(
+                    key="web_link", value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1"
+                ),
             ]
         )
 
@@ -105,5 +105,7 @@ class TestYQExecuteQueryOperator:
             status=200,
         )
 
-        with pytest.raises(RuntimeError, match=re.escape("""Query query1 failed with issues=['some error']""")):
+        with pytest.raises(
+            RuntimeError, match=re.escape("""Query query1 failed with issues=['some error']""")
+        ):
             operator.execute(context)

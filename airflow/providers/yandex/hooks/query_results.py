@@ -91,17 +91,17 @@ class YQResults:
             return type_name[0:-1]
 
         # Optional<Uint16> -> Uint16
-        return type_name[len("Optional<"):-1]
+        return type_name[len("Optional<") : -1]
 
     @staticmethod
     def _extract_from_set(type_name: str) -> str:
         # Set<Uint16> -> Uint16
-        return type_name[len("Set<"):-1]
+        return type_name[len("Set<") : -1]
 
     @staticmethod
     def _extract_from_list(type_name: str) -> str:
         # List<Uint16> -> Uint16
-        return type_name[len("List<"):-1]
+        return type_name[len("List<") : -1]
 
     @staticmethod
     def _split_type_list(type_list: str) -> list[str]:
@@ -112,18 +112,18 @@ class YQResults:
     @staticmethod
     def _extract_from_tuple(type_name: str) -> list[str]:
         # Tuple<Uint16, String, Double> -> [Uint16, String, Double]
-        return YQResults._split_type_list(type_name[len("Tuple<"):-1])
+        return YQResults._split_type_list(type_name[len("Tuple<") : -1])
 
     @staticmethod
     def _extract_from_dict(type_name: str) -> tuple[str, str]:
         # Dict<Uint16, String> -> (Uint16, String)
-        [key_type, value_type] = YQResults._split_type_list(type_name[len("Dict<"):-1])
+        [key_type, value_type] = YQResults._split_type_list(type_name[len("Dict<") : -1])
         return key_type, value_type
 
     @staticmethod
     def _extract_from_variant_over_struct(type_name: str) -> tuple[str, str]:
         # Variant<'One':Int32,'Two':String> -> {One: Int32, Two: String}
-        types_with_names = YQResults._split_type_list(type_name[len("Variant<"):-1])
+        types_with_names = YQResults._split_type_list(type_name[len("Variant<") : -1])
         result = {}
         for t in types_with_names:
             [n, t] = t.split(":")
@@ -135,7 +135,7 @@ class YQResults:
     @staticmethod
     def _extract_from_variant_over_tuple(type_name: str) -> tuple[str, str]:
         # Variant<Int32,String> -> [Int32, String]
-        return YQResults._split_type_list(type_name[len("Variant<"):-1])
+        return YQResults._split_type_list(type_name[len("Variant<") : -1])
 
     @staticmethod
     def _convert_from_optional(value: list[Any]) -> Optional[Any]:
@@ -160,11 +160,24 @@ class YQResults:
         """Returns converter based on column type"""
 
         # primitives
-        if column_type in ["Int8", "Int16", "Int32", "Int64",
-                           "Uint8", "Uint16", "Uint32", "Uint64",
-                           "Bool", "Utf8", "Uuid",
-                           "Void", "Null",
-                           "EmptyList", "Struct<>", "Tuple<>"]:
+        if column_type in [
+            "Int8",
+            "Int16",
+            "Int32",
+            "Int64",
+            "Uint8",
+            "Uint16",
+            "Uint32",
+            "Uint64",
+            "Bool",
+            "Utf8",
+            "Uuid",
+            "Void",
+            "Null",
+            "EmptyList",
+            "Struct<>",
+            "Tuple<>",
+        ]:
             return YQResults.id
 
         if column_type == "String":
@@ -185,8 +198,7 @@ class YQResults:
         # containers
         if column_type.startswith("Optional<") or column_type.endswith("?"):
             # If type is Optional than get base type
-            inner_converter = YQResults._get_converter(
-                YQResults._extract_from_optional(column_type))
+            inner_converter = YQResults._get_converter(YQResults._extract_from_optional(column_type))
 
             # Remove "Optional" encoding
             # and convert resulting value as others
@@ -220,7 +232,8 @@ class YQResults:
 
             def convert(x):
                 assert len(x) == len(
-                    inner_converters), f"Wrong lenght for tuple value: {len(x)} != {len(inner_converters)}"
+                    inner_converters
+                ), f"Wrong lenght for tuple value: {len(x)} != {len(inner_converters)}"
                 return tuple([c(v) for (c, v) in zip(inner_converters, x)])
 
             return convert
@@ -246,6 +259,7 @@ class YQResults:
             return convert
 
         if column_type == "EmptyDict":
+
             def convert(x):
                 return {}
 
@@ -290,8 +304,7 @@ class YQResults:
             new_row = []
             for index, value in enumerate(row):
                 converter = converters[index]
-                new_row.append(
-                    value if converter is None else converter(value))
+                new_row.append(value if converter is None else converter(value))
 
             converted_results.append(new_row)
 
@@ -318,4 +331,5 @@ class YQResults:
         result_set = self._results
         columns = [column["name"] for column in result_set["columns"]]
         import pandas
+
         return pandas.DataFrame(result_set["rows"], columns=columns)

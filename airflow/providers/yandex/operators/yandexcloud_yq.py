@@ -27,7 +27,8 @@ from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-XCOM_WEBLINK_KEY="web_link"
+XCOM_WEBLINK_KEY = "web_link"
+
 
 class YQLink(BaseOperatorLink):
     name = "Yandex Query"
@@ -80,13 +81,10 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
             yandex_conn_id=self.connection_id,
             default_folder_id=self.folder_id,
             default_public_ssh_key=self.public_ssh_key,
-            default_service_account_id=self.service_account_id
+            default_service_account_id=self.service_account_id,
         )
 
-        self.query_id = self.hook.create_query(
-            query_text=self.sql,
-            name=self.name
-        )
+        self.query_id = self.hook.create_query(query_text=self.sql, name=self.name)
 
         # pass to YQLink
         web_link = self.hook.compose_query_web_link(self.query_id)

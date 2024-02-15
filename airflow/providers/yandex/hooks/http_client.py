@@ -37,26 +37,30 @@ TIME_BETWEEN_RETRIES = 1000
 ERROR_CODES = (500, 502, 504)
 
 
-def requests_retry_session(session,
-                           retries=MAX_RETRY_FOR_SESSION,
-                           back_off_factor=BACK_OFF_FACTOR,
-                           status_force_list=ERROR_CODES):
-    retry = Retry(total=retries, read=retries, connect=retries,
-                  backoff_factor=back_off_factor,
-                  status_forcelist=status_force_list,
-                  allowed_methods=frozenset(['GET', 'POST']))
+def requests_retry_session(
+    session, retries=MAX_RETRY_FOR_SESSION, back_off_factor=BACK_OFF_FACTOR, status_force_list=ERROR_CODES
+):
+    retry = Retry(
+        total=retries,
+        read=retries,
+        connect=retries,
+        backoff_factor=back_off_factor,
+        status_forcelist=status_force_list,
+        allowed_methods=frozenset(["GET", "POST"]),
+    )
     adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
     return session
 
 
 class YQHttpClientConfig(object):
-    def __init__(self,
-                 token: str | None = None,
-                 project: str | None = None,
-                 user_agent: str | None = "Python YQ HTTP SDK") -> None:
-
+    def __init__(
+        self,
+        token: str | None = None,
+        project: str | None = None,
+        user_agent: str | None = "Python YQ HTTP SDK",
+    ) -> None:
         assert len(token) > 0, "empty token"
         self.token = token
         self.project = project
@@ -91,9 +95,7 @@ class YQHttpClient(object):
         self.session.close()
 
     def _build_headers(self, idempotency_key=None, request_id=None) -> dict[str, str]:
-        headers = {
-            "Authorization": f"{self.config.token_prefix}{self.config.token}"
-        }
+        headers = {"Authorization": f"{self.config.token_prefix}{self.config.token}"}
         if idempotency_key is not None:
             headers["Idempotency-Key"] = idempotency_key
 
@@ -126,22 +128,25 @@ class YQHttpClient(object):
                 status = body.get("status")
                 msg = body.get("message")
                 details = body.get("details")
-                raise YQHttpClientException(f"Error occurred. http code={response.status_code}, status={status}, msg={msg}, details={details}",
-                                            status=status,
-                                            msg=msg,
-                                            details=details
-                                            )
+                raise YQHttpClientException(
+                    f"Error occurred. http code={response.status_code}, status={status}, msg={msg}, details={details}",
+                    status=status,
+                    msg=msg,
+                    details=details,
+                )
 
             raise YQHttpClientException(f"Error occurred: {response.status_code}, {response.text}")
 
-    def create_query(self,
-                     query_text=None,
-                     query_type=None,
-                     name=None,
-                     description=None,
-                     idempotency_key=None,
-                     request_id=None,
-                     expected_code=200):
+    def create_query(
+        self,
+        query_text=None,
+        query_type=None,
+        name=None,
+        description=None,
+        idempotency_key=None,
+        request_id=None,
+        expected_code=200,
+    ):
         body = dict()
         if query_text is not None:
             body["text"] = query_text
@@ -155,11 +160,12 @@ class YQHttpClient(object):
         if description is not None:
             body["description"] = description
 
-        response = self.session.post(self._compose_api_url("/api/fq/v1/queries"),
-                                     headers=self._build_headers(idempotency_key=idempotency_key,
-                                                                 request_id=request_id),
-                                     params=self._build_params(),
-                                     json=body)
+        response = self.session.post(
+            self._compose_api_url("/api/fq/v1/queries"),
+            headers=self._build_headers(idempotency_key=idempotency_key, request_id=request_id),
+            params=self._build_params(),
+            json=body,
+        )
 
         self._validate_http_error(response, expected_code=expected_code)
         return response.json()["id"]
@@ -168,7 +174,7 @@ class YQHttpClient(object):
         response = self.session.get(
             self._compose_api_url(f"/api/fq/v1/queries/{query_id}/status"),
             headers=self._build_headers(request_id=request_id),
-            params=self._build_params()
+            params=self._build_params(),
         )
 
         self._validate_http_error(response, expected_code=expected_code)
@@ -178,25 +184,25 @@ class YQHttpClient(object):
         response = self.session.get(
             self._compose_api_url(f"/api/fq/v1/queries/{query_id}"),
             headers=self._build_headers(request_id=request_id),
-            params=self._build_params()
+            params=self._build_params(),
         )
 
         self._validate_http_error(response, expected_code=expected_code)
         return response.json()
 
-    def stop_query(self,
-                   query_id: str,
-                   idempotency_key: str | None = None,
-                   request_id: str | None = None,
-                   expected_code: int = 204) -> Any:
-
-        headers = self._build_headers(
-            idempotency_key=idempotency_key,
-            request_id=request_id
+    def stop_query(
+        self,
+        query_id: str,
+        idempotency_key: str | None = None,
+        request_id: str | None = None,
+        expected_code: int = 204,
+    ) -> Any:
+        headers = self._build_headers(idempotency_key=idempotency_key, request_id=request_id)
+        response = self.session.post(
+            self._compose_api_url(f"/api/fq/v1/queries/{query_id}/stop"),
+            headers=headers,
+            params=self._build_params(),
         )
-        response = self.session.post(self._compose_api_url(f"/api/fq/v1/queries/{query_id}/stop"),
-                                     headers=headers,
-                                     params=self._build_params())
         self._validate_http_error(response, expected_code=expected_code)
         return response
 
@@ -224,9 +230,7 @@ class YQHttpClient(object):
 
     def wait_query_to_succeed(self, query_id, execution_timeout=None, stop_on_timeout=False) -> int:
         status = self.wait_query_to_complete(
-            query_id=query_id,
-            execution_timeout=execution_timeout,
-            stop_on_timeout=stop_on_timeout
+            query_id=query_id, execution_timeout=execution_timeout, stop_on_timeout=stop_on_timeout
         )
 
         query = self.get_query(query_id)
@@ -236,14 +240,16 @@ class YQHttpClient(object):
 
         return len(query["result_sets"])
 
-    def get_query_result_set_page(self,
-                               query_id,
-                               result_set_index,
-                               offset=None,
-                               limit=None,
-                               raw_format=False,
-                               request_id=None,
-                               expected_code=200) -> Any:
+    def get_query_result_set_page(
+        self,
+        query_id,
+        result_set_index,
+        offset=None,
+        limit=None,
+        raw_format=False,
+        request_id=None,
+        expected_code=200,
+    ) -> Any:
         params = self._build_params()
         if offset is not None:
             params["offset"] = offset
@@ -254,7 +260,7 @@ class YQHttpClient(object):
         response = self.session.get(
             self._compose_api_url(f"/api/fq/v1/queries/{query_id}/results/{result_set_index}"),
             headers=self._build_headers(request_id=request_id),
-            params=params
+            params=params,
         )
 
         self._validate_http_error(response, expected_code=expected_code)
@@ -267,11 +273,7 @@ class YQHttpClient(object):
         rows = []
         while True:
             part = self.get_query_result_set_page(
-                query_id,
-                result_set_index=result_set_index,
-                offset=offset,
-                limit=limit,
-                raw_format=raw_format
+                query_id, result_set_index=result_set_index, offset=offset, limit=limit, raw_format=raw_format
             )
 
             if columns is None:
@@ -290,14 +292,12 @@ class YQHttpClient(object):
 
         return YQResults(result).results
 
-    def get_query_all_result_sets(self, query_id: str, result_set_count: int, raw_format: bool = False) -> Any:
+    def get_query_all_result_sets(
+        self, query_id: str, result_set_count: int, raw_format: bool = False
+    ) -> Any:
         result = []
         for i in range(0, result_set_count):
-            r = self.get_query_result_set(
-                query_id,
-                result_set_index=i,
-                raw_format=raw_format
-            )
+            r = self.get_query_result_set(query_id, result_set_index=i, raw_format=raw_format)
 
             if result_set_count == 1:
                 return r
@@ -316,5 +316,6 @@ class YQHttpClient(object):
     @staticmethod
     def result_set_to_dataframe(data):
         import pandas as pd
+
         column_names = [column["name"] for column in data["columns"]]
         return pd.DataFrame(data["rows"], columns=column_names)
