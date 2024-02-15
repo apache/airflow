@@ -56,7 +56,7 @@ class SalesforceApexRestOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict:
         """
-        Makes an HTTP request to an APEX REST endpoint and pushes results to xcom.
+        Make an HTTP request to an APEX REST endpoint and pushes results to xcom.
 
         :param context: The task context during execution.
         :return: Apex response

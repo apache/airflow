@@ -1291,3 +1291,26 @@ def configure_warning_output(config):
 
 
 # End of modified code from  https://github.com/athinkingape/pytest-capture-warnings
+
+if TYPE_CHECKING:
+    # Static checkers do not know about pytest fixtures' types and return,
+    # In case if them distributed through third party packages.
+    # This hack should help with autosuggestion in IDEs.
+    from pytest_mock import MockerFixture
+    from requests_mock.contrib.fixture import Fixture as RequestsMockFixture
+    from time_machine import TimeMachineFixture
+
+    # pytest-mock
+    @pytest.fixture
+    def mocker() -> MockerFixture:
+        ...
+
+    # requests-mock
+    @pytest.fixture
+    def requests_mock() -> RequestsMockFixture:
+        ...
+
+    # time-machine
+    @pytest.fixture  # type: ignore[no-redef]
+    def time_machine() -> TimeMachineFixture:
+        ...

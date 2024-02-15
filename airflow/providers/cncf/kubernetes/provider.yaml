@@ -118,6 +118,7 @@ operators:
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource
+      - airflow.providers.cncf.kubernetes.operators.job
 
 sensors:
   - integration-name: Kubernetes

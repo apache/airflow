@@ -35,7 +35,6 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
-    PodLaunchTimeoutException,
     PodLoggingStatus,
     PodPhase,
 )
@@ -1973,41 +1972,39 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.raise_for_trigger_status"
-    )
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
+    @mock.patch(f"{HOOK_CLASS}.get_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     def test_get_logs_running(
         self,
         fetch_container_logs,
         await_pod_completion,
-        find_pod,
-        raise_for_trigger_status,
+        get_pod,
     ):
         """When logs fetch exits with status running, raise task deferred"""
         pod = MagicMock()
-        find_pod.return_value = pod
+        get_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
         await_pod_completion.return_value = None
         fetch_container_logs.return_value = PodLoggingStatus(True, None)
         with pytest.raises(TaskDeferred):
-            op.trigger_reentry(create_context(op), None)
+            op.trigger_reentry(
+                create_context(op),
+                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+            )
         fetch_container_logs.is_called_with(pod, "base")
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.raise_for_trigger_status"
-    )
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_not_running(self, fetch_container_logs, find_pod, raise_for_trigger_status, cleanup):
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup):
         pod = MagicMock()
         find_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
         fetch_container_logs.return_value = PodLoggingStatus(False, None)
-        op.trigger_reentry(create_context(op), None)
+        op.trigger_reentry(
+            create_context(op), event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "success"}
+        )
         fetch_container_logs.is_called_with(pod, "base")
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
@@ -2016,14 +2013,15 @@ class TestKubernetesPodOperatorAsync:
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
-        with pytest.raises(PodLaunchTimeoutException):
+        with pytest.raises(AirflowException):
             context = create_context(op)
             op.trigger_reentry(
                 context,
                 {
-                    "status": "error",
-                    "error_type": "PodLaunchTimeoutException",
-                    "description": "any message",
+                    "status": "timeout",
+                    "message": "any message",
+                    "name": TEST_NAME,
+                    "namespace": TEST_NAMESPACE,
                 },
             )
 
