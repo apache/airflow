@@ -18,10 +18,6 @@
 ``apache-airflow-providers-common-sql``
 =======================================
 
-Supported Database Types
-------------------------
-
-:doc:`Supported Database Types <supported-database-types>`
 
 .. toctree::
     :hidden:
