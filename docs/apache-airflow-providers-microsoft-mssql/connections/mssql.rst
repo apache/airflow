@@ -74,5 +74,3 @@ If serializing with JSON:
         "port": 1433,
         "schema": "database_name"
     }'
-
-..
