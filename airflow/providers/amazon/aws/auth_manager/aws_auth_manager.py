@@ -22,13 +22,6 @@ from typing import TYPE_CHECKING, Sequence, cast
 
 from flask import session, url_for
 
-from airflow.auth.managers.models.resource_details import (
-    ConnectionDetails,
-    DagAccessEntity,
-    DagDetails,
-    PoolDetails,
-    VariableDetails,
-)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -50,6 +43,13 @@ from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_man
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+    from airflow.auth.managers.models.resource_details import (
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+        PoolDetails,
+        VariableDetails,
+    )
 except ImportError:
     raise AirflowOptionalProviderFeatureException(
         "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
