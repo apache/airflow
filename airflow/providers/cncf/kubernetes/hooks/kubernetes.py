@@ -37,7 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookP
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
-    from kubernetes.client.models import V1Pod
+    from kubernetes.client.models import V1Deployment, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -283,6 +283,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return client.CoreV1Api(api_client=self.api_client)
 
     @cached_property
+    def apps_v1_client(self) -> client.AppsV1Api:
+        return client.AppsV1Api(api_client=self.api_client)
+
+    @cached_property
     def custom_object_client(self) -> client.CustomObjectsApi:
         return client.CustomObjectsApi(api_client=self.api_client)
 
@@ -449,6 +453,24 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             _preload_content=False,
             **kwargs,
         )
+
+    def get_deployment_status(
+        self,
+        name: str,
+        namespace: str = "default",
+        **kwargs,
+    ) -> V1Deployment:
+        """Get status of existing Deployment.
+
+        :param name: Name of Deployment to retrieve
+        :param namespace: Deployment namespace
+        """
+        try:
+            return self.apps_v1_client.read_namespaced_deployment_status(
+                name=name, namespace=namespace, pretty=True, **kwargs
+            )
+        except Exception as exc:
+            raise exc
 
 
 def _get_bool(val) -> bool | None:
