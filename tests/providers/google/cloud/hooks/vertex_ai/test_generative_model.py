@@ -24,9 +24,12 @@ from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
+GCP_PROJECT = "test-project"
+GCP_LOCATION = "us-central1"
 
 TEST_PROMPT = "In 10 words or less, what is apache airflow?"
 TEST_LANGUAGE_PRETRAINED_MODEL = "text-bison"
@@ -47,7 +50,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.hook = GenerativeModelHook(gcp_conn_id=TEST_GCP_CONN_ID)
+            self.hook = GenerativeModelHook(
+                project_id=GCP_PROJECT, location=GCP_LOCATION, gcp_conn_id=TEST_GCP_CONN_ID
+            )
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
     def test_prompt_language_model(self, mock_model) -> None:
