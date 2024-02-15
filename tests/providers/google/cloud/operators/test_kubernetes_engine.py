@@ -34,8 +34,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
-    GKEStartKueueInsideClusterOperator,
     GKEStartJobOperator,
+    GKEStartKueueInsideClusterOperator,
     GKEStartPodOperator,
 )
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEStartPodTrigger

@@ -889,7 +889,7 @@ class GKEStartJobOperator(KubernetesJobOperator):
         return hook
 
     def execute(self, context: Context):
-        """Executes process of creating Job."""
+        """Execute process of creating Job."""
         self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
             cluster_name=self.cluster_name,
             project_id=self.project_id,
