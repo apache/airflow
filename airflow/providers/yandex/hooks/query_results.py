@@ -319,4 +319,3 @@ class YQResults:
         columns = [column["name"] for column in result_set["columns"]]
         import pandas
         return pandas.DataFrame(result_set["rows"], columns=columns)
-    
