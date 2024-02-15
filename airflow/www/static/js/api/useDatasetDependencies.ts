@@ -86,32 +86,43 @@ const findDownstreamGraph = ({
 }: SeparateGraphsProps): EdgeGroup[] => {
   let unassignedEdges = [...edges];
 
+  const otherIndexes: number[] = [];
+
   const mergedGraphs = graphs
     .reduce((newGraphs, graph) => {
-      const otherGroupIndex = newGraphs.findIndex((otherGroup) =>
-        otherGroup.edges.some((otherEdge) =>
-          graph.edges.some((edge) => edge.target === otherEdge.target)
-        )
+      // Find all overlapping graphs where at least one edge in each graph has the same target node
+      const otherGroups = newGraphs.filter((otherGroup) =>
+        otherGroup.edges.some((otherEdge, i) => {
+          if (graph.edges.some((edge) => edge.target === otherEdge.target)) {
+            otherIndexes.push(i);
+            return true;
+          }
+          return false;
+        })
       );
-      if (otherGroupIndex === -1) {
+      if (!otherGroups.length) {
         return [...newGraphs, graph];
       }
 
-      const mergedEdges = [
-        ...newGraphs[otherGroupIndex].edges,
-        ...graph.edges,
-      ].filter(
-        (edge, edgeIndex, otherEdges) =>
-          edgeIndex ===
-          otherEdges.findIndex(
-            (otherEdge) =>
-              otherEdge.source === edge.source &&
-              otherEdge.target === edge.target
-          )
-      );
+      // Merge the edges of every overlapping group
+      const mergedEdges = otherGroups
+        .reduce(
+          (totalEdges, group) => [...totalEdges, ...group.edges],
+          [...graph.edges]
+        )
+        .filter(
+          (edge, edgeIndex, otherEdges) =>
+            edgeIndex ===
+            otherEdges.findIndex(
+              (otherEdge) =>
+                otherEdge.source === edge.source &&
+                otherEdge.target === edge.target
+            )
+        );
       return [
+        // filter out the merged graphs
         ...newGraphs.filter(
-          (_, newGraphIndex) => newGraphIndex !== otherGroupIndex
+          (_, newGraphIndex) => !otherIndexes.includes(newGraphIndex)
         ),
         { edges: mergedEdges },
       ];
