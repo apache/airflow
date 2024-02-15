@@ -188,11 +188,11 @@ from Airflow DB using Airflow's core code and it's crucial to run the tests agai
 that Airflow supports in order to check if the SQLAlchemy queries are correct and if the database
   schema is correct.
 
-Those tests should be marked with ``@pytest.mark.db`` decorator on one of the levels:
+Those tests should be marked with ``@pytest.mark.db_test`` decorator on one of the levels:
 
-* test method can be marked with ``@pytest.mark.db`` decorator
-* test class can be marked with ``@pytest.mark.db`` decorator
-* test module can be marked with ``pytestmark = pytest.mark.db`` at the top level of the module
+* test method can be marked with ``@pytest.mark.db_test`` decorator
+* test class can be marked with ``@pytest.mark.db_test`` decorator
+* test module can be marked with ``pytestmark = pytest.mark.db_test`` at the top level of the module
 
 For the DB tests, they are run against the multiple databases Airflow support, multiple versions of those
 and multiple Python versions it supports. In order to save time for testing not all combinations are
