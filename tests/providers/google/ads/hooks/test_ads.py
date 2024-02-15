@@ -115,12 +115,12 @@ class TestGoogleAdsHook:
         service.list_accessible_customers.assert_called_once_with()
         assert accounts == result
 
-    def test_get_authentication_method(self, mock_hook_for_authentication_method):
+    def test_determine_authentication_method(self, mock_hook_for_authentication_method):
         mock_hook, expected_method = mock_hook_for_authentication_method
         mock_hook._get_config()
         if isinstance(expected_method, type) and issubclass(expected_method, Exception):
             with pytest.raises(expected_method):
-                mock_hook._get_authentication_method()
+                mock_hook._determine_authentication_method()
         else:
-            mock_hook._get_authentication_method()
+            mock_hook._determine_authentication_method()
             assert mock_hook.authentication_method == expected_method

@@ -190,7 +190,7 @@ class GoogleAdsHook(BaseHook):
     def _get_client(self) -> GoogleAdsClient:
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
-            self._get_authentication_method()
+            self._determine_authentication_method()
             self._update_config_with_secret(
                 secrets_temp
             ) if self.authentication_method == "service_account" else None
@@ -206,10 +206,9 @@ class GoogleAdsHook(BaseHook):
         """Connect and authenticate with the Google Ads API using a service account."""
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
-            self._get_authentication_method()
-            self._update_config_with_secret(
-                secrets_temp
-            ) if self.authentication_method == "service_account" else None
+            self._determine_authentication_method()
+            if self.authentication_method == "service_account":
+                self._update_config_with_secret(secrets_temp)
             try:
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
                 return client.get_service("CustomerService", version=self.api_version)
@@ -229,7 +228,7 @@ class GoogleAdsHook(BaseHook):
 
         self.google_ads_config = conn.extra_dejson["google_ads_client"]
 
-    def _get_authentication_method(self) -> None:
+    def _determine_authentication_method(self) -> None:
         """Determine authentication method based on google_ads_config."""
         if self.google_ads_config.get("json_key_file_path") and self.google_ads_config.get(
             "impersonated_email"
