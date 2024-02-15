@@ -20,13 +20,16 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Flex, Box } from "@chakra-ui/react";
+
 import { useOffsetTop } from "src/utils";
+import { useDatasetDependencies } from "src/api";
 
 import DatasetsList from "./List";
 import DatasetDetails from "./Details";
 import Graph from "./Graph";
 
-const DATASET_URI = "uri";
+const DATASET_URI_PARAM = "uri";
+const DAG_ID_PARAM = "dag_id";
 const minPanelWidth = 300;
 
 const Datasets = () => {
@@ -40,14 +43,34 @@ const Datasets = () => {
 
   const resizeRef = useRef<HTMLDivElement>(null);
 
+  const datasetUriSearch = decodeURIComponent(
+    searchParams.get(DATASET_URI_PARAM) || ""
+  );
+  const filteredDagIds = searchParams
+    .getAll(DAG_ID_PARAM)
+    .map((param) => decodeURIComponent(param));
+
+  // We need to load in the raw dependencies in order to generate the list of dagIds
+  const { data: datasetDependencies } = useDatasetDependencies();
+
   const onBack = () => {
-    searchParams.delete(DATASET_URI);
+    searchParams.delete(DATASET_URI_PARAM);
     setSearchParams(searchParams);
   };
 
   const onSelect = (datasetUri: string) => {
-    searchParams.set(DATASET_URI, encodeURIComponent(datasetUri));
+    searchParams.set(DATASET_URI_PARAM, encodeURIComponent(datasetUri));
     setSearchParams(searchParams);
+  };
+
+  const onFilterDags = (dagIds: string[]) => {
+    const params = new URLSearchParams(
+      dagIds.map((dagId) => [DAG_ID_PARAM, dagId])
+    );
+    if (datasetUriSearch) {
+      params.append(DATASET_URI_PARAM, encodeURIComponent(datasetUriSearch));
+    }
+    setSearchParams(params);
   };
 
   const resize = useCallback(
@@ -85,8 +108,6 @@ const Datasets = () => {
     return () => {};
   }, [resize]);
 
-  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || "");
-
   return (
     <Flex
       alignItems="flex-start"
@@ -100,10 +121,15 @@ const Datasets = () => {
         ref={listRef}
         mr={3}
       >
-        {datasetUri ? (
-          <DatasetDetails uri={datasetUri} onBack={onBack} />
+        {datasetUriSearch ? (
+          <DatasetDetails uri={datasetUriSearch} onBack={onBack} />
         ) : (
-          <DatasetsList onSelect={onSelect} />
+          <DatasetsList
+            onSelect={onSelect}
+            datasetDependencies={datasetDependencies}
+            filteredDagIds={filteredDagIds}
+            onFilterDags={onFilterDags}
+          />
         )}
       </Box>
       <Box
@@ -121,7 +147,12 @@ const Datasets = () => {
         borderColor="gray.200"
         borderWidth={1}
       >
-        <Graph selectedUri={datasetUri} onSelect={onSelect} />
+        <Graph
+          selectedUri={datasetUriSearch}
+          onSelect={onSelect}
+          filteredDagIds={filteredDagIds}
+          onFilterDags={onFilterDags}
+        />
       </Box>
     </Flex>
   );

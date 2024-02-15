@@ -42,9 +42,14 @@ import { Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
 import type { DateOption } from "src/api/useDatasetsSummary";
+import type { DatasetDependencies } from "src/api/useDatasetDependencies";
+import DagFilter from "./DagFilter";
 
 interface Props {
   onSelect: (datasetId: string) => void;
+  datasetDependencies?: DatasetDependencies;
+  filteredDagIds: string[];
+  onFilterDags: (dagIds: string[]) => void;
 }
 
 interface CellProps {
@@ -80,7 +85,12 @@ const dateOptions: Record<string, DateOption> = {
   hour: { count: 1, unit: "hour" },
 };
 
-const DatasetsList = ({ onSelect }: Props) => {
+const DatasetsList = ({
+  onSelect,
+  datasetDependencies,
+  onFilterDags,
+  filteredDagIds,
+}: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
@@ -133,7 +143,11 @@ const DatasetsList = ({ onSelect }: Props) => {
   const docsUrl = getMetaValue("datasets_docs");
 
   const onSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    searchParams.set(SEARCH_PARAM, encodeURIComponent(e.target.value));
+    if (e.target.value) {
+      searchParams.set(SEARCH_PARAM, encodeURIComponent(e.target.value));
+    } else {
+      searchParams.delete(SEARCH_PARAM);
+    }
     setSearchParams(searchParams);
   };
 
@@ -158,7 +172,7 @@ const DatasetsList = ({ onSelect }: Props) => {
           to learn how to create a dataset.
         </Text>
       )}
-      <Flex wrap="wrap">
+      <Flex wrap="wrap" mb={2}>
         <Text mr={2}>Filter datasets with updates in the past:</Text>
         <ButtonGroup size="sm" isAttached variant="outline">
           <Button
@@ -194,7 +208,7 @@ const DatasetsList = ({ onSelect }: Props) => {
           })}
         </ButtonGroup>
       </Flex>
-      <InputGroup my={2} px={1}>
+      <InputGroup my={2}>
         <InputLeftElement pointerEvents="none">
           <MdSearch />
         </InputLeftElement>
@@ -215,7 +229,12 @@ const DatasetsList = ({ onSelect }: Props) => {
           </InputRightElement>
         )}
       </InputGroup>
-      <Box borderWidth={1}>
+      <DagFilter
+        datasetDependencies={datasetDependencies}
+        filteredDagIds={filteredDagIds}
+        onFilterDags={onFilterDags}
+      />
+      <Box borderWidth={1} mt={2}>
         <Table
           data={data}
           columns={columns}

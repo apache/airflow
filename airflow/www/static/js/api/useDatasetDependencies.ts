@@ -26,7 +26,7 @@ import { getTextWidth } from "src/utils/graph";
 
 import type { NodeType, DepEdge, DepNode } from "src/types";
 
-interface DatasetDependencies {
+export interface DatasetDependencies {
   edges: DepEdge[];
   nodes: DepNode[];
 }
@@ -41,14 +41,9 @@ interface GenerateProps {
   font: string;
 }
 
-interface Graph extends ElkShape {
+export interface DatasetGraph extends ElkShape {
   children: NodeType[];
   edges: ElkExtendedEdge[];
-}
-
-interface Data {
-  fullGraph: Graph;
-  subGraphs: Graph[];
 }
 
 const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
@@ -180,33 +175,64 @@ const separateGraphs = ({
 const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   const elk = new ELK();
 
-  const graphs = separateGraphs({ edges, nodes });
-
   // get computed style to calculate how large each node should be
   const font = `bold ${16}px ${
     window.getComputedStyle(document.body).fontFamily
   }`;
 
-  // Finally generate the graph data with elk
-  const subGraphs = await Promise.all(
-    graphs.map(async (g) =>
-      elk.layout(generateGraph({ nodes: g.nodes, edges: g.edges, font }))
-    )
-  );
-  const fullGraph = await elk.layout(generateGraph({ nodes, edges, font }));
+  const graph = await elk.layout(generateGraph({ nodes, edges, font }));
 
-  return {
-    fullGraph,
-    subGraphs,
-  } as Data;
+  return graph as DatasetGraph;
 };
 
 export default function useDatasetDependencies() {
   return useQuery("datasetDependencies", async () => {
     const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
-    const rawData = await axios.get<AxiosResponse, DatasetDependencies>(
-      datasetDepsUrl
-    );
-    return formatDependencies(rawData);
+    return axios.get<AxiosResponse, DatasetDependencies>(datasetDepsUrl);
   });
 }
+
+interface GraphsProps {
+  dagIds?: string[];
+  selectedUri: string | null;
+}
+
+export const useDatasetGraphs = ({ dagIds, selectedUri }: GraphsProps) => {
+  const { data: datasetDependencies } = useDatasetDependencies();
+  return useQuery(
+    ["datasetGraphs", datasetDependencies, dagIds, selectedUri],
+    () => {
+      if (datasetDependencies) {
+        let graph = datasetDependencies;
+        const subGraphs = datasetDependencies
+          ? separateGraphs(datasetDependencies)
+          : [];
+
+        // Filter by dataset URI takes precedence
+        if (selectedUri) {
+          graph =
+            subGraphs.find((g) =>
+              g.nodes.some((n) => n.value.label === selectedUri)
+            ) || graph;
+        } else if (dagIds?.length) {
+          const filteredSubGraphs = subGraphs.filter((sg) =>
+            dagIds.some((dagId) =>
+              sg.nodes.some((c) => c.value.label === dagId)
+            )
+          );
+
+          graph = filteredSubGraphs.reduce(
+            (graphs, subGraph) => ({
+              edges: [...graphs.edges, ...subGraph.edges],
+              nodes: [...graphs.nodes, ...subGraph.nodes],
+            }),
+            { edges: [], nodes: [] }
+          );
+        }
+
+        return formatDependencies(graph);
+      }
+      return undefined;
+    }
+  );
+};

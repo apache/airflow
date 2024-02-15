@@ -87,7 +87,11 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => returnValue);
 
     const { getByText, queryAllByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <DatasetsList
+        onSelect={() => {}}
+        filteredDagIds={[]}
+        onFilterDags={() => {}}
+      />,
       { wrapper: Wrapper }
     );
 
@@ -111,7 +115,11 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => emptyReturnValue);
 
     const { getByText, queryAllByTestId, getByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <DatasetsList
+        onSelect={() => {}}
+        filteredDagIds={[]}
+        onFilterDags={() => {}}
+      />,
       { wrapper: Wrapper }
     );
 
@@ -130,7 +138,11 @@ describe("Test Datasets List", () => {
 
     const { getByDisplayValue } = render(
       <Wrapper initialEntries={["/datasets?search=s3%253A%252F%252F"]}>
-        <DatasetsList onSelect={() => {}} />
+        <DatasetsList
+          onSelect={() => {}}
+          filteredDagIds={[]}
+          onFilterDags={() => {}}
+        />
       </Wrapper>
     );
 
