@@ -1302,6 +1302,10 @@ extend-select = [
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
+    # We add modules that do not follow the rule `Missing docstring in magic method`
+    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
+    # See: https://github.com/apache/airflow/issues/10742
+    "D105",
     "D106",
     "D2",
     "D3",
@@ -1355,11 +1359,14 @@ combine-as-imports = true
 "provider_packages/*" = ["D"]
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
-# In addition ignore top level imports, e.g. pandas, numpy in tests and dev
-"dev/*" = ["D", "TID253"]
+"dev/*" = ["D"]
+# In addition ignore top level imports, e.g. pandas, numpy in tests
+"dev/perf/*" = ["TID253"]
+"dev/breeze/tests/*" = ["TID253"]
 "tests/*" = ["D", "TID253"]
 "docker_tests/*" = ["D", "TID253"]
 "kubernetes_tests/*" = ["D", "TID253"]
+"helm_tests/*" = ["D", "TID253"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -1374,6 +1381,83 @@ combine-as-imports = true
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 
+# All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
+"airflow/callbacks/callback_requests.py" = ["D105"]
+"airflow/cli/commands/task_command.py" = ["D105"]
+"airflow/configuration.py" = ["D105"]
+"airflow/datasets/__init__.py" = ["D105"]
+"airflow/decorators/base.py" = ["D105"]
+"airflow/decorators/setup_teardown.py" = ["D105"]
+"airflow/exceptions.py" = ["D105"]
+"airflow/executors/base_executor.py" = ["D105"]
+"airflow/io/path.py" = ["D105"]
+"airflow/io/store/__init__.py" = ["D105"]
+"airflow/kubernetes/pre_7_4_0_compatibility/secret.py" = ["D105"]
+"airflow/metrics/protocols.py" = ["D105"]
+"airflow/metrics/validators.py" = ["D105"]
+"airflow/models/abstractoperator.py" = ["D105"]
+"airflow/models/baseoperator.py" = ["D105"]
+"airflow/models/connection.py" = ["D105"]
+"airflow/models/dag.py" = ["D105"]
+"airflow/models/dagrun.py" = ["D105"]
+"airflow/models/dagwarning.py" = ["D105"]
+"airflow/models/dataset.py" = ["D105"]
+"airflow/models/expandinput.py" = ["D105"]
+"airflow/models/log.py" = ["D105"]
+"airflow/models/mappedoperator.py" = ["D105"]
+"airflow/models/param.py" = ["D105"]
+"airflow/models/pool.py" = ["D105"]
+"airflow/models/renderedtifields.py" = ["D105"]
+"airflow/models/serialized_dag.py" = ["D105"]
+"airflow/models/slamiss.py" = ["D105"]
+"airflow/models/taskfail.py" = ["D105"]
+"airflow/models/taskinstance.py" = ["D105"]
+"airflow/models/tasklog.py" = ["D105"]
+"airflow/models/taskmixin.py" = ["D105"]
+"airflow/models/variable.py" = ["D105"]
+"airflow/models/xcom.py" = ["D105"]
+"airflow/models/xcom_arg.py" = ["D105"]
+"airflow/plugins_manager.py" = ["D105"]
+"airflow/providers_manager.py" = ["D105"]
+"airflow/sensors/base.py" = ["D105"]
+"airflow/sensors/external_task.py" = ["D105"]
+"airflow/ti_deps/deps/base_ti_dep.py" = ["D105"]
+"airflow/ti_deps/deps/task_not_running_dep.py" = ["D105"]
+"airflow/ti_deps/deps/valid_state_dep.py" = ["D105"]
+"airflow/timetables/events.py" = ["D105"]
+"airflow/triggers/base.py" = ["D105"]
+"airflow/utils/context.py" = ["D105"]
+"airflow/utils/db.py" = ["D105"]
+"airflow/utils/log/secrets_masker.py" = ["D105"]
+"airflow/utils/operator_resources.py" = ["D105"]
+"airflow/utils/sqlalchemy.py" = ["D105"]
+"airflow/utils/state.py" = ["D105"]
+"airflow/utils/task_group.py" = ["D105"]
+"airflow/utils/timeout.py" = ["D105"]
+"airflow/utils/trigger_rule.py" = ["D105"]
+"airflow/utils/types.py" = ["D105"]
+"airflow/utils/weight_rule.py" = ["D105"]
+"airflow/providers/amazon/aws/exceptions.py" = ["D105"]
+"airflow/providers/amazon/aws/executors/ecs/utils.py" = ["D105"]
+"airflow/providers/amazon/aws/hooks/ecr.py" = ["D105"]
+"airflow/providers/amazon/aws/utils/connection_wrapper.py" = ["D105"]
+"airflow/providers/apache/hive/hooks/hive.py" = ["D105"]
+"airflow/providers/cncf/kubernetes/secret.py" = ["D105"]
+"airflow/providers/cncf/kubernetes/utils/delete_from.py" = ["D105"]
+"airflow/providers/databricks/hooks/databricks.py" = ["D105"]
+"airflow/providers/databricks/hooks/databricks_base.py" = ["D105"]
+"airflow/providers/databricks/operators/databricks_repos.py" = ["D105"]
+"airflow/providers/elasticsearch/log/es_response.py" = ["D105"]
+"airflow/providers/fab/auth_manager/models/__init__.py" = ["D105"]
+"airflow/providers/ftp/hooks/ftp.py" = ["D105"]
+"airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
+"airflow/providers/imap/hooks/imap.py" = ["D105"]
+"airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
+"airflow/providers/mongo/hooks/mongo.py" = ["D105"]
+"airflow/providers/samba/hooks/samba.py" = ["D105"]
+"airflow/providers/smtp/hooks/smtp.py" = ["D105"]
+"airflow/providers/ssh/hooks/ssh.py" = ["D105"]
+"airflow/providers/tableau/hooks/tableau.py" = ["D105"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring
