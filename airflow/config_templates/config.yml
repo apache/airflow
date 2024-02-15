@@ -857,6 +857,13 @@ logging:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
+    dag_processor_manager_log_stdout:
+      description: |
+        Whether DAG processor manager will write logs to stdout
+      version_added: 2.8.1
+      type: boolean
+      example: ~
+      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
