@@ -40,7 +40,7 @@ SECTION = "common.io"
 
 def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
     """Return whether or not this path is relative to the other path.
-    
+
     This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8.
     """
     if hasattr(o, "is_relative_to"):
