@@ -674,8 +674,9 @@ class WeaviateHook(BaseHook):
         return client.data_object.exists(uuid, **kwargs)
 
     def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
-        """
-        Act as a helper function for `create_or_replace_objects()` to delete multiple objects.
+        """Delete multiple objects.
+
+        Helper function for `create_or_replace_objects()` to delete multiple objects.
 
         :param uuids: Collection of uuids.
         :param class_name: Name of the class in Weaviate schema where data is to be ingested.
