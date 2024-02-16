@@ -66,7 +66,7 @@ class TestDatasetManager:
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
 
-    def test_register_dataset_change(self, session, dag_maker, mock_task_instance):
+    def register_dataset_change_without_extra(self, session, dag_maker, mock_task_instance):
         dsem = DatasetManager()
 
         ds = Dataset(uri="test_dataset_uri")
@@ -80,6 +80,44 @@ class TestDatasetManager:
         session.flush()
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+
+        # Ensure we've created a dataset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert session.query(DatasetDagRunQueue).count() == 2
+
+    def test_register_dataset_change_with_dataset_extra(self, session, dag_maker, mock_task_instance):
+        dsem = DatasetManager()
+
+        ds = Dataset(uri="test_dataset_uri", extra={"hi": "bye"})
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        session.add_all([dag1, dag2])
+
+        dsm = DatasetModel(uri="test_dataset_uri")
+        session.add(dsm)
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        session.flush()
+
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+
+        # Ensure we've created a dataset
+        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert session.query(DatasetDagRunQueue).count() == 2
+
+    def test_register_dataset_change_with_extra(self, session, dag_maker, mock_task_instance):
+        dsem = DatasetManager()
+
+        ds = Dataset(uri="test_dataset_uri")
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        session.add_all([dag1, dag2])
+
+        dsm = DatasetModel(uri="test_dataset_uri")
+        session.add(dsm)
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        session.flush()
+
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session, extra={"hi": "bye"})
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
