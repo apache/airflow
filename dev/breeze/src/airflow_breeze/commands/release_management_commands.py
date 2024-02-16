@@ -31,7 +31,7 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Iterator, Literal, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -313,8 +313,29 @@ class DistributionPackageInfo(NamedTuple):
             filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="wheel"
         )
 
+    @classmethod
+    def dist_packages(
+        cls, *, package_format: str, dist_directory: Path, build_type: Literal["airflow", "providers"]
+    ) -> tuple[DistributionPackageInfo, ...]:
+        if build_type == "airflow":
+            default_glob_pattern = "apache[_-]airflow-[0-9]"
+        else:
+            default_glob_pattern = "apache[_-]airflow[_-]providers"
+        dists_info = []
+        if package_format in ["sdist", "both"]:
+            for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
+                if not file.is_file():
+                    continue
+                dists_info.append(cls.from_sdist(filepath=file))
+        if package_format in ["wheel", "both"]:
+            for file in dist_directory.glob(f"{default_glob_pattern}*whl"):
+                if not file.is_file():
+                    continue
+                dists_info.append(cls.from_wheel(filepath=file))
+        return tuple(sorted(dists_info, key=lambda di: (di.package, di.dist_type)))
+
     def __str__(self):
-        return f"{self.filepath.name}: {self.dist_type} {self.package} {self.version}"
+        return f"{self.package} ({self.version}): {self.dist_type} - {self.filepath.name}"
 
 
 def _build_local_build_image():
@@ -403,26 +424,6 @@ def _build_airflow_packages_with_hatch(
     )
 
 
-def _dist_packages(
-    *, package_format: str, build_type: Literal["airflow", "providers"]
-) -> Iterator[DistributionPackageInfo]:
-    if build_type == "airflow":
-        default_glob_pattern = "apache[_-]airflow-[0-9]"
-    else:
-        default_glob_pattern = "apache[_-]airflow[_-]providers"
-
-    if package_format in ["sdist", "both"]:
-        for file in DIST_DIR.glob(f"{default_glob_pattern}*tar.gz"):
-            if not file.is_file():
-                continue
-            yield DistributionPackageInfo.from_sdist(filepath=file)
-    if package_format in ["wheel", "both"]:
-        for file in DIST_DIR.glob(f"{default_glob_pattern}*whl"):
-            if not file.is_file():
-                continue
-            yield DistributionPackageInfo.from_wheel(filepath=file)
-
-
 def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...]):
     venv_created = False
     success_build = True
@@ -450,7 +451,7 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                     )
                     sys.exit(1)
                 pip_command = (python_path.__fspath__(), "-m", "pip")
-                run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}", "-U"], check=True)
+                run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"], check=True)
                 venv_created = True
 
             returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
@@ -528,7 +529,9 @@ def prepare_airflow_packages(
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages:")
-    packages = tuple(_dist_packages(package_format=package_format, build_type="airflow"))
+    packages = DistributionPackageInfo.dist_packages(
+        package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+    )
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
@@ -835,8 +838,10 @@ def prepare_provider_packages(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     get_console().print("\n[info]Packages available in dist:\n")
-    packages = tuple(_dist_packages(package_format=package_format, build_type="providers"))
-    for dist_info in _dist_packages(package_format=package_format, build_type="providers"):
+    packages = DistributionPackageInfo.dist_packages(
+        package_format=package_format, dist_directory=DIST_DIR, build_type="providers"
+    )
+    for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
     _check_sdist_to_wheel_dists(packages)
