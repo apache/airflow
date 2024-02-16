@@ -1358,7 +1358,7 @@ combine-as-imports = true
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
-# Ignore pydoc style from these
+# Ignore pydoc/ruff style from these
 "*.pyi" = ["D"]
 "scripts/*" = ["D"]
 "docs/*" = ["D"]
@@ -1366,6 +1366,7 @@ combine-as-imports = true
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
+"clients/*" = ["D"]
 # In addition ignore top level imports, e.g. pandas, numpy in tests
 "dev/perf/*" = ["TID253"]
 "dev/breeze/tests/*" = ["TID253"]
@@ -2850,7 +2851,6 @@ combine-as-imports = true
 "airflow/www/validators.py" = ["D100", "D102"]
 "airflow/www/views.py" = ["D100", "D102", "D103"]
 "airflow/www/widgets.py" = ["D100", "D102"]
-"clients/python/test_python_client.py" = ["D100"]
 "hatch_build.py" = ["D100", "D102"]
 
 
