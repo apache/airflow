@@ -1471,6 +1471,9 @@ banned-module-level-imports = ["numpy", "pandas"]
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
 "datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
 "datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
+# Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
+"typing.Hashable".msg = "Use collections.abc.Hashable"
+"typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
