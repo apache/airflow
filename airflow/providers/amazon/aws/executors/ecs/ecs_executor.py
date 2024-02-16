@@ -453,6 +453,10 @@ class AwsEcsExecutor(BaseExecutor):
 
     def end(self, heartbeat_interval=10):
         """Wait for all currently running tasks to end, and don't launch any tasks."""
+        if self.adopt_task_instances:
+            self.log.info("Task adoption is enabled, not terminating tasks.")
+            return
+
         try:
             while True:
                 self.sync()
@@ -467,6 +471,7 @@ class AwsEcsExecutor(BaseExecutor):
     def terminate(self):
         """Kill all ECS processes by calling Boto3's StopTask API if adopt_task_instances option is False."""
         if self.adopt_task_instances:
+            self.log.info("Task adoption is enabled, not terminating tasks.")
             return
 
         try:
@@ -517,8 +522,13 @@ class AwsEcsExecutor(BaseExecutor):
             # Do not try to adopt task instances, return all orphaned tasks for clearing.
             return tis
 
+        self.log.warning("Task adoption is on.  ECS Executor attempting to adopt tasks.")
+
         with Stats.timer("ecs_executor.adopt_task_instances.duration"):
             adopted_tis: list[TaskInstance] = []
+
+            from pprint import pformat
+            self.log.warning("tis: \n%s", pformat([vars(ti) for ti in tis]))
 
             if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
                 task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
