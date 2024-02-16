@@ -181,7 +181,7 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
         self.trino_conn_id = trino_conn_id
 
     def query(self):
-        """Queries trino and returns a cursor to the results."""
+        """Query trino and returns a cursor to the results."""
         trino = TrinoHook(trino_conn_id=self.trino_conn_id)
         conn = trino.get_conn()
         cursor = conn.cursor()

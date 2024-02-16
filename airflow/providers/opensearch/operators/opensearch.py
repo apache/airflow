@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 class OpenSearchQueryOperator(BaseOperator):
     """
-    Runs a query search against a given index on an OpenSearch cluster and returns results.
+    Run a query search against a given index on an OpenSearch cluster and returns results.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -66,11 +66,11 @@ class OpenSearchQueryOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=self.log_query)
 
     def execute(self, context: Context) -> Any:
-        """Executes a search against a given index or a Search object on an OpenSearch Cluster."""
+        """Execute a search against a given index or a Search object on an OpenSearch Cluster."""
         result = None
 
         if self.query is not None:
@@ -123,11 +123,11 @@ class OpenSearchCreateIndexOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Creates an index on an OpenSearch cluster."""
+        """Create an index on an OpenSearch cluster."""
         try:
             self.hook.client.indices.create(index=self.index_name, body=self.index_body)
         except OpenSearchException as e:
@@ -168,11 +168,11 @@ class OpenSearchAddDocumentOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> OpenSearchHook:
-        """Gets an instance of an OpenSearchHook."""
+        """Get an instance of an OpenSearchHook."""
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Saves a document to a given index on an OpenSearch cluster."""
+        """Save a document to a given index on an OpenSearch cluster."""
         if self.doc_class is not None:
             try:
                 doc = self.doc_class.init(using=self.hook.client)

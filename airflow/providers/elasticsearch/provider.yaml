@@ -22,8 +22,9 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1705912070
+source-date-epoch: 1707636365
 versions:
+  - 5.3.3
   - 5.3.2
   - 5.3.1
   - 5.3.0

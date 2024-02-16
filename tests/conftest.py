@@ -71,6 +71,7 @@ if run_db_tests_only:
 AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
 AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
+os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plugins")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
@@ -1119,6 +1120,18 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
 
 
+@pytest.fixture()
+def cleanup_providers_manager():
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager()._cleanup()
+    ProvidersManager().initialize_providers_configuration()
+    try:
+        yield
+    finally:
+        ProvidersManager()._cleanup()
+
+
 # The code below is a modified version of capture-warning code from
 # https://github.com/athinkingape/pytest-capture-warnings
 
@@ -1278,3 +1291,26 @@ def configure_warning_output(config):
 
 
 # End of modified code from  https://github.com/athinkingape/pytest-capture-warnings
+
+if TYPE_CHECKING:
+    # Static checkers do not know about pytest fixtures' types and return,
+    # In case if them distributed through third party packages.
+    # This hack should help with autosuggestion in IDEs.
+    from pytest_mock import MockerFixture
+    from requests_mock.contrib.fixture import Fixture as RequestsMockFixture
+    from time_machine import TimeMachineFixture
+
+    # pytest-mock
+    @pytest.fixture
+    def mocker() -> MockerFixture:
+        ...
+
+    # requests-mock
+    @pytest.fixture
+    def requests_mock() -> RequestsMockFixture:
+        ...
+
+    # time-machine
+    @pytest.fixture  # type: ignore[no-redef]
+    def time_machine() -> TimeMachineFixture:
+        ...

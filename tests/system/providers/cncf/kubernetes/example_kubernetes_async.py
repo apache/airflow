@@ -131,6 +131,34 @@ with DAG(
         deferrable=True,
     )
 
+    # [START howto_operator_async_log]
+    kubernetes_task_async_log = KubernetesPodOperator(
+        task_id="kubernetes_task_async_log",
+        namespace="kubernetes_task_async_log",
+        in_cluster=False,
+        name="astro_k8s_test_pod",
+        image="ubuntu",
+        cmds=[
+            "bash",
+            "-cx",
+            (
+                "i=0; "
+                "while [ $i -ne 100 ]; "
+                "do i=$(($i+1)); "
+                "echo $i; "
+                "sleep 1; "
+                "done; "
+                "mkdir -p /airflow/xcom/; "
+                'echo \'{"message": "good afternoon!"}\' > /airflow/xcom/return.json'
+            ),
+        ],
+        do_xcom_push=True,
+        deferrable=True,
+        get_logs=True,
+        logging_interval=5,
+    )
+    # [END howto_operator_async_log]
+
     # [START howto_operator_k8s_private_image_async]
     quay_k8s_async = KubernetesPodOperator(
         task_id="kubernetes_private_img_task_async",

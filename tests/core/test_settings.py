@@ -22,7 +22,7 @@ import os
 import sys
 import tempfile
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -228,9 +228,11 @@ class TestUpdatedConfigNames:
         ("sqlite://", contextlib.nullcontext()),
     ],
 )
-def test_sqlite_relative_path(monkeypatch, value, expectation):
+def test_sqlite_relative_path(value, expectation):
     from airflow import settings
 
-    monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", value)
-    with expectation:
-        settings.configure_orm()
+    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
+        "airflow.settings.SQL_ALCHEMY_CONN", value
+    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+        with expectation:
+            settings.configure_orm()

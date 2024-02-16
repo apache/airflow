@@ -67,6 +67,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_skip_constraints,
+    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -142,7 +143,7 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import get_python_version_list
+from airflow_breeze.utils.python_versions import check_python_3_9_or_above, get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
@@ -211,7 +212,7 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "23.3.2"
+AIRFLOW_PIP_VERSION = "24.0"
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -387,6 +388,7 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
+    check_python_3_9_or_above()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -631,6 +633,7 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
+    check_python_3_9_or_above()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -887,7 +890,7 @@ def generate_constraints(
     list_generated_constraints(output=None)
 
 
-SDIST_FILENAME_PREFIX = "apache-airflow-providers-"
+SDIST_FILENAME_PREFIX = "apache_airflow_providers_"
 WHEEL_FILENAME_PREFIX = "apache_airflow_providers-"
 
 SDIST_FILENAME_PATTERN = re.compile(rf"{SDIST_FILENAME_PREFIX}(.*)-[0-9].*\.tar\.gz")
@@ -901,7 +904,7 @@ def _get_all_providers_in_dist(
         matched = filename_pattern.match(file.name)
         if not matched:
             raise Exception(f"Cannot parse provider package name from {file.name}")
-        provider_package_id = matched.group(1).replace("-", ".")
+        provider_package_id = matched.group(1).replace("_", ".")
         yield provider_package_id
 
 
@@ -1033,7 +1036,7 @@ def install_provider_packages(
         provider_chunks = [chunk for chunk in provider_chunks if chunk]
         if not provider_chunks:
             get_console().print("[info]No providers to install")
-            return
+            sys.exit(1)
         total_num_providers = 0
         for index, chunk in enumerate(provider_chunks):
             get_console().print(f"Chunk {index}: {chunk} ({len(chunk)} providers)")
@@ -1102,6 +1105,7 @@ def install_provider_packages(
 @option_airflow_skip_constraints
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints
 @option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
@@ -1119,6 +1123,7 @@ def verify_provider_packages(
     airflow_constraints_reference: str,
     airflow_extras: str,
     github_repository: str,
+    install_airflow_with_constraints: bool,
     install_selected_providers: str,
     mount_sources: str,
     package_format: str,
@@ -1144,6 +1149,7 @@ def verify_provider_packages(
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
         github_repository=github_repository,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         mount_sources=mount_sources,
         package_format=package_format,
         providers_constraints_location=providers_constraints_location,
@@ -1238,12 +1244,12 @@ def run_publish_docs_in_parallel(
                 else:
                     skipped_entries.append(message)
 
-    if include_success_outputs:
-        get_console().print("[success]Packages published:")
-        for entry in success_entries:
-            get_console().print(f"[success]{entry}")
-        get_console().rule()
-    get_console().print("\n[warning]Packages skippeds:")
+    get_console().print("[blue]Summary:\n")
+    get_console().print("[success]Packages published:")
+    for entry in success_entries:
+        get_console().print(f"[success]{entry}")
+    get_console().rule()
+    get_console().print("\n[warning]Packages skipped:")
     for entry in skipped_entries:
         get_console().print(f"[warning]{entry}")
 
@@ -1262,9 +1268,9 @@ def run_publish_docs_in_parallel(
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
     "--package-filter",
-    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
-    "the short hand names or the glob pattern matching the full package name. "
-    "The list of short hand names can be found in --help output",
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+    "several similarly named packages together.",
     type=str,
     multiple=True,
 )
@@ -1325,11 +1331,11 @@ def publish_docs(
                 success_entries.append(message)
             else:
                 skipped_entries.append(message)
-        if include_success_outputs:
-            get_console().print("[success]Packages published:")
-            for entry in success_entries:
-                get_console().print(f"[success]{entry}")
-            get_console().rule()
+        get_console().print("[blue]Summary:\n")
+        get_console().print("[success]Packages published:")
+        for entry in success_entries:
+            get_console().print(f"[success]{entry}")
+        get_console().rule()
         get_console().print("\n[warning]Packages skipped:")
         for entry in skipped_entries:
             get_console().print(f"[warning]{entry}")
@@ -2472,6 +2478,7 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
+    check_python_3_9_or_above()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -2613,6 +2620,8 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
+    check_python_3_9_or_above()
+
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (

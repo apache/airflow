@@ -23,7 +23,7 @@
 # */}}
 mappings:
   # Map dot separated stats to labels
-  - match: airflow.dagrun.dependency-check.*.*
+  - match: airflow.dagrun.dependency-check.*
     name: "airflow_dagrun_dependency_check"
     labels:
       dag_id: "$1"

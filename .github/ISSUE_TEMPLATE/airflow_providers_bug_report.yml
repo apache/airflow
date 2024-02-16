@@ -90,6 +90,7 @@ body:
         - pinecone
         - postgres
         - presto
+        - qdrant
         - redis
         - salesforce
         - samba
@@ -105,6 +106,7 @@ body:
         - tableau
         - tabular
         - telegram
+        - teradata
         - trino
         - vertica
         - weaviate

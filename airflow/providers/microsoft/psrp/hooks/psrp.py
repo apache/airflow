@@ -121,7 +121,7 @@ class PsrpHook(BaseHook):
 
     def get_conn(self) -> RunspacePool:
         """
-        Returns a runspace pool.
+        Return a runspace pool.
 
         The returned object must be used as a context manager.
         """
@@ -163,7 +163,7 @@ class PsrpHook(BaseHook):
     @contextmanager
     def invoke(self) -> Generator[PowerShell, None, None]:
         """
-        Yields a PowerShell object to which commands can be added.
+        Yield a PowerShell object to which commands can be added.
 
         Upon exit, the commands will be invoked.
         """

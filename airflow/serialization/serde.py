@@ -288,20 +288,20 @@ def _convert(old: dict) -> dict:
 
 
 def _match(classname: str) -> bool:
-    """Checks if the given classname matches a path pattern either using glob format or regexp format."""
+    """Check if the given classname matches a path pattern either using glob format or regexp format."""
     return _match_glob(classname) or _match_regexp(classname)
 
 
 @functools.lru_cache(maxsize=None)
 def _match_glob(classname: str):
-    """Checks if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
+    """Check if the given classname matches a pattern from allowed_deserialization_classes using glob syntax."""
     patterns = _get_patterns()
     return any(fnmatch(classname, p.pattern) for p in patterns)
 
 
 @functools.lru_cache(maxsize=None)
 def _match_regexp(classname: str):
-    """Checks if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
+    """Check if the given classname matches a pattern from allowed_deserialization_classes_regexp using regexp."""
     patterns = _get_regexp_patterns()
     return any(p.match(classname) is not None for p in patterns)
 

@@ -161,7 +161,7 @@ class TransferJobValidator:
 
     def validate_body(self) -> None:
         """
-        Validates the body.
+        Validate the body.
 
         Checks if body specifies `transferSpec` if yes, then check if AWS credentials
         are passed correctly and no more than 1 data source was selected.

@@ -22,8 +22,9 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1705912001
+source-date-epoch: 1707636332
 versions:
+  - 1.11.0
   - 1.10.1
   - 1.10.0
   - 1.9.0
@@ -51,6 +52,7 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - sqlparse>=0.4.2
+  - more-itertools>=9.0.0
 
 additional-extras:
   - name: pandas

@@ -66,7 +66,7 @@ class CloudBatchHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Retrieves connection to GCE Batch.
+        Retrieve connection to GCE Batch.
 
         :return: Google Batch Service client object.
         """

@@ -197,7 +197,7 @@ class OdbcHook(DbApiHook):
         return merged_connect_kwargs
 
     def get_conn(self) -> Connection:
-        """Returns a pyodbc connection object."""
+        """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 

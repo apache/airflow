@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Box, Text, Flex, useTheme } from "@chakra-ui/react";
+import { Box, Text, Flex } from "@chakra-ui/react";
 import { Handle, NodeProps, Position } from "reactflow";
 
 import { SimpleStatus } from "src/dag/StatusBox";
@@ -28,7 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
-import { ImArrowUpRight2, ImArrowDownRight2 } from "react-icons/im";
+import TaskName from "src/dag/TaskName";
 
 export interface CustomNodeProps {
   label: string;
@@ -69,7 +69,6 @@ export const BaseNode = ({
     isZoomedOut,
   },
 }: NodeProps<CustomNodeProps>) => {
-  const { colors } = useTheme();
   const { onSelect } = useSelection();
   const containerRef = useContainerRef();
 
@@ -138,84 +137,48 @@ export const BaseNode = ({
             });
           }
         }}
+        px={isZoomedOut ? 1 : 2}
+        mt={isZoomedOut ? -2 : 0}
       >
-        <Flex
-          justifyContent="space-between"
-          width={width}
-          p={2}
-          flexWrap={isZoomedOut ? "nowrap" : "wrap"}
-          flexDirection={isZoomedOut ? "row" : "column"}
-        >
-          <Flex flexDirection="column" width="100%">
-            <Flex
-              justifyContent="space-between"
-              alignItems="center"
-              width="100%"
-              fontSize={isZoomedOut ? 25 : undefined}
-              fontWeight="bold"
-            >
-              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
-                {taskName}
-              </Text>
-              {setupTeardownType === "setup" && (
-                <ImArrowUpRight2 size={15} color={colors.gray[800]} />
-              )}
-              {setupTeardownType === "teardown" && (
-                <ImArrowDownRight2 size={15} color={colors.gray[800]} />
-              )}
-            </Flex>
-            {!isZoomedOut && (
-              <>
-                {!!instance && instance.state && (
-                  <Flex alignItems="center">
-                    <SimpleStatus state={instance.state} />
-                    <Text
-                      ml={2}
-                      color="gray.500"
-                      fontWeight={400}
-                      fontSize="md"
-                    >
-                      {instance.state}
-                    </Text>
-                  </Flex>
-                )}
-                {task?.operator && (
-                  <Text
-                    noOfLines={1}
-                    maxWidth={`calc(${width}px - 12px)`}
-                    fontWeight={400}
-                    fontSize="md"
-                    width="fit-content"
-                    color={operatorTextColor}
-                    px={1}
-                  >
-                    {task.operator}
-                  </Text>
-                )}
-              </>
+        <TaskName
+          label={taskName}
+          isOpen={isOpen}
+          isGroup={!!childCount}
+          onToggle={(e) => {
+            e.stopPropagation();
+            onToggleCollapse();
+          }}
+          setupTeardownType={setupTeardownType}
+          fontWeight="bold"
+          isZoomedOut={isZoomedOut}
+          mt={isZoomedOut ? -2 : 0}
+          noOfLines={2}
+        />
+        {!isZoomedOut && (
+          <>
+            {!!instance && instance.state && (
+              <Flex alignItems="center">
+                <SimpleStatus state={instance.state} />
+                <Text ml={2} color="gray.500" fontWeight={400} fontSize="md">
+                  {instance.state}
+                </Text>
+              </Flex>
             )}
-          </Flex>
-          {!!childCount && (
-            <Text
-              noOfLines={1}
-              fontSize={isZoomedOut ? 25 : undefined}
-              color="blue.600"
-              cursor="pointer"
-              width="150px"
-              fontWeight="bold"
-              // Increase the target area to expand/collapse a group
-              p={2}
-              m={-2}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleCollapse();
-              }}
-            >
-              {isOpen ? "- " : "+ "}
-              {childCount} tasks
-            </Text>
-          )}
-        </Flex>
+            {task?.operator && (
+              <Text
+                noOfLines={1}
+                maxWidth={`calc(${width}px - 12px)`}
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                color={operatorTextColor}
+                px={1}
+              >
+                {task.operator}
+              </Text>
+            )}
+          </>
+        )}
       </Box>
     </Tooltip>
   );
