@@ -212,5 +212,7 @@ class TestPsrpHook:
         assert call("foo") in ps.add_script.mock_calls
 
     def test_test_connection(self, runspace_pool, *mocks):
-        with PsrpHook(CONNECTION_ID):
-            assert runspace_pool.return_value.__enter__.mock_calls == [call()]
+        connection = Connection(conn_type="psrp")
+        connection.test_connection()
+        
+        assert runspace_pool.return_value._enter_.mock_calls == [call()]
