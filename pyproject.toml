@@ -679,7 +679,7 @@ discord = [ # source: airflow/providers/discord/provider.yaml
   "apache-airflow[http]",
 ]
 docker = [ # source: airflow/providers/docker/provider.yaml
-  "docker>=5.0.3",
+  "docker>=6",
   "python-dotenv>=0.21.0",
 ]
 elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
