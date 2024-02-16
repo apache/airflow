@@ -64,6 +64,9 @@ class DatasetManager(LoggingMixin):
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
+        if extra is None and dataset.extra:
+            extra = dataset.extra
+
         dataset_model = session.scalar(
             select(DatasetModel)
             .where(DatasetModel.uri == dataset.uri)
