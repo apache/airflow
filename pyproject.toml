@@ -1301,10 +1301,10 @@ extend-select = [
     "UP", # Pyupgrade
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
-    # We add modules that do not follow the rule `Missing docstring in public module`,
+    # We add modules that do not follow the rules :`Missing docstring in public module`,
     # `Missing docstring in public method`, `Missing docstring in public package`,
-    # `Missing docstring in magic method`, `Missing docstring in __init__`
-    # and should remove it from that list as soon as it follows.
+    # `Missing docstring in magic method` and should remove it
+    # from that list as soon as it follows.
     # See: https://github.com/apache/airflow/issues/10742
     "D100",
     "D101",
