@@ -24,6 +24,7 @@ description: |
         - `Yandex.Cloud <https://cloud.yandex.com/>`__
 state: ready
 source-date-epoch: 1707636562
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.9.0
   - 3.8.0
