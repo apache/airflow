@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Various security-related utils."""
 from __future__ import annotations
 
 # Licensed to Cloudera, Inc. under one
@@ -33,7 +34,6 @@ from __future__ import annotations
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""Various security-related utils."""
 import socket
 
 import re2

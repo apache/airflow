@@ -14,12 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Kerberos authentication module."""
 from __future__ import annotations
-
-import warnings
-
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.utils.airflow_flask_app import get_airflow_app
 
 #
 # Copyright (c) 2013, Michael Komitee
@@ -45,9 +41,9 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 # ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""Kerberos authentication module"""
 import logging
 import os
+import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
@@ -56,6 +52,8 @@ from flask import Response, _request_ctx_stack as stack, g, make_response, reque
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.net import getfqdn
 
 if TYPE_CHECKING:

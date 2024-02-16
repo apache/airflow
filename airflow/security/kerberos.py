@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Kerberos security provider."""
 from __future__ import annotations
-
-from enum import Enum
 
 # Licensed to Cloudera, Inc. under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,12 +33,12 @@ from enum import Enum
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Kerberos security provider."""
 import logging
 import shlex
 import subprocess
 import sys
 import time
+from enum import Enum
 
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
