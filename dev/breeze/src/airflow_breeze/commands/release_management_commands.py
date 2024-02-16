@@ -26,7 +26,6 @@ import sys
 import tempfile
 import textwrap
 import time
-import venv
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
@@ -433,8 +432,17 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                venv_path = Path(tmp_dir_name) / ".venv"
-                venv.EnvBuilder(with_pip=True).create(venv_path)
+                venv_path = (Path(tmp_dir_name) / ".venv").resolve().absolute()
+                venv_command_result = run_command(
+                    [sys.executable, "-m", "venv", venv_path.__fspath__()],
+                    check=False,
+                    capture_output=True,
+                )
+                if venv_command_result.returncode != 0:
+                    get_console().print(
+                        f"[error]Error when initializing virtualenv in {venv_path.__fspath__()}:[/]\n"
+                        f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
+                    )
                 python_path = venv_path / "bin" / "python"
                 if not python_path.exists():
                     get_console().print(
