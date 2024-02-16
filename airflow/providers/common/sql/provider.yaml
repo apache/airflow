@@ -23,6 +23,7 @@ description: |
 
 state: ready
 source-date-epoch: 1707636332
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.11.0
   - 1.10.1
