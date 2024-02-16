@@ -24,7 +24,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
-    mock_base_gcp_hook_no_default_project_id,
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
