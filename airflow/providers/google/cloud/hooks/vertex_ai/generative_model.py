@@ -48,16 +48,12 @@ class GenerativeModelHook(GoogleBaseHook):
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
     def get_text_generation_model(self, pretrained_model: str):
-        """
-        Return a Model Garden Model object based on Text Generation.
-        """
+        """Return a Model Garden Model object based on Text Generation."""
         model = TextGenerationModel.from_pretrained(pretrained_model)
         return model
 
     def get_generative_model(self, pretrained_model: str) -> GenerativeModel:
-        """
-        Return a Generative Model object.
-        """
+        """Return a Generative Model object."""
         model = GenerativeModel(pretrained_model)
         return model
 
@@ -109,7 +105,7 @@ class GenerativeModelHook(GoogleBaseHook):
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
         :param prompt: Required. Inputs or queries that a user or a program gives
-            to the Vertex AI PaLM API, in order to elicit a specific response.
+            to the Multimodal model, in order to elicit a specific response.
         :param pretrained_model: By default uses the pretrained_model gemini-pro,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
