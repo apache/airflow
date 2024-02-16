@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
     EksDeleteNodegroupTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
@@ -421,11 +422,10 @@ class EksCreateClusterOperator(BaseOperator):
         raise AirflowException("Error creating cluster")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         resource = "fargate profile" if self.compute == "fargate" else self.compute
-        if event is None:
-            self.log.info("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
+        if event["status"] != "success":
             raise AirflowException(f"Error creating {resource}: {event}")
 
         self.log.info("%s created successfully", resource)
@@ -547,10 +547,11 @@ class EksCreateNodegroupOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error creating nodegroup: {event}")
-        return
 
 
 class EksCreateFargateProfileOperator(BaseOperator):
@@ -656,12 +657,13 @@ class EksCreateFargateProfileOperator(BaseOperator):
                 timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error creating Fargate profile: {event}")
-        else:
-            self.log.info("Fargate profile created successfully")
-        return
+
+        self.log.info("Fargate profile created successfully")
 
 
 class EksDeleteClusterOperator(BaseOperator):
@@ -788,10 +790,9 @@ class EksDeleteClusterOperator(BaseOperator):
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error. Event is None")
-            raise AirflowException("Trigger error. Event is None")
-        elif event["status"] == "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "success":
             self.log.info("Cluster deleted successfully.")
 
 
@@ -879,10 +880,11 @@ class EksDeleteNodegroupOperator(BaseOperator):
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error deleting nodegroup: {event}")
-        return
 
 
 class EksDeleteFargateProfileOperator(BaseOperator):
@@ -972,12 +974,13 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error deleting Fargate profile: {event}")
-        else:
-            self.log.info("Fargate profile deleted successfully")
-        return
+
+        self.log.info("Fargate profile deleted successfully")
 
 
 class EksPodOperator(KubernetesPodOperator):
