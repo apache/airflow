@@ -43,6 +43,7 @@ Latest change: 2024-02-16
 =================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================
+`c75a105935 <https://github.com/apache/airflow/commit/c75a1059355df6e1edc42f77947150b4a4c5d51a>`_  2024-02-16   ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
 `42f8d048d2 <https://github.com/apache/airflow/commit/42f8d048d2dccfcf59a44e00e9b1e8a3e63090a0>`_  2024-02-16   ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
 `f91c93ccfe <https://github.com/apache/airflow/commit/f91c93ccfeedc27e54493e95d3088e8478cdf08c>`_  2024-02-14   ``Add retry configuration in 'EmrContainerOperator' (#37426)``
 `56c27f8f5a <https://github.com/apache/airflow/commit/56c27f8f5a3c547147389253ea9653a374ad29f1>`_  2024-02-14   ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``

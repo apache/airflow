@@ -55,6 +55,7 @@ Misc
 * ``Updates to ECS Docs (#37125)``
 * ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 * ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+* ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
