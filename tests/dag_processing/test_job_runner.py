@@ -1477,3 +1477,20 @@ class TestDagFileProcessorAgent:
         # Capture the stdout and stderr
         out, _ = capfd.readouterr()
         assert "DAG File Processing Stats" in out
+
+    @conf_vars({("logging", "dag_processor_manager_log_stdout"): "False"})
+    def test_not_log_to_stdout(self, capfd):
+        test_dag_path = TEST_DAG_FOLDER / "test_scheduler_dags.py"
+        async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
+
+        # Starting dag processing with 0 max_runs to avoid redundant operations.
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)
+        processor_agent.start()
+        if not async_mode:
+            processor_agent.run_single_parsing_loop()
+
+        processor_agent._process.join()
+
+        # Capture the stdout and stderr
+        out, _ = capfd.readouterr()
+        assert "DAG File Processing Stats" not in out
