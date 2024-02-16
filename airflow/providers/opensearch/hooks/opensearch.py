@@ -107,7 +107,7 @@ class OpenSearchHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom UI field behaviour for OpenSearch Connection."""
+        """Return custom UI field behaviour for OpenSearch Connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {

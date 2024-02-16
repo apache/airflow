@@ -118,6 +118,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",

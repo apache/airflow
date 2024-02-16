@@ -94,7 +94,7 @@ class TrinoHook(DbApiHook):
         self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
-        """Returns a connection object."""
+        """Return a connection object."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
@@ -165,7 +165,7 @@ class TrinoHook(DbApiHook):
         return trino_conn
 
     def get_isolation_level(self) -> Any:
-        """Returns an isolation level."""
+        """Return an isolation level."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
@@ -219,7 +219,7 @@ class TrinoHook(DbApiHook):
         **kwargs,
     ) -> None:
         """
-        A generic way to insert a set of tuples into a table.
+        Insert a set of tuples into a table in a generic way.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table
@@ -250,7 +250,7 @@ class TrinoHook(DbApiHook):
         return cell
 
     def get_openlineage_database_info(self, connection):
-        """Returns Trino specific information for OpenLineage."""
+        """Return Trino specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -271,9 +271,9 @@ class TrinoHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _):
-        """Returns Trino dialect."""
+        """Return Trino dialect."""
         return "trino"
 
     def get_openlineage_default_schema(self):
-        """Returns Trino default schema."""
+        """Return Trino default schema."""
         return trino.constants.DEFAULT_SCHEMA

@@ -1058,8 +1058,13 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
-        result = hook.get_first(self.sql)[0]
-        if not result:
+        result = hook.get_first(self.sql)
+
+        # if the query returns 0 rows result will be None so cannot be indexed into
+        # also covers indexing out of bounds on empty list, tuple etc. if returned
+        try:
+            result = result[0]
+        except (TypeError, IndexError):
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
         min_threshold = _convert_to_float_if_possible(self.min_threshold)

@@ -26,6 +26,7 @@
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Possible states of provider packages](#possible-states-of-provider-packages)
+- [Chicken-egg providers](#chicken-egg-providers)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
@@ -172,6 +173,17 @@ graph TD;
     gone[\gone\]
     removed -- Remove from the code --> gone;
 ```
+
+# Chicken-egg providers
+
+Sometimes (rare) we release providers that have dependencies on future version of Airflow - which means that
+they are released long before they are actually usable and it also means that versions in PyPI should be
+released with `apache-airflow >= x.y.z.dev0` version, such providers should have the .dev0 suffix included
+in the `apache-airflow` dependency specification, only the final release, just before the final Airflow x.y.z
+release should get it changed to `>= x.y.z`. This is a rare case and should be handled with care.
+
+We call such case chicken-egg providers as it's not clear who should be released first - the provider or
+the Airflow.
 
 # Prepare Regular Provider packages (RC)
 
