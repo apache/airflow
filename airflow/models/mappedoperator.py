@@ -50,6 +50,7 @@ from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
@@ -360,7 +361,7 @@ class MappedOperator(AbstractOperator):
                 f"'deps' must be a set defined as a class-level variable on {operator_class.__name__}, "
                 f"not a {type(operator_deps).__name__}"
             )
-        return operator_deps | {MappedTaskIsExpanded()}
+        return operator_deps | {MappedTaskIsExpanded(), MappedTaskUpstreamDep()}
 
     @property
     def task_type(self) -> str:

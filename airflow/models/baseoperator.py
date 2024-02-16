@@ -868,7 +868,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **kwargs,
     ):
         from airflow.models.dag import DagContext
-        from airflow.utils.task_group import TaskGroupContext
+        from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
+        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
 
         self.__init_kwargs = {}
 
@@ -896,6 +897,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
+        if isinstance(task_group, MappedTaskGroup):
+            self.deps = self.deps | {MappedTaskUpstreamDep()}
 
         self.owner = owner
         self.email = email
