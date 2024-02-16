@@ -581,7 +581,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             return None
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
@@ -599,6 +599,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             )
             if len(one_log["events"]) > 0:
                 return one_log["events"][0]["message"]
+        return None
 
     def _after_execution(self):
         self._check_success_task()
