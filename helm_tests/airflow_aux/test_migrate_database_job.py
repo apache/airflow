@@ -72,6 +72,27 @@ class TestMigrateDatabaseJob:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
+        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -364,6 +385,27 @@ class TestMigrateDatabaseJobServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
+        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(
