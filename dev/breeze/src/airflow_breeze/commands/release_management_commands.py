@@ -472,7 +472,7 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple
             dist_info.package,
             dist_info.filepath.__fspath__(),
         ],
-        check=True,
+        check=False,
         # We should run `pip wheel` outside of Project directory for avoid the case
         # when some files presented into the project directory, but not included in sdist.
         cwd=cwd,
