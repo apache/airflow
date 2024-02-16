@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for Google Vertex AI Generative AI prompting.
+Example Airflow DAG for Google Vertex AI Generative Model prompting.
 """
 from __future__ import annotations
 
@@ -35,16 +35,20 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["example", "vertex_ai", "generativeai"],
+    tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
     prompt_language_model_task = PromptLanguageModelOperator(
         task_id="prompt_language_model_task",
+        project_id="your-project",
+        location="us-central1",
         prompt="Give me a sample itinerary for a trip to New Zealand.",
         pretrained_model="text-bison",
     )
 
     prompt_multimodal_model_task = PromptMultimodalModelOperator(
         task_id="generative_model_task",
+        project_id="your-project",
+        location="us-central1",
         prompt="Give me a sample itinerary for a trip to Australia.",
         pretrained_model="gemini-pro",
     )
