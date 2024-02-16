@@ -26,6 +26,7 @@ description: |
 
 state: ready
 source-date-epoch: 1707636520
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 8.6.1
   - 8.6.0
