@@ -75,7 +75,7 @@ class S3ToMySqlOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """
-        Executes the transfer operation from S3 to MySQL.
+        Execute the transfer operation from S3 to MySQL.
 
         :param context: The context that is being provided when executing.
         """

@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 def should_retry_start_spark_job(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying."""
     if isinstance(exception, ApiException):
-        return exception.status == 409
+        return str(exception.status) == "409"
     return False
 
 
@@ -363,5 +363,5 @@ class CustomObjectLauncher(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise

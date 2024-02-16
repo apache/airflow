@@ -71,7 +71,7 @@ class TelegramHook(BaseHook):
 
     def get_conn(self) -> telegram.Bot:
         """
-        Returns the telegram bot client.
+        Return the telegram bot client.
 
         :return: telegram bot client
         """
@@ -79,7 +79,7 @@ class TelegramHook(BaseHook):
 
     def __get_token(self, token: str | None, telegram_conn_id: str | None) -> str:
         """
-        Returns the telegram API token.
+        Return the telegram API token.
 
         :param token: telegram API token
         :param telegram_conn_id: telegram connection name
@@ -100,7 +100,7 @@ class TelegramHook(BaseHook):
 
     def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
-        Returns the telegram chat ID for a chat/channel/group.
+        Return the telegram chat ID for a chat/channel/group.
 
         :param chat_id: optional chat ID
         :param telegram_conn_id: telegram connection name
@@ -122,7 +122,7 @@ class TelegramHook(BaseHook):
     )
     def send_message(self, api_params: dict) -> None:
         """
-        Sends the message to a telegram channel or chat.
+        Send the message to a telegram channel or chat.
 
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
         """
