@@ -16,25 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Any
-from airflow.configuration import conf
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook
+from airflow.providers.yandex.links.yq import YQLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-XCOM_WEBLINK_KEY = "web_link"
-
-
-class YQLink(BaseOperatorLink):
-    name = "Yandex Query"
-
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-        return XCom.get_value(key=XCOM_WEBLINK_KEY, ti_key=ti_key) or "https://yq.cloud.yandex.ru"
 
 
 class YQExecuteQueryOperator(SQLExecuteQueryOperator):
@@ -62,12 +51,10 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         connection_id: str | None = None,
         public_ssh_key: str | None = None,
         service_account_id: str | None = None,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.name = name
-        self.deferrable = deferrable
         self.folder_id = folder_id
         self.connection_id = connection_id
         self.public_ssh_key = public_ssh_key
@@ -88,7 +75,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
 
         # pass to YQLink
         web_link = self.hook.compose_query_web_link(self.query_id)
-        context["ti"].xcom_push(key=XCOM_WEBLINK_KEY, value=web_link)
+        YQLink.persist(context, self, web_link)
 
         results = self.hook.wait_results(self.query_id)
         # forget query to avoid 'stop_query' in on_kill
@@ -98,3 +85,5 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
     def on_kill(self) -> None:
         if self.hook is not None and self.query_id is not None:
             self.hook.stop_query(self.query_id)
+            self.hook.close()
+            self.hook = None

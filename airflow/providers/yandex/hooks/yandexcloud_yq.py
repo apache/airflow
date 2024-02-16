@@ -15,41 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
+import time
+from datetime import timedelta
+from typing import Any
+
+import jwt
+import requests
 from requests.packages.urllib3.util.retry import Retry
 
-from datetime import timedelta
-import logging
-import requests
-import time
-from typing import Any
-import jwt
-
-# These two lines enable debugging at httplib level (requests->urllib3->http.client)
-# You will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
-# The only thing missing will be the response.body which is not logged.
-
-import http.client
-
-http.client.HTTPConnection.debuglevel = 1
-
-# You must initialize logging, otherwise you'll not see debug output.
-logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True
-
-from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.exceptions import AirflowException
+from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
-
-from .http_client import YQHttpClientConfig, YQHttpClient
+from airflow.providers.yandex.yq_client.http_client import YQHttpClient, YQHttpClientConfig
 
 
 class YQHook(YandexCloudBaseHook):
-    """
-    A hook for Yandex Query
-    """
+    """A hook for Yandex Query."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -61,7 +43,7 @@ class YQHook(YandexCloudBaseHook):
         self.client: YQHttpClient = YQHttpClient(config=config)
 
     def close(self):
-        """Release all resources"""
+        """Release all resources."""
         self.client.close()
 
     def create_query(self, query_text: str | None, name: str | None = None) -> str:
@@ -70,14 +52,13 @@ class YQHook(YandexCloudBaseHook):
         :param query_text: SQL text.
         :param name: name for the query
         """
-
         return self.client.create_query(
             name=name,
             query_text=query_text,
         )
 
     def wait_results(self, query_id: str, execution_timeout: timedelta = timedelta(minutes=30)) -> Any:
-        """Wait for query complete and get results
+        """Wait for query complete and get results.
 
         :param query_id: ID of query.
         :param execution_timeout: how long to wait for the query to complete.
@@ -110,7 +91,7 @@ class YQHook(YandexCloudBaseHook):
         return self.client.get_query_status(query_id)
 
     def compose_query_web_link(self, query_id: str):
-        """Compose web link to query in Yandex Query UI
+        """Compose web link to query in Yandex Query UI.
 
         :param query_id: ID of query.
         """
@@ -144,7 +125,6 @@ class YQHook(YandexCloudBaseHook):
     def _create_session() -> requests.Session:
         session = requests.Session()
         session.verify = False
-        session.timeout = 20
         retry = Retry(backoff_factor=0.3, total=10)
         session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retry))
         session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retry))

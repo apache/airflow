@@ -14,12 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This file is a copy of https://github.com/ydb-platform/ydb/tree/284b7efb67edcdade0b12c849b7fad40739ad62b/ydb/core/fq/libs/http_api_client
-# It is highly recommended to modify original file first in YDB project and merge it here afterwards
-
 from __future__ import annotations
-from typing import Any, Optional
+
+from typing import Any
 import base64
 import pprint
 import dateutil.parser
@@ -28,7 +25,7 @@ from decimal import Decimal
 
 
 class YQResults:
-    """Holds and formats query execution results"""
+    """Holds and formats query execution results."""
 
     def __init__(self, results: dict[str, Any]):
         self._raw_results = results
@@ -40,13 +37,13 @@ class YQResults:
         return float(value)
 
     @staticmethod
-    def _convert_from_pgfloat(value: str | None) -> Optional[float]:
+    def _convert_from_pgfloat(value: str | None) -> float | None:
         if value is None:
             return None
         return float(value)
 
     @staticmethod
-    def _convert_from_pgint(value: str | None) -> Optional[int]:
+    def _convert_from_pgint(value: str | None) -> int | None:
         if value is None:
             return None
         return int(value)
@@ -56,7 +53,7 @@ class YQResults:
         return Decimal(value)
 
     @staticmethod
-    def _convert_from_pgnumeric(value: str | None) -> Optional[Decimal]:
+    def _convert_from_pgnumeric(value: str | None) -> Decimal | None:
         if value is None:
             return None
         return Decimal(value)
@@ -75,7 +72,7 @@ class YQResults:
         return dateutil.parser.isoparse(value)
 
     @staticmethod
-    def _convert_from_pgdatetime(value: str | None) -> Optional[datetime]:
+    def _convert_from_pgdatetime(value: str | None) -> datetime | None:
         if value is None:
             return None
         return dateutil.parser.isoparse(value)
@@ -121,7 +118,7 @@ class YQResults:
         return key_type, value_type
 
     @staticmethod
-    def _extract_from_variant_over_struct(type_name: str) -> tuple[str, str]:
+    def _extract_from_variant_over_struct(type_name: str) -> dict[str, str]:
         # Variant<'One':Int32,'Two':String> -> {One: Int32, Two: String}
         types_with_names = YQResults._split_type_list(type_name[len("Variant<") : -1])
         result = {}
@@ -133,12 +130,12 @@ class YQResults:
         return result
 
     @staticmethod
-    def _extract_from_variant_over_tuple(type_name: str) -> tuple[str, str]:
+    def _extract_from_variant_over_tuple(type_name: str) -> list[str]:
         # Variant<Int32,String> -> [Int32, String]
         return YQResults._split_type_list(type_name[len("Variant<") : -1])
 
     @staticmethod
-    def _convert_from_optional(value: list[Any]) -> Optional[Any]:
+    def _convert_from_optional(value: list[Any]) -> Any:
         # Optional types are encoded as [[]] objects
         # If type is Uint16, value is encoded as {"rows":[[value]]}
         # If type is Optional<Uint16>, value is encoded as {"rows":[[[value]]]}
@@ -157,7 +154,7 @@ class YQResults:
 
     @staticmethod
     def _get_converter(column_type: str) -> Any:
-        """Returns converter based on column type"""
+        """Returns converter based on column type."""
 
         # primitives
         if column_type in [
@@ -227,39 +224,38 @@ class YQResults:
             return convert
 
         if column_type.startswith("Tuple<"):
-            inner_types = YQResults._extract_from_tuple(column_type)
-            inner_converters = [YQResults._get_converter(t) for t in inner_types]
+            inner_types_list = YQResults._extract_from_tuple(column_type)
+            inner_converters_list = [YQResults._get_converter(t) for t in inner_types_list]
 
             def convert(x):
                 assert len(x) == len(
-                    inner_converters
-                ), f"Wrong lenght for tuple value: {len(x)} != {len(inner_converters)}"
-                return tuple([c(v) for (c, v) in zip(inner_converters, x)])
+                    inner_converters_list
+                ), f"Wrong length for tuple value: {len(x)} != {len(inner_converters_list)}"
+                return tuple([c(v) for (c, v) in zip(inner_converters_list, x)])
 
             return convert
 
         # variant over struct
         if column_type.startswith("Variant<'"):
-            inner_types = YQResults._extract_from_variant_over_struct(column_type)
-            inner_converters = {k: YQResults._get_converter(t) for k, t in inner_types.items()}
+            inner_types_dict = YQResults._extract_from_variant_over_struct(column_type)
+            inner_converters_dict = {k: YQResults._get_converter(t) for k, t in inner_types_dict.items()}
 
             def convert(x):
-                return inner_converters[x[0]](x[1])
+                return inner_converters_dict[x[0]](x[1])
 
             return convert
 
         # variant over tuple
         if column_type.startswith("Variant<"):
-            inner_types = YQResults._extract_from_variant_over_tuple(column_type)
-            inner_converters = [YQResults._get_converter(t) for t in inner_types]
+            inner_types_list = YQResults._extract_from_variant_over_tuple(column_type)
+            inner_converters_list = [YQResults._get_converter(t) for t in inner_types_list]
 
             def convert(x):
-                return inner_converters[x[0]](x[1])
+                return inner_converters_list[x[0]](x[1])
 
             return convert
 
         if column_type == "EmptyDict":
-
             def convert(x):
                 return {}
 

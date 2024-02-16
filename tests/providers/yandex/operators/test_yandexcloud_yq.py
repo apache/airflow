@@ -88,7 +88,7 @@ class TestYQExecuteQueryOperator:
         context["ti"].xcom_push.assert_has_calls(
             [
                 call(
-                    key="web_link", value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1"
+                    key="web_link", value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1", execution_date=None
                 ),
             ]
         )

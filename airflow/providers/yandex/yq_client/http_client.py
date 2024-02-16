@@ -14,10 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# This file is a copy of https://github.com/ydb-platform/ydb/tree/284b7efb67edcdade0b12c849b7fad40739ad62b/ydb/core/fq/libs/http_api_client
-# It is highly recommended to modify original file first in YDB project and merge it here afterwards
-
 from __future__ import annotations
 
 import logging
@@ -29,7 +25,7 @@ from requests.adapters import HTTPAdapter
 from typing import Any
 from urllib3.util.retry import Retry
 
-from .query_results import YQResults
+from airflow.providers.yandex.yq_client.query_results import YQResults
 
 MAX_RETRY_FOR_SESSION = 4
 BACK_OFF_FACTOR = 0.3
@@ -54,7 +50,7 @@ def requests_retry_session(
     return session
 
 
-class YQHttpClientConfig(object):
+class YQHttpClientConfig:
     def __init__(
         self,
         token: str | None = None,
@@ -147,7 +143,7 @@ class YQHttpClient(object):
         request_id=None,
         expected_code=200,
     ):
-        body = dict()
+        body = {}
         if query_text is not None:
             body["text"] = query_text
 
