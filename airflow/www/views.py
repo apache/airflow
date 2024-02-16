@@ -942,9 +942,14 @@ class Airflow(AirflowBaseView):
                 can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
                 if not can_read_all_dags:
                     # if the user doesn't have access to all DAGs, only display errors from visible DAGs
-                    import_errors = import_errors.join(
-                        DagModel, DagModel.fileloc == errors.ImportError.filename
-                    ).where(DagModel.dag_id.in_(filter_dag_ids))
+                    import_errors = import_errors.where(
+                        errors.ImportError.filename.in_(
+                            select(DagModel.fileloc)
+                            .distinct()
+                            .where(DagModel.dag_id.in_(filter_dag_ids))
+                            .subquery()
+                        )
+                    )
 
                 import_errors = session.scalars(import_errors)
                 for import_error in import_errors:

@@ -94,12 +94,11 @@ def get_import_errors(
     if not can_read_all_dags:
         # if the user doesn't have access to all DAGs, only display errors from visible DAGs
         readable_dag_ids = security.get_readable_dags()
-        query = query.join(DagModel, DagModel.fileloc == ImportErrorModel.filename).where(
-            DagModel.dag_id.in_(readable_dag_ids)
+        dagfiles_subq = (
+            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids)).subquery()
         )
-        count_query = count_query.join(DagModel, DagModel.fileloc == ImportErrorModel.filename).where(
-            DagModel.dag_id.in_(readable_dag_ids)
-        )
+        query = query.where(ImportErrorModel.filename.in_(dagfiles_subq))
+        count_query = count_query.where(ImportErrorModel.filename.in_(dagfiles_subq))
 
     total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()
