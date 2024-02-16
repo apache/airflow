@@ -50,7 +50,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStopApplicationTrigger,
     EmrTerminateJobFlowTrigger,
 )
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.helpers import exactly_one, prune_dict
@@ -191,7 +191,7 @@ class EmrAddStepsOperator(BaseOperator):
         return step_ids
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running steps: {event}")
@@ -637,7 +637,7 @@ class EmrContainerOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
@@ -826,7 +826,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         return self._job_flow_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error creating jobFlow: {event}")
@@ -991,7 +991,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error terminating JobFlow: {event}")
@@ -1157,7 +1157,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Trigger error: Application failed to start, event is {event}")
@@ -1397,7 +1397,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] == "success":
             self.log.info("Serverless job completed")
@@ -1695,7 +1695,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
@@ -1823,7 +1823,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self.log.info("EMR serverless application deleted")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] == "success":
             self.log.info("EMR serverless application %s deleted successfully", self.application_id)

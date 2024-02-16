@@ -74,11 +74,12 @@ def get_airflow_version() -> tuple[int, ...]:
     return tuple(int(x) for x in match.groups())
 
 
-def check_execute_complete_event(event: dict[str, Any] | None = None) -> None:
+def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
     if event is None:
         err_msg = "Trigger error: event is None"
         log.error(err_msg)
         raise AirflowException(err_msg)
+    return event
 
 
 class _StringCompareEnum(Enum):

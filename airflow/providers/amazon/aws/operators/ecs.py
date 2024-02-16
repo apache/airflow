@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -582,7 +582,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return None
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")

@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.links.step_function import (
 )
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -130,7 +130,7 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
         return execution_arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Trigger error: event is {event}")

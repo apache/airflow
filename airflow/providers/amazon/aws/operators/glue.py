@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -217,7 +217,7 @@ class GlueJobOperator(BaseOperator):
         return self._job_run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error in glue job: {event}")

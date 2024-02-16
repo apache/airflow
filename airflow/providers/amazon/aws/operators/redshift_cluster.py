@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -316,7 +316,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         self.log.info(cluster)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error creating cluster: {event}")
@@ -412,7 +412,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error creating snapshot: {event}")
@@ -572,7 +572,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error resuming cluster: {event}")
@@ -659,7 +659,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
                 )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error pausing cluster: {event}")
@@ -764,7 +764,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error deleting cluster: {event}")

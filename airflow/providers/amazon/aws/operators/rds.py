@@ -32,7 +32,7 @@ from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbDeletedTrigger,
     RdsDbStoppedTrigger,
 )
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -639,7 +639,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         return json.dumps(create_db_instance, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"DB instance creation failed: {event}")
@@ -724,7 +724,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         return json.dumps(delete_db_instance, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"DB instance deletion failed: {event}")
@@ -791,7 +791,7 @@ class RdsStartDbOperator(RdsBaseOperator):
         return json.dumps(start_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")
@@ -890,7 +890,7 @@ class RdsStopDbOperator(RdsBaseOperator):
         return json.dumps(stop_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")

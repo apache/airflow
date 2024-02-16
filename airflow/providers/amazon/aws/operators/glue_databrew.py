@@ -24,7 +24,7 @@ from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
-from airflow.providers.amazon.aws.utils import check_execute_complete_event
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -103,7 +103,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         return {"run_id": run_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
-        check_execute_complete_event(event)
+        event = validate_execute_complete_event(event)
 
         run_id = event.get("run_id", "")
         status = event.get("status", "")
