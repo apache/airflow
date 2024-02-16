@@ -1469,8 +1469,8 @@ banned-module-level-imports = ["numpy", "pandas"]
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
-"datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.utc(tz=...)"
-"datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=...)"
+"datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
+"datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
 
