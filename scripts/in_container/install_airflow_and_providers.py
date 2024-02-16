@@ -472,7 +472,7 @@ def install_airflow_and_providers(
             install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
         console.print()
         run_command(install_airflow_cmd, github_actions=github_actions, check=True)
-    if installation_spec.provider_packages:
+    if installation_spec.provider_packages or not install_airflow_with_constraints:
         install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
         console.print("\n[bright_blue]Installing provider packages:")
         for provider_package in sorted(installation_spec.provider_packages):
