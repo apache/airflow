@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-16T15:03:19.391558
+# This constraints file was automatically generated on 2024-02-16T19:41:21.124888
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -130,7 +130,7 @@ celery==5.3.6
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.85.1
+cfn-lint==0.85.2
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -194,7 +194,7 @@ fsspec==2023.12.2
 future==0.18.3
 gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==7.1.0
-gcloud-aio-storage==9.1.0
+gcloud-aio-storage==9.2.0
 gcsfs==2023.12.2.post1
 geomet==0.2.1.post1
 gevent==24.2.1
@@ -206,7 +206,7 @@ google-api-python-client==2.118.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.28.0
-google-cloud-aiplatform==1.42.0
+google-cloud-aiplatform==1.42.1
 google-cloud-appengine-logging==1.4.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.1
@@ -567,7 +567,7 @@ tornado==6.4
 towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.1
-trino==0.327.0
+trino==0.328.0
 trove-classifiers==2024.1.31
 twine==5.0.0
 types-Deprecated==1.2.9.20240106
