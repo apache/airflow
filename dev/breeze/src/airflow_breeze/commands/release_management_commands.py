@@ -424,36 +424,68 @@ def _dist_packages(
             yield DistributionPackageInfo.from_wheel(filepath=file)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo):
-    if dist_info.dist_type != "sdist":
-        return
-
+def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...]):
+    venv_created = False
+    success_build = True
     with tempfile.TemporaryDirectory() as tmp_dir_name:
-        venv_path = Path(tmp_dir_name) / ".venv"
-        venv.EnvBuilder(with_pip=True).create(venv_path)
-        python_path = venv_path / "bin" / "python"
-        if not python_path.exists():
-            msg = f"Python interpreter is not exist in path {python_path}"
-            raise FileNotFoundError(msg)
-        pip_command = (python_path.__fspath__(), "-m", "pip")
-        run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}", "-U"], check=True)
-        run_command(
-            [
-                *pip_command,
-                "wheel",
-                "--wheel-dir",
-                str(tmp_dir_name),
-                "--no-deps",
-                "--no-cache",
-                "--no-binary",
-                dist_info.package,
-                dist_info.filepath.__fspath__(),
-            ],
-            check=True,
-            # We should run `pip wheel` outside of Project directory for avoid the case
-            # when some files presented into the project directory, but not included in sdist.
-            cwd=str(tmp_dir_name),
+        for di in dists_info:
+            if di.dist_type != "sdist":
+                continue
+
+            if not venv_created:
+                venv_path = Path(tmp_dir_name) / ".venv"
+                venv.EnvBuilder(with_pip=True).create(venv_path)
+                python_path = venv_path / "bin" / "python"
+                if not python_path.exists():
+                    get_console().print(
+                        f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
+                    )
+                    sys.exit(1)
+                pip_command = (python_path.__fspath__(), "-m", "pip")
+                run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}", "-U"], check=True)
+                venv_created = True
+
+            returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
+            if returncode != 0:
+                success_build = False
+
+    if not success_build:
+        get_console().print(
+            "\n[errors]Errors detected during build wheel distribution(s) from sdist. Exiting!\n"
         )
+        sys.exit(1)
+
+
+def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple[str, ...], cwd: str) -> int:
+    get_console().print(
+        f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+    )
+    result_pip_wheel = run_command(
+        [
+            *pip_command,
+            "wheel",
+            "--wheel-dir",
+            cwd,
+            "--no-deps",
+            "--no-cache",
+            "--no-binary",
+            dist_info.package,
+            dist_info.filepath.__fspath__(),
+        ],
+        check=True,
+        # We should run `pip wheel` outside of Project directory for avoid the case
+        # when some files presented into the project directory, but not included in sdist.
+        cwd=cwd,
+    )
+    if (returncode := result_pip_wheel.returncode) == 0:
+        get_console().print(
+            f"[success]Successfully build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+        )
+    else:
+        get_console().print(
+            f"[error]Unable to build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+        )
+    return returncode
 
 
 @release_management.command(
@@ -492,16 +524,7 @@ def prepare_airflow_packages(
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-    if package_format == "wheel":
-        return
-
-    for dist_info in packages:
-        if dist_info.dist_type == "sdist":
-            get_console().print(
-                f"[info]Validate build wheel from sdist distribution: {dist_info.filepath.name!r}[/]"
-            )
-            _check_sdist_to_wheel(dist_info)
-    get_console().print()
+    _check_sdist_to_wheel_dists(packages)
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -804,9 +827,11 @@ def prepare_provider_packages(
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
     get_console().print("\n[info]Packages available in dist:\n")
+    packages = tuple(_dist_packages(package_format=package_format, build_type="providers"))
     for dist_info in _dist_packages(package_format=package_format, build_type="providers"):
         get_console().print(str(dist_info))
     get_console().print()
+    _check_sdist_to_wheel_dists(packages)
 
 
 def run_generate_constraints(
