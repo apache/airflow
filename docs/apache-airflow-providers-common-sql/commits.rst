@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.11.0
 ......
 
-Latest change: 2024-02-10
+Latest change: 2024-02-15
 
 =================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================
+`b6ca84701e <https://github.com/apache/airflow/commit/b6ca84701e278667bd62c829f7b1f781d27555fe>`_  2024-02-15   ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
+`560d073943 <https://github.com/apache/airflow/commit/560d07394330e3fe356561a955f619a685edc511>`_  2024-02-12   ``Add more-itertools as dependency of common-sql (#37359)``
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `70fd6ada39 <https://github.com/apache/airflow/commit/70fd6ada395715ab3a59715f735bfeb162f2cd46>`_  2024-02-10   ``Enhancement: Performance enhancement for insert_rows method DbApiHook with fast executemany + SAP Hana support (#37246)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 =================================================================================================  ===========  ===========================================================================================================================
