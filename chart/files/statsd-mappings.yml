@@ -52,6 +52,13 @@ mappings:
       dag_id: "$1"
       task_id: "$2"
 
+  - match: airflow.dag.*.*.*.duration
+    name: "airflow_task_duration"
+    labels:
+      dag_id: "$1"
+      taskgroup_id: "$2"
+      task_id: "$3"
+
   - match: airflow.dagrun.duration.success.*
     name: "airflow_dagrun_duration"
     labels:
