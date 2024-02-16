@@ -34,6 +34,10 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI PaLM API to generate natural language text.
 
+    :param project_id: Required. The ID of the Google Cloud project that the
+        service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the
+        service belongs to.
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Vertex AI PaLM API, in order to elicit a specific response.
     :param pretrained_model: By default uses the pretrained_model text-bison,
@@ -113,6 +117,10 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
     """
     Use a Vertex AI Multimodal model to generate natural language text.
 
+    :param project_id: Required. The ID of the Google Cloud project that the
+        service belongs to.
+    :param location: Required. The ID of the Google Cloud location that the
+        service belongs to.
     :param prompt: Required. Inputs or queries that a user or a program gives
         to the Multimodal model, in order to elicit a specific response.
     :param pretrained_model: By default uses the pretrained_model gemini-pro,
