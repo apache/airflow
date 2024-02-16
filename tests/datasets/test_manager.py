@@ -117,7 +117,9 @@ class TestDatasetManager:
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.flush()
 
-        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session, extra={"hi": "bye"})
+        dsem.register_dataset_change(
+            task_instance=mock_task_instance, dataset=ds, session=session, extra={"hi": "bye"}
+        )
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
