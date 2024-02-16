@@ -1213,15 +1213,19 @@ class GCSHook(GoogleBaseHook):
         :return: none
         """
         client = self.get_conn()
+
         # Create bucket object
         source_bucket_obj = client.bucket(source_bucket)
         destination_bucket_obj = client.bucket(destination_bucket)
+
         # Normalize parameters when they are passed
         source_object = normalize_directory_path(source_object)
         destination_object = normalize_directory_path(destination_object)
+
         # Calculate the number of characters that remove from the name, because they contain information
         # about the parent's path
         source_object_prefix_len = len(source_object) if source_object else 0
+
         # Prepare synchronization plan
         to_copy_blobs, to_delete_blobs, to_rewrite_blobs = self._prepare_sync_plan(
             source_bucket=source_bucket_obj,
@@ -1246,13 +1250,14 @@ class GCSHook(GoogleBaseHook):
                 dst_object = self._calculate_sync_destination_path(
                     blob, destination_object, source_object_prefix_len
                 )
-                self.copy(
+                self.rewrite(
                     source_bucket=source_bucket_obj.name,
                     source_object=blob.name,
                     destination_bucket=destination_bucket_obj.name,
                     destination_object=dst_object,
                 )
             self.log.info("Blobs copied.")
+
         # Delete redundant files
         if not to_delete_blobs:
             self.log.info("Skipped blobs deleting.")
@@ -1297,27 +1302,35 @@ class GCSHook(GoogleBaseHook):
         destination_object: str | None,
         recursive: bool,
     ) -> tuple[set[storage.Blob], set[storage.Blob], set[storage.Blob]]:
-        # Calculate the number of characters that remove from the name, because they contain information
+        # Calculate the number of characters that are removed from the name, because they contain information
         # about the parent's path
         source_object_prefix_len = len(source_object) if source_object else 0
         destination_object_prefix_len = len(destination_object) if destination_object else 0
         delimiter = "/" if not recursive else None
+
         # Fetch blobs list
         source_blobs = list(source_bucket.list_blobs(prefix=source_object, delimiter=delimiter))
         destination_blobs = list(
             destination_bucket.list_blobs(prefix=destination_object, delimiter=delimiter)
         )
+
         # Create indexes that allow you to identify blobs based on their name
         source_names_index = {a.name[source_object_prefix_len:]: a for a in source_blobs}
         destination_names_index = {a.name[destination_object_prefix_len:]: a for a in destination_blobs}
+
         # Create sets with names without parent object name
         source_names = set(source_names_index.keys())
+        # Discards empty string from source set that creates an empty subdirectory in
+        # destination bucket with source subdirectory name
+        source_names.discard("")
         destination_names = set(destination_names_index.keys())
+
         # Determine objects to copy and delete
         to_copy = source_names - destination_names
         to_delete = destination_names - source_names
         to_copy_blobs: set[storage.Blob] = {source_names_index[a] for a in to_copy}
         to_delete_blobs: set[storage.Blob] = {destination_names_index[a] for a in to_delete}
+
         # Find names that are in both buckets
         names_to_check = source_names.intersection(destination_names)
         to_rewrite_blobs: set[storage.Blob] = set()
@@ -1325,9 +1338,10 @@ class GCSHook(GoogleBaseHook):
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
             destination_blob = destination_names_index[current_name]
-            # if the objects are different, save it
+            # If the objects are different, save it
             if source_blob.crc32c != destination_blob.crc32c:
                 to_rewrite_blobs.add(source_blob)
+
         return to_copy_blobs, to_delete_blobs, to_rewrite_blobs
 
 
