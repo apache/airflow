@@ -214,5 +214,10 @@ class TestPsrpHook:
     def test_test_connection(self, runspace_pool, *mocks):
         connection = Connection(conn_type="psrp")
         connection.test_connection()
+<<<<<<< HEAD
 
         assert runspace_pool.return_value.__enter__.mock_calls == [call()]
+=======
+        
+        assert runspace_pool.return_value._enter_.mock_calls == [call()]
+>>>>>>> 4ec19851dac7d0a141b4bea0398b0c067fa57a06
