@@ -1386,13 +1386,6 @@ def add_back_references(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
         sys.exit(1)
-    package_list_from_env = os.getenv("PACKAGE_LIST")
-    if package_list_from_env:
-        get_console().print(
-            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list_from_env}"
-        )
-        # Override doc_packages with values from PACKAGE_LIST
-        doc_packages = tuple(package_list_from_env.split(","))
     start_generating_back_references(
         site_path,
         list(
