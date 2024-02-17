@@ -21,8 +21,7 @@ from __future__ import annotations
 import itertools
 from typing import TYPE_CHECKING, Any
 
-import pinecone
-from pinecone import Pinecone
+from pinecone import Pinecone, PodSpec, ServerlessSpec
 
 from airflow.hooks.base import BaseHook
 
@@ -132,75 +131,58 @@ class PineconeHook(BaseHook):
             **kwargs,
         )
 
+    @staticmethod
+    def get_pod_spec_obj(environment, replicas, shards, pods, pod_type, metadata_config, source_collection):
+        return PodSpec(
+            environment=environment,
+            replicas=replicas,
+            shards=shards,
+            pods=pods,
+            pod_type=pod_type,
+            metadata_config=metadata_config,
+            source_collection=source_collection,
+        )
+
+    @staticmethod
+    def get_serverless_spec_obj(cloud, region):
+        return ServerlessSpec(cloud=cloud, region=region)
+
     def create_index(
         self,
         index_name: str,
         dimension: int,
-        index_type: str | None = "approximated",
+        spec: ServerlessSpec | PodSpec,
         metric: str | None = "cosine",
-        replicas: int | None = 1,
-        shards: int | None = 1,
-        pods: int | None = 1,
-        pod_type: str | None = "p1",
-        index_config: dict[str, str] | None = None,
-        metadata_config: dict[str, str] | None = None,
-        source_collection: str | None = "",
         timeout: int | None = None,
     ) -> None:
-        """
-        Create a new index.
-
-        .. seealso:: https://docs.pinecone.io/reference/create_index/
-
-        :param index_name: The name of the index to create.
-        :param dimension: the dimension of vectors that would be inserted in the index
-        :param index_type: type of index, one of {"approximated", "exact"}, defaults to "approximated".
-        :param metric: type of metric used in the vector index, one of {"cosine", "dotproduct", "euclidean"}
-        :param replicas: the number of replicas, defaults to 1.
-        :param shards: the number of shards per index, defaults to 1.
-        :param pods: Total number of pods to be used by the index. pods = shard*replicas
-        :param pod_type: the pod type to be used for the index. can be one of p1 or s1.
-        :param index_config: Advanced configuration options for the index
-        :param metadata_config: Configuration related to the metadata index
-        :param source_collection: Collection name to create the index from
-        :param timeout: Timeout for wait until index gets ready.
-        """
-        pinecone.create_index(
+        self.conn.create_index(
             name=index_name,
-            timeout=timeout,
-            index_type=index_type,
             dimension=dimension,
+            spec=spec,
             metric=metric,
-            pods=pods,
-            replicas=replicas,
-            shards=shards,
-            pod_type=pod_type,
-            metadata_config=metadata_config,
-            source_collection=source_collection,
-            index_config=index_config,
+            timeout=timeout,
         )
 
-    @staticmethod
-    def describe_index(index_name: str) -> Any:
+    def describe_index(self, index_name: str) -> Any:
         """
         Retrieve information about a specific index.
 
         :param index_name: The name of the index to describe.
         """
-        return pinecone.describe_index(name=index_name)
+        return self.conn.describe_index(name=index_name)
 
-    @staticmethod
-    def delete_index(index_name: str, timeout: int | None = None) -> None:
+    def delete_index(self, index_name: str, timeout: int | None = None) -> None:
         """
         Delete a specific index.
 
         :param index_name: the name of the index.
         :param timeout: Timeout for wait until index gets ready.
         """
-        pinecone.delete_index(name=index_name, timeout=timeout)
+        self.conn.delete_index(name=index_name, timeout=timeout)
 
-    @staticmethod
-    def configure_index(index_name: str, replicas: int | None = None, pod_type: str | None = "") -> None:
+    def configure_index(
+        self, index_name: str, replicas: int | None = None, pod_type: str | None = ""
+    ) -> None:
         """
         Change the current configuration of the index.
 
@@ -208,43 +190,40 @@ class PineconeHook(BaseHook):
         :param replicas: The new number of replicas.
         :param pod_type: the new pod_type for the index.
         """
-        pinecone.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
+        self.conn.configure_index(name=index_name, replicas=replicas, pod_type=pod_type)
 
     @staticmethod
-    def create_collection(collection_name: str, index_name: str) -> None:
+    def create_collection(self, collection_name: str, index_name: str) -> None:
         """
         Create a new collection from a specified index.
 
         :param collection_name: The name of the collection to create.
         :param index_name: The name of the source index.
         """
-        pinecone.create_collection(name=collection_name, source=index_name)
+        self.conn.create_collection(name=collection_name, source=index_name)
 
-    @staticmethod
-    def delete_collection(collection_name: str) -> None:
+    def delete_collection(self, collection_name: str) -> None:
         """
         Delete a specific collection.
 
         :param collection_name: The name of the collection to delete.
         """
-        pinecone.delete_collection(collection_name)
+        self.conn.delete_collection(collection_name)
 
-    @staticmethod
-    def describe_collection(collection_name: str) -> Any:
+    def describe_collection(self, collection_name: str) -> Any:
         """
         Retrieve information about a specific collection.
 
         :param collection_name: The name of the collection to describe.
         """
-        return pinecone.describe_collection(collection_name)
+        return self.conn.describe_collection(collection_name)
 
-    @staticmethod
-    def list_collections() -> Any:
+    def list_collections(self) -> Any:
         """Retrieve a list of all collections in the current project."""
-        return pinecone.list_collections()
+        return self.conn.list_collections()
 
-    @staticmethod
     def query_vector(
+        self,
         index_name: str,
         vector: list[Any],
         query_id: str | None = None,
@@ -272,7 +251,7 @@ class PineconeHook(BaseHook):
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
          of the form: {'indices': List[int], 'values': List[float]}, where the lists each have the same length.
         """
-        index = pinecone.Index(index_name)
+        index = self.conn.Index(index_name)
         return index.query(
             vector=vector,
             id=query_id,
@@ -310,7 +289,7 @@ class PineconeHook(BaseHook):
         :param pool_threads: Number of threads for parallel upserting. If async_req is True, this must be provided.
         """
         responses = []
-        with pinecone.Index(index_name, pool_threads=pool_threads) as index:
+        with self.conn.Index(index_name, pool_threads=pool_threads) as index:
             if async_req and pool_threads:
                 async_results = [index.upsert(vectors=chunk, async_req=True) for chunk in self._chunks(data)]
                 responses = [async_result.get() for async_result in async_results]
@@ -320,8 +299,8 @@ class PineconeHook(BaseHook):
                     responses.append(response)
         return responses
 
-    @staticmethod
     def describe_index_stats(
+        self,
         index_name: str,
         stats_filter: dict[str, str | float | int | bool | list[Any] | dict[Any, Any]] | None = None,
         **kwargs: Any,
@@ -337,5 +316,5 @@ class PineconeHook(BaseHook):
         :param stats_filter: If this parameter is present, the operation only returns statistics for vectors that
          satisfy the filter. See https://www.pinecone.io/docs/metadata-filtering/
         """
-        index = pinecone.Index(index_name)
+        index = self.conn.Index(index_name)
         return index.describe_index_stats(filter=stats_filter, **kwargs)
