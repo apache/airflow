@@ -640,6 +640,13 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
+    package_list_from_env = os.getenv("PACKAGE_LIST")
+    if package_list_from_env:
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list_from_env}"
+        )
+        # Override doc_packages with values from PACKAGE_LIST
+        doc_packages = tuple(package_list_from_env.split(","))
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,

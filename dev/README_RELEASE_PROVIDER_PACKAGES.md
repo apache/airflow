@@ -93,6 +93,17 @@ in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-document
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
 
+
+Note: Sometimes we are releasing a subset of providers and would not want to add the
+list of these providers to every breeze command we run, specifically:
+`prepare-provider-packages`, `build-docs` , `publish-docs`, and, `add-back-references`. In this
+case, we can instead export an environment variable: `PACKAGE_LIST`, and it will work for every breeze
+command involved in the release process. Follow the steps below to set the environment variable:
+
+```shell script
+ export PACKAGE_LIST=PACKAGE1,PACKAGE2
+```
+
 ```shell script
 branch="update-min-airflow-version"
 git checkout -b "${branch}"
@@ -231,6 +242,12 @@ In case you prepare provider documentation for just a few selected providers, yo
 
 ```shell script
 breeze release-management prepare-provider-documentation [packages]
+```
+
+Alternatively, if you set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management prepare-provider-documentation
 ```
 
 In case you want to also release a pre-installed provider that is in ``not-ready`` state (i.e. when
@@ -493,6 +510,13 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
+Alternatively, if you set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs apache-airflow-providers --clean-build
+```
+
 - Now you can preview the documentation.
 
 ```shell script
@@ -530,6 +554,13 @@ If you have providers as list of provider ids because you just released them you
 cd "${AIRFLOW_REPO_ROOT}"
 
 breeze release-management publish-docs amazon apache.beam google ....
+breeze release-management add-back-references all-providers
+```
+
+Alternatively, if you set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management publish-docs
 breeze release-management add-back-references all-providers
 ```
 

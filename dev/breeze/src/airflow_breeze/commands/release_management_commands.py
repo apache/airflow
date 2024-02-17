@@ -637,6 +637,15 @@ def prepare_provider_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+
+    package_list_from_env = os.getenv("PACKAGE_LIST")
+    if package_list_from_env:
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list_from_env}"
+        )
+        # Override provider_packages with values from PACKAGE_LIST
+        provider_packages = tuple(package_list_from_env.split(","))
+
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
         provider_packages=provider_packages,
@@ -1297,6 +1306,13 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
+    package_list_from_env = os.getenv("PACKAGE_LIST")
+    if package_list_from_env:
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list_from_env}"
+        )
+        # Override doc_packages with values from PACKAGE_LIST
+        doc_packages = tuple(package_list_from_env.split(","))
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(
@@ -1370,6 +1386,13 @@ def add_back_references(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
         sys.exit(1)
+    package_list_from_env = os.getenv("PACKAGE_LIST")
+    if package_list_from_env:
+        get_console().print(
+            f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list_from_env}"
+        )
+        # Override doc_packages with values from PACKAGE_LIST
+        doc_packages = tuple(package_list_from_env.split(","))
     start_generating_back_references(
         site_path,
         list(
