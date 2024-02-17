@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import ast
 from unittest import mock
 
-from airflow.models import Log
+from sqlalchemy import select
+
+from airflow.models.log import Log
 
 
 def client_with_login(app, expected_response_code=302, **kwargs):
@@ -66,82 +67,10 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
+def get_last_logs(session, dag_id, event, execution_date, limit: int = 5) -> list[Log]:
+    return session.scalars(
+        select(Log)
+        .where(Log.dag_id == dag_id, Log.event == event, Log.execution_date == execution_date)
         .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    assert logs[0].extra
-    session.query(Log).delete()
-
-
-def _check_last_log_masked_connection(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra = ast.literal_eval(logs[0].extra)
-    assert extra == [
-        ("conn_id", "test_conn"),
-        ("conn_type", "http"),
-        ("description", "description"),
-        ("host", "localhost"),
-        ("port", "8080"),
-        ("username", "root"),
-        ("password", "***"),
-        ("extra", '{"x_secret": "***", "y_secret": "***"}'),
-    ]
-
-
-def _check_last_log_masked_variable(session, dag_id, event, execution_date):
-    logs = (
-        session.query(
-            Log.dag_id,
-            Log.task_id,
-            Log.event,
-            Log.execution_date,
-            Log.owner,
-            Log.extra,
-        )
-        .filter(
-            Log.dag_id == dag_id,
-            Log.event == event,
-            Log.execution_date == execution_date,
-        )
-        .order_by(Log.dttm.desc())
-        .limit(5)
-        .all()
-    )
-    assert len(logs) >= 1
-    extra_dict = ast.literal_eval(logs[0].extra)
-    assert extra_dict == [("key", "x_secret"), ("val", "***")]
+        .limit(limit)
+    ).all()

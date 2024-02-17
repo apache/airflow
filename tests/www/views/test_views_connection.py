@@ -17,17 +17,23 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import json
 from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
+from tests.test_utils.db import clear_db_connections, clear_db_logs
+from tests.test_utils.www import (
+    check_content_in_response,
+    get_last_logs,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -48,15 +54,19 @@ def conn_with_extra() -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def clear_connections():
-    with create_session() as session:
-        session.query(Connection).delete()
+    clear_db_connections(add_default_connections_back=False)
+    clear_db_logs()
+    yield
+    clear_db_logs()
+    clear_db_connections()
 
 
 @pytest.mark.execution_timeout(150)
 def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
-    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="connection.create", execution_date=None)
+    assert logs and logs[0].extra
 
 
 def test_connection_id_trailing_blanks(admin_client, session):
@@ -65,8 +75,7 @@ def test_connection_id_trailing_blanks(admin_client, session):
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
     check_content_in_response("Added Row", resp)
 
-    conn = session.query(Connection).one()
-    assert "conn_id_with_trailing_blanks" == conn.conn_id
+    assert session.scalar(select(Connection.conn_id)) == "conn_id_with_trailing_blanks"
 
 
 def test_connection_id_leading_blanks(admin_client, session):
@@ -75,8 +84,7 @@ def test_connection_id_leading_blanks(admin_client, session):
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
     check_content_in_response("Added Row", resp)
 
-    conn = session.query(Connection).one()
-    assert "conn_id_with_leading_blanks" == conn.conn_id
+    assert session.scalar(select(Connection.conn_id)) == "conn_id_with_leading_blanks"
 
 
 def test_all_fields_with_blanks(admin_client, session):
@@ -93,7 +101,7 @@ def test_all_fields_with_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     # validate all the fields
-    conn = session.query(Connection).one()
+    conn = session.scalar(select(Connection))
     assert "connection_id_with_space" == conn.conn_id
     assert "a sample http connection with leading and trailing blanks" == conn.description
     assert "localhost" == conn.host
@@ -102,7 +110,18 @@ def test_all_fields_with_blanks(admin_client, session):
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    logs = get_last_logs(session, dag_id=None, event="connection.create", execution_date=None)
+    assert logs and logs[0].extra
+    assert ast.literal_eval(logs[0].extra) == [
+        ("conn_id", "test_conn"),
+        ("conn_type", "http"),
+        ("description", "description"),
+        ("host", "localhost"),
+        ("port", "8080"),
+        ("username", "root"),
+        ("password", "***"),
+        ("extra", '{"x_secret": "***", "y_secret": "***"}'),
+    ]
 
 
 def test_prefill_form_null_extra():
@@ -339,7 +358,6 @@ def test_duplicate_connection(admin_client):
         port=3306,
     )
     with create_session() as session:
-        session.query(Connection).delete()
         session.add_all([conn1, conn2, conn3])
         session.commit()
 
@@ -354,8 +372,7 @@ def test_duplicate_connection(admin_client):
         "test_duplicate_postgres_connection_copy1",
         "test_duplicate_postgres_connection_copy2",
     }
-    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
-    assert expected_connections_ids == connections_ids
+    assert set(session.scalars(select(Connection.conn_id))) == expected_connections_ids
 
 
 def test_duplicate_connection_error(admin_client):
@@ -377,7 +394,6 @@ def test_duplicate_connection_error(admin_client):
     ]
 
     with create_session() as session:
-        session.query(Connection).delete()
         session.add_all(connections)
 
     data = {"action": "mulduplicate", "rowid": [connections[0].id]}
@@ -385,8 +401,7 @@ def test_duplicate_connection_error(admin_client):
     assert resp.status_code == 200
 
     expected_connections_ids = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
-    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
-    assert expected_connections_ids == connections_ids
+    assert set(session.scalars(select(Connection.conn_id))) == expected_connections_ids
 
 
 @pytest.fixture()
@@ -398,18 +413,16 @@ def connection():
     )
     with create_session() as session:
         session.add(connection)
-    yield connection
-    with create_session() as session:
-        session.query(Connection).filter(Connection.conn_id == CONNECTION["conn_id"]).delete()
+    return connection
 
 
-def test_connection_muldelete(admin_client, connection):
+def test_connection_muldelete(admin_client, connection, session):
     conn_id = connection.id
     data = {"action": "muldelete", "rowid": [conn_id]}
+    assert session.scalar(select(func.count()).where(Connection.id == conn_id)) == 1
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
     assert resp.status_code == 200
-    with create_session() as session:
-        assert session.query(Connection).filter(Connection.id == conn_id).count() == 0
+    assert session.scalar(select(func.count()).where(Connection.id == conn_id)) == 0
 
 
 @mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)

@@ -28,6 +28,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 import time_machine
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
@@ -57,6 +58,8 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
+SERIALIZED_DAG_MODEL_STMT = select(SerializedDagModel)
+
 pytestmark = pytest.mark.db_test
 
 
@@ -78,14 +81,14 @@ class TestCliDags:
     def test_reserialize(self):
         # Assert that there are serialized Dags
         with create_session() as session:
-            serialized_dags_before_command = session.query(SerializedDagModel).all()
+            serialized_dags_before_command = tuple(session.scalars(SERIALIZED_DAG_MODEL_STMT))
         assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
 
         # Run clear of serialized dags
         dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only"]))
         # Assert no serialized Dags
         with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+            serialized_dags_after_clear = tuple(session.scalars(SERIALIZED_DAG_MODEL_STMT))
         assert not len(serialized_dags_after_clear)
 
         # Serialize manually
@@ -93,7 +96,7 @@ class TestCliDags:
 
         # Check serialized DAGs are back
         with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+            serialized_dags_after_reserialize = tuple(session.scalars(SERIALIZED_DAG_MODEL_STMT))
         assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
 
     def test_reserialize_should_support_subdir_argument(self):
@@ -102,7 +105,7 @@ class TestCliDags:
 
         # Assert no serialized Dags
         with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+            serialized_dags_after_clear = tuple(session.scalars(SERIALIZED_DAG_MODEL_STMT))
         assert len(serialized_dags_after_clear) == 0
 
         # Serialize manually
@@ -117,7 +120,7 @@ class TestCliDags:
 
         # Check serialized DAG are back
         with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+            serialized_dags_after_reserialize = tuple(session.scalars(SERIALIZED_DAG_MODEL_STMT))
         assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
@@ -662,7 +665,7 @@ class TestCliDags:
             ),
         )
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+            dagrun = session.scalar(select(DagRun).where(DagRun.run_id == "test_trigger_dag").limit(1))
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -692,7 +695,9 @@ class TestCliDags:
         )
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag_with_micro").one()
+            dagrun = session.scalar(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro").limit(1)
+            )
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -746,7 +751,7 @@ class TestCliDags:
         session.add(DM(dag_id=key))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select([func.count()]).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -762,7 +767,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select([func.count()]).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])

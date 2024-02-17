@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection,
@@ -25,7 +26,6 @@ from airflow.api_connexion.schemas.error_schema import (
 )
 from airflow.models.errors import ImportError
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_import_errors
 
 pytestmark = pytest.mark.db_test
@@ -41,7 +41,6 @@ class TestErrorSchemaBase:
 
 
 class TestErrorSchema(TestErrorSchemaBase):
-    @provide_session
     def test_serialize(self, session):
         import_error = ImportError(
             filename="lorem.py",
@@ -61,7 +60,6 @@ class TestErrorSchema(TestErrorSchemaBase):
 
 
 class TestErrorCollectionSchema(TestErrorSchemaBase):
-    @provide_session
     def test_serialize(self, session):
         import_error = [
             ImportError(
@@ -73,8 +71,7 @@ class TestErrorCollectionSchema(TestErrorSchemaBase):
         ]
         session.add_all(import_error)
         session.commit()
-        query = session.query(ImportError)
-        query_list = query.all()
+        query_list = session.scalars(select(ImportError)).all()
         serialized_data = import_error_collection_schema.dump(
             ImportErrorCollection(import_errors=query_list, total_entries=2)
         )

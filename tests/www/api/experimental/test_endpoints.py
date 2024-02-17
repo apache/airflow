@@ -28,12 +28,12 @@ import pytest
 
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
 from airflow.version import version
-from tests.test_utils.db import clear_db_pools
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
@@ -68,11 +68,7 @@ class TestBase:
 class TestApiExperimental(TestBase):
     @pytest.fixture(scope="class", autouse=True)
     def _populate_db(self):
-        session = Session()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
-        session.close()
+        clear_db_runs()
 
         dagbag = DagBag(include_examples=True)
         for dag in dagbag.dags.values():
@@ -81,11 +77,7 @@ class TestApiExperimental(TestBase):
 
     @pytest.fixture(autouse=True)
     def _reset_db(self):
-        session = Session()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
-        session.close()
+        clear_db_runs()
 
     def test_info(self):
         url = "/api/experimental/info"
@@ -320,11 +312,7 @@ class TestLineageApiExperimental(TestBase):
 
     @pytest.fixture(scope="class", autouse=True)
     def _populate_db(self):
-        session = Session()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
-        session.commit()
-        session.close()
+        clear_db_runs()
 
         dagbag = DagBag(
             include_examples=True,

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 from dateutil.parser import parse
+from sqlalchemy import select
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -27,12 +28,10 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
 DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
-
 SECOND_TIME = "2020-06-10T13:59:56.336000+00:00"
 
 pytestmark = pytest.mark.db_test
@@ -49,7 +48,6 @@ class TestDAGRunBase:
 
 
 class TestDAGRunSchema(TestDAGRunBase):
-    @provide_session
     def test_serialize(self, session):
         dagrun_model = DagRun(
             dag_id="my-dag-run",
@@ -62,7 +60,7 @@ class TestDAGRunSchema(TestDAGRunBase):
         )
         session.add(dagrun_model)
         session.commit()
-        dagrun_model = session.query(DagRun).first()
+        dagrun_model = session.scalar(select(DagRun))
         deserialized_dagrun = dagrun_schema.dump(dagrun_model)
 
         assert deserialized_dagrun == {
@@ -133,7 +131,6 @@ class TestDAGRunSchema(TestDAGRunBase):
 
 
 class TestDagRunCollection(TestDAGRunBase):
-    @provide_session
     def test_serialize(self, session):
         dagrun_model_1 = DagRun(
             dag_id="my-dag-run",

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.pool import Pool
@@ -25,6 +26,8 @@ from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
+
+POOLS_COUNT_STMT = select([func.count()]).select_from(Pool)
 
 pytestmark = pytest.mark.db_test
 
@@ -68,8 +71,7 @@ class TestGetPools(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
-        result = session.query(Pool).all()
-        assert len(result) == 2  # accounts for the default pool as well
+        assert session.scalar(POOLS_COUNT_STMT) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
@@ -106,8 +108,7 @@ class TestGetPools(TestBasePoolEndpoints):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
-        result = session.query(Pool).all()
-        assert len(result) == 2  # accounts for the default pool as well
+        assert session.scalar(POOLS_COUNT_STMT) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert {
@@ -177,8 +178,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
-        result = session.query(Pool).count()
-        assert result == 121  # accounts for default pool as well
+        assert session.scalar(POOLS_COUNT_STMT) == 121  # accounts for default pool as well
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         pool_ids = [pool["name"] for pool in response.json["pools"]]
@@ -188,8 +188,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
-        result = session.query(Pool).count()
-        assert result == 121
+        assert session.scalar(POOLS_COUNT_STMT) == 121
         response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert len(response.json["pools"]) == 100
@@ -198,8 +197,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
-        result = session.query(Pool).count()
-        assert result == 121
+        assert session.scalar(POOLS_COUNT_STMT) == 121
         response = self.client.get(
             "/api/v1/pools?order_by=open_slots", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -212,8 +210,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 200)]
         session.add_all(pools)
         session.commit()
-        result = session.query(Pool).count()
-        assert result == 200
+        assert session.scalar(POOLS_COUNT_STMT) == 200
         response = self.client.get("/api/v1/pools?limit=180", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert len(response.json["pools"]) == 150

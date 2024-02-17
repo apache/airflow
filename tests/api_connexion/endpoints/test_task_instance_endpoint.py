@@ -22,6 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import contains_eager
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -213,7 +214,9 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # This prevents issue when users upgrade to 2.0+
         # from 1.10.x
         # https://github.com/apache/airflow/issues/14421
-        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session="fetch")
+        session.execute(
+            update(TaskInstance).values(operator=None).execution_options(synchronize_session="fetch")
+        )
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -352,7 +355,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
 
     def test_should_respond_200_task_instance_with_sla_and_rendered(self, session):
         tis = self.create_task_instances(session)
-        session.query()
         sla_miss = SlaMiss(
             task_id="print_the_context",
             dag_id="example_python_operator",
@@ -723,7 +725,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 200
-        count = session.query(TaskInstance).filter(TaskInstance.dag_id == "example_python_operator").count()
+        count = session.scalar(select(func.count()).where(TaskInstance.dag_id == "example_python_operator"))
         assert count == response.json["total_entries"]
         assert count == len(response.json["task_instances"])
 
@@ -1325,7 +1327,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        failed_dag_runs = session.query(DagRun).filter(DagRun.state == "failed").count()
+        failed_dag_runs = session.scalar(select(func.count()).where(DagRun.state == "failed"))
         assert 200 == response.status_code
         expected_response = [
             {
@@ -1724,13 +1726,12 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance)
             .join(TaskInstance.dag_run)
             .options(contains_eager(TaskInstance.dag_run))
-            .filter(TaskInstance.task_id == "print_the_context")
-            .all()
-        )
+            .where(TaskInstance.task_id == "print_the_context")
+        ).all()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
             environ_overrides={"REMOTE_USER": "test"},
@@ -1774,12 +1775,9 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     def test_should_assert_call_mocked_api_when_run_id(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
         run_id = "TEST_DAG_RUN_ID"
-        mock_set_task_instance_state.return_value = (
-            session.query(TaskInstance)
-            .join(TaskInstance.dag_run)
-            .filter(TaskInstance.task_id == "print_the_context")
-            .all()
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).join(TaskInstance.dag_run).where(TaskInstance.task_id == "print_the_context")
+        ).all()
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
             environ_overrides={"REMOTE_USER": "test"},

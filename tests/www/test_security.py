@@ -1007,7 +1007,7 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             assert_user_has_dag_perms(
                 perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
-            session.query(DagModel).delete()
+            clear_db_dags()
 
 
 def test_permissions_work_for_dags_with_dot_in_dagname(
@@ -1041,7 +1041,7 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
-            session.query(DagModel).delete()
+            clear_db_dags()
 
 
 def test_fab_models_use_airflow_base_meta():

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -44,9 +45,13 @@ class TestPool:
         clear_db_runs()
         clear_db_pools()
 
+    @pytest.fixture(autouse=True)
     def setup_method(self):
         self.clean_db()
         self.pools = []
+        self.pools_count_stmt = select([func.count()]).select_from(Pool)
+        yield
+        self.clean_db()
 
     def add_pools(self):
         self.pools = [Pool.get_default_pool()]
@@ -254,7 +259,7 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is True
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
+        assert session.scalar(self.pools_count_stmt) == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self, session):
         self.add_pools()
@@ -265,13 +270,13 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is False
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
+        assert session.scalar(self.pools_count_stmt) == self.TOTAL_POOL_COUNT
 
     def test_delete_pool(self, session):
         self.add_pools()
         pool = Pool.delete_pool(name=self.pools[-1].pool)
         assert pool.pool == self.pools[-1].pool
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT - 1
+        assert session.scalar(self.pools_count_stmt) == self.TOTAL_POOL_COUNT - 1
 
     def test_delete_pool_non_existing(self):
         with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):

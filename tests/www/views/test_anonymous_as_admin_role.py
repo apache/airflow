@@ -22,7 +22,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from airflow.models import Pool
-from airflow.utils.session import create_session
+from tests.test_utils.db import clear_db_pools
 from tests.test_utils.www import check_content_in_response
 
 pytestmark = pytest.mark.db_test
@@ -37,8 +37,7 @@ POOL = {
 
 @pytest.fixture(autouse=True)
 def clear_pools():
-    with create_session() as session:
-        session.query(Pool).delete()
+    clear_db_pools(add_default_poll=False)
 
 
 @pytest.fixture()

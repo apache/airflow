@@ -22,6 +22,7 @@ from datetime import timedelta
 from time import sleep
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow.exceptions import AirflowTaskTimeout
@@ -96,28 +97,25 @@ class TestCore:
         op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         with suppress(AirflowTaskTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        op1_fails = (
-            session.query(TaskFail)
-            .filter(
-                TaskFail.task_id == "pass_sleepy",
-                TaskFail.dag_id == dag.dag_id,
-                DagRun.execution_date == DEFAULT_DATE,
+        assert (
+            session.scalar(
+                select(func.count()).where(
+                    TaskFail.task_id == "pass_sleepy",
+                    TaskFail.dag_id == dag.dag_id,
+                    DagRun.execution_date == DEFAULT_DATE,
+                )
             )
-            .all()
-        )
-        op2_fails = (
-            session.query(TaskFail)
-            .filter(
+            == 0
+        )  # op1 failures
+        op2_metrics = session.execute(
+            select(func.count().label("count"), func.sum(TaskFail.duration).label("duration")).where(
                 TaskFail.task_id == "fail_sleepy",
                 TaskFail.dag_id == dag.dag_id,
                 DagRun.execution_date == DEFAULT_DATE,
             )
-            .all()
-        )
-
-        assert 0 == len(op1_fails)
-        assert 1 == len(op2_fails)
-        assert sum(f.duration for f in op2_fails) >= 3
+        ).one()
+        assert op2_metrics.count == 1
+        assert op2_metrics.duration >= 3
 
     def test_externally_triggered_dagrun(self, dag_maker):
         TI = TaskInstance

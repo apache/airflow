@@ -24,8 +24,8 @@ import pytest
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
-from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
+from tests.test_utils.db import clear_db_jobs
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
@@ -33,21 +33,15 @@ UNHEALTHY = "unhealthy"
 pytestmark = pytest.mark.db_test
 
 
-class TestHealthTestBase:
+class TestGetHealth:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, minimal_app_for_api) -> None:
+    def setup_test_cases(self, minimal_app_for_api):
         self.app = minimal_app_for_api
         self.client = self.app.test_client()  # type:ignore
-        with create_session() as session:
-            session.query(Job).delete()
+        clear_db_jobs()
+        yield
+        clear_db_jobs()
 
-    def teardown_method(self):
-        with create_session() as session:
-            session.query(Job).delete()
-
-
-class TestGetHealth(TestHealthTestBase):
-    @provide_session
     def test_healthy_scheduler_status(self, session):
         last_scheduler_heartbeat_for_testing_1 = timezone.utcnow()
         job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_1)
@@ -62,7 +56,6 @@ class TestGetHealth(TestHealthTestBase):
             == resp_json["scheduler"]["latest_scheduler_heartbeat"]
         )
 
-    @provide_session
     def test_unhealthy_scheduler_is_slow(self, session):
         last_scheduler_heartbeat_for_testing_2 = timezone.utcnow() - timedelta(minutes=1)
         job = Job(state=State.RUNNING, latest_heartbeat=last_scheduler_heartbeat_for_testing_2)

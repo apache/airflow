@@ -19,6 +19,7 @@ from __future__ import annotations
 import urllib
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dagrun import DagRun
@@ -33,6 +34,9 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 
 pytestmark = pytest.mark.db_test
+
+DATASETS_COUNT_STMT = select(func.count()).select_from(DatasetModel)
+DATASET_EVENTS_COUNT_STMT = select(func.count()).select_from(DatasetEvent)
 
 
 @pytest.fixture(scope="module")
@@ -84,7 +88,7 @@ class TestDatasetEndpoint:
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
         self._create_dataset(session)
-        assert session.query(DatasetModel).count() == 1
+        assert session.scalar(DATASETS_COUNT_STMT) == 1
 
         with assert_queries_count(5):
             response = self.client.get(
@@ -135,7 +139,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.scalar(DATASETS_COUNT_STMT) == 2
 
         with assert_queries_count(8):
             response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
@@ -178,7 +182,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.scalar(DATASETS_COUNT_STMT) == 2
 
         response = self.client.get(
             "/api/v1/datasets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
@@ -200,7 +204,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(datasets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.scalar(DATASETS_COUNT_STMT) == 2
 
         response = self.client.get("/api/v1/datasets")
 
@@ -328,7 +332,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.scalar(DATASET_EVENTS_COUNT_STMT) == 2
 
         response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
@@ -390,7 +394,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 3
+        assert session.scalar(DATASET_EVENTS_COUNT_STMT) == 3
 
         response = self.client.get(
             f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
@@ -432,7 +436,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.scalar(DATASET_EVENTS_COUNT_STMT) == 2
 
         response = self.client.get(
             "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}

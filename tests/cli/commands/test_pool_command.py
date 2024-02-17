@@ -22,37 +22,30 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
+from sqlalchemy import func, select
 
-from airflow import models, settings
+from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import pool_command
 from airflow.models import Pool
-from airflow.settings import Session
-from airflow.utils.db import add_default_pool_if_not_exists
+from airflow.utils.session import create_session
+from tests.test_utils.db import clear_db_dags, clear_db_pools
 
 pytestmark = pytest.mark.db_test
 
 
 class TestCliPools:
-    @classmethod
-    def setup_class(cls):
-        cls.dagbag = models.DagBag(include_examples=True)
-        cls.parser = cli_parser.get_parser()
-        settings.configure_orm()
-        cls.session = Session
-        cls._cleanup()
-
-    def tearDown(self):
-        self._cleanup()
-
-    @staticmethod
-    def _cleanup(session=None):
-        if session is None:
-            session = Session()
-        session.query(Pool).filter(Pool.pool != Pool.DEFAULT_POOL_NAME).delete()
-        session.commit()
-        add_default_pool_if_not_exists()
-        session.close()
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        clear_db_dags()
+        self.dagbag = models.DagBag(include_examples=True)
+        self.parser = cli_parser.get_parser()
+        self.pools_count_stmt = select([func.count()]).select_from(Pool)
+        clear_db_pools()
+        with create_session() as session:
+            self.session = session
+            yield
+        clear_db_pools()
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
@@ -66,19 +59,20 @@ class TestCliPools:
 
     def test_pool_create(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).count() == 2
+        assert self.session.scalar(self.pools_count_stmt) == 2
 
     def test_pool_update_deferred(self):
+        pool_stmt = select(Pool).where(Pool.pool == "foo").limit(1)
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert self.session.scalar(pool_stmt).include_deferred is False
 
         pool_command.pool_set(
             self.parser.parse_args(["pools", "set", "foo", "1", "test", "--include-deferred"])
         )
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is True
+        assert self.session.scalar(pool_stmt).include_deferred is True
 
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert self.session.scalar(pool_stmt).include_deferred is False
 
     def test_pool_get(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
@@ -87,7 +81,7 @@ class TestCliPools:
     def test_pool_delete(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
-        assert self.session.query(Pool).count() == 1
+        assert self.session.scalar(self.pools_count_stmt) == 1
 
     def test_pool_import_nonexistent(self):
         with pytest.raises(SystemExit):
@@ -125,7 +119,7 @@ class TestCliPools:
 
         pool_command.pool_import(self.parser.parse_args(["pools", "import", str(pool_import_file_path)]))
 
-        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        assert self.session.scalar(select(Pool).where(Pool.pool == "foo").limit(1)).include_deferred is False
 
     def test_pool_import_export(self, tmp_path):
         pool_import_file_path = tmp_path / "pools_import.json"

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
@@ -38,7 +39,7 @@ class TestPoolSchema:
         pool_model = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool_model)
         session.commit()
-        pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
+        pool_instance = session.execute(select(Pool).where(Pool.pool == pool_model.pool)).scalar_one()
         serialized_pool = pool_schema.dump(pool_instance)
         assert serialized_pool == {
             "name": "test_pool",

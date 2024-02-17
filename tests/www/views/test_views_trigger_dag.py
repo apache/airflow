@@ -22,6 +22,7 @@ import json
 from urllib.parse import quote
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models import DagBag, DagRun
 from airflow.models.param import Param
@@ -32,18 +33,23 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
+from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
 
+def _dag_run_stmt(dag_id: str):
+    return select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.run_id.desc()).limit(1)
+
+
 @pytest.fixture(scope="function", autouse=True)
 def initialize_one_dag():
+    clear_db_runs()
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
     yield
-    with create_session() as session:
-        session.query(DagRun).delete()
+    clear_db_runs()
 
 
 def test_trigger_dag_button_normal_exist(admin_client):
@@ -60,7 +66,7 @@ def test_trigger_dag_button(admin_client, req, expected_run_id):
     test_dag_id = "example_bash_operator"
     admin_client.post(f"dags/{test_dag_id}/trigger?{req}", data={"conf": "{}"})
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is not None
     assert run.run_type == DagRunType.MANUAL
     assert expected_run_id in run.run_id
@@ -85,7 +91,7 @@ def test_trigger_dag_conf(admin_client):
     admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": json.dumps(conf_dict)})
 
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
@@ -99,7 +105,7 @@ def test_trigger_dag_conf_malformed(admin_client):
     check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is None
 
 
@@ -110,7 +116,7 @@ def test_trigger_dag_conf_not_dict(admin_client):
     check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is None
 
 
@@ -123,7 +129,7 @@ def test_trigger_dag_wrong_execution_date(admin_client):
     check_content_in_response("Invalid execution date", response)
 
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is None
 
 
@@ -136,7 +142,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     )
 
     with create_session() as session:
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
@@ -372,7 +378,7 @@ def test_dag_run_id_pattern(session, admin_client, pattern, run_id, result):
         test_dag_id = "example_bash_operator"
         run_id = quote(run_id)
         admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", data={"conf": "{}"})
-        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        run = session.scalar(_dag_run_stmt(test_dag_id))
         if result:
             assert run is not None
             assert run.run_type == DagRunType.MANUAL
