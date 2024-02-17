@@ -134,22 +134,24 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     cls = type(o)
     qn = qualname(o)
-    
+    classname = None
+
     # serialize namedtuple like tuples
     if _is_namedtuple(o):
         qn = "builtins.tuple"
+        classname = qn
+
+    # if there is a builtin serializer available use that
+    if qn in _serializers:
+        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
+        if is_serialized:
+            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # custom serializers
     dct = {
         CLASSNAME: qn,
         VERSION: getattr(cls, "__version__", DEFAULT_VERSION),
     }
-    
-    # if there is a builtin serializer available use that
-    if qn in _serializers:
-        data, serialized_classname, version, is_serialized = _serializers[qn].serialize(o)
-        if is_serialized:
-            return encode(classname or serialized_classname, version, serialize(data, depth + 1))
 
     # object / class brings their own
     if hasattr(o, "serialize"):
