@@ -4154,8 +4154,9 @@ def test_statement_latest_runs_one_dag():
     with warnings.catch_warnings():
         warnings.simplefilter("error", category=SAWarning)
 
-        query = DAG._get_latest_runs_stmt(dags=["fake-dag"])
-        actual = [x.strip() for x in str(query.compile()).splitlines()]
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
             "FROM dag_run",
@@ -4163,15 +4164,16 @@ def test_statement_latest_runs_one_dag():
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
         ]
-        assert actual == expected
+        assert actual == expected, compiled_stmt
 
 
 def test_statement_latest_runs_many_dag():
     with warnings.catch_warnings():
         warnings.simplefilter("error", category=SAWarning)
 
-        query = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
-        actual = [x.strip() for x in str(query.compile()).splitlines()]
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
             "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
@@ -4179,4 +4181,4 @@ def test_statement_latest_runs_many_dag():
             "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
             "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
         ]
-        assert actual == expected
+        assert actual == expected, compiled_stmt
