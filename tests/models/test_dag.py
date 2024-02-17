@@ -4178,7 +4178,6 @@ def test_statement_latest_runs_many_dag(dag_maker, session):
             ...
         query = DAG._get_latest_runs_stmt(dags=[dag1.dag_id, dag2.dag_id])
         actual = [x.strip() for x in str(query.compile()).splitlines()]
-        print("\n".join(actual))
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
             "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
