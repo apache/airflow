@@ -396,15 +396,11 @@ class TestMigrateDatabaseJobServiceAccount:
             },
             show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
         )
-        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
+        assert "test_specific_label" in jmespath.search("metadata.labels", docs[0])
         assert (
-            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
-            == "test_common_label_value"
-        )
-        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
-        assert (
-            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
-            == "test_specific_label_value"
+            jmespath.search("metadata.labels", docs[0])["test_specific_label"] == "test_specific_label_value"
         )
 
     def test_default_automount_service_account_token(self):
