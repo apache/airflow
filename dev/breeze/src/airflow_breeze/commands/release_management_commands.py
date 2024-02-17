@@ -1244,14 +1244,19 @@ def run_publish_docs_in_parallel(
                 else:
                     skipped_entries.append(message)
 
-    get_console().print("[blue]Summary:\n")
-    get_console().print("[success]Packages published:")
-    for entry in success_entries:
-        get_console().print(f"[success]{entry}")
-    get_console().rule()
-    get_console().print("\n[warning]Packages skipped:")
-    for entry in skipped_entries:
-        get_console().print(f"[warning]{entry}")
+    get_console().print("[blue]Summary:")
+    need_rule = False
+    if len(success_entries):
+        get_console().print("[success]Packages published:")
+        for entry in success_entries:
+            get_console().print(f"[success]{entry}")
+        need_rule = True
+    if need_rule:
+        get_console().rule()
+    if len(skipped_entries):
+        get_console().print("\n[warning]Packages skipped:")
+        for entry in skipped_entries:
+            get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
@@ -1331,14 +1336,19 @@ def publish_docs(
                 success_entries.append(message)
             else:
                 skipped_entries.append(message)
-        get_console().print("[blue]Summary:\n")
-        get_console().print("[success]Packages published:")
-        for entry in success_entries:
-            get_console().print(f"[success]{entry}")
-        get_console().rule()
-        get_console().print("\n[warning]Packages skipped:")
-        for entry in skipped_entries:
-            get_console().print(f"[warning]{entry}")
+        get_console().print("[blue]Summary:")
+        need_rule = False
+        if len(success_entries):
+            get_console().print("[success]Packages published:")
+            for entry in success_entries:
+                get_console().print(f"[success]{entry}")
+            need_rule = True
+        if need_rule:
+            get_console().rule()
+        if len(skipped_entries):
+            get_console().print("\n[warning]Packages skipped:")
+            for entry in skipped_entries:
+                get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
