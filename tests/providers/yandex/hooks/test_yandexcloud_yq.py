@@ -130,9 +130,7 @@ class TestYandexCloudYqHook:
         responses.post(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/stop",
             match=[
-                matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": "Bearer super_token"}
-                ),
+                matchers.header_matcher({"Authorization": "Bearer super_token"}),
                 matchers.query_param_matcher({"project": "my_folder_id"}),
             ],
             status=204,

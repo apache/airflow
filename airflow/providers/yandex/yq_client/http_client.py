@@ -33,7 +33,7 @@ TIME_BETWEEN_RETRIES = 1000
 ERROR_CODES = (500, 502, 504)
 
 
-def requests_retry_session(
+def _requests_retry_session(
     session, retries=MAX_RETRY_FOR_SESSION, back_off_factor=BACK_OFF_FACTOR, status_force_list=ERROR_CODES
 ):
     retry = Retry(
@@ -51,6 +51,8 @@ def requests_retry_session(
 
 
 class YQHttpClientConfig:
+    """YandexQuery HTTP client config."""
+
     def __init__(
         self,
         token: str | None = None,
@@ -69,17 +71,21 @@ class YQHttpClientConfig:
 
 
 class YQHttpClientException(Exception):
-    def __init__(self, message: str, status: str = None, msg: str = None, details: Any = None) -> None:
+    """YandexQuery client exception type."""
+
+    def __init__(self, message: str, status: str | None = None, msg: str | None = None, details: Any = None) -> None:
         super().__init__(message)
         self.status = status
         self.msg = msg
         self.details = details
 
 
-class YQHttpClient(object):
+class YQHttpClient:
+    """YandexQuery HTTP client."""
+
     def __init__(self, config: YQHttpClientConfig):
         self.config = config
-        self.session = requests_retry_session(session=requests.Session())
+        self.session = _requests_retry_session(session=requests.Session())
 
     def __enter__(self):
         return self

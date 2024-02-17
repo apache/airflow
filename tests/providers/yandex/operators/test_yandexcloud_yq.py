@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, call, patch
+
 import pytest
 import responses
 from responses import matchers
-import re
-from unittest.mock import MagicMock, call, patch
 
-from airflow.models.dag import DAG
 from airflow.models import Connection
+from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.yandexcloud_yq import YQExecuteQueryOperator
 
 OAUTH_TOKEN = "my_oauth_token"
@@ -88,7 +89,9 @@ class TestYQExecuteQueryOperator:
         context["ti"].xcom_push.assert_has_calls(
             [
                 call(
-                    key="web_link", value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1", execution_date=None
+                    key="web_link",
+                    value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
+                    execution_date=None,
                 ),
             ]
         )

@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
 import base64
 import pprint
-import dateutil.parser
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
+
+import dateutil.parser
 
 
 class YQResults:
@@ -155,7 +156,6 @@ class YQResults:
     @staticmethod
     def _get_converter(column_type: str) -> Any:
         """Returns converter based on column type."""
-
         # primitives
         if column_type in [
             "Int8",
@@ -256,6 +256,7 @@ class YQResults:
             return convert
 
         if column_type == "EmptyDict":
+
             def convert(x):
                 return {}
 
