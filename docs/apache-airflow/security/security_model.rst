@@ -134,6 +134,14 @@ Regular users
 They can view and interact with the UI and API. They are able to view and edit DAGs,
 task instances, and DAG runs, and view task logs.
 
+Viewer users
+............
+
+They can view information related to DAGs, in a read only fashion, task logs, and other relevant details.
+This role is suitable for users who require read-only access without the ability to trigger or modify DAGs.
+
+Viewers also do not have permission to access audit logs.
+
 For more information on the capabilities of authenticated UI users, see :doc:`apache-airflow-providers-fab:auth-manager/access-control`.
 
 Capabilities of DAG Authors

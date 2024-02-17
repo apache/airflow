@@ -203,7 +203,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
@@ -233,7 +232,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
