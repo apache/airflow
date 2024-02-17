@@ -38,11 +38,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.18.0
 ......
 
-Latest change: 2024-02-10
+Latest change: 2024-02-16
 
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
+`c75a105935 <https://github.com/apache/airflow/commit/c75a1059355df6e1edc42f77947150b4a4c5d51a>`_  2024-02-16   ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
+`42f8d048d2 <https://github.com/apache/airflow/commit/42f8d048d2dccfcf59a44e00e9b1e8a3e63090a0>`_  2024-02-16   ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+`f91c93ccfe <https://github.com/apache/airflow/commit/f91c93ccfeedc27e54493e95d3088e8478cdf08c>`_  2024-02-14   ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+`56c27f8f5a <https://github.com/apache/airflow/commit/56c27f8f5a3c547147389253ea9653a374ad29f1>`_  2024-02-14   ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+`b341b5927e <https://github.com/apache/airflow/commit/b341b5927e6a7271a85558d3da766b07165ee22a>`_  2024-02-14   ``docs: Add doc page with providers deprecations (#37075)``
+`b5b452b590 <https://github.com/apache/airflow/commit/b5b452b590152f4bffe91e8eb3e0044ad208db66>`_  2024-02-13   ``Add extra operator links for EMR Serverless (#34225)``
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `8fac799a25 <https://github.com/apache/airflow/commit/8fac799a250a222bf85d484947a9b3f2065d5ba4>`_  2024-02-10   ``D401 support in amazon provider (#37275)``
 `48bfb1a970 <https://github.com/apache/airflow/commit/48bfb1a970f5b47ba1b385ad809b8324923ddf3e>`_  2024-02-09   ``Merge all ECS executor configs following recursive python dict update (#37137)``
 `90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``
@@ -58,7 +65,7 @@ Commit                                                                          
 `8914e49551 <https://github.com/apache/airflow/commit/8914e49551d8ae5ece7418950b011c1f338b4634>`_  2024-01-30   ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
 `d576c72c20 <https://github.com/apache/airflow/commit/d576c72c20258e4ad56bbbec05ffac5a3e07207e>`_  2024-01-28   ``Limit moto to version below 5.0.0 (#37054)``
 `004d1d3a84 <https://github.com/apache/airflow/commit/004d1d3a84224ac728f0bcfee68dae13522fe907>`_  2024-01-26   ``Adding Amazon Neptune Hook and Operators (#37000)``
-=================================================================================================  ===========  =============================================================================================
+=================================================================================================  ===========  =====================================================================================================
 
 8.17.0
 ......
