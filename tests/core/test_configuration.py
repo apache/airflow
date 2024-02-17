@@ -449,6 +449,42 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat("valid", "key2"), float)
         assert 1.23 == test_conf.getfloat("valid", "key2")
 
+    def test_getlist(self):
+        """Test AirflowConfigParser.getlist"""
+        test_config = """
+[empty]
+key0 = willbereplacedbymock
+
+[single]
+key1 = str
+
+[many]
+key2 = one,two,three
+
+[diffdelimiter]
+key3 = one;two;three
+"""
+        test_conf = AirflowConfigParser(default_config=test_config)
+        single = test_conf.getlist("single", "key1")
+        assert isinstance(single, list)
+        assert len(single) == 1
+        many = test_conf.getlist("many", "key2")
+        assert isinstance(many, list)
+        assert len(many) == 3
+        semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
+        assert isinstance(semicolon, list)
+        assert len(semicolon) == 3
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+
     @pytest.mark.parametrize(
         ("config_str", "expected"),
         [
