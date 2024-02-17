@@ -199,7 +199,7 @@ Trigger Form
 ............
 
 If you trigger a manual DAG run with the arrow-button, a form is displayed.
-The form display is based on the DAG Parameters as described in :ref:`_concepts:params`.
+The form display is based on the DAG Parameters as described in :doc:`core-concepts/params`.
 
 ------------
 
