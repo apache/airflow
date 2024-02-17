@@ -60,6 +60,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
     ListEndpointsOperator,
     UndeployModelOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
+    PromptLanguageModelOperator,
+    PromptMultimodalModelOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
     CreateHyperparameterTuningJobOperator,
     DeleteHyperparameterTuningJobOperator,
@@ -1969,4 +1973,75 @@ class TestVertexAIListPipelineJobOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+        )
+
+
+class TestVertexAIPromptLanguageModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        prompt = "In 10 words or less, what is Apache Airflow?"
+        pretrained_model = "text-bison"
+        temperature = 0.0
+        max_output_tokens = 256
+        top_p = 0.8
+        top_k = 40
+
+        op = PromptLanguageModelOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=top_p,
+            top_k=top_k,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.prompt_language_model.assert_called_once_with(
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            top_p=top_p,
+            top_k=top_k,
+        )
+
+
+class TestVertexAIPromptMultimodalModelOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        prompt = "In 10 words or less, what is Apache Airflow?"
+        pretrained_model = "gemini-pro"
+        chat = None
+
+        op = PromptMultimodalModelOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+            chat=chat,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.prompt_multimodal_model.assert_called_once_with(
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+            chat=chat,
         )
