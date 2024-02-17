@@ -106,11 +106,16 @@ sensitive information accessible through connection configuration.
 They also have the ability to create a Webserver Denial of Service
 situation and should be trusted not to misuse this capability.
 
+Only admin users have access to audit logs. Unless specified otherwise in any other section below,
+other users do not have permissions on audit logs.
+
 Operations users
 ................
 
 The primary difference between an operator and admin is the ability to manage and grant permissions
 to other users - only admins are able to do this. Otherwise assume they have the same access as an admin.
+
+Operations users also do not have permission to access audit logs.
 
 Connection configuration users
 ..............................
