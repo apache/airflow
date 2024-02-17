@@ -4150,13 +4150,11 @@ class TestTaskClearingSetupTeardownBehavior:
                 dag.validate_setup_teardown()
 
 
-def test_statement_latest_runs_one_dag(dag_maker, session):
+def test_statement_latest_runs_one_dag():
     with warnings.catch_warnings():
         warnings.simplefilter("error", category=SAWarning)
 
-        with dag_maker(dag_id="dag1") as dag1:
-            ...
-        query = DAG._get_latest_runs_stmt(dags=[dag1.dag_id])
+        query = DAG._get_latest_runs_stmt(dags=["fake-dag"])
         actual = [x.strip() for x in str(query.compile()).splitlines()]
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
@@ -4168,15 +4166,11 @@ def test_statement_latest_runs_one_dag(dag_maker, session):
         assert actual == expected
 
 
-def test_statement_latest_runs_many_dag(dag_maker, session):
+def test_statement_latest_runs_many_dag():
     with warnings.catch_warnings():
         warnings.simplefilter("error", category=SAWarning)
 
-        with dag_maker(dag_id="dag1") as dag1:
-            ...
-        with dag_maker(dag_id="dag2") as dag2:
-            ...
-        query = DAG._get_latest_runs_stmt(dags=[dag1.dag_id, dag2.dag_id])
+        query = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
         actual = [x.strip() for x in str(query.compile()).splitlines()]
         expected = [
             "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
