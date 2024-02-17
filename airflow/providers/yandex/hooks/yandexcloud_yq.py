@@ -31,7 +31,7 @@ from airflow.providers.yandex.yq_client.http_client import YQHttpClient, YQHttpC
 
 
 class YQHook(YandexCloudBaseHook):
-    """A hook for Yandex Query."""
+    """A hook to work with Yandex Query."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
