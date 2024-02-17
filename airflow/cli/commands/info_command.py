@@ -259,7 +259,7 @@ class AirflowInfo:
         operating_system = OperatingSystem.get_current()
         arch = Architecture.get_current()
         uname = platform.uname()
-        _locale = locale.getdefaultlocale()
+        _locale = locale.getlocale()
         python_location = self.anonymizer.process_path(sys.executable)
         python_version = sys.version.replace("\n", " ")
 
