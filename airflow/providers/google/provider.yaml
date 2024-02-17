@@ -30,6 +30,7 @@ description: |
 
 state: ready
 source-date-epoch: 1707636385
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 10.15.0
   - 10.14.0
@@ -1203,6 +1204,7 @@ extra-links:
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink

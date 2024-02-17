@@ -586,3 +586,45 @@ For further information, look at:
 * `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
 * `Spark-on-k8s-operator Documentation - User guide <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md>`__
 * `Spark-on-k8s-operator Documentation - API <https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/api-docs.md>`__
+
+
+.. _howto/operator:kubernetesjoboperator:
+
+KubernetesJobOperator
+=====================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` allows
+you to create and run Jobs on a Kubernetes cluster.
+
+.. note::
+  If you use a managed Kubernetes consider using a specialize KJO operator as it simplifies the Kubernetes authorization process :
+
+  - ``GKEStartJobOperator`` operator for `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__.
+
+.. note::
+  The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
+
+How does this operator work?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` uses the
+Kubernetes API to launch a job in a Kubernetes cluster. The operator uses the Kube Python Client to generate a Kubernetes API
+request that dynamically launches this Job.
+Users can specify a kubeconfig file using the ``config_file`` parameter, otherwise the operator will default
+to ``~/.kube/config``. It also allows users to supply a template YAML file using the ``job_template_file`` parameter.
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_job]
+    :end-before: [END howto_operator_k8s_job]
+
+Difference between ``KubernetesPodOperator`` and ``KubernetesJobOperator``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator` is operator for creating Job.
+A Job creates one or more Pods and will continue to retry execution of the Pods until a specified number of them successfully terminate.
+As Pods successfully complete, the Job tracks the successful completions. When a specified number of successful completions is reached, the Job is complete.
+Users can limit how many times a Job retries execution using configuration parameters like ``activeDeadlineSeconds`` and ``backoffLimit``.
+Instead of ``template`` parameter for Pod creating this operator uses :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`.
+It means that user can use all parameters from :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` in :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesJobOperator`.
+
+More information about the Jobs here: `Kubernetes Job Documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__

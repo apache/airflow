@@ -114,11 +114,9 @@ class TestKubernetesPodTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_return_success_event(self, mock_hook, mock_method, trigger):
-        mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
-        mock_method.return_value = ContainerState.TERMINATED
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    async def test_run_loop_return_success_event(self, mock_wait_pod, trigger):
+        mock_wait_pod.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
             {
@@ -133,9 +131,12 @@ class TestKubernetesPodTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_return_waiting_event(self, mock_hook, mock_method, trigger, caplog):
+    async def test_run_loop_return_waiting_event(
+        self, mock_hook, mock_method, mock_wait_pod, trigger, caplog
+    ):
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.WAITING
 
@@ -149,9 +150,12 @@ class TestKubernetesPodTrigger:
         assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_return_running_event(self, mock_hook, mock_method, trigger, caplog):
+    async def test_run_loop_return_running_event(
+        self, mock_hook, mock_method, mock_wait_pod, trigger, caplog
+    ):
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.RUNNING
 
@@ -165,9 +169,10 @@ class TestKubernetesPodTrigger:
         assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_run_loop_return_failed_event(self, mock_hook, mock_method, trigger):
+    async def test_run_loop_return_failed_event(self, mock_hook, mock_method, mock_wait_pod, trigger):
         mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
                 status=mock.MagicMock(
@@ -177,17 +182,16 @@ class TestKubernetesPodTrigger:
         )
         mock_method.return_value = ContainerState.FAILED
 
-        expected_event = TriggerEvent(
-            {"status": "failed", "namespace": "default", "name": "test-pod-name", "message": "pod failed"}
-        )
+        expected_event = TriggerEvent({"status": "failed", "namespace": "default", "name": "test-pod-name"})
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_PATH}.hook")
     async def test_logging_in_trigger_when_exception_should_execute_successfully(
-        self, mock_hook, trigger, caplog
+        self, mock_hook, mock_wait_pod, trigger, caplog
     ):
         """
         Test that KubernetesPodTrigger fires the correct event in case of an error.
@@ -244,7 +248,7 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
     @mock.patch("airflow.providers.cncf.kubernetes.triggers.pod.AsyncKubernetesHook.get_pod")
     async def test_running_log_interval(
-        self, mock_get_pod, mock_wait_for_pod_start, define_container_state, logging_interval, exp_event
+        self, mock_get_pod, mock_wait_pod, define_container_state, logging_interval, exp_event
     ):
         """
         If log interval given, should emit event with running status and last log time.

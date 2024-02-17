@@ -674,7 +674,7 @@ class _CredentialsToken(Token):
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
-        self.access_token_acquired_at = datetime.datetime.utcnow()
+        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc)
         self.acquiring = None
 
 
