@@ -245,7 +245,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             elif container_state == ContainerState.FAILED:
                 return TriggerEvent(
-                    {"status": "failed", "namespace": self.pod_namespace, "name": self.pod_name}
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "Container state failed",
+                    }
                 )
             if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
                 return TriggerEvent(
