@@ -394,7 +394,7 @@ class TestMigrateDatabaseJobServiceAccount:
                     "labels": {"test_specific_label": "test_specific_label_value"},
                 },
             },
-            show_only=["templates/jobs/migrate-database-job.yaml"],
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
         )
         assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert (
