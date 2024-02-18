@@ -22,11 +22,13 @@ from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
+from html import escape
+
 import pytest
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
-from airflow.www.views import ConnectionFormWidget, ConnectionModelView
+from airflow.www.views import ConnectionFormProxy, ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
 pytestmark = pytest.mark.db_test
@@ -460,9 +462,10 @@ def test_html_escaping_in_form(admin_client):
         "extra": "<span style='font-size:20px'>extra</span>"
     }
 
-    form = ConnectionForm(data=conn_details)
+    form = ConnectionFormProxy(data=conn_details)
     form.process()
 
+    # Check that the form data is equal to the escaped version of the input data
     assert form.conn_id.data == escape(conn_details["conn_id"])
     assert form.conn_type.data == escape(conn_details["conn_type"])
     assert form.description.data == escape(conn_details["description"])
@@ -471,3 +474,13 @@ def test_html_escaping_in_form(admin_client):
     assert form.login.data == escape(conn_details["login"])
     assert form.port.data == conn_details["port"]
     assert form.extra.data == escape(conn_details["extra"])
+
+    # Check that the form data is equal to the explicitly escaped string
+    assert form.conn_id.data == "&lt;b&gt;test_conn&lt;/b&gt;"
+    assert form.conn_type.data == "&lt;i&gt;http&lt;/i&gt;"
+    assert form.description.data == "&lt;script&gt;alert('xss')&lt;/script&gt;"
+    assert form.host.data == "&lt;a href='http://example.com'&gt;example.com&lt;/a&gt;"
+    assert form.schema.data == "&lt;img src='x' onerror='alert(1)'&gt;"
+    assert form.login.data == "&lt;div style='color:red'&gt;login&lt;/div&gt;"
+    assert form.port.data == conn_details["port"]
+    assert form.extra.data == "&lt;span style='font-size:20px'&gt;extra&lt;/span&gt;"
