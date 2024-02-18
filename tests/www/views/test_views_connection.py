@@ -443,3 +443,31 @@ def test_process_form_invalid_extra_removed(admin_client):
         conn = session.get(Connection, 1)
 
     assert conn.extra == '{"foo": "bar"}'
+    
+def test_html_escaping_in_form(admin_client):
+    """
+    Test that HTML tags are properly escaped in the form fields.
+    """
+    conn_details = {
+        "conn_id": "<b>test_conn</b>", 
+        "conn_type": "<i>http</i>", 
+        "description": "<script>alert('xss')</script>", 
+        "host": "<a href='http://example.com'>example.com</a>", 
+        "schema": "<img src='x' onerror='alert(1)'>", 
+        "login": "<div style='color:red'>login</div>", 
+        "password": "password", 
+        "port": 8080, 
+        "extra": "<span style='font-size:20px'>extra</span>"
+    }
+
+    form = ConnectionForm(data=conn_details)
+    form.process()
+
+    assert form.conn_id.data == escape(conn_details["conn_id"])
+    assert form.conn_type.data == escape(conn_details["conn_type"])
+    assert form.description.data == escape(conn_details["description"])
+    assert form.host.data == escape(conn_details["host"])
+    assert form.schema.data == escape(conn_details["schema"])
+    assert form.login.data == escape(conn_details["login"])
+    assert form.port.data == conn_details["port"]
+    assert form.extra.data == escape(conn_details["extra"])
