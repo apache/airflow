@@ -117,7 +117,7 @@ class ImapHook(BaseHook):
         return mail_client
 
     def has_mail_attachment(
-        self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
+        self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All", encoding: str = "utf-8"
     ) -> bool:
         """
         Check the mail folder for mails containing attachments with the given name.
@@ -130,7 +130,7 @@ class ImapHook(BaseHook):
         :returns: True if there is an attachment with the given name and False if not.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, True, mail_folder, mail_filter
+            name, check_regex, True, mail_folder, mail_filter, encoding
         )
         return bool(mail_attachments)
 
@@ -143,6 +143,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        encoding: str = "utf-8"
     ) -> list[tuple]:
         """
         Retrieve mail's attachments in the mail folder by its name.
@@ -161,7 +162,7 @@ class ImapHook(BaseHook):
         :returns: a list of tuple each containing the attachment filename and its payload.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter
+            name, check_regex, latest_only, mail_folder, mail_filter, encoding
         )
 
         if not mail_attachments:
@@ -179,6 +180,7 @@ class ImapHook(BaseHook):
         mail_folder: str = "INBOX",
         mail_filter: str = "All",
         not_found_mode: str = "raise",
+        encoding: str = "utf-8"
     ) -> None:
         """
         Download mail's attachments in the mail folder by its name to the local directory.
@@ -198,7 +200,7 @@ class ImapHook(BaseHook):
             if set to 'ignore' it won't notify you at all.
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
-            name, check_regex, latest_only, mail_folder, mail_filter
+            name, check_regex, latest_only, mail_folder, mail_filter, encoding
         )
 
         if not mail_attachments:
@@ -215,7 +217,7 @@ class ImapHook(BaseHook):
             self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
-        self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
+        self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str, encoding: str = "utf-8"
     ) -> list:
         if not self.mail_client:
             raise Exception("The 'mail_client' should be initialized before!")
@@ -225,7 +227,7 @@ class ImapHook(BaseHook):
         self.mail_client.select(mail_folder)
 
         for mail_id in self._list_mail_ids_desc(mail_filter):
-            response_mail_body = self._fetch_mail_body(mail_id)
+            response_mail_body = self._fetch_mail_body(mail_id, encoding)
             matching_attachments = self._check_mail_body(response_mail_body, name, check_regex, latest_only)
 
             if matching_attachments:
@@ -244,12 +246,12 @@ class ImapHook(BaseHook):
         mail_ids = data[0].split()
         return reversed(mail_ids)
 
-    def _fetch_mail_body(self, mail_id: str) -> str:
+    def _fetch_mail_body(self, mail_id: str, encoding: str = "utf-8") -> str:
         if not self.mail_client:
             raise Exception("The 'mail_client' should be initialized before!")
         _, data = self.mail_client.fetch(mail_id, "(RFC822)")
         mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
-        mail_body_str = mail_body.decode("utf-8")  # type: ignore
+        mail_body_str = mail_body.decode(encoding)  # type: ignore
         return mail_body_str
 
     def _check_mail_body(
