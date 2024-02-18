@@ -22,7 +22,12 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -238,6 +243,21 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
         assert expected_datasets == dataset_urls
+
+    def test_filter_datasets_by_dag_ids_works(self, session):
+        dataset1 = DatasetModel("s3://folder/key")
+        dataset2 = DatasetModel("gcp://bucket/key")
+        dataset3 = DatasetModel("somescheme://dataset/key")
+        dataset1.consuming_dags = [DagScheduleDatasetReference(dag_id="dag1")]
+        dataset2.producing_tasks = [TaskOutletDatasetReference(dag_id="dag4")]
+        dataset3.consuming_dags = [DagScheduleDatasetReference(dag_id="dag1")]
+        dataset3.producing_tasks = [TaskOutletDatasetReference(dag_id="dag2")]
+        session.add_all([dataset1, dataset2, dataset3])
+        session.commit()
+        response = self.client.get("/api/v1/datasets?dag_ids=dag1,dag2")
+        assert response.status_code == 200
+        response_data = response.json
+        assert len(response_data["datasets"]) == 2
 
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
