@@ -35,6 +35,7 @@ from flask_wtf import FlaskForm
 from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
+from html import escape
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -217,7 +218,7 @@ def create_connection_form_class() -> type[DynamicForm]:
             super().process(formdata=formdata, obj=obj, **kwargs)
             for field in self._fields.values():
                 if isinstance(getattr(field, "data", None), str):
-                    field.data = field.data.strip()
+                    field.data = escape(field.data.strip())
 
         conn_id = StringField(
             lazy_gettext("Connection Id"),
