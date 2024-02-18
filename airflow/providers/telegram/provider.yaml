@@ -60,6 +60,10 @@ operators:
     python-modules:
       - airflow.providers.telegram.operators.telegram
 
+connection-types:
+  - hook-class-name: airflow.providers.telegram.hooks.telegram.TelegramHook
+    connection-type: telegram
+
 hooks:
   - integration-name: Telegram
     python-modules:
