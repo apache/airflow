@@ -25,8 +25,10 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
+    DagScheduleDatasetReference,
     DatasetCollection,
     DatasetEventCollection,
+    TaskOutletDatasetReference,
     dataset_collection_schema,
     dataset_event_collection_schema,
     dataset_schema,
@@ -66,6 +68,7 @@ def get_datasets(
     limit: int,
     offset: int = 0,
     uri_pattern: str | None = None,
+    dag_ids: str | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -74,7 +77,13 @@ def get_datasets(
 
     total_entries = session.scalars(select(func.count(DatasetModel.id))).one()
     query = select(DatasetModel)
-    if uri_pattern:
+    if dag_ids:
+        dags_list = dag_ids.split(",")
+        query = query.filter(
+            (DatasetModel.consuming_dags.any(DagScheduleDatasetReference.dag_id.in_(dags_list)))
+            | (DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list)))
+        )
+    elif uri_pattern:
         query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = session.scalars(
