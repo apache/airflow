@@ -1911,6 +1911,13 @@ paths:
           required: false
           description: |
             If set, only return datasets with uris matching this pattern.
+        - name: dag_ids
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more DAG IDs separated by commas to filter datasets by associated DAGs.
       responses:
         "200":
           description: Success.
