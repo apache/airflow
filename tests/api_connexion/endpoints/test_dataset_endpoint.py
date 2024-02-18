@@ -21,6 +21,7 @@ import urllib
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
@@ -244,20 +245,27 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
         assert expected_datasets == dataset_urls
 
-    def test_filter_datasets_by_dag_ids_works(self, session):
+    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    def test_filter_datasets_by_dag_ids_works(self, dag_ids, expected_num, session):
+        session.query(DagModel).delete()
+        session.commit()
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        dag3 = DagModel(dag_id="dag3")
         dataset1 = DatasetModel("s3://folder/key")
         dataset2 = DatasetModel("gcp://bucket/key")
         dataset3 = DatasetModel("somescheme://dataset/key")
-        dataset1.consuming_dags = [DagScheduleDatasetReference(dag_id="dag1")]
-        dataset2.producing_tasks = [TaskOutletDatasetReference(dag_id="dag4")]
-        dataset3.consuming_dags = [DagScheduleDatasetReference(dag_id="dag1")]
-        dataset3.producing_tasks = [TaskOutletDatasetReference(dag_id="dag2")]
-        session.add_all([dataset1, dataset2, dataset3])
+        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
+        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
+        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
+        session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
-        response = self.client.get("/api/v1/datasets?dag_ids=dag1,dag2")
+        response = self.client.get(
+            f"/api/v1/datasets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
+        )
         assert response.status_code == 200
         response_data = response.json
-        assert len(response_data["datasets"]) == 2
+        assert len(response_data["datasets"]) == expected_num
 
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
