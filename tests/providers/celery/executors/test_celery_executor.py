@@ -22,7 +22,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -183,7 +183,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):
-        start_date = datetime.utcnow() - timedelta(days=2)
+        start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_try_adopt_task_instances_none"):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
