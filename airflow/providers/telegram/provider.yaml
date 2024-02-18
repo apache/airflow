@@ -52,6 +52,7 @@ integrations:
     external-doc-url: https://telegram.org/
     how-to-guide:
       - /docs/apache-airflow-providers-telegram/operators.rst
+      - /docs/apache-airflow-providers-telegram/connections.rst
     logo: /integration-logos/telegram/Telegram.png
     tags: [service]
 
@@ -59,6 +60,10 @@ operators:
   - integration-name: Telegram
     python-modules:
       - airflow.providers.telegram.operators.telegram
+
+connection-types:
+  - hook-class-name: airflow.providers.telegram.hooks.telegram.TelegramHook
+    connection-type: telegram
 
 hooks:
   - integration-name: Telegram
