@@ -32,7 +32,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
-from airflow.www.constants import SWAGGER_UI_OPTIONS
+from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -273,7 +273,7 @@ def init_api_connexion(app: Flask) -> None:
         specification=specification,
         resolver=_LazyResolver(),
         base_path=base_path,
-        options=SWAGGER_UI_OPTIONS,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         strict_validation=True,
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -295,7 +295,7 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     api_bp = FlaskApi(
         specification=specification,
         base_path="/internal_api/v1",
-        options=SWAGGER_UI_OPTIONS,
+        options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
         strict_validation=True,
         validate_responses=True,
     ).blueprint
