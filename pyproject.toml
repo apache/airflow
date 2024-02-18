@@ -1479,6 +1479,12 @@ banned-module-level-imports = ["numpy", "pandas"]
 "typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
+# Flask deprecations, worthwhile to keep it until we migrate to Flask 3.0+
+"flask._app_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask._request_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
