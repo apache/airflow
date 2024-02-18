@@ -704,6 +704,10 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             if event["status"] in ("error", "failed", "timeout"):
+                # fetch some logs when pod is failed
+                if self.get_logs:
+                    self.write_logs(self.pod)
+
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
 
@@ -729,6 +733,10 @@ class KubernetesPodOperator(BaseOperator):
                     self.invoke_defer_method()
 
             elif event["status"] == "success":
+                # fetch some logs when pod is executed successfully
+                if self.get_logs:
+                    self.write_logs(self.pod)
+
                 if self.do_xcom_push:
                     xcom_sidecar_output = self.extract_xcom(pod=self.pod)
                     return xcom_sidecar_output
@@ -741,8 +749,6 @@ class KubernetesPodOperator(BaseOperator):
     def _clean(self, event: dict[str, Any]):
         if event["status"] == "running":
             return
-        if self.get_logs:
-            self.write_logs(self.pod)
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
