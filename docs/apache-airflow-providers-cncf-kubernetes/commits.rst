@@ -38,11 +38,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.0.0
 .....
 
-Latest change: 2024-02-12
+Latest change: 2024-02-15
 
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ==============================================================================================================
+`c84efe77a5 <https://github.com/apache/airflow/commit/c84efe77a5881d6bd554341b9bfc4712601051f2>`_  2024-02-15   ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37454)``
+`32ba99b6c2 <https://github.com/apache/airflow/commit/32ba99b6c27b1e9ec7ebfffceeecb650f6f3d4d7>`_  2024-02-15   ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+`0be6430938 <https://github.com/apache/airflow/commit/0be643093879e106f7ee1e41c155954edd14398f>`_  2024-02-15   ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
+`df132b2dd6 <https://github.com/apache/airflow/commit/df132b2dd6fcb9022e1ff5f28841bec7a120853b>`_  2024-02-15   ``Add GKEStartKueueInsideClusterOperator (#37072)``
+`0640e6d595 <https://github.com/apache/airflow/commit/0640e6d595c01dd96f2b90812a546bc091f87743>`_  2024-02-14   ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
+`34c06c6922 <https://github.com/apache/airflow/commit/34c06c69225ec88c82142fb6cdab5ed7bde69180>`_  2024-02-14   ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `053485ba56 <https://github.com/apache/airflow/commit/053485ba564dd85b5dbb4fec093375e21d1cbd41>`_  2024-02-12   ``Modify KPO to log container log periodically  (#37279)``
 `f689c3f606 <https://github.com/apache/airflow/commit/f689c3f606af5edebd52af830b9128b6b252c063>`_  2024-02-12   ``Add d401 support to kubernetes provider (#37301)``
 `6246eec96f <https://github.com/apache/airflow/commit/6246eec96fff15983e76c3810c0eb3e9555d7b1c>`_  2024-02-10   ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
@@ -52,7 +59,7 @@ Commit                                                                          
 `7932958488 <https://github.com/apache/airflow/commit/7932958488761cd01cd94b7eea0c646dc41c3981>`_  2024-02-05   ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 `c36c4db3f7 <https://github.com/apache/airflow/commit/c36c4db3f723ccb43add4b562a1820dcae523753>`_  2024-01-29   ``Kubernetes version bump (#37040)``
-=================================================================================================  ===========  ======================================================================================
+=================================================================================================  ===========  ==============================================================================================================
 
 7.14.0
 ......
