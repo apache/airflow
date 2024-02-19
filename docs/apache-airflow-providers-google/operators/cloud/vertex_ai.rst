@@ -551,7 +551,7 @@ The operator returns the model's response in :ref:`XCom <concepts:xcom>` under `
     :start-after: [START how_to_cloud_vertex_ai_prompt_language_model_operator]
     :end-before: [END how_to_cloud_vertex_ai_prompt_language_model_operator]
 
-To prompt a multimodal model you can use
+To prompt a multi-modal model you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator`.
 The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
 

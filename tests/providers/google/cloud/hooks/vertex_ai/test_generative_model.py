@@ -45,6 +45,9 @@ GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.genera
 
 
 class TestGenerativeModelWithDefaultProjectIdHook:
+    def dummy_get_credentials(self):
+        pass
+
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -52,6 +55,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             self.hook = GenerativeModelHook(
                 project_id=GCP_PROJECT, location=GCP_LOCATION, gcp_conn_id=TEST_GCP_CONN_ID
             )
+            self.hook.get_credentials = self.dummy_get_credentials
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
     def test_prompt_language_model(self, mock_model) -> None:

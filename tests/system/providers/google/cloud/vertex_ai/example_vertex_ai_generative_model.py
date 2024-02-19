@@ -37,21 +37,25 @@ with models.DAG(
     catchup=False,
     tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
+    # [START how_to_cloud_vertex_ai_prompt_language_model_operator]
     prompt_language_model_task = PromptLanguageModelOperator(
         task_id="prompt_language_model_task",
         project_id="your-project",
         location="us-central1",
-        prompt="Give me a sample itinerary for a trip to New Zealand.",
+        prompt="In 10 words or less, what is Apache Airflow?",
         pretrained_model="text-bison",
     )
+    # [END how_to_cloud_vertex_ai_prompt_language_model_operator]
 
+    # [START how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
     prompt_multimodal_model_task = PromptMultimodalModelOperator(
         task_id="generative_model_task",
         project_id="your-project",
         location="us-central1",
-        prompt="Give me a sample itinerary for a trip to Australia.",
+        prompt="In 10 words or less, what is Apache Airflow?",
         pretrained_model="gemini-pro",
     )
+    # [END how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
 
 
 from tests.system.utils import get_test_run
