@@ -55,6 +55,8 @@ Bug Fixes
 * ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
 * ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
 * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37454)``
+* ``Fix KPO task hanging when pod fails to start within specified timeout (#37514)``
+* ``Fix KeyError when KPO exits too soon (#37508)``
 
 Misc
 ~~~~
@@ -69,6 +71,8 @@ Misc
    * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
    * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
    * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+   * ``Add comment about versions updated by release manager (#37488)``
 
 7.14.0
 ......
