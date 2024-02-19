@@ -67,7 +67,16 @@ class ObjectStoragePath(CloudPath):
                 storage_options.setdefault("conn_id", userinfo or None)
                 parsed_url = parsed_url._replace(netloc=hostinfo)
             args = (parsed_url.geturl(),) + args[1:]
+            protocol = protocol or parsed_url.scheme
         return args, protocol, storage_options
+
+    @classmethod
+    def _parse_storage_options(
+        cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        fs = attach(protocol or "file", conn_id=storage_options.get("conn_id")).fs
+        pth_storage_options = type(fs)._get_kwargs_from_urls(urlpath)
+        return {**pth_storage_options, **storage_options}
 
     @classmethod
     def _fs_factory(
@@ -299,7 +308,11 @@ class ObjectStoragePath(CloudPath):
                 if path == self.path:
                     continue
 
-                src_obj = ObjectStoragePath(path, conn_id=self.storage_options.get("conn_id"))
+                src_obj = ObjectStoragePath(
+                    path,
+                    protocol=self.protocol,
+                    conn_id=self.storage_options.get("conn_id"),
+                )
 
                 # skip directories, empty directories will not be created
                 if src_obj.is_dir():
