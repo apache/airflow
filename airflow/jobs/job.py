@@ -39,6 +39,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
@@ -183,30 +184,32 @@ class Job(Base, LoggingMixin):
         previous_heartbeat = self.latest_heartbeat
 
         try:
-            # This will cause it to load from the db
-            self._merge_from(Job._fetch_from_db(self, session))
-            previous_heartbeat = self.latest_heartbeat
-
-            if self.state == JobState.RESTARTING:
-                self.kill()
-
-            # Figure out how long to sleep for
-            sleep_for = 0
-            if self.latest_heartbeat:
-                seconds_remaining = (
-                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                )
-                sleep_for = max(0, seconds_remaining)
-            sleep(sleep_for)
-
-            job = Job._update_heartbeat(job=self, session=session)
-            self._merge_from(job)
-
-            # At this point, the DB has updated.
-            previous_heartbeat = self.latest_heartbeat
-
-            heartbeat_callback(session)
-            self.log.debug("[heartbeat]")
+            for attempt in run_with_db_retries(logger=self.log):
+                with attempt:
+                    # This will cause it to load from the db
+                    self._merge_from(Job._fetch_from_db(self, session))
+                    previous_heartbeat = self.latest_heartbeat
+        
+                    if self.state == JobState.RESTARTING:
+                        self.kill()
+        
+                    # Figure out how long to sleep for
+                    sleep_for = 0
+                    if self.latest_heartbeat:
+                        seconds_remaining = (
+                            self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                        )
+                        sleep_for = max(0, seconds_remaining)
+                    sleep(sleep_for)
+        
+                    job = Job._update_heartbeat(job=self, session=session)
+                    self._merge_from(job)
+        
+                    # At this point, the DB has updated.
+                    previous_heartbeat = self.latest_heartbeat
+        
+                    heartbeat_callback(session)
+                    self.log.debug("[heartbeat]")
         except OperationalError:
             Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
             if not self.heartbeat_failed:
