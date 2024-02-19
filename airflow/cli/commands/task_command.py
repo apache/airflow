@@ -40,7 +40,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, _run_task, _triggerer_is_healthy
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
@@ -66,7 +66,7 @@ from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 if TYPE_CHECKING:
@@ -511,8 +511,7 @@ def task_list(args, dag: DAG | None = None) -> None:
 
 
 class _SupportedDebugger(Protocol):
-    def post_mortem(self) -> None:
-        ...
+    def post_mortem(self) -> None: ...
 
 
 SUPPORTED_DEBUGGER_MODULES = [
@@ -588,7 +587,8 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
-def task_test(args, dag: DAG | None = None) -> None:
+@provide_session
+def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
     """Test task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
@@ -632,7 +632,16 @@ def task_test(args, dag: DAG | None = None) -> None:
             if args.dry_run:
                 ti.dry_run()
             else:
-                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+                triggerer_running = _triggerer_is_healthy()
+                _run_task(
+                    ti=ti, inline_trigger=not triggerer_running, session=session, log_prefix="[Task test]"
+                )
+
+                while ti.state == TaskInstanceState.DEFERRED:
+                    _run_task(
+                        ti=ti, inline_trigger=not triggerer_running, session=session, log_prefix="[Task test]"
+                    )
+
     except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()

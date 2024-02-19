@@ -4065,7 +4065,9 @@ def _run_trigger(trigger):
     return asyncio.run(_run_trigger_main())
 
 
-def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
+def _run_task(
+    *, ti: TaskInstance, inline_trigger: bool = False, session: Session, log_prefix: str = "[DAG TEST] "
+):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -4075,21 +4077,21 @@ def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Sessio
     Args:
         ti: TaskInstance to run
     """
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("%s starting task_id=%s map_index=%s", log_prefix, ti.task_id, ti.map_index)
     while True:
         try:
-            log.info("[DAG TEST] running task %s", ti)
+            log.info("%s running task %s", log_prefix, ti)
             ti._run_raw_task(session=session, raise_on_defer=inline_trigger)
             break
         except TaskDeferred as e:
-            log.info("[DAG TEST] running trigger in line")
+            log.info("%s running trigger in line", log_prefix)
             event = _run_trigger(e.trigger)
             ti.next_method = e.method_name
             ti.next_kwargs = {"event": event.payload} if event else e.kwargs
-            log.info("[DAG TEST] Trigger completed")
+            log.info("%s Trigger completed", log_prefix)
         session.merge(ti)
         session.commit()
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("%s end task task_id=%s map_index=%s", log_prefix, ti.task_id, ti.map_index)
 
 
 def _get_or_create_dagrun(
