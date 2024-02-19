@@ -83,6 +83,7 @@ class TestUserEndpoint:
                 roles=roles or [],
                 created_on=timezone.parse(DEFAULT_TIME),
                 changed_on=timezone.parse(DEFAULT_TIME),
+                active=True,
             )
             for i in range(1, count + 1)
         ]
@@ -96,7 +97,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "mytest@test1.org",
@@ -124,7 +125,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/prince", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "prince@example.org",
@@ -152,7 +153,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/liberace", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "liberace@example.org",
@@ -180,7 +181,7 @@ class TestGetUser(TestUserEndpoint):
         response = self.client.get("/auth/fab/v1/users/nameless", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
         assert response.json == {
-            "active": None,
+            "active": True,
             "changed_on": DEFAULT_TIME,
             "created_on": DEFAULT_TIME,
             "email": "nameless@example.org",
