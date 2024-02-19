@@ -113,9 +113,7 @@ Operations users
 ................
 
 The primary difference between an operator and admin is the ability to manage and grant permissions
-to other users - only admins are able to do this. Otherwise assume they have the same access as an admin.
-
-Operations users also do not have permission to access audit logs.
+to other users, and access audit logs - only admins are able to do this. Otherwise assume they have the same access as an admin.
 
 Connection configuration users
 ..............................
