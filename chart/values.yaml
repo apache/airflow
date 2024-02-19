@@ -1709,7 +1709,7 @@ flower:
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: false
 
-  ivenessProbe:
+  livenessProbe:
     initialDelaySeconds: 10
     timeoutSeconds: 5
     failureThreshold: 10
