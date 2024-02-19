@@ -127,6 +127,7 @@ spec:
                 - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
             initialDelaySeconds: {{ .Values.flower.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.flower.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.flower.livenessProbe.timeoutSeconds }}
           readinessProbe:
             failureThreshold: {{ .Values.flower.readinessProbe.failureThreshold }}
             exec:
@@ -139,6 +140,7 @@ spec:
                 - {{ printf "localhost:%s" (.Values.ports.flowerUI | toString) }}
             initialDelaySeconds: {{ .Values.flower.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.flower.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.flower.readinessProbe.timeoutSeconds }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
