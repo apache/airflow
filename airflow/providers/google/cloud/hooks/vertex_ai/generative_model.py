@@ -71,7 +71,7 @@ class GenerativeModelHook(GoogleBaseHook):
 
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
-        :param pretrained_model: A pretrained_model optimized for performing natural
+        :param pretrained_model: A pre-trained model optimized for performing natural
             language tasks such as classification, summarization, extraction, content
             creation, and ideation.
         :param temperature: Temperature controls the degree of randomness in token
@@ -105,8 +105,8 @@ class GenerativeModelHook(GoogleBaseHook):
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
         :param prompt: Required. Inputs or queries that a user or a program gives
-            to the Multimodal model, in order to elicit a specific response.
-        :param pretrained_model: By default uses the pretrained_model gemini-pro,
+            to the Multi-modal model, in order to elicit a specific response.
+        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
