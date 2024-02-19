@@ -908,7 +908,7 @@ function check_pydantic() {
         echo
         echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
         echo
-        pip uninstall --root-user-action ignore pydantic aws-sam-translator openai pyiceberg qdrant-client cfn-lint -y
+        pip uninstall --root-user-action ignore pydantic aws-sam-translator openai pyiceberg cfn-lint -y
         pip check
     elif [[ ${PYDANTIC=} == "v1" ]]; then
         echo

@@ -420,6 +420,14 @@ ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "cons
     envvar="USE_PACKAGES_FROM_DIST",
     help="Should install packages from dist folder if set.",
 )
+@click.option(
+    "--install-airflow-with-constraints",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="INSTALL_AIRFLOW_WITH_CONSTRAINTS",
+    help="Install airflow in a separate step, with constraints determined from package or airflow version.",
+)
 def install_airflow_and_providers(
     airflow_constraints_mode: str,
     airflow_constraints_location: str,
@@ -438,6 +446,7 @@ def install_airflow_and_providers(
     python_version: str,
     use_airflow_version: str,
     use_packages_from_dist: bool,
+    install_airflow_with_constraints: bool,
 ):
     console.print("[bright_blue]Installing Airflow and Providers")
     installation_spec = find_installation_spec(
@@ -458,7 +467,7 @@ def install_airflow_and_providers(
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
     )
-    if installation_spec.airflow_package:
+    if installation_spec.airflow_package and install_airflow_with_constraints:
         install_airflow_cmd = [
             "pip",
             "install",
@@ -474,6 +483,8 @@ def install_airflow_and_providers(
         run_command(install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages or not install_airflow_with_constraints:
         install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
+        if not install_airflow_with_constraints and installation_spec.airflow_package:
+            install_providers_cmd.append(installation_spec.airflow_package)
         console.print("\n[bright_blue]Installing provider packages:")
         for provider_package in sorted(installation_spec.provider_packages):
             console.print(f"  {provider_package}")

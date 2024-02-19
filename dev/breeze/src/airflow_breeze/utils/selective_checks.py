@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import difflib
@@ -992,7 +991,6 @@ class SelectiveChecks:
                     "check-airflow-provider-compatibility",
                     "check-extra-packages-references",
                     "check-provider-yaml-valid",
-                    "validate-operators-init",
                     "lint-helm-chart",
                     "validate-operators-init",
                 )

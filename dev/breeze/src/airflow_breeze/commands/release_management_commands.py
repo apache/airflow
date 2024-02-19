@@ -68,6 +68,7 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_skip_constraints,
+    option_install_airflow_with_constraints,
     option_install_selected_providers,
     option_providers_constraints_location,
     option_providers_constraints_mode_ci,
@@ -209,6 +210,7 @@ class VersionedFile(NamedTuple):
     suffix: str
     type: str
     comparable_version: Version
+    file_name: str
 
 
 AIRFLOW_PIP_VERSION = "24.0"
@@ -217,12 +219,13 @@ GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
 NODE_VERSION = "21.2.0"
 PRE_COMMIT_VERSION = "3.5.0"
+HATCH_VERSION = "1.9.1"
 PYYAML_VERSION = "6.0.1"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch==1.9.1 pyyaml=={PYYAML_VERSION}\
+RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
  gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
@@ -703,7 +706,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
             f"since you asked for it, it will be built [/]\n"
         )
     elif provider_metadata.get("state") == "suspended":
-        get_console().print(f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n")
+        get_console().print(f"[warning]The package: {provider_package_id} is suspended skipping it [/]\n")
         raise PackageSuspendedException()
     return provider_metadata
 
@@ -1018,7 +1021,7 @@ def generate_constraints(
     list_generated_constraints(output=None)
 
 
-SDIST_FILENAME_PREFIX = "apache-airflow-providers-"
+SDIST_FILENAME_PREFIX = "apache_airflow_providers_"
 WHEEL_FILENAME_PREFIX = "apache_airflow_providers-"
 
 SDIST_FILENAME_PATTERN = re.compile(rf"{SDIST_FILENAME_PREFIX}(.*)-[0-9].*\.tar\.gz")
@@ -1032,7 +1035,7 @@ def _get_all_providers_in_dist(
         matched = filename_pattern.match(file.name)
         if not matched:
             raise Exception(f"Cannot parse provider package name from {file.name}")
-        provider_package_id = matched.group(1).replace("-", ".")
+        provider_package_id = matched.group(1).replace("_", ".")
         yield provider_package_id
 
 
@@ -1164,7 +1167,7 @@ def install_provider_packages(
         provider_chunks = [chunk for chunk in provider_chunks if chunk]
         if not provider_chunks:
             get_console().print("[info]No providers to install")
-            return
+            sys.exit(1)
         total_num_providers = 0
         for index, chunk in enumerate(provider_chunks):
             get_console().print(f"Chunk {index}: {chunk} ({len(chunk)} providers)")
@@ -1233,6 +1236,7 @@ def install_provider_packages(
 @option_airflow_skip_constraints
 @option_dry_run
 @option_github_repository
+@option_install_airflow_with_constraints
 @option_install_selected_providers
 @option_installation_package_format
 @option_mount_sources
@@ -1250,6 +1254,7 @@ def verify_provider_packages(
     airflow_constraints_reference: str,
     airflow_extras: str,
     github_repository: str,
+    install_airflow_with_constraints: bool,
     install_selected_providers: str,
     mount_sources: str,
     package_format: str,
@@ -1275,6 +1280,7 @@ def verify_provider_packages(
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
         github_repository=github_repository,
+        install_airflow_with_constraints=install_airflow_with_constraints,
         mount_sources=mount_sources,
         package_format=package_format,
         providers_constraints_location=providers_constraints_location,
@@ -1572,10 +1578,10 @@ def clean_old_provider_artifacts(
             # Leave only last version from each type
             for versioned_file in package_types[:-1]:
                 get_console().print(
-                    f"""[warning]Removing {versioned_file.base + versioned_file.version +
-                versioned_file.suffix} as they are older than remaining file"""
+                    f"[warning]Removing {versioned_file.file_name} as they are older than remaining file: "
+                    f"{package_types[-1].file_name}[/]"
                 )
-                command = ["svn", "rm", versioned_file.base + versioned_file.version + versioned_file.suffix]
+                command = ["svn", "rm", versioned_file.file_name]
                 run_command(command, check=False)
 
 
@@ -1700,7 +1706,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(
                     slim_image_name,
                     f"{dockerhub_repo}:slim-{airflow_version}",
@@ -1732,7 +1738,7 @@ def release_prod_images(
                 "--push",
             ]
             run_command(docker_buildx_command)
-            if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            if python == ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]:
                 alias_image(image_name, f"{dockerhub_repo}:{airflow_version}")
     # in case of re-tagging the images might need few seconds to refresh multi-platform images in DockerHub
     time.sleep(10)
@@ -2267,6 +2273,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
         suffix=suffix,
         type=no_version_file + "-" + suffix,
         comparable_version=Version(version),
+        file_name=file_name,
     )
 
 
