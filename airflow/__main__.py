@@ -35,6 +35,7 @@ import argcomplete
 from airflow import configuration
 from airflow.cli import cli_parser
 from airflow.configuration import write_webserver_configuration_if_needed
+from airflow.secrets.cache import SecretCache
 
 
 def main():
@@ -54,6 +55,11 @@ def main():
         conf = write_default_airflow_configuration_if_needed()
         if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
+
+    # Some tasks require parsing DAG files, so we enable secret caching for improved performance.
+    # If the user did not configure secret caching, this action is a no-op.
+    SecretCache.init()
+
     args.func(args)
 
 
