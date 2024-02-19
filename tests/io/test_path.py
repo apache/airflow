@@ -283,11 +283,13 @@ class TestFs:
         _from = ObjectStoragePath(f"ffs://{dir_src}")
         _from_file = _from / key
         _from_file.touch()
+        assert _from.bucket == "bucket1"
         assert _from_file.exists()
 
         _to = ObjectStoragePath(f"ffs2://{dir_dst}")
         _from.copy(_to)
 
+        assert _to.bucket == "bucket2"
         assert _to.exists()
         assert _to.is_dir()
         assert (_to / _from.key / key).exists()
