@@ -76,6 +76,7 @@ class ObjectStoragePath(CloudPath):
         return attach(protocol or "file", storage_options.get("conn_id")).fs
 
     def __hash__(self) -> int:
+        self._hash_cached: int
         try:
             return self._hash_cached
         except AttributeError:
