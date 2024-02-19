@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime as dt, timedelta
+from datetime import datetime as dt, timedelta, timezone
 from unittest import mock
 from unittest.mock import ANY, Mock, call
 
@@ -40,7 +40,7 @@ from tests.test_utils.config import conf_vars
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.utcfromtimestamp(time_in_milliseconds / 1000.0)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=timezone.utc)
     return dt_time.strftime("%Y-%m-%d %H:%M:%S,000")
 
 

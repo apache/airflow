@@ -23,6 +23,7 @@ description: |
 
 state: ready
 source-date-epoch: 1707637063
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 8.0.0
   - 7.14.0
@@ -118,6 +119,7 @@ operators:
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource
+      - airflow.providers.cncf.kubernetes.operators.job
 
 sensors:
   - integration-name: Kubernetes

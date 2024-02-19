@@ -31,8 +31,8 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
-def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+def configured_app(minimal_app_for_auth_api):
+    app = minimal_app_for_auth_api
     create_role(
         app,
         name="TestRole",
@@ -79,7 +79,7 @@ class TestUserCollectionItemSchema(TestUserBase):
             "created_on": DEFAULT_TIME,
             "email": "test@example.org",
             "changed_on": DEFAULT_TIME,
-            "active": None,
+            "active": True,
             "last_login": None,
             "last_name": "Bar",
             "fail_login_count": None,
@@ -111,7 +111,7 @@ class TestUserSchema(TestUserBase):
             "created_on": DEFAULT_TIME,
             "email": "test@example.org",
             "changed_on": DEFAULT_TIME,
-            "active": None,
+            "active": True,
             "last_login": None,
             "last_name": "Bar",
             "fail_login_count": None,

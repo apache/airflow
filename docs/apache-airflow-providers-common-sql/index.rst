@@ -42,6 +42,7 @@
     :caption: References
 
     Python API <_api/airflow/providers/common/sql/index>
+    Supported Database Types </supported-database-types>
 
 .. toctree::
     :hidden:
@@ -101,6 +102,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
 ``sqlparse``        ``>=0.4.2``
+``more-itertools``  ``>=9.0.0``
 ==================  ==================
 
 Cross provider package dependencies

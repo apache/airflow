@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pendulum
@@ -45,6 +45,7 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
+from airflow.utils import timezone
 
 TEST_BUCKET = "TEST_BUCKET"
 
@@ -65,15 +66,6 @@ MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) f
 TEST_INACTIVITY_PERIOD = 5
 
 TEST_MIN_OBJECTS = 1
-
-
-@pytest.fixture()
-def context():
-    """
-    Creates an empty context.
-    """
-    context = {"data_interval_end": datetime.utcnow()}
-    yield context
 
 
 def next_time_side_effect():
@@ -159,7 +151,7 @@ class TestGoogleCloudStorageObjectSensor:
         )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(context)
+            task.execute({})
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
 
     @pytest.mark.parametrize(
@@ -213,7 +205,7 @@ class TestGoogleCloudStorageObjectAsyncSensor:
             )
         mock_hook.return_value.exists.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            task.execute(context)
+            task.execute({})
         assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
 
     @pytest.mark.parametrize(
@@ -329,20 +321,20 @@ class TestGCSObjectUpdateAsyncSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
-    def test_gcs_object_update_async_sensor_execute_failure(self, context, soft_fail, expected_exception):
+    def test_gcs_object_update_async_sensor_execute_failure(self, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
         self.OPERATOR.soft_fail = soft_fail
         with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
-                context=context, event={"status": "error", "message": "test failure message"}
+                context={}, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_object_update_async_sensor_execute_complete(self, context):
+    def test_gcs_object_update_async_sensor_execute_complete(self):
         """Asserts that logging occurs as expected"""
 
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
             self.OPERATOR.execute_complete(
-                context=context, event={"status": "success", "message": "Job completed"}
+                context={}, event={"status": "success", "message": "Job completed"}
             )
         mock_log_info.assert_called_with(
             "Checking last updated time for object %s in bucket : %s", TEST_OBJECT, TEST_BUCKET
@@ -462,21 +454,21 @@ class TestGCSObjectsWithPrefixExistenceAsyncSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     def test_gcs_object_with_prefix_existence_async_sensor_execute_failure(
-        self, context, soft_fail, expected_exception
+        self, soft_fail, expected_exception
     ):
         """Tests that an AirflowException is raised in case of error event"""
         self.OPERATOR.soft_fail = soft_fail
         with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
-                context=context, event={"status": "error", "message": "test failure message"}
+                context={}, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_object_with_prefix_existence_async_sensor_execute_complete(self, context):
+    def test_gcs_object_with_prefix_existence_async_sensor_execute_complete(self):
         """Asserts that logging occurs as expected"""
 
         with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
             self.OPERATOR.execute_complete(
-                context=context,
+                context={},
                 event={"status": "success", "message": "Job completed", "matches": [TEST_OBJECT]},
             )
         mock_log_info.assert_called_with("Resuming from trigger and checking status")
@@ -609,18 +601,16 @@ class TestGCSUploadSessionCompleteAsyncSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
-    def test_gcs_upload_session_complete_sensor_execute_failure(self, context, soft_fail, expected_exception):
+    def test_gcs_upload_session_complete_sensor_execute_failure(self, soft_fail, expected_exception):
         """Tests that an AirflowException is raised in case of error event"""
 
         self.OPERATOR.soft_fail = soft_fail
         with pytest.raises(expected_exception):
             self.OPERATOR.execute_complete(
-                context=context, event={"status": "error", "message": "test failure message"}
+                context={}, event={"status": "error", "message": "test failure message"}
             )
 
-    def test_gcs_upload_session_complete_async_sensor_execute_complete(self, context):
+    def test_gcs_upload_session_complete_async_sensor_execute_complete(self):
         """Asserts that execute complete is completed as expected"""
 
-        assert self.OPERATOR.execute_complete(
-            context=context, event={"status": "success", "message": "success"}
-        )
+        assert self.OPERATOR.execute_complete(context={}, event={"status": "success", "message": "success"})
