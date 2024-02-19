@@ -105,23 +105,25 @@ class TestFs:
         assert "local" in _STORE_CACHE
 
     def test_init_objectstoragepath(self):
-        path = ObjectStoragePath("file:///key/part1/part2")
-        assert path.bucket == ""
+        attach("s3", fs=FakeRemoteFileSystem())
+
+        path = ObjectStoragePath("s3://bucket/key/part1/part2")
+        assert path.bucket == "bucket"
         assert path.key == "key/part1/part2"
-        assert path.protocol == "file"
-        assert path.path == "/key/part1/part2"
+        assert path.protocol == "s3"
+        assert path.path == "bucket/key/part1/part2"
 
         path2 = ObjectStoragePath(path / "part3")
-        assert path2.bucket == ""
+        assert path2.bucket == "bucket"
         assert path2.key == "key/part1/part2/part3"
-        assert path2.protocol == "file"
-        assert path2.path == "/key/part1/part2/part3"
+        assert path2.protocol == "s3"
+        assert path2.path == "bucket/key/part1/part2/part3"
 
         path3 = ObjectStoragePath(path2 / "2023")
-        assert path3.bucket == ""
+        assert path3.bucket == "bucket"
         assert path3.key == "key/part1/part2/part3/2023"
-        assert path3.protocol == "file"
-        assert path3.path == "/key/part1/part2/part3/2023"
+        assert path3.protocol == "s3"
+        assert path3.path == "bucket/key/part1/part2/part3/2023"
 
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
