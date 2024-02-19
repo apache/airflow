@@ -172,9 +172,9 @@ const Row = (props: RowProps) => {
               label={task.label || task.id || ""}
               id={task.id || ""}
               isOpen={isOpen}
-              ml={level * 4 + 4}
+              pl={level * 4 + 4}
               setupTeardownType={task.setupTeardownType}
-              mr={4}
+              pr={4}
               fontWeight={
                 isGroup || (task.isMapped && !isParentMapped)
                   ? "bold"
