@@ -1871,7 +1871,13 @@ class AirflowConfigParser(ConfigParser):
                 stacklevel=4 + extra_stacklevel,
             )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """
+        Return the state of the object as a dictionary for pickling.
+
+        Returns:
+        dict: A dictionary containing the state of the object for pickling.
+        """
         return {
             name: getattr(self, name)
             for name in [
@@ -1883,8 +1889,19 @@ class AirflowConfigParser(ConfigParser):
             ]
         }
 
-    def __setstate__(self, state):
-        self.__init__()
+    def __setstate__(self, state) -> None:
+        """
+        Restore the state of the object from a dictionary representation.
+
+        This method is called by the `pickle` module when the object is being unpickled.
+
+        Args:
+            state (dict): A dictionary containing the state of the object.
+
+        Returns:
+            None
+        """
+        AirflowConfigParser.__init__(self)
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
