@@ -126,6 +126,11 @@ class ObjectStoragePath(CloudPath):
     def namespace(self) -> str:
         return f"{self.protocol}://{self.bucket}" if self.bucket else self.protocol
 
+    def open(self, mode="r", **kwargs):
+        """Open the file pointed to by this path."""
+        kwargs.setdefault("block_size", kwargs.pop("buffering", None))
+        return self.fs.open(self.path, mode=mode, **kwargs)
+
     def stat(self) -> stat_result:  # type: ignore[override]
         """Call ``stat`` and return the result."""
         return stat_result(
