@@ -44,7 +44,7 @@ the connection metadata is structured as follows:
    * - Host: string
      - Chat ID of the Telegram group/chat
    * - Connection Type: string
-     - http as connection type
+     - telegram as connection type
 
 An example usage of the TelegramOperator is as follows:
 

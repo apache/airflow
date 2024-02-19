@@ -190,6 +190,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     "message": message,
                 }
             )
+            return
         except Exception as e:
             yield TriggerEvent(
                 {
@@ -223,6 +224,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 return self.define_container_state(pod)
             self.log.info("Still waiting for pod to start. The pod state is %s", pod.status.phase)
             await asyncio.sleep(self.poll_interval)
+            delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
         raise PodLaunchTimeoutException("Pod did not leave 'Pending' phase within specified timeout")
 
     async def _wait_for_container_completion(self) -> TriggerEvent:
@@ -245,7 +247,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             elif container_state == ContainerState.FAILED:
                 return TriggerEvent(
-                    {"status": "failed", "namespace": self.pod_namespace, "name": self.pod_name}
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": "Container state failed",
+                    }
                 )
             if time_get_more_logs and datetime.datetime.now(tz=datetime.timezone.utc) > time_get_more_logs:
                 return TriggerEvent(

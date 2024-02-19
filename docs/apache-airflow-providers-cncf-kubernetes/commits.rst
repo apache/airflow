@@ -38,11 +38,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.0.0
 .....
 
-Latest change: 2024-02-15
+Latest change: 2024-02-18
 
 =================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================
+`6412b06a7b <https://github.com/apache/airflow/commit/6412b06a7b35a0743656dd3b2160f390f40108c2>`_  2024-02-18   ``Fix KPO task hanging when pod fails to start within specified timeout (#37514)``
+`d50a25bd35 <https://github.com/apache/airflow/commit/d50a25bd35161b8a06bbeb4c61b19290f222021c>`_  2024-02-17   ``Fix KeyError when KPO exits too soon (#37508)``
+`75182363a2 <https://github.com/apache/airflow/commit/75182363a2070145745b98fa040e9bc590e3853b>`_  2024-02-17   ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `c84efe77a5 <https://github.com/apache/airflow/commit/c84efe77a5881d6bd554341b9bfc4712601051f2>`_  2024-02-15   ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37454)``
 `32ba99b6c2 <https://github.com/apache/airflow/commit/32ba99b6c27b1e9ec7ebfffceeecb650f6f3d4d7>`_  2024-02-15   ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
 `0be6430938 <https://github.com/apache/airflow/commit/0be643093879e106f7ee1e41c155954edd14398f>`_  2024-02-15   ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
