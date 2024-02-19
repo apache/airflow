@@ -106,8 +106,7 @@ sensitive information accessible through connection configuration.
 They also have the ability to create a Webserver Denial of Service
 situation and should be trusted not to misuse this capability.
 
-Only admin users have access to audit logs. Unless specified otherwise in any other section below,
-other users do not have permissions on audit logs.
+Only admin users have access to audit logs.
 
 Operations users
 ................
