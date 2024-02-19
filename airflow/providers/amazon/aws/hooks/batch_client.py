@@ -395,7 +395,13 @@ class BatchClientHook(AwsBaseHook):
 
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
-                return self.parse_job_description(job_id, response)
+                job_description = self.parse_job_description(job_id, response)
+                # allow us to retry getting the job description in case 
+                # we called it before AWS could register the job
+                if job_description:
+                    return job_description
+                else:
+                    continue
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
@@ -413,7 +419,7 @@ class BatchClientHook(AwsBaseHook):
             )
 
     @staticmethod
-    def parse_job_description(job_id: str, response: dict) -> dict:
+    def parse_job_description(job_id: str, response: dict) -> dict | None:
         """
         Parse job description to extract description for job_id.
 
@@ -421,14 +427,14 @@ class BatchClientHook(AwsBaseHook):
 
         :param response: an API response for describe jobs
 
-        :return: an API response to describe job_id
+        :return: an API response to describe job_id or None if job_id not found in response
 
-        :raises: AirflowException
+        :raises: 
         """
         jobs = response.get("jobs", [])
         matching_jobs = [job for job in jobs if job.get("jobId") == job_id]
         if len(matching_jobs) != 1:
-            raise AirflowException(f"AWS Batch job ({job_id}) description error: response: {response}")
+            return None
 
         return matching_jobs[0]
 
