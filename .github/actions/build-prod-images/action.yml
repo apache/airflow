@@ -19,6 +19,9 @@
 name: 'Build PROD images'
 description: 'Build PROD images'
 inputs:
+  python-version:
+    description: 'Python versions to use'
+    required: true
   build-provider-packages:
     description: 'Whether to build provider packages from sources'
     required: true
@@ -64,7 +67,7 @@ runs:
     - name: "Download constraints from the CI build"
       uses: actions/download-artifact@v4
       with:
-        name: source-constraints
+        name: source-constraints-${{ inputs.python-version }}
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages == 'true' }}
     - name: "Download constraints from the Generate & Verify build"
@@ -73,21 +76,21 @@ runs:
         name: constraints
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages != 'true' }}
-    - name: "Build & Push PROD images with source providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
+    - name: "Build & Push PROD images w/ source providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
       shell: bash
       run: >
-        breeze prod-image build --tag-as-latest --run-in-parallel --push
+        breeze prod-image build --tag-as-latest --push
         --install-packages-from-context --airflow-constraints-mode constraints-source-providers
-        --use-constraints-for-context-packages
+        --use-constraints-for-context-packages --python "${{ inputs.python-version }}"
       env:
         COMMIT_SHA: ${{ github.sha }}
       if: ${{ inputs.build-provider-packages == 'true' }}
-    - name: "Build & Push PROD images with PyPi providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
+    - name: "Build & Push PROD images with PyPi providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
       shell: bash
       run: >
-        breeze prod-image build --tag-as-latest --run-in-parallel --push
+        breeze prod-image build --tag-as-latest --push
         --install-packages-from-context --airflow-constraints-mode constraints
-        --use-constraints-for-context-packages
+        --use-constraints-for-context-packages --python "${{ inputs.python-version }}"
       env:
         COMMIT_SHA: ${{ github.sha }}
       if: ${{ inputs.build-provider-packages != 'true' }}

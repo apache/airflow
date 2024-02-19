@@ -22,12 +22,13 @@ from __future__ import annotations
 
 import warnings
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Any, NamedTuple, Sized
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     import datetime
+    from collections.abc import Sized
 
     from airflow.models import DAG, DagRun
 
