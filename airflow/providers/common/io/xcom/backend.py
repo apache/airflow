@@ -132,7 +132,7 @@ class XComObjectStoreBackend(BaseXCom):
             if not p.parent.exists():
                 p.parent.mkdir(parents=True, exist_ok=True)
 
-            with p.open("wb", compression=compression) as f:
+            with p.fs.open(p.path, mode="wb", compression=compression) as f:
                 f.write(s_val)
 
             return BaseXCom.serialize_value(str(p))
@@ -152,7 +152,7 @@ class XComObjectStoreBackend(BaseXCom):
 
         try:
             p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
-            return json.load(p.open("rb", compression="infer"), cls=XComDecoder)
+            return json.load(p.fs.open(p.path, mode="rb", compression="infer"), cls=XComDecoder)
         except TypeError:
             return data
         except ValueError:
