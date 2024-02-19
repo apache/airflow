@@ -21,6 +21,7 @@ import asyncio
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
+from google.oauth2.service_account import _DEFAULT_TOKEN_LIFETIME_SECS
 
 from airflow.providers.google.cloud.hooks.bigquery_dts import AsyncBiqQueryDataTransferServiceHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -44,6 +45,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param token_refresh_interval_seconds: GCP STS Token refresh interval in seconds.
     """
 
     def __init__(
@@ -55,6 +57,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        token_refresh_interval_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECS // 2,
     ):
         super().__init__()
         self.project_id = project_id
@@ -64,6 +67,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.token_refresh_interval_seconds = token_refresh_interval_seconds
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize class arguments and classpath."""
@@ -77,14 +81,30 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "location": self.location,
                 "impersonation_chain": self.impersonation_chain,
+                "token_refresh_interval_seconds": self.token_refresh_interval_seconds,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """If the Transfer Run is in a terminal state, then yield TriggerEvent object."""
         hook = self._get_async_hook()
+        idx = 0
         try:
             while True:
+                current_tick_div, current_tick_mod = divmod(
+                    idx * self.poll_interval, self.token_refresh_interval_seconds
+                )
+                next_tick_div, next_tick_mod = divmod(
+                    (idx + 1) * self.poll_interval, self.token_refresh_interval_seconds
+                )
+                if (current_tick_div < next_tick_div and 0 < next_tick_mod) or (
+                    current_tick_mod == 0 and 1 <= current_tick_div
+                ):
+                    _ = await hook.refresh_credentials()
+                    self.log.info(
+                        f"Credentials were refreshed on tick: idx={idx}, idx*interval={idx * self.poll_interval} sec"
+                    )
+
                 transfer_run: TransferRun = await hook.get_transfer_run(
                     project_id=self.project_id,
                     config_id=self.config_id,
@@ -129,6 +149,8 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
+
+                idx += 1
         except Exception as e:
             yield TriggerEvent(
                 {

@@ -307,6 +307,12 @@ class GoogleBaseHook(BaseHook):
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
+    def refresh_credentials(self) -> google.auth.credentials.Credentials:
+        """Refresh the Credentials object for Google API."""
+        credentials = self.get_credentials()
+        credentials.refresh(google.auth.transport.requests.Request())
+        return credentials
+
     def _get_access_token(self) -> str:
         """Return a valid access token from Google API Credentials."""
         credentials = self.get_credentials()
@@ -706,3 +712,8 @@ class GoogleBaseAsyncHook(BaseHook):
         """
         sync_hook = await self.get_sync_hook()
         return await sync_to_async(sync_hook.provide_gcp_credential_file_as_context)()
+
+    async def refresh_credentials(self) -> google.auth.credentials.Credentials:
+        """Refresh the Credentials object for Google API."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.refresh_credentials)()

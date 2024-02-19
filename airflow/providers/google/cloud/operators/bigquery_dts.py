@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
@@ -29,6 +30,7 @@ from google.cloud.bigquery_datatransfer_v1 import (
     TransferRun,
     TransferState,
 )
+from google.oauth2.service_account import _DEFAULT_TOKEN_LIFETIME_SECS
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -256,6 +258,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
+    :param token_refresh_interval_seconds: GCP STS Token refresh interval in seconds.
     """
 
     template_fields: Sequence[str] = (
@@ -282,6 +285,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         gcp_conn_id="google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        token_refresh_interval_seconds: int = _DEFAULT_TOKEN_LIFETIME_SECS // 2,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -291,11 +295,16 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         self.requested_time_range = requested_time_range
         self.requested_run_time = requested_run_time
         self.retry = retry
-        self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.token_refresh_interval_seconds = token_refresh_interval_seconds
+        self.timeout = (
+            (self.execution_timeout + timedelta(minutes=10)).total_seconds()
+            if self.execution_timeout and not timeout
+            else timeout
+        )
 
     @cached_property
     def hook(self) -> BiqQueryDataTransferServiceHook:
@@ -351,6 +360,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
                 gcp_conn_id=self.gcp_conn_id,
                 location=self.location,
                 impersonation_chain=self.impersonation_chain,
+                token_refresh_interval_seconds=self.token_refresh_interval_seconds,
             ),
             method_name="execute_completed",
         )
@@ -359,7 +369,18 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         if interval <= 0:
             raise ValueError("Interval must be > 0")
 
+        idx = 0
         while True:
+            current_tick_div, current_tick_mod = divmod(idx * interval, self.token_refresh_interval_seconds)
+            next_tick_div, next_tick_mod = divmod((idx + 1) * interval, self.token_refresh_interval_seconds)
+            if (current_tick_div < next_tick_div and 0 < next_tick_mod) or (
+                current_tick_mod == 0 and 1 <= current_tick_div
+            ):
+                _ = self.hook.refresh_credentials()
+                self.log.info(
+                    f"Credentials were refreshed on tick: idx={idx}, idx*interval={idx * interval} sec"
+                )
+
             transfer_run: TransferRun = self.hook.get_transfer_run(
                 run_id=run_id,
                 transfer_config_id=transfer_config_id,
@@ -380,6 +401,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
             self.log.info("Transfer run is still working, waiting for %s seconds...", interval)
             self.log.info("Transfer run status: %s", state)
             time.sleep(interval)
+            idx += 1
 
     @staticmethod
     def _job_is_done(state: TransferState) -> bool:
