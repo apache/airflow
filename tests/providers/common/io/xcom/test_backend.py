@@ -87,6 +87,7 @@ def task_instance(task_instance_factory):
 
 class TestXcomObjectStoreBackend:
     path = "file:/tmp/xcom"
+    path_normalized = "file:///tmp/xcom"
 
     def setup_method(self):
         try:
@@ -181,7 +182,7 @@ class TestXcomObjectStoreBackend:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert self.path in qry.first().value
+        assert self.path_normalized in qry.first().value
 
     @pytest.mark.db_test
     def test_clear(self, task_instance, session):
