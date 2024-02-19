@@ -383,12 +383,8 @@ class TestFlowerDeployment:
         assert 111 == jmespath.search(
             f"spec.template.spec.containers[0].{probe}.initialDelaySeconds", docs[0]
         )
-        assert 222 == jmespath.search(
-            f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0]
-        )
-        assert 333 == jmespath.search(
-            f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0]
-        )
+        assert 222 == jmespath.search(f"spec.template.spec.containers[0].{probe}.timeoutSeconds", docs[0])
+        assert 333 == jmespath.search(f"spec.template.spec.containers[0].{probe}.failureThreshold", docs[0])
         assert 444 == jmespath.search(f"spec.template.spec.containers[0].{probe}.periodSeconds", docs[0])
 
 
