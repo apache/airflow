@@ -148,7 +148,11 @@ def _generate_queued_event_where_clause(
     if dataset_id is not None:
         where_clause.append(DatasetDagRunQueue.dataset_id == dataset_id)
     if uri is not None:
-        where_clause.append(DatasetModel.uri == uri)
+        where_clause.append(
+            DatasetDagRunQueue.dataset_id.in_(
+                select(DatasetModel.id).where(DatasetModel.uri == uri),
+            ),
+        )
     if before is not None:
         where_clause.append(DatasetDagRunQueue.created_at < format_datetime(before))
     if permitted_dag_ids is not None:
@@ -185,9 +189,10 @@ def delete_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete a queued Dataset event for a DAG."""
-    dataset_id = session.scalars(select(DatasetModel.id).where(DatasetModel.uri == uri)).one_or_none()
-    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, dataset_id=dataset_id, before=before)
-    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
+    delete_stmt = (
+        delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    )
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
@@ -281,13 +286,14 @@ def delete_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued Dataset events for a Dataset."""
-    dataset_id = session.scalars(select(DatasetModel.id).where(DatasetModel.uri == uri)).one_or_none()
     permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
     where_clause = _generate_queued_event_where_clause(
-        dataset_id=dataset_id, before=before, permitted_dag_ids=permitted_dag_ids
+        uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
+    )
+    delete_stmt = (
+        delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
 
-    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
