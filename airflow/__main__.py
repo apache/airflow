@@ -56,8 +56,12 @@ def main():
         if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
 
-    # Some tasks require parsing DAG files, so we enable secret caching for improved performance.
-    # If the user did not configure secret caching, this action is a no-op.
+    # DAGs that access variables and connections in top-level code can slow down the DAG parsing due
+    # to additional requests to the secret backend. The parsing can be sped up by caching secrets once
+    # they have been accessed once. This is supported by the `secrets.use_cache` configuration option
+    # and implemented in the secret cache.
+    # If caching is enabled, the below line will set up the cache and enable caching for all further
+    # variable access. If caching is not explicitly enabled, the below line is a no-op.
     SecretCache.init()
 
     args.func(args)
