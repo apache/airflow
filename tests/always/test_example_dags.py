@@ -17,10 +17,18 @@
 from __future__ import annotations
 
 import os
+import sys
 from glob import glob
 from pathlib import Path
 
 import pytest
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
+
+if sys.version_info >= (3, 9):
+    from importlib.metadata import version
+else:
+    from importlib_metadata import version
 
 from airflow.models import DagBag
 from airflow.utils import yaml
@@ -35,6 +43,23 @@ if os.environ.get("PYDANTIC", "v2") != "v2":
     pytest.skip(
         "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
     )
+
+OPTIONAL_PROVIDERS_DEPENDENCIES = {
+    # This test required to be installed `s3fs`, which are not installed into some CI checks
+    "tests/system/providers/common/io/example_file_transfer_local_to_s3.py": {"s3fs": None}
+}
+
+
+def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
+    try:
+        package_version = Version(version(distribution_name))
+    except ImportError:
+        return False, f"{distribution_name!r} not installed."
+
+    if specifier and package_version not in SpecifierSet(specifier):
+        return False, f"{distribution_name!r} required {specifier}, but installed {package_version}."
+
+    return True, ""
 
 
 def get_suspended_providers_folders() -> list[str]:
@@ -54,7 +79,7 @@ def get_suspended_providers_folders() -> list[str]:
     return suspended_providers
 
 
-def example_not_suspended_dags():
+def example_not_suspended_dags(exclude_db_exception: bool = False):
     example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
     suspended_providers_folders = get_suspended_providers_folders()
     possible_prefixes = ["airflow/providers/", "tests/system/providers/"]
@@ -66,8 +91,22 @@ def example_not_suspended_dags():
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in candidates:
-            if not candidate.startswith(tuple(suspended_providers_folders)):
-                yield candidate
+            param_marks = []
+
+            if candidate.startswith(tuple(suspended_providers_folders)):
+                param_marks.append(pytest.mark.skip(reason="Suspended provider"))
+
+            for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
+                if candidate.endswith(optional):
+                    for distribution_name, specifier in dependencies.items():
+                        result, reason = match_optional_dependencies(distribution_name, specifier)
+                        if not result:
+                            param_marks.append(pytest.mark.skip(reason=reason))
+
+            if exclude_db_exception and candidate.endswith(tuple(NO_DB_QUERY_EXCEPTION)):
+                param_marks.append(pytest.mark.skip(reason="Expected DB call"))
+
+            yield pytest.param(candidate, marks=tuple(param_marks), id=relative_path(candidate))
 
 
 def example_dags_except_db_exception():
@@ -83,8 +122,8 @@ def relative_path(path):
 
 
 @pytest.mark.db_test
-@pytest.mark.parametrize("example", example_not_suspended_dags(), ids=relative_path)
-def test_should_be_importable(example):
+@pytest.mark.parametrize("example", example_not_suspended_dags())
+def test_should_be_importable(example: str):
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,
@@ -94,8 +133,8 @@ def test_should_be_importable(example):
 
 
 @pytest.mark.db_test
-@pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
-def test_should_not_do_database_queries(example):
+@pytest.mark.parametrize("example", example_not_suspended_dags(exclude_db_exception=True))
+def test_should_not_do_database_queries(example: str):
     with assert_queries_count(0):
         DagBag(
             dag_folder=example,
