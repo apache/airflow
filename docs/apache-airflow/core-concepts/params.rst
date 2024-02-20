@@ -315,6 +315,9 @@ The following features are supported in the Trigger UI Form:
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
+- To pre-populate values in the form when publishing a link to the trigger form you can call the trigger URL ``/dags/<dag_name>/trigger``
+  and add query parameter to the URL in the form ``name=value``, for example ``/dags/example_params_ui_tutorial/trigger?required_field=some%20text``.
+  To pre-define the run id of the DAG run, use the URL parameter ``run_id``.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
