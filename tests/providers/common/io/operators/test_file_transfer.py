@@ -55,13 +55,13 @@ def test_get_openlineage_facets_on_start():
     dst_bucket = "dst-bucket"
     dst_key = "dst-key"
 
-    expected_input = Dataset(namespace=f"s3://{src_bucket}", name=src_key)
-    expected_output = Dataset(namespace=f"s3://{dst_bucket}", name=dst_key)
+    expected_input = Dataset(namespace=f"gs://{src_bucket}", name=src_key)
+    expected_output = Dataset(namespace=f"gs://{dst_bucket}", name=dst_key)
 
     op = FileTransferOperator(
         task_id="test",
-        src=f"s3://{src_bucket}/{src_key}",
-        dst=f"s3://{dst_bucket}/{dst_key}",
+        src=f"gs://{src_bucket}/{src_key}",
+        dst=f"gs://{dst_bucket}/{dst_key}",
     )
 
     lineage = op.get_openlineage_facets_on_start()

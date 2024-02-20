@@ -95,23 +95,6 @@ class ObjectStoragePath(CloudPath):
     def __eq__(self, other: typing.Any) -> bool:
         return self.samestore(other) and str(self) == str(other)
 
-    def __str__(self):
-        """Return the string representation of the path.
-
-        This is a workaround for the fact that upath does not honor the _protocol_dispatch flag when
-        creating a string representation
-        """
-        conn_id = self.storage_options.get("conn_id")
-        parts = list(self._parts)
-
-        # remove trailing slash from the bucket
-        parts[0] = parts[0].rstrip("/")
-
-        if conn_id:
-            return f"{self._protocol}://{conn_id}@{'/'.join(parts)}"
-        else:
-            return f"{self._protocol}://{'/'.join(parts)}"
-
     def samestore(self, other: typing.Any) -> bool:
         return (
             isinstance(other, ObjectStoragePath)
