@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-19T18:20:05.425425
+# This constraints file was automatically generated on 2024-02-20T11:08:13.969715
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -252,7 +252,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.47
+cohere==4.48
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -409,7 +409,7 @@ json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpatch==1.33
 jsonpath-ng==1.6.1
-jsonpickle==3.0.2
+jsonpickle==3.0.3
 jsonpointer==2.4
 jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
@@ -717,7 +717,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.259.0
+yandexcloud==0.260.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.46
