@@ -31,6 +31,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
+from airflow.utils.env_versions import is_sqlalchemy_v1
 from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
@@ -544,3 +545,10 @@ def tuple_not_in_condition(
     :meta private:
     """
     return tuple_(*columns).not_in(collection)
+
+
+def get_orm_mapper():
+    """Get the correct ORM mapper for the installed SQLAlchemy version."""
+    import sqlalchemy.orm.mapper
+
+    return sqlalchemy.orm.mapper if is_sqlalchemy_v1() else sqlalchemy.orm.Mapper
