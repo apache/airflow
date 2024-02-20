@@ -41,7 +41,9 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
+from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -2271,6 +2273,108 @@ def test_mapping_against_empty_list(dag_maker, session):
     assert tis["add_one__1"] == TaskInstanceState.SKIPPED
     assert tis["add_one__2"] == TaskInstanceState.SKIPPED
     assert dr.state == State.SUCCESS
+
+
+def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, session):
+    # Create a DAG with 10 tasks
+    with dag_maker(session=session):
+        @task()
+        def print_value(value):
+            print(value)
+
+        print_value.expand_kwargs([{"value": i} for i in range(10)])
+
+    dr: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+    from airflow import plugins_manager
+    plugins_manager.initialize_ti_deps_plugins()
+
+    # Case-1: there is no custom TI Dependency class
+    # All TIs should become schedulable
+    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", None):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert len(decision.schedulable_tis) == 10
+
+    # Case-2: adding a custom TI Dependency class, which is purposely failing the check all the time
+    # None of the TIs should become schedulable
+
+    # Adding a TI Dep whose TI_SCHEDULE_DECISION is True, and it purposely always fails the check.
+    # When this Dep doesn't pass for the TI (here this dummy Dep never pass purposely for testing),
+    # the TI should not be scheduled.
+    class DummyDep(BaseTIDep):
+        """
+        A Dep class for testing, whose TI_SCHEDULE_DECISION is True
+        i.e. this Dep will be used by the DagRun to make decision if
+        a TI should be scheduled or not.
+        """
+
+        NAME = "Test Dep"
+        IGNORABLE = False
+        TI_SCHEDULE_DECISION = True
+
+        @provide_session
+        def _get_dep_statuses(self, ti, session, dep_context=None):
+            yield self._failing_status(
+                reason="Always fail, for testing purpose"
+            )
+
+    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert len(decision.schedulable_tis) == 0
+
+    # Case-3: adding a custom TI Dependency class, which is purposely failing the check for certain condition
+    # Only some of the TIs should become schedulable.
+
+    # Adding a TI Dep whose TI_SCHEDULE_DECISION is True, and it fails the check for TIs with ti.map_index < 6
+    # When this Dep doesn't pass for the TI (here this dummy Dep never pass purposely for testing),
+    # the TI should not be scheduled.
+    class DummyDep(BaseTIDep):
+        """
+        A Dep class for testing, whose TI_SCHEDULE_DECISION is True
+        i.e. this Dep will be used by the DagRun to make decision if
+        a TI should be scheduled or not.
+        """
+
+        NAME = "Test Dep"
+        IGNORABLE = False
+        TI_SCHEDULE_DECISION = True
+
+        @provide_session
+        def _get_dep_statuses(self, ti, session, dep_context=None):
+            if ti.map_index < 6:
+                yield self._failing_status(
+                    reason="Always fail, for testing purpose"
+                )
+
+    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert len(decision.schedulable_tis) == 4
+
+    # Case-4: adding a custom TI Dependency class whose TI_SCHEDULE_DECISION is False.
+    # It should NOT impact the TI scheduling
+
+    # Adding a TI Dep whose TI_SCHEDULE_DECISION is False
+    class DummyDep(BaseTIDep):
+        """
+        A Dep class for testing, whose TI_SCHEDULE_DECISION is True
+        i.e. this Dep will be used by the DagRun to make decision if
+        a TI should be scheduled or not.
+        """
+
+        NAME = "Test Dep"
+        IGNORABLE = False
+        TI_SCHEDULE_DECISION = False
+
+        @provide_session
+        def _get_dep_statuses(self, ti, session, dep_context=None):
+            if ti.map_index < 6:
+                yield self._failing_status(
+                    reason="Always fail, for testing purpose"
+                )
+
+    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        assert len(decision.schedulable_tis) == 10
 
 
 def test_mapped_task_depends_on_past(dag_maker, session):

@@ -1786,7 +1786,15 @@ class Airflow(AirflowBaseView):
         if ti is None:
             failed_dep_reasons: list[tuple[str, str]] = []
         else:
-            dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
+            plugin_ti_deps = (
+                {d() for d in plugins_manager.registered_ti_dep_classes.values()}
+                if plugins_manager.registered_ti_dep_classes
+                else set()
+            )
+            dep_context = DepContext(
+                SCHEDULER_QUEUED_DEPS | plugin_ti_deps,
+                ti_schedule_decision=True
+            )
             failed_dep_reasons = [
                 (dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses(dep_context=dep_context)
             ]

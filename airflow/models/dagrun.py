@@ -47,6 +47,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
 
+from airflow import plugins_manager
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -944,10 +945,17 @@ class DagRun(Base, LoggingMixin):
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
         additional_tis: list[TI] = []
+        plugin_ti_deps = (
+            {d() for d in plugins_manager.registered_ti_dep_classes.values()}
+            if plugins_manager.registered_ti_dep_classes
+            else set()
+        )
         dep_context = DepContext(
+            deps=plugin_ti_deps,
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
             finished_tis=finished_tis,
+            ti_schedule_decision=True,
         )
 
         def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
