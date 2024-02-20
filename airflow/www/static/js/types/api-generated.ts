@@ -4504,7 +4504,7 @@ export interface operations {
         order_by?: components["parameters"]["OrderBy"];
         /** If set, only return datasets with uris matching this pattern. */
         uri_pattern?: string;
-        /** One or more DAG IDs separated by commas to filter datasets by associated DAGs. */
+        /** One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing. */
         dag_ids?: string;
       };
     };

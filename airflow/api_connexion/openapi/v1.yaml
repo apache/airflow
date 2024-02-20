@@ -639,8 +639,8 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote
-  : parameters:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote:
+    parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
       - $ref: "#/components/parameters/TaskID"
@@ -1767,8 +1767,8 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}
-  : parameters:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+    parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
       - $ref: "#/components/parameters/TaskID"
@@ -1839,8 +1839,8 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}
-  : parameters:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
+    parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
       - $ref: "#/components/parameters/TaskID"
@@ -2074,7 +2074,7 @@ paths:
             type: string
           required: false
           description: |
-            One or more DAG IDs separated by commas to filter datasets by associated DAGs.
+            One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
       responses:
         "200":
           description: Success.
@@ -4011,17 +4011,17 @@ components:
         ti_deps:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin task instance dependencies
         listeners:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin listeners
         timetables:
           type: array
           items:
-              type: string
+            type: string
           description: The plugin timetables
 
     PluginCollection:
