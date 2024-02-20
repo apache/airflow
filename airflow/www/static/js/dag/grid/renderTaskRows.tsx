@@ -162,15 +162,7 @@ const Row = (props: RowProps) => {
             position="sticky"
             left={0}
             cursor="pointer"
-            onClick={(e) => {
-              // Double click to expand
-              if (e.detail === 2 && isGroup) {
-                memoizedToggle();
-              } else {
-                // Otherwise select the task row
-                onSelect({ taskId: task.id });
-              }
-            }}
+            onClick={() => onSelect({ taskId: task.id })}
             borderBottom={0}
             width="100%"
             zIndex={1}
