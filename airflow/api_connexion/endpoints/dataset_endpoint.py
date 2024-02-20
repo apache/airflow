@@ -81,10 +81,11 @@ def get_datasets(
     if dag_ids and uri_pattern:
         dags_list = dag_ids.split(",")
         query = query.filter(
-            DatasetModel.consuming_dags.any(DagScheduleDatasetReference.dag_id.in_(dags_list))
-        ) | (
-            DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list))
-            & DatasetModel.uri.ilike(f"%{uri_pattern}%")
+            (
+                DatasetModel.consuming_dags.any(DagScheduleDatasetReference.dag_id.in_(dags_list))
+                | DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list))
+            ),
+            DatasetModel.uri.ilike(f"%{uri_pattern}%"),
         )
     elif dag_ids:
         dags_list = dag_ids.split(",")
