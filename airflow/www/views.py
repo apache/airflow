@@ -147,6 +147,7 @@ from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidge
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
@@ -935,20 +936,44 @@ class Airflow(AirflowBaseView):
 
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
-            import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
+            if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
+                import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
 
-            if not get_auth_manager().is_authorized_dag(method="GET"):
-                # if the user doesn't have access to all DAGs, only display errors from visible DAGs
-                import_errors = import_errors.join(
-                    DagModel, DagModel.fileloc == errors.ImportError.filename
-                ).where(DagModel.dag_id.in_(filter_dag_ids))
+                can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+                if not can_read_all_dags:
+                    # if the user doesn't have access to all DAGs, only display errors from visible DAGs
+                    import_errors = import_errors.where(
+                        errors.ImportError.filename.in_(
+                            select(DagModel.fileloc)
+                            .distinct()
+                            .where(DagModel.dag_id.in_(filter_dag_ids))
+                            .subquery()
+                        )
+                    )
 
-            import_errors = session.scalars(import_errors)
-            for import_error in import_errors:
-                flash(
-                    f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}",
-                    "dag_import_error",
-                )
+                import_errors = session.scalars(import_errors)
+                for import_error in import_errors:
+                    stacktrace = import_error.stacktrace
+                    if not can_read_all_dags:
+                        # Check if user has read access to all the DAGs defined in the file
+                        file_dag_ids = (
+                            session.query(DagModel.dag_id)
+                            .filter(DagModel.fileloc == import_error.filename)
+                            .all()
+                        )
+                        requests: Sequence[IsAuthorizedDagRequest] = [
+                            {
+                                "method": "GET",
+                                "details": DagDetails(id=dag_id[0]),
+                            }
+                            for dag_id in file_dag_ids
+                        ]
+                        if not get_auth_manager().batch_is_authorized_dag(requests):
+                            stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+                    flash(
+                        f"Broken DAG: [{import_error.filename}]\r{stacktrace}",
+                        "dag_import_error",
+                    )
 
         from airflow.plugins_manager import import_errors as plugin_import_errors
 
