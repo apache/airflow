@@ -20,11 +20,3 @@ from __future__ import annotations
 
 def print_stuff():
     print("annotated!")
-
-def check_venv_dependency():
-    """Check if the virtualenv module is installed"""
-    try:
-        import virtualenv
-        return True
-    except ImportError:
-        return False

@@ -29,9 +29,9 @@ import tempfile
 
 import pendulum
 
-from airflow.example_dags.libs.helper import check_venv_dependency
+from airflow.operators.python import is_venv_installed
 
-venv_installed=check_venv_dependency()
+venv_installed=is_venv_installed()
 
 if venv_installed:
     from airflow.decorators import task
