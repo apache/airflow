@@ -29,116 +29,124 @@ import tempfile
 
 import pendulum
 
-from airflow.decorators import task
-from airflow.models.dag import DAG
-from airflow.operators.empty import EmptyOperator
-from airflow.utils.edgemodifier import Label
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.example_dags.libs.helper import check_venv_dependency
 
-PATH_TO_PYTHON_BINARY = sys.executable
+venv_installed=check_venv_dependency()
 
-with DAG(
-    dag_id="example_branch_python_operator_decorator",
-    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
-    schedule="@daily",
-    tags=["example", "example2"],
-    orientation="TB",
-) as dag:
-    run_this_first = EmptyOperator(task_id="run_this_first")
+if venv_installed:
+    from airflow.decorators import task
+    from airflow.models.dag import DAG
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.edgemodifier import Label
+    from airflow.utils.trigger_rule import TriggerRule
 
-    options = ["a", "b", "c", "d"]
+    PATH_TO_PYTHON_BINARY = sys.executable
 
-    # Example branching on standard Python tasks
+    with DAG(
+        dag_id="example_branch_python_operator_decorator",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        schedule="@daily",
+        tags=["example", "example2"],
+        orientation="TB",
+    ) as dag:
+        run_this_first = EmptyOperator(task_id="run_this_first")
 
-    # [START howto_operator_branch_python]
-    @task.branch()
-    def branching(choices: list[str]) -> str:
-        return f"branch_{random.choice(choices)}"
+        options = ["a", "b", "c", "d"]
 
-    # [END howto_operator_branch_python]
+        # Example branching on standard Python tasks
 
-    random_choice_instance = branching(choices=options)
+        # [START howto_operator_branch_python]
+        @task.branch()
+        def branching(choices: list[str]) -> str:
+            return f"branch_{random.choice(choices)}"
 
-    run_this_first >> random_choice_instance
+        # [END howto_operator_branch_python]
 
-    join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        random_choice_instance = branching(choices=options)
 
-    for option in options:
+        run_this_first >> random_choice_instance
 
-        @task(task_id=f"branch_{option}")
-        def some_task():
-            print("doing something in Python")
+        join = EmptyOperator(task_id="join", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
-        t = some_task()
-        empty = EmptyOperator(task_id=f"follow_{option}")
+        for option in options:
 
-        # Label is optional here, but it can help identify more complex branches
-        random_choice_instance >> Label(option) >> t >> empty >> join
+            @task(task_id=f"branch_{option}")
+            def some_task():
+                print("doing something in Python")
 
-    # Example the same with external Python calls
+            t = some_task()
+            empty = EmptyOperator(task_id=f"follow_{option}")
 
-    # [START howto_operator_branch_ext_py]
-    @task.branch_external_python(python=PATH_TO_PYTHON_BINARY)
-    def branching_ext_python(choices) -> str:
-        import random
+            # Label is optional here, but it can help identify more complex branches
+            random_choice_instance >> Label(option) >> t >> empty >> join
 
-        return f"ext_py_{random.choice(choices)}"
+        # Example the same with external Python calls
 
-    # [END howto_operator_branch_ext_py]
+        # [START howto_operator_branch_ext_py]
+        @task.branch_external_python(python=PATH_TO_PYTHON_BINARY)
+        def branching_ext_python(choices) -> str:
+            import random
 
-    random_choice_ext_py = branching_ext_python(choices=options)
+            return f"ext_py_{random.choice(choices)}"
 
-    join >> random_choice_ext_py
+        # [END howto_operator_branch_ext_py]
 
-    join_ext_py = EmptyOperator(task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        random_choice_ext_py = branching_ext_python(choices=options)
 
-    for option in options:
+        join >> random_choice_ext_py
 
-        @task.external_python(task_id=f"ext_py_{option}", python=PATH_TO_PYTHON_BINARY)
-        def some_ext_py_task():
-            print("doing something in external Python")
+        join_ext_py = EmptyOperator(task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
-        t = some_ext_py_task()
+        for option in options:
 
-        # Label is optional here, but it can help identify more complex branches
-        random_choice_ext_py >> Label(option) >> t >> join_ext_py
+            @task.external_python(task_id=f"ext_py_{option}", python=PATH_TO_PYTHON_BINARY)
+            def some_ext_py_task():
+                print("doing something in external Python")
 
-    # Example the same with Python virtual environments
+            t = some_ext_py_task()
 
-    # [START howto_operator_branch_virtualenv]
-    # Note: Passing a caching dir allows to keep the virtual environment over multiple runs
-    #       Run the example a second time and see that it re-uses it and is faster.
-    VENV_CACHE_PATH = tempfile.gettempdir()
+            # Label is optional here, but it can help identify more complex branches
+            random_choice_ext_py >> Label(option) >> t >> join_ext_py
 
-    @task.branch_virtualenv(requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH)
-    def branching_virtualenv(choices) -> str:
-        import random
+        # Example the same with Python virtual environments
 
-        import numpy as np
+        # [START howto_operator_branch_virtualenv]
+        # Note: Passing a caching dir allows to keep the virtual environment over multiple runs
+        #       Run the example a second time and see that it re-uses it and is faster.
+        VENV_CACHE_PATH = tempfile.gettempdir()
 
-        print(f"Some numpy stuff: {np.arange(6)}")
-        return f"venv_{random.choice(choices)}"
+        @task.branch_virtualenv(requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH)
+        def branching_virtualenv(choices) -> str:
+            import random
 
-    # [END howto_operator_branch_virtualenv]
-
-    random_choice_venv = branching_virtualenv(choices=options)
-
-    join_ext_py >> random_choice_venv
-
-    join_venv = EmptyOperator(task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
-
-    for option in options:
-
-        @task.virtualenv(
-            task_id=f"venv_{option}", requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH
-        )
-        def some_venv_task():
             import numpy as np
 
             print(f"Some numpy stuff: {np.arange(6)}")
+            return f"venv_{random.choice(choices)}"
 
-        t = some_venv_task()
+        # [END howto_operator_branch_virtualenv]
 
-        # Label is optional here, but it can help identify more complex branches
-        random_choice_venv >> Label(option) >> t >> join_venv
+        random_choice_venv = branching_virtualenv(choices=options)
+
+        join_ext_py >> random_choice_venv
+
+        join_venv = EmptyOperator(task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+        for option in options:
+
+            @task.virtualenv(
+                task_id=f"venv_{option}", requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH
+            )
+            def some_venv_task():
+                import numpy as np
+
+                print(f"Some numpy stuff: {np.arange(6)}")
+
+            t = some_venv_task()
+
+            # Label is optional here, but it can help identify more complex branches
+            random_choice_venv >> Label(option) >> t >> join_venv
+else:
+    deg = None
+ 
