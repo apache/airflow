@@ -1210,6 +1210,7 @@ extra-links:
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineWorkloadsLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink
