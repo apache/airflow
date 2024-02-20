@@ -74,9 +74,9 @@ class ObjectStoragePath(CloudPath):
     def _parse_storage_options(
         cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
     ) -> dict[str, Any]:
-        fs = attach(protocol or "file", conn_id=storage_options.get("conn_id")).fs
-        pth_storage_options = type(fs)._get_kwargs_from_urls(urlpath)
-        return {**pth_storage_options, **storage_options}
+        # we will not use the fs here, so we can avoid the dispatch
+        # it might be that we will not parse the storage options correctly
+        return {**storage_options}
 
     @classmethod
     def _fs_factory(

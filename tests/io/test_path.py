@@ -99,6 +99,14 @@ class TestFs:
         _fsspec_registry.clear()
         _fsspec_registry.update(self._fsspec_registry)
 
+    def test_lazy_load(self):
+        o = ObjectStoragePath("file:///tmp/foo")
+        with pytest.raises(AttributeError):
+            assert o._fs_cached
+
+        assert o.fs is not None
+        assert o._fs_cached
+
     def test_alias(self):
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
