@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import sys
 from importlib import metadata
 from unittest.mock import patch
 
@@ -31,11 +32,10 @@ from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import PY39
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
 
-if PY39:
+if sys.version_info >= (3, 9):
     from zoneinfo import ZoneInfo
 else:
     from backports.zoneinfo import ZoneInfo
