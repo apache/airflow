@@ -21,6 +21,7 @@ This module contains various unit tests for GCP Cloud Build Operators
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
 from google.cloud.run_v2 import Job
@@ -108,6 +109,9 @@ class TestCloudRunExecuteJobOperator:
 
         hook_mock.return_value.execute_job.assert_called_once_with(
             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
+        )
+        hook_mock.return_value.get_job.assert_called_once_with(
+            job_name=ANY, region=REGION, project_id=PROJECT_ID
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
