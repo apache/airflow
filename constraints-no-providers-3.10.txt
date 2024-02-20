@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-19T19:00:26.761817
+# This constraints file was automatically generated on 2024-02-20T10:09:20.258790
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -176,7 +176,7 @@ typing_extensions==4.9.0
 tzdata==2024.1
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal-pathlib==0.1.4
+universal_pathlib==0.2.1
 urllib3==2.0.7
 vine==5.1.0
 virtualenv==20.25.0
