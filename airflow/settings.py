@@ -36,8 +36,8 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
-from airflow.utils.env_versions import is_sqlalchemy_v1
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 

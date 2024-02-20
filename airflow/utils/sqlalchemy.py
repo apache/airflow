@@ -22,16 +22,17 @@ import copy
 import datetime
 import json
 import logging
+from importlib.metadata import version
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 from dateutil import relativedelta
+from packaging.version import Version, parse as parse_version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
 from sqlalchemy.dialects import mysql
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.env_versions import is_sqlalchemy_v1
 from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
@@ -552,3 +553,12 @@ def get_orm_mapper():
     import sqlalchemy.orm.mapper
 
     return sqlalchemy.orm.mapper if is_sqlalchemy_v1() else sqlalchemy.orm.Mapper
+
+
+def _get_lib_major_version(lib_name: str) -> int:
+    ver: Version = parse_version(version(lib_name))
+    return ver.major
+
+
+def is_sqlalchemy_v1() -> bool:
+    return _get_lib_major_version("sqlalchemy") == 1
