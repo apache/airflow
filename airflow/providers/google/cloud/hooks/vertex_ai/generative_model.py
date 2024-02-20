@@ -25,7 +25,7 @@ import vertexai
 from vertexai.language_models import TextGenerationModel
 from vertexai.preview.generative_models import ChatSession, GenerativeModel
 
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -33,8 +33,6 @@ class GenerativeModelHook(GoogleBaseHook):
 
     def __init__(
         self,
-        project_id: str,
-        location: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -45,7 +43,7 @@ class GenerativeModelHook(GoogleBaseHook):
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
-        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+    
 
     def get_text_generation_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Generation."""
@@ -57,6 +55,7 @@ class GenerativeModelHook(GoogleBaseHook):
         model = GenerativeModel(pretrained_model)
         return model
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def prompt_language_model(
         self,
         prompt: str,
@@ -65,6 +64,8 @@ class GenerativeModelHook(GoogleBaseHook):
         max_output_tokens: int,
         top_p: float,
         top_k: int,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
         """
         Use the Vertex AI PaLM API to generate natural language text.
@@ -83,6 +84,9 @@ class GenerativeModelHook(GoogleBaseHook):
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
         """
+
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
         parameters = {
             "temperature": temperature,
             "max_output_tokens": max_output_tokens,
@@ -98,8 +102,13 @@ class GenerativeModelHook(GoogleBaseHook):
         )
         return response.text
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def prompt_multimodal_model(
-        self, prompt: str, chat: ChatSession | None = None, pretrained_model: str = "gemini-pro"
+        self, prompt: str,
+        location: str,
+        chat: ChatSession | None = None,
+        pretrained_model: str = "gemini-pro",
+        project_id: str = PROVIDE_PROJECT_ID
     ) -> str:
         """
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
@@ -114,6 +123,9 @@ class GenerativeModelHook(GoogleBaseHook):
             Used to interact with responses. Defaults to None, which indicates a
             one-off prompt and response.
         """
+
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        
         model = self.get_generative_model(pretrained_model)
 
         if chat is None:  # signals one-off chat request
