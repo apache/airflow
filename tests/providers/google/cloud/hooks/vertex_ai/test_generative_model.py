@@ -53,13 +53,15 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
             self.hook = GenerativeModelHook(
-                project_id=GCP_PROJECT, location=GCP_LOCATION, gcp_conn_id=TEST_GCP_CONN_ID
+                gcp_conn_id=TEST_GCP_CONN_ID
             )
             self.hook.get_credentials = self.dummy_get_credentials
 
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_generation_model"))
     def test_prompt_language_model(self, mock_model) -> None:
         self.hook.prompt_language_model(
+            project_id=GCP_PROJECT, 
+            location=GCP_LOCATION, 
             prompt=TEST_PROMPT,
             pretrained_model=TEST_LANGUAGE_PRETRAINED_MODEL,
             temperature=TEST_TEMPERATURE,
@@ -79,7 +81,11 @@ class TestGenerativeModelWithDefaultProjectIdHook:
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     def test_prompt_multimodal_model(self, mock_model) -> None:
         self.hook.prompt_multimodal_model(
-            prompt=TEST_PROMPT, pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL, chat=TEST_CHAT
+            project_id=GCP_PROJECT, 
+            location=GCP_LOCATION,
+            prompt=TEST_PROMPT,
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            chat=TEST_CHAT
         )
         mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
         mock_model.return_value.start_chat.assert_called_once_with()
