@@ -860,7 +860,7 @@ logging:
     dag_processor_manager_log_stdout:
       description: |
         Whether DAG processor manager will write logs to stdout
-      version_added: 2.8.1
+      version_added: 2.9.0
       type: boolean
       example: ~
       default: "False"
