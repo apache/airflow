@@ -2075,6 +2075,8 @@ paths:
           required: false
           description: |
             One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+            
+            *New in version 2.9.0*
       responses:
         "200":
           description: Success.
