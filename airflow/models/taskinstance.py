@@ -2625,6 +2625,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
+        raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance."""
         res = self.check_and_change_state_before_execution(
@@ -2644,7 +2645,12 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         self._run_raw_task(
-            mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+            mark_success=mark_success,
+            test_mode=test_mode,
+            job_id=job_id,
+            pool=pool,
+            session=session,
+            raise_on_defer=raise_on_defer,
         )
 
     def dry_run(self) -> None:
