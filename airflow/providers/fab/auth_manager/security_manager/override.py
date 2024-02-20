@@ -274,6 +274,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 

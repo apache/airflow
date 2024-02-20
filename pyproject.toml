@@ -1384,7 +1384,6 @@ combine-as-imports = true
 # All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
 "airflow/callbacks/callback_requests.py" = ["D105"]
 "airflow/cli/commands/task_command.py" = ["D105"]
-"airflow/configuration.py" = ["D105"]
 "airflow/datasets/__init__.py" = ["D105"]
 "airflow/decorators/base.py" = ["D105"]
 "airflow/decorators/setup_teardown.py" = ["D105"]
