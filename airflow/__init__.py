@@ -15,20 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Init setup.
-
-Authentication is implemented using flask_login and different environments can
-implement their own login mechanisms by providing an `airflow_login` module
-in their PYTHONPATH. airflow_login should be based off the `airflow.www.login`
-
-isort:skip_file
-"""
 from __future__ import annotations
 
 __version__ = "2.9.0.dev0"
-
-# flake8: noqa: F401
 
 import os
 import sys
