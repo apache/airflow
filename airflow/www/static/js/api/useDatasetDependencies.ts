@@ -91,8 +91,8 @@ const findDownstreamGraph = ({
   const mergedGraphs = graphs
     .reduce((newGraphs, graph) => {
       // Find all overlapping graphs where at least one edge in each graph has the same target node
-      const otherGroups = newGraphs.filter((otherGroup) =>
-        otherGroup.edges.some((otherEdge, i) => {
+      const otherGroups = newGraphs.filter((otherGroup, i) =>
+        otherGroup.edges.some((otherEdge) => {
           if (graph.edges.some((edge) => edge.target === otherEdge.target)) {
             otherIndexes.push(i);
             return true;
