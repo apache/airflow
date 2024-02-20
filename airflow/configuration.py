@@ -1886,7 +1886,7 @@ class AirflowConfigParser(ConfigParser):
 
     def __setstate__(self, state) -> None:
         """Restore the state of the object from a dictionary representation."""
-        AirflowConfigParser.__init__(self)
+        self.__init__()
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
