@@ -21,6 +21,34 @@
 
 .. towncrier release notes start
 
+Airflow 2.8.2 (2024-02-26)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+- The ``allowed_deserialization_classes`` flag now follows a glob pattern.
+
+  For example if one wants to add the class ``airflow.tests.custom_class`` to the
+  ``allowed_deserialization_classes`` list, it can be done by writing the full class
+  name (``airflow.tests.custom_class``) or a pattern such as the ones used in glob
+  search (e.g., ``airflow.*``, ``airflow.tests.*``).
+
+  If you currently use a custom regexp path make sure to rewrite it as a glob pattern.
+
+  Alternatively, if you still wish to match it as a regexp pattern, add it under the new
+  list ``allowed_deserialization_classes_regexp`` instead. (#36147)
+- The audit_logs permissions have been updated for heightened security.
+
+  This was done under the policy that we do not want users like Viewer, Ops,
+  and other users apart from Admin to have access to audit_logs. The intention behind
+  this change is to restrict users with less permissions from viewing user details
+  like First Name, Email etc. from the audit_logs when they are not permitted to.
+
+  The impact of this change is that the existing users with non admin rights won't be able
+  to view or access the audit_logs, both from the Browse tab or from the DAG run. (#37501)
+
+
 Airflow 2.8.1 (2024-01-19)
 --------------------------
 
