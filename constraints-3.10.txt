@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-20T10:14:41.277334
+# This constraints file was automatically generated on 2024-02-20T20:21:21.828696
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -45,7 +45,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
 Flask==2.2.5
-GitPython==3.1.42
+GitPython==3.1.41
 JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.3
@@ -116,7 +116,7 @@ apache-airflow-providers-asana==2.4.1
 apache-airflow-providers-atlassian-jira==2.5.1
 apache-airflow-providers-celery==3.6.0
 apache-airflow-providers-cloudant==3.4.1
-apache-airflow-providers-cncf-kubernetes==7.14.0
+apache-airflow-providers-cncf-kubernetes==8.0.0
 apache-airflow-providers-cohere==1.1.2
 apache-airflow-providers-common-io==1.3.0
 apache-airflow-providers-common-sql==1.11.0
@@ -195,7 +195,7 @@ asyncssh==2.14.2
 atlasclient==1.0.0
 atlassian-python-api==3.41.10
 attrs==23.2.0
-aws-sam-translator==1.85.0
+aws-sam-translator==1.84.0
 aws-xray-sdk==2.12.1
 azure-batch==14.1.0
 azure-common==1.1.28
@@ -239,7 +239,7 @@ celery==5.3.6
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.85.2
+cfn-lint==0.85.1
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -278,7 +278,7 @@ dnspython==2.6.1
 docker==7.0.0
 docopt==0.6.2
 docutils==0.20.1
-duckdb==0.10.0
+duckdb==0.9.2
 ecdsa==0.18.0
 editables==0.5
 elastic-transport==8.12.0
@@ -387,7 +387,7 @@ hvac==2.1.0
 hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
-identify==2.5.35
+identify==2.5.34
 idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
@@ -407,7 +407,6 @@ jaraco.classes==3.3.1
 jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
-joserfc==0.9.0
 jschema-to-python==1.2.3
 json-merge-patch==0.2
 jsondiff==2.0.0
@@ -424,8 +423,8 @@ jupyter_core==5.7.1
 keyring==24.3.0
 kombu==5.3.5
 krb5==0.5.1
-kubernetes-asyncio==24.2.3
-kubernetes==23.6.0
+kubernetes==29.0.0
+kubernetes_asyncio==29.0.0
 kylinpy==2.8.4
 lazy-object-proxy==1.10.0
 ldap3==2.9.1
@@ -446,7 +445,7 @@ mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
 more-itertools==10.2.0
-moto==5.0.2
+moto==5.0.1
 mpmath==1.3.0
 msal-extensions==1.1.0
 msal==1.26.0
@@ -455,7 +454,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.44
+mypy-boto3-rds==1.34.30
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
@@ -510,7 +509,7 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.1.2
-pipdeptree==2.14.0
+pipdeptree==2.13.2
 pipx==1.4.3
 pkginfo==1.9.6
 platformdirs==3.11.0
@@ -519,7 +518,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.8.2
 pprintpp==0.4.0
-pre-commit==3.6.2
+pre-commit==3.6.1
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.20.0
@@ -549,7 +548,7 @@ pydruid==0.6.6
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.12
-pyiceberg==0.6.0
+pyiceberg==0.5.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.6.1
@@ -587,7 +586,7 @@ qdrant-client==1.7.3
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
-redshift-connector==2.0.918
+redshift-connector==2.1.0
 referencing==0.33.0
 regex==2023.12.25
 requests-file==2.0.0
@@ -597,7 +596,7 @@ requests-ntlm==1.2.0
 requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
-responses==0.25.0
+responses==0.24.1
 restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
@@ -694,9 +693,9 @@ types-pyOpenSSL==24.0.0.20240130
 types-python-dateutil==2.8.19.20240106
 types-python-slugify==8.0.2.20240127
 types-pytz==2024.1.0.20240203
-types-redis==4.6.0.20240218
-types-requests==2.31.0.20240218
-types-setuptools==69.1.0.20240217
+types-redis==4.6.0.20240106
+types-requests==2.31.0.20240125
+types-setuptools==69.0.0.20240125
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
@@ -705,7 +704,7 @@ tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.1
+universal-pathlib==0.1.4
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.1
@@ -720,11 +719,11 @@ websocket-client==1.7.0
 wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
-yamllint==1.35.1
+yamllint==1.34.0
 yandexcloud==0.260.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.46
+zenpy==2.0.47
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.2

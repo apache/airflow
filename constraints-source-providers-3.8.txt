@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-20T10:09:14.673234
+# This constraints file was automatically generated on 2024-02-20T20:16:06.633551
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -151,7 +151,7 @@ colorlog==4.8.0
 comm==0.2.1
 confluent-kafka==2.3.0
 connexion==2.14.2
-coverage==7.4.1
+coverage==7.4.2
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.1
@@ -482,7 +482,7 @@ qdrant-client==1.7.3
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
-redshift-connector==2.0.918
+redshift-connector==2.1.0
 referencing==0.31.1
 regex==2023.12.25
 requests-file==2.0.0
@@ -601,7 +601,7 @@ tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.1
+universal-pathlib==0.1.4
 uritemplate==4.1.1
 urllib3==1.26.18
 userpath==1.9.1
@@ -620,7 +620,7 @@ yamllint==1.35.1
 yandexcloud==0.260.0
 yarl==1.9.4
 zeep==4.2.1
-zenpy==2.0.46
+zenpy==2.0.47
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.2
