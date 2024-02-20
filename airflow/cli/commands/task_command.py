@@ -41,7 +41,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
-from airflow.models.dag import DAG, _run_trigger
+from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
@@ -639,7 +639,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         ti._defer_task(defer=defer, session=session)
         log.info("[TASK TEST] running trigger in line")
 
-        event = _run_trigger(defer.trigger)
+        event = _run_inline_trigger(defer.trigger)
         ti.next_method = defer.method_name
         ti.next_kwargs = {"event": event.payload} if event else defer.kwargs
 

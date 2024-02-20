@@ -37,7 +37,7 @@ from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import _run_trigger
+from airflow.models.dag import _run_inline_trigger
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -878,15 +878,15 @@ class TestCliDags:
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
-    def test_dag_test_run_trigger(self, dag_maker):
+    def test_dag_test_run_inline_trigger(self, dag_maker):
         now = timezone.utcnow()
         trigger = DateTimeTrigger(moment=now)
-        e = _run_trigger(trigger)
+        e = _run_inline_trigger(trigger)
         assert isinstance(e, TriggerEvent)
         assert e.payload == now
 
     def test_dag_test_no_triggerer_running(self, dag_maker):
-        with mock.patch("airflow.models.dag._run_trigger", wraps=_run_trigger) as mock_run:
+        with mock.patch("airflow.models.dag._run_inline_trigger", wraps=_run_inline_trigger) as mock_run:
             with dag_maker() as dag:
 
                 @task
