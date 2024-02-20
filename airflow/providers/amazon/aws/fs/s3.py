@@ -25,7 +25,6 @@ import requests
 from botocore import UNSIGNED
 from requests import HTTPError
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 if TYPE_CHECKING:
@@ -50,7 +49,7 @@ def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -
     try:
         from s3fs import S3FileSystem
     except ImportError:
-        raise AirflowOptionalProviderFeatureException(
+        raise ImportError(
             "Airflow FS S3 protocol requires the s3fs library, but it is not installed as it requires"
             "aiobotocore. Please install the s3 protocol support library by running: "
             "pip install apache-airflow-providers-amazon[s3fs]"
