@@ -44,8 +44,14 @@ if os.environ.get("PYDANTIC", "v2") != "v2":
         "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
     )
 
-OPTIONAL_PROVIDERS_DEPENDENCIES = {
-    # This test required to be installed `s3fs`, which are not installed into some CI checks
+# Some certain of examples/system tests might require additional dependencies,
+# which are not installed into specific CI check
+# Format of dictionary:
+# key: prefix of the file which need to be excluded,
+# values: dictionary with package distributions and optional specifier, e.g. >=2.3.4
+OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
+    # Regression of https://github.com/apache/airflow/pull/37524
+    # It loads the module now eagerly instead of lazily
     "tests/system/providers/common/io/example_file_transfer_local_to_s3.py": {"s3fs": None}
 }
 
