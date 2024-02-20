@@ -144,7 +144,7 @@ export const BaseNode = ({
           label={taskName}
           isOpen={isOpen}
           isGroup={!!childCount}
-          onToggle={(e) => {
+          onClick={(e) => {
             e.stopPropagation();
             onToggleCollapse();
           }}

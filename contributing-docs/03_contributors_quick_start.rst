@@ -30,7 +30,7 @@ you follow the guide.
 There are three ways you can run the Airflow dev env:
 
 1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
+   with `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
    management, yeah you guessed it - a breeze.
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)

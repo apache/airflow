@@ -3081,7 +3081,7 @@ class DAG(LoggingMixin):
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
-            query = cls._get_latest_runs_query(dags=list(existing_dags.keys()))
+            query = cls._get_latest_runs_stmt(dags=list(existing_dags.keys()))
             latest_runs = {run.dag_id: run for run in session.scalars(query)}
 
             # Get number of active dagruns for all dags we are processing as a single query.
@@ -3254,9 +3254,9 @@ class DAG(LoggingMixin):
             cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @classmethod
-    def _get_latest_runs_query(cls, dags: list[str]) -> Query:
+    def _get_latest_runs_stmt(cls, dags: list[str]) -> Select:
         """
-        Query the database to retrieve the last automated run for each dag.
+        Build a select statement for retrieve the last automated run for each dag.
 
         :param dags: dags to query
         """
@@ -3269,7 +3269,7 @@ class DAG(LoggingMixin):
                     DagRun.dag_id == existing_dag_id,
                     DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
                 )
-                .subquery()
+                .scalar_subquery()
             )
             query = select(DagRun).where(
                 DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_subq
