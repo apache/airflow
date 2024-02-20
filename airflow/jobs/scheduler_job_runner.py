@@ -53,6 +53,7 @@ from airflow.models.dataset import (
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
+    dataset_event_dagrun_queue_association_table,
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -1120,6 +1121,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ]
         non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
         self._create_dag_runs(non_dataset_dags, session)
+
         if dataset_triggered_dags:
             self._create_dag_runs_dataset_triggered(
                 dataset_triggered_dags, dataset_triggered_dag_info, session
@@ -1249,7 +1251,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             if session.scalar(curr_date_query):  # dag already exists
                 continue
-
             prev_exec_date = session.scalar(
                 select(DagRun.execution_date)
                 .where(
@@ -1260,6 +1261,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .order_by(DagRun.execution_date.desc())
                 .limit(1)
             )
+
             dataset_event_filters = [
                 DagScheduleDatasetReference.dag_id == dag.dag_id,
                 DatasetEvent.timestamp <= exec_date,
@@ -1299,9 +1301,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             Stats.incr("dataset.triggered_dagruns")
             dag_run.consumed_dataset_events.extend(dataset_events)
-            session.execute(
-                delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+
+            # Delete associations in dataset_event_dagrun_queue_association_table
+            # Identify the DatasetDagRunQueue entries that will be deleted
+            subquery = select(DatasetDagRunQueue.id).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+            # Delete associated entries from dataset_event_dagrun_queue_association_table
+            delete_association_query = delete(dataset_event_dagrun_queue_association_table).where(
+                dataset_event_dagrun_queue_association_table.c.dag_run_queue_id.in_(subquery)
             )
+            session.execute(delete_association_query)
+
+            # Delete DatasetDagRunQueue entries
+            delete_query = delete(DatasetDagRunQueue).where(
+                DatasetDagRunQueue.target_dag_id == dag_run.dag_id
+            )
+            session.execute(delete_query)
 
     def _should_update_dag_next_dagruns(
         self,
