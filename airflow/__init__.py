@@ -32,7 +32,6 @@ __version__ = "2.9.0.dev0"
 
 import os
 import sys
-from typing import Callable
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
