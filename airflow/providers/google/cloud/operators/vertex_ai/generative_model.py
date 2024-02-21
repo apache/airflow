@@ -170,9 +170,9 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         response = self.hook.prompt_multimodal_model(
             project_id=self.project_id,
             location=self.location,
-            prompt=self.prompt, 
-            chat=self.chat, 
-            pretrained_model=self.pretrained_model
+            prompt=self.prompt,
+            chat=self.chat,
+            pretrained_model=self.pretrained_model,
         )
 
         self.log.info("Model response: %s", response)
