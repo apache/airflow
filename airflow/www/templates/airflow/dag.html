@@ -143,7 +143,7 @@
         {% endif %}
         {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.schedule_interval != 'Dataset' %}
           <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
-            Next Run: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
+            Next Run ID: <time datetime="{{ dag_model.next_dagrun }}">{{ dag_model.next_dagrun }}</time>
           </p>
         {% endif %}
         {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}

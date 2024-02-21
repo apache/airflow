@@ -1708,6 +1708,19 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: false
+
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 

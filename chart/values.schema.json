@@ -4955,6 +4955,60 @@
                     "type": "boolean",
                     "default": false
                 },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Liveness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Flower Liveness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Liveness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Liveness probe period seconds.",
+                            "type": "integer",
+                            "default": 5
+                        }
+                    }
+                },
+                "readinessProbe": {
+                    "description": "Readiness probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Flower Readiness probe initial delay.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Flower Readiness probe timeout seconds.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "failureThreshold": {
+                            "description": "Flower Readiness probe failure threshold.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "periodSeconds": {
+                            "description": "Flower Readiness probe period seconds.",
+                            "type": "integer",
+                            "default": 5
+                        }
+                    }
+                },
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [
