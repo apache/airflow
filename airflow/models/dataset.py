@@ -346,7 +346,7 @@ class DatasetBooleanCondition:
     :meta private:
     """
 
-    agg_func: Callable
+    agg_func: Callable[[Iterable], bool]
 
     def __init__(self, *objects) -> None:
         self.objects = objects

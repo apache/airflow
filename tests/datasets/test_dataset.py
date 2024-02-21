@@ -255,3 +255,5 @@ def clear_datasets():
     from tests.test_utils.db import clear_db_datasets
 
     clear_db_datasets()
+    yield
+    clear_db_datasets()
