@@ -24,18 +24,14 @@
 
 from __future__ import annotations
 
+from importlib import metadata
+
+from packaging import version
+
 
 def is_pydantic_2_installed() -> bool:
-    import sys
-
-    from packaging.version import Version
-
-    if sys.version_info >= (3, 9):
-        from importlib.metadata import distribution
-    else:
-        from importlib_metadata import distribution
     try:
-        return Version(distribution("pydantic").version) >= Version("2.0.0")
+        return version.parse(metadata.version("pydantic")).major == 2
     except ImportError:
         return False
 
