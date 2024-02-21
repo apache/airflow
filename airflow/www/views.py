@@ -3735,6 +3735,7 @@ class Airflow(AirflowBaseView):
             )
 
     @expose("/robots.txt")
+    @action_logging
     def robots(self):
         """
         Return a robots.txt file for blocking certain search engine crawlers.
