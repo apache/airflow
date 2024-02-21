@@ -41,7 +41,7 @@ class BaseDatasetEventInput(Protocol):
 
 
 @attr.define()
-class Dataset(os.PathLike[str], BaseDatasetEventInput):
+class Dataset(os.PathLike, BaseDatasetEventInput):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
