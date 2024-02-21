@@ -795,7 +795,7 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
 def _handle_failure(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    error: None | str | Exception | KeyboardInterrupt,
+    error: None | str | BaseException,
     session: Session,
     test_mode: bool | None = None,
     context: Context | None = None,
@@ -2394,7 +2394,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, force_fail=True, session=session)
                 session.commit()
                 raise
-            except AirflowException as e:
+            except (AirflowTaskTimeout, AirflowException) as e:
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 # for case when task is marked as success/failed externally
@@ -2409,10 +2409,6 @@ class TaskInstance(Base, LoggingMixin):
                     self.handle_failure(e, test_mode, context, session=session)
                     session.commit()
                     raise
-            except (Exception, KeyboardInterrupt) as e:
-                self.handle_failure(e, test_mode, context, session=session)
-                session.commit()
-                raise
             except SystemExit as e:
                 # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
                 # Therefore, here we must handle only error codes.
@@ -2420,6 +2416,10 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(msg, test_mode, context, session=session)
                 session.commit()
                 raise Exception(msg)
+            except BaseException as e:
+                self.handle_failure(e, test_mode, context, session=session)
+                session.commit()
+                raise
             finally:
                 Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
                 # Same metric with tagging
@@ -2711,7 +2711,7 @@ class TaskInstance(Base, LoggingMixin):
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance | TaskInstancePydantic,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
@@ -2806,7 +2806,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
