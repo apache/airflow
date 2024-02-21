@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 import yaml
 from kubernetes.utils import create_from_yaml
@@ -46,9 +46,11 @@ class KubernetesResourceBaseOperator(BaseOperator):
         this parameter has no effect.
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the Kubernetes cluster.
+    :param namespaced: specified that Kubernetes resource is or isn't in a namespace.
+        This parameter works only when custom_resource_definition parameter is True.
     """
 
-    template_fields = ("yaml_conf",)
+    template_fields: Sequence[str] = ("yaml_conf",)
     template_fields_renderers = {"yaml_conf": "yaml"}
 
     def __init__(
@@ -58,6 +60,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         namespace: str | None = None,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         custom_resource_definition: bool = False,
+        namespaced: bool = True,
         config_file: str | None = None,
         **kwargs,
     ) -> None:
@@ -66,6 +69,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self.kubernetes_conn_id = kubernetes_conn_id
         self.yaml_conf = yaml_conf
         self.custom_resource_definition = custom_resource_definition
+        self.namespaced = namespaced
         self.config_file = config_file
 
     @cached_property
@@ -109,22 +113,19 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
 
     def create_custom_from_yaml_object(self, body: dict):
         group, version, namespace, plural = self.get_crd_fields(body)
-        self.custom_object_client.create_namespaced_custom_object(group=group, version=version,
-                                                                  namespace=namespace, plural=plural,
-                                                                  body=body)
+        if self.namespaced:
+            self.custom_object_client.create_namespaced_custom_object(group, version, namespace, plural, body)
+        else:
+            self.custom_object_client.create_cluster_custom_object(group, version, plural, body)
 
     def execute(self, context) -> None:
         resources = yaml.safe_load_all(self.yaml_conf)
         if not self.custom_resource_definition:
-            try:
-                create_from_yaml(
-                    k8s_client=self.client,
-                    yaml_objects=resources,
-                    verbose=True,
-                    namespace=self.get_namespace(),
-                )
-            except Exception as exc:
-                self.log.info("Some error happened: %s", exc)
+            create_from_yaml(
+                k8s_client=self.client,
+                yaml_objects=resources,
+                namespace=self.get_namespace(),
+            )
         else:
             k8s_resource_iterator(self.create_custom_from_yaml_object, resources)
 
@@ -135,7 +136,10 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
     def delete_custom_from_yaml_object(self, body: dict):
         name = body["metadata"]["name"]
         group, version, namespace, plural = self.get_crd_fields(body)
-        self.custom_object_client.delete_namespaced_custom_object(group, version, namespace, plural, name)
+        if self.namespaced:
+            self.custom_object_client.delete_namespaced_custom_object(group, version, namespace, plural, name)
+        else:
+            self.custom_object_client.delete_cluster_custom_object(group, version, plural, name)
 
     def execute(self, context) -> None:
         resources = yaml.safe_load_all(self.yaml_conf)
