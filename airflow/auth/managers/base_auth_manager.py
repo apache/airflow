@@ -262,7 +262,7 @@ class BaseAuthManager(LoggingMixin):
         Batch version of ``is_authorized_connection``.
 
         By default, calls individually the ``is_authorized_connection`` API on each item in the list of
-        requests. Can lead to some poor performance. It is recommended to override this method in the auth
+        requests, which can lead to some poor performance. It is recommended to override this method in the auth
         manager implementation to provide a more efficient implementation.
 
         :param requests: a list of requests containing the parameters for ``is_authorized_connection``
