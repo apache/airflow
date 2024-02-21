@@ -354,7 +354,7 @@ class DatasetBooleanCondition:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(self.eval_one(x, statuses) for x in self.objects)
 
-    def eval_one(self, obj: Dataset | DatasetAny | DatasetAll, statuses):
+    def eval_one(self, obj: Dataset | DatasetAny | DatasetAll, statuses) -> bool:
         if isinstance(obj, Dataset):
             return statuses.get(obj.uri, False)
         return obj.evaluate(statuses=statuses)
