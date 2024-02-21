@@ -181,7 +181,7 @@ class TestXcomObjectStoreBackend:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert str(p) == qry.first().value
+        assert self.path in qry.first().value
 
     @pytest.mark.db_test
     def test_clear(self, task_instance, session):

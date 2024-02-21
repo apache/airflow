@@ -28,28 +28,25 @@ import TaskName from "./TaskName";
 
 describe("Test TaskName", () => {
   test("Displays a normal task name", () => {
-    const { getByText } = render(
-      <TaskName label="test" id="test" onToggle={() => {}} />,
-      { wrapper: ChakraWrapper }
-    );
+    const { getByText } = render(<TaskName label="test" id="test" />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(getByText("test")).toBeDefined();
   });
 
   test("Displays a mapped task name", () => {
-    const { getByText } = render(
-      <TaskName label="test" id="test" isMapped onToggle={() => {}} />,
-      { wrapper: ChakraWrapper }
-    );
+    const { getByText } = render(<TaskName label="test" id="test" isMapped />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(getByText("test [ ]")).toBeDefined();
   });
 
   test("Displays a group task name", () => {
-    const { getByText } = render(
-      <TaskName label="test" id="test" isGroup onToggle={() => {}} />,
-      { wrapper: ChakraWrapper }
-    );
+    const { getByText } = render(<TaskName label="test" id="test" isGroup />, {
+      wrapper: ChakraWrapper,
+    });
 
     expect(getByText("test")).toBeDefined();
   });
