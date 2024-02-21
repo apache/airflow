@@ -1213,7 +1213,6 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        hook: BigQueryHook | None = None,
         job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1238,7 +1237,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.cluster_fields = cluster_fields
         self.location = location
         self.encryption_configuration = encryption_configuration
-        self.hook = hook
+        self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
         self.job_id = job_id
 
@@ -1655,13 +1654,13 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        bucket: str | None = None,
-        source_objects: list[str] | None = None,
-        destination_project_dataset_table: str | None = None,
+        bucket: str | None = "",
+        source_objects: list[str] | None = [],
+        destination_project_dataset_table: str | None = "",
         table_resource: dict[str, Any] | None = None,
         schema_fields: list | None = None,
         schema_object: str | None = None,
-        gcs_schema_bucket: str | None = None,
+        gcs_schema_bucket: str | None = "",
         source_format: str | None = None,
         autodetect: bool = False,
         compression: str | None = None,
@@ -1690,34 +1689,15 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             gcp_conn_id = bigquery_conn_id
 
         super().__init__(**kwargs)
+
+        self.table_resource = table_resource
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
         self.gcs_schema_bucket = gcs_schema_bucket
         self.destination_project_dataset_table = destination_project_dataset_table
         self.labels = labels
-        self.table_resource = table_resource
         self.impersonation_chain = impersonation_chain
-
-        # BQ config
-        kwargs_passed = any(
-            [
-                destination_project_dataset_table,
-                schema_fields,
-                source_format,
-                compression,
-                skip_leading_rows,
-                field_delimiter,
-                max_bad_records,
-                autodetect,
-                quote_character,
-                allow_quoted_newlines,
-                allow_jagged_rows,
-                src_fmt_configs,
-                labels,
-                encryption_configuration,
-            ]
-        )
 
         if not table_resource:
             warnings.warn(
@@ -1744,6 +1724,25 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
                 raise ValueError(
                     "`destination_project_dataset_table` is required when not using `table_resource`."
                 )
+            # BQ config
+            kwargs_passed = any(
+                [
+                    destination_project_dataset_table,
+                    schema_fields,
+                    source_format,
+                    compression,
+                    skip_leading_rows,
+                    field_delimiter,
+                    max_bad_records,
+                    autodetect,
+                    quote_character,
+                    allow_quoted_newlines,
+                    allow_jagged_rows,
+                    src_fmt_configs,
+                    labels,
+                    encryption_configuration,
+                ]
+            )
             self.bucket = bucket
             self.source_objects = source_objects
             self.schema_object = schema_object
@@ -1756,12 +1755,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.field_delimiter = field_delimiter
             self.table_resource = None
         else:
-            self.table_resource = table_resource
-            self.bucket = ""
-            self.source_objects = []
-            self.schema_object = None
-            self.gcs_schema_bucket = ""
-            self.destination_project_dataset_table = ""
+            pass
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
@@ -2744,7 +2738,6 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         result_timeout: float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
-        hook: BigQueryHook | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2759,7 +2752,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         self.cancel_on_kill = cancel_on_kill
         self.result_retry = result_retry
         self.result_timeout = result_timeout
-        self.hook = hook
+        self.hook: BigQueryHook | None = None
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
