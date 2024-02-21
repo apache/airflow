@@ -4057,12 +4057,12 @@ class DagContext:
             return None
 
 
-def _run_trigger(trigger):
-    async def _run_trigger_main():
+def _run_inline_trigger(trigger):
+    async def _run_inline_trigger_main():
         async for event in trigger.run():
             return event
 
-    return asyncio.run(_run_trigger_main())
+    return asyncio.run(_run_inline_trigger_main())
 
 
 def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
@@ -4083,7 +4083,7 @@ def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Sessio
             break
         except TaskDeferred as e:
             log.info("[DAG TEST] running trigger in line")
-            event = _run_trigger(e.trigger)
+            event = _run_inline_trigger(e.trigger)
             ti.next_method = e.method_name
             ti.next_kwargs = {"event": event.payload} if event else e.kwargs
             log.info("[DAG TEST] Trigger completed")
