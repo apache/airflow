@@ -37,7 +37,6 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
-from airflow import PY311
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
@@ -75,6 +74,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
 DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
+PY311 = sys.version_info >= (3, 11)
 
 
 class BasePythonTest:

@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
-from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
@@ -49,6 +48,8 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+PY38 = sys.version_info >= (3, 8)
+PY311 = sys.version_info >= (3, 11)
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
