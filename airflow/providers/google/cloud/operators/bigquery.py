@@ -527,8 +527,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     def __init__(
         self,
         *,
-        sql1: str,
-        sql2: str,
         table: str,
         metrics_thresholds: dict,
         date_filter_column: str = "ds",
@@ -548,8 +546,6 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
-            sql1=sql1,
-            sql2=sql2,
             **kwargs,
         )
 
@@ -663,7 +659,6 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     def __init__(
         self,
         *,
-        sql: str,
         table: str,
         column_mapping: dict,
         partition_clause: str | None = None,
@@ -682,7 +677,6 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
             partition_clause=partition_clause,
             database=database,
             accept_none=accept_none,
-            sql=sql,
             **kwargs,
         )
         self.table = table
