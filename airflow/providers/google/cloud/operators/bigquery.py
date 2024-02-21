@@ -272,7 +272,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.sql = sql
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -528,6 +527,8 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     def __init__(
         self,
         *,
+        sql1: str,
+        sql2: str,
         table: str,
         metrics_thresholds: dict,
         date_filter_column: str = "ds",
@@ -547,6 +548,8 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
+            sql1=sql1,
+            sql2=sql2,
             **kwargs,
         )
 
@@ -660,6 +663,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     def __init__(
         self,
         *,
+        sql: str,
         table: str,
         column_mapping: dict,
         partition_clause: str | None = None,
@@ -678,6 +682,7 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
             partition_clause=partition_clause,
             database=database,
             accept_none=accept_none,
+            sql=sql,
             **kwargs,
         )
         self.table = table
@@ -798,9 +803,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
-        self.table = table
-        self.checks = checks
-        self.partition_clause = partition_clause
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
@@ -964,7 +966,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.job_project_id = job_project_id
-        self.max_results = int(max_results)
+        self.max_results = max_results
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.location = location
@@ -1000,7 +1002,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += "*"
         query += (
             f" from `{self.table_project_id or hook.project_id}.{self.dataset_id}"
-            f".{self.table_id}` limit {self.max_results}"
+            f".{self.table_id}` limit {int(self.max_results)}"
         )
         return query
 
@@ -1027,7 +1029,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 self.table_project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
-                self.max_results,
+                int(self.max_results),
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(
@@ -1041,7 +1043,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             rows = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                max_results=self.max_results,
+                max_results=int(self.max_results),
                 selected_fields=self.selected_fields,
                 location=self.location,
                 project_id=self.table_project_id or hook.project_id,
@@ -1217,6 +1219,8 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        hook: BigQueryHook | None = None,
+        job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1240,9 +1244,9 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.cluster_fields = cluster_fields
         self.location = location
         self.encryption_configuration = encryption_configuration
-        self.hook: BigQueryHook | None = None
+        self.hook = hook
         self.impersonation_chain = impersonation_chain
-        self.job_id: str | list[str] | None = None
+        self.job_id = job_id
 
     def execute(self, context: Context):
         if self.hook is None:
@@ -1478,7 +1482,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.gcs_schema_object = gcs_schema_object
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.time_partitioning = {} if time_partitioning is None else time_partitioning
+        self.time_partitioning = time_partitioning or {}
         self.labels = labels
         self.view = view
         self.materialized_view = materialized_view
@@ -2738,6 +2742,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         result_timeout: float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
+        hook: BigQueryHook | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2752,7 +2757,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         self.cancel_on_kill = cancel_on_kill
         self.result_retry = result_retry
         self.result_timeout = result_timeout
-        self.hook: BigQueryHook | None = None
+        self.hook = hook
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
