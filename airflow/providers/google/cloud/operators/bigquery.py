@@ -1690,6 +1690,14 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             gcp_conn_id = bigquery_conn_id
 
         super().__init__(**kwargs)
+        self.bucket = bucket
+        self.source_objects = source_objects
+        self.schema_object = schema_object
+        self.gcs_schema_bucket = gcs_schema_bucket
+        self.destination_project_dataset_table = destination_project_dataset_table
+        self.labels = labels
+        self.table_resource = table_resource
+        self.impersonation_chain = impersonation_chain
 
         # BQ config
         kwargs_passed = any(
