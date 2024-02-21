@@ -75,6 +75,11 @@ class PsrpHook(BaseHook):
     or by setting this key as the extra fields of your connection.
     """
 
+    conn_name_attr = "psrp_conn_id"
+    default_conn_name = "psrp_default"
+    conn_type = "psrp"
+    hook_name = "PowerShell Remoting Protocol"
+
     _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
@@ -116,7 +121,7 @@ class PsrpHook(BaseHook):
 
     def get_conn(self) -> RunspacePool:
         """
-        Returns a runspace pool.
+        Return a runspace pool.
 
         The returned object must be used as a context manager.
         """
@@ -158,7 +163,7 @@ class PsrpHook(BaseHook):
     @contextmanager
     def invoke(self) -> Generator[PowerShell, None, None]:
         """
-        Yields a PowerShell object to which commands can be added.
+        Yield a PowerShell object to which commands can be added.
 
         Upon exit, the commands will be invoked.
         """
@@ -281,3 +286,8 @@ class PsrpHook(BaseHook):
             log(INFO, "Progress: %s (%s)", record.activity, record.description)
         else:
             log(WARNING, "Unsupported message type: %s", message_type)
+
+    def test_connection(self):
+        """Test PSRP Connection."""
+        with PsrpHook(psrp_conn_id=self.conn_id):
+            pass

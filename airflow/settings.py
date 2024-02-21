@@ -104,6 +104,7 @@ STATE_COLORS = {
     "up_for_reschedule": "turquoise",
     "up_for_retry": "gold",
     "upstream_failed": "orange",
+    "shutdown": "blue",
 }
 
 

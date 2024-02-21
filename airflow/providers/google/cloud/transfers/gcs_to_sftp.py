@@ -176,7 +176,7 @@ class GCSToSFTPOperator(BaseOperator):
         source_object: str,
         destination_path: str,
     ) -> None:
-        """Helper function to copy single object."""
+        """Copy single object."""
         self.log.info(
             "Executing copy of gs://%s/%s to %s",
             self.source_bucket,

@@ -97,7 +97,7 @@ class WasbBlobSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -123,7 +123,7 @@ class WasbBlobSensor(BaseSensorOperator):
 )
 class WasbBlobAsyncSensor(WasbBlobSensor):
     """
-    Polls asynchronously for the existence of a blob in a WASB container.
+    Poll asynchronously for the existence of a blob in a WASB container.
 
     This class is deprecated and will be removed in a future release.
 
@@ -144,7 +144,7 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
 
 class WasbPrefixSensor(BaseSensorOperator):
     """
-    Waits for blobs matching a prefix to arrive on Azure Blob Storage.
+    Wait for blobs matching a prefix to arrive on Azure Blob Storage.
 
     :param container_name: Name of the container.
     :param prefix: Prefix of the blob.
@@ -208,7 +208,7 @@ class WasbPrefixSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Return immediately - callback for when the trigger fires.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

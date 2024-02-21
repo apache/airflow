@@ -33,9 +33,8 @@ from docker_tests.docker_tests_utils import (
     run_python_in_docker,
 )
 
-DEV_DIR_PATH = SOURCE_ROOT / "dev"
-AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH = DEV_DIR_PATH / "airflow_pre_installed_providers.txt"
-PROD_IMAGE_PROVIDERS_FILE_PATH = DEV_DIR_PATH / "prod_image_installed_providers.txt"
+AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH = SOURCE_ROOT / "airflow_pre_installed_providers.txt"
+PROD_IMAGE_PROVIDERS_FILE_PATH = SOURCE_ROOT / "prod_image_installed_providers.txt"
 AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
 SLIM_IMAGE_PROVIDERS = [
     f"apache-airflow-providers-{provider_id.replace('.','-')}"

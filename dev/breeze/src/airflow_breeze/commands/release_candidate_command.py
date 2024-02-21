@@ -26,6 +26,7 @@ from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, OUT_DIR
+from airflow_breeze.utils.python_versions import check_python_3_9_or_above
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import run_command
 
@@ -310,6 +311,7 @@ def remove_old_releases(version, repo_root):
     "--version", required=True, help="The release candidate version e.g. 2.4.3rc1", envvar="VERSION"
 )
 def prepare_airflow_tarball(version: str):
+    check_python_3_9_or_above()
     from packaging.version import Version
 
     airflow_version = Version(version)
@@ -335,6 +337,7 @@ def prepare_airflow_tarball(version: str):
 )
 @option_answer
 def publish_release_candidate(version, previous_version, github_token):
+    check_python_3_9_or_above()
     from packaging.version import Version
 
     airflow_version = Version(version)

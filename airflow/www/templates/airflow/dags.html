@@ -262,7 +262,7 @@
               <div>
                 {% for tag in dag.tags | sort(attribute='name') %}
                   <a class="label label-info"
-                     href="?tags={{ tag.name }}"
+                     href="?tags={{ tag.name | urlencode }}"
                      style="margin: 6px 6px 0 0;">
                     {{ tag.name }}
                   </a>

@@ -309,7 +309,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     def _validate_field(self, validation_spec, dictionary_to_validate, parent=None, force_optional=False):
         """
-        Validates if field is OK.
+        Validate if field is OK.
 
         :param validation_spec: specification of the field
         :param dictionary_to_validate: dictionary where the field should be present
@@ -413,7 +413,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     def validate(self, body_to_validate: dict) -> None:
         """
-        Validates if the body (dictionary) follows specification that the validator was instantiated with.
+        Validate if the body (dictionary) follows specification that the validator was instantiated with.
 
         Raises ValidationSpecificationException or ValidationFieldException in case of problems
         with specification or the body not conforming to the specification respectively.

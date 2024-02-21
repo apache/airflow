@@ -110,7 +110,6 @@ describe("Test Graph Node", () => {
 
     expect(getByText("success")).toBeInTheDocument();
     expect(getByText("task_id")).toBeInTheDocument();
-    expect(getByText("+ 5 tasks")).toBeInTheDocument();
   });
 
   test("Renders normal task correctly", async () => {

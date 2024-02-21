@@ -84,6 +84,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
@@ -97,7 +98,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
-    DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
@@ -116,6 +116,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
 _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.CLUSTER_ACTIVITY: RESOURCE_CLUSTER_ACTIVITY,
     AccessView.DOCS: RESOURCE_DOCS,
+    AccessView.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
     AccessView.JOBS: RESOURCE_JOB,
     AccessView.PLUGINS: RESOURCE_PLUGIN,
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
@@ -156,9 +157,7 @@ class FabAuthManager(BaseAuthManager):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={
-                "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            },
+            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -446,7 +445,7 @@ class FabAuthManager(BaseAuthManager):
 
     def _resource_name_for_dag(self, dag_id: str) -> str:
         """
-        Returns the FAB resource name for a DAG id.
+        Return the FAB resource name for a DAG id.
 
         :param dag_id: the DAG id
 

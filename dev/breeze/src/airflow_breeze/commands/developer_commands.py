@@ -54,6 +54,7 @@ from airflow_breeze.commands.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_project_name,
+    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
@@ -262,6 +263,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_max_time
 @option_mount_sources
 @option_mysql_version
+@option_pydantic
 @option_platform_single
 @option_postgres_version
 @option_project_name
@@ -316,6 +318,7 @@ def shell(
     providers_constraints_mode: str,
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
+    pydantic: str,
     python: str,
     quiet: bool,
     restart: bool,
@@ -364,6 +367,7 @@ def shell(
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
         install_selected_providers=install_selected_providers,
+        install_airflow_with_constraints=True,
         integration=integration,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
@@ -375,6 +379,7 @@ def shell(
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
+        pydantic=pydantic,
         python=python,
         quiet=quiet,
         run_db_tests_only=run_db_tests_only,
@@ -552,6 +557,7 @@ def start_airflow(
         image_tag=image_tag,
         integration=integration,
         install_selected_providers=install_selected_providers,
+        install_airflow_with_constraints=True,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
@@ -597,14 +603,15 @@ def start_airflow(
 )
 @click.option(
     "--package-filter",
-    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
-    "the short hand names or the glob pattern matching the full package name. "
-    "The list of short hand names can be found in --help output",
+    help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
+    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+    "several similarly named packages together.",
     type=str,
     multiple=True,
 )
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
+@option_answer
 @argument_doc_packages
 def build_docs(
     builder: str,
@@ -656,7 +663,11 @@ def build_docs(
     fix_ownership_using_docker()
     if result.returncode == 0:
         get_console().print(
-            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+            "[info]To view the built documentation, you have two options:\n\n"
+            "1. Start the webserver in breeze and access the built docs at "
+            "http://localhost:28080/docs/\n"
+            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view"
+            "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
 

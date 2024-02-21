@@ -271,6 +271,8 @@ class ExecutorConfigType(PickleType):
 
     def compare_values(self, x, y):
         """
+        Compare x and y using self.comparator if available. Else, use __eq__.
+
         The TaskInstance.executor_config attribute is a pickled object that may contain kubernetes objects.
 
         If the installed library version has changed since the object was originally pickled,

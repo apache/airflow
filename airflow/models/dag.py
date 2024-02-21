@@ -41,6 +41,7 @@ from typing import (
     Callable,
     Collection,
     Container,
+    Generator,
     Iterable,
     Iterator,
     List,
@@ -2627,15 +2628,25 @@ class DAG(LoggingMixin):
 
     def tree_view(self) -> None:
         """Print an ASCII tree representation of the DAG."""
+        for tmp in self._generate_tree_view():
+            print(tmp)
 
-        def get_downstream(task, level=0):
-            print((" " * level * 4) + str(task))
+    def _generate_tree_view(self) -> Generator[str, None, None]:
+        def get_downstream(task, level=0) -> Generator[str, None, None]:
+            yield (" " * level * 4) + str(task)
             level += 1
-            for t in task.downstream_list:
-                get_downstream(t, level)
+            for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
+                yield from get_downstream(tmp_task, level)
 
-        for t in self.roots:
-            get_downstream(t)
+        for t in sorted(self.roots, key=lambda x: x.task_id):
+            yield from get_downstream(t)
+
+    def get_tree_view(self) -> str:
+        """Return an ASCII tree representation of the DAG."""
+        rst = ""
+        for tmp in self._generate_tree_view():
+            rst += tmp + "\n"
+        return rst
 
     @property
     def task(self) -> TaskDecoratorCollection:
@@ -3070,7 +3081,7 @@ class DAG(LoggingMixin):
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
-            query = cls._get_latest_runs_query(dags=list(existing_dags.keys()))
+            query = cls._get_latest_runs_stmt(dags=list(existing_dags.keys()))
             latest_runs = {run.dag_id: run for run in session.scalars(query)}
 
             # Get number of active dagruns for all dags we are processing as a single query.
@@ -3243,9 +3254,9 @@ class DAG(LoggingMixin):
             cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @classmethod
-    def _get_latest_runs_query(cls, dags: list[str]) -> Query:
+    def _get_latest_runs_stmt(cls, dags: list[str]) -> Select:
         """
-        Query the database to retrieve the last automated run for each dag.
+        Build a select statement for retrieve the last automated run for each dag.
 
         :param dags: dags to query
         """
@@ -3258,7 +3269,7 @@ class DAG(LoggingMixin):
                     DagRun.dag_id == existing_dag_id,
                     DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
                 )
-                .subquery()
+                .scalar_subquery()
             )
             query = select(DagRun).where(
                 DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_subq

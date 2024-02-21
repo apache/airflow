@@ -446,7 +446,7 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    | Empty - install default dependencies (see `install_os_dependencies.sh`) | Dev APT dependencies installed in the first part of the image                                                                                              |
 | `ADDITIONAL_DEV_APT_DEPS`         |                                                                         | Additional apt dev dependencies installed in the first part of the image                                                                                   |
 | `ADDITIONAL_DEV_APT_ENV`          |                                                                         | Additional env variables defined when installing dev deps                                                                                                  |
-| `AIRFLOW_PIP_VERSION`             | `23.3.2`                                                                | PIP version used.                                                                                                                                          |
+| `AIRFLOW_PIP_VERSION`             | `24.0`                                                                  | PIP version used.                                                                                                                                          |
 | `PIP_PROGRESS_BAR`                | `on`                                                                    | Progress bar for PIP installation                                                                                                                          |
 
 Here are some examples of how CI images can built manually. CI is always

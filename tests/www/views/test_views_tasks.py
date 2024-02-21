@@ -179,21 +179,6 @@ def client_ti_without_dag_edit(app):
             id="rendered-templates",
         ),
         pytest.param(
-            "dag_details?dag_id=example_bash_operator",
-            ["DAG Details"],
-            id="dag-details-url-param",
-        ),
-        pytest.param(
-            "dag_details?dag_id=example_subdag_operator.section-1",
-            ["DAG Details"],
-            id="dag-details-subdag-url-param",
-        ),
-        pytest.param(
-            "dags/example_subdag_operator.section-1/details",
-            ["DAG Details"],
-            id="dag-details-subdag",
-        ),
-        pytest.param(
             "object/graph_data?dag_id=example_bash_operator",
             ["runme_1"],
             id="graph-data",
@@ -448,22 +433,6 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     assert resp.status_code == 200
     assert resp.request.url == "http://localhost/home"
     check_content_in_response("Access is Denied", resp)
-
-
-def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
-    app.dag_bag.get_dag("test_graph_view").create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-
-    url = "/dags/test_graph_view/details"
-    resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_graph_view/details"}
-    href = f"/dags/test_graph_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
-    check_content_in_response(href, resp)
 
 
 def test_last_dagruns(admin_client):

@@ -32,7 +32,7 @@ in `07_local_virtualenv.rst <07_local_virtualenv.rst>`__.
 Benefits:
 
 -   Packages are installed locally. No container environment is required.
--   You can benefit from local debugging within your IDE. You can follow the `Contributors quick start <contributor.rst#quick-start>`__
+-   You can benefit from local debugging within your IDE. You can follow the `Local and remote debugging in IDE <07_local_virtualenv.rst#local-and-remote-debugging-in-ide>`__
     to set up your local virtualenv and connect your IDE with the environment.
 -   With the virtualenv in your IDE, you can benefit from auto completion and running tests directly from the IDE.
 

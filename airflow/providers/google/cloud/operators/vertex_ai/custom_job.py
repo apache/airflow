@@ -534,7 +534,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -916,7 +916,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Cancel any running job. Callback called when the operator is killed."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -1301,7 +1301,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Cancel any running job. Callback called when the operator is killed."""
         if self.hook:
             self.hook.cancel_job()
 

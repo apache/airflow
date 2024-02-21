@@ -27,6 +27,7 @@ import {
   TabPanels,
   Tab,
   Text,
+  Button,
 } from "@chakra-ui/react";
 import { useSearchParams } from "react-router-dom";
 
@@ -40,6 +41,7 @@ import {
   MdCode,
   MdOutlineViewTimeline,
   MdSyncAlt,
+  MdHourglassBottom,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -60,6 +62,7 @@ import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
+import TaskDetails from "./task";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -92,7 +95,6 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
-  taskId: string | null,
   isTaskInstance: boolean,
   isMappedTaskSummary: boolean
 ) => {
@@ -153,6 +155,7 @@ const Details = ({
     !isGroup &&
     !isMappedTaskSummary
   );
+  const showTaskDetails = !!taskId && !runId;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -161,24 +164,20 @@ const Details = ({
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(
-        index,
-        taskId,
-        isTaskInstance,
-        isMappedTaskSummary
-      );
+      const newTab = indexToTab(index, isTaskInstance, isMappedTaskSummary);
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary, taskId]
+    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary]
   );
 
   useEffect(() => {
     // Default to graph tab when navigating from a task instance to a group/dag/dagrun
     const tabCount = runId && taskId && !isGroup ? 5 : 4;
     if (tabCount === 4 && tabIndex > 3) {
-      onChangeTab(1);
+      if (!runId && taskId) onChangeTab(0);
+      else onChangeTab(1);
     }
   }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
 
@@ -227,7 +226,11 @@ const Details = ({
               <MarkInstanceAs
                 taskId={taskId}
                 runId={runId}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
@@ -296,6 +299,28 @@ const Details = ({
               </Text>
             </Tab>
           )}
+          {/* Match the styling of a tab but its actually a button */}
+          {!!taskId && !!runId && (
+            <Button
+              variant="unstyled"
+              display="flex"
+              alignItems="center"
+              fontSize="lg"
+              py={3}
+              // need to split pl and pr instead of px
+              pl={4}
+              pr={4}
+              mt="4px"
+              onClick={() => {
+                onSelect({ taskId });
+              }}
+            >
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Task Duration
+              </Text>
+            </Button>
+          )}
         </TabList>
         <TabPanels height="100%">
           <TabPanel height="100%">
@@ -314,6 +339,7 @@ const Details = ({
                 />
               </>
             )}
+            {showTaskDetails && <TaskDetails />}
           </TabPanel>
           <TabPanel p={0} height="100%">
             <Graph
@@ -348,7 +374,11 @@ const Details = ({
                 mapIndex={mapIndex}
                 executionDate={run?.executionDate}
                 tryNumber={instance?.tryNumber}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
               />
             </TabPanel>
           )}
