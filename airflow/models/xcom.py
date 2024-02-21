@@ -131,6 +131,12 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         self.value = self.orm_deserialize_value()
 
     def __repr__(self):
+        """Return the XCom properties.
+        
+        `key`, `task_id` and `run_id` if the `map_index < 0`.
+
+        `map_index` value is included otherwise.
+        """
         if self.map_index < 0:
             return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
         return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
@@ -757,18 +763,28 @@ class LazyXComAccess(collections.abc.Sequence):
         return cls(query=query.with_entities(XCom.value))
 
     def __repr__(self) -> str:
+        """Return length of the LazyXComAccess sequence."""
         return f"LazyXComAccess([{len(self)} items])"
 
     def __str__(self) -> str:
+        """Return a `string` of the list of the LazyXComAccess sequence."""
         return str(list(self))
 
     def __eq__(self, other: Any) -> bool:
+        """Determine if an `other` object is a LazyXComAccess instance.
+
+        Return `true` or `_NotImplementedType` type.
+        """
         if isinstance(other, (list, LazyXComAccess)):
             z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
             return all(x == y for x, y in z)
         return NotImplemented
 
     def __getstate__(self) -> Any:
+        """Return a `SQL string` from a query.
+        
+        Bind the `string` output with the `count` of the number of rows the SQL query would return.
+        """
         # We don't want to go to the trouble of serializing the entire Query
         # object, including its filters, hints, etc. (plus SQLAlchemy does not
         # provide a public API to inspect a query's contents). Converting the
@@ -785,19 +801,26 @@ class LazyXComAccess(collections.abc.Sequence):
             return (str(statement), query.count())
 
     def __setstate__(self, state: Any) -> None:
+        """Construct a query by retrieving the statement from the `state` and assign it to the `self._query`class property."""
         statement, self._len = state
         self._query = Query(XCom.value).from_statement(text(statement))
 
     def __len__(self):
+        """Declare a `self._len` class property that assigns the number of rows the query returns using `query.count()` if the `self._len` property is `None`.
+        
+        Otherwise return `self._len`
+        """
         if self._len is None:
             with self._get_bound_query() as query:
                 self._len = query.count()
         return self._len
 
     def __iter__(self):
+        """Return a `_LazyXComAccessIterator` class instance to manage query sessions."""
         return _LazyXComAccessIterator(self._get_bound_query())
 
     def __getitem__(self, key):
+        """Get an XCom value using a `key`."""
         if not isinstance(key, int):
             raise ValueError("only support index access for now")
         try:

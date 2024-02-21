@@ -1415,7 +1415,6 @@ combine-as-imports = true
 "airflow/models/tasklog.py" = ["D105"]
 "airflow/models/taskmixin.py" = ["D105"]
 "airflow/models/variable.py" = ["D105"]
-"airflow/models/xcom.py" = ["D105"]
 "airflow/models/xcom_arg.py" = ["D105"]
 "airflow/plugins_manager.py" = ["D105"]
 "airflow/providers_manager.py" = ["D105"]
