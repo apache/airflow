@@ -359,6 +359,10 @@
         "8.17.0": {
             "associated_airflow_version": "2.8.1",
             "date_released": "2024-01-27T18:56:21Z"
+        },
+        "8.18.0": {
+            "associated_airflow_version": "2.8.1",
+            "date_released": "2024-02-18T15:48:37Z"
         }
     },
     "apache.beam": {
@@ -2005,6 +2009,10 @@
         "7.14.0": {
             "associated_airflow_version": "2.8.1",
             "date_released": "2024-01-27T18:56:22Z"
+        },
+        "8.0.0": {
+            "associated_airflow_version": "2.8.1",
+            "date_released": "2024-02-20T19:22:02Z"
         }
     },
     "cohere": {
@@ -2139,6 +2147,10 @@
         "1.10.1": {
             "associated_airflow_version": "2.8.1",
             "date_released": "2024-01-27T18:56:22Z"
+        },
+        "1.11.0": {
+            "associated_airflow_version": "2.8.1",
+            "date_released": "2024-02-18T15:48:37Z"
         }
     },
     "databricks": {

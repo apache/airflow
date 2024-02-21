@@ -73,6 +73,8 @@ class DbtCloudRunJobOperator(BaseOperator):
         Used only if ``wait_for_termination`` is True. Defaults to 60 seconds.
     :param additional_run_config: Optional. Any additional parameters that should be included in the API
         request when triggering the job.
+    :param reuse_existing_run: Flag to determine whether to reuse existing non terminal job run. If set to
+        true and non terminal job runs found, it use the latest run without triggering a new job run.
     :param deferrable: Run operator in the deferrable mode
     :return: The ID of the triggered dbt Cloud job run.
     """
@@ -102,6 +104,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
+        reuse_existing_run: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
@@ -117,6 +120,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.check_interval = check_interval
         self.additional_run_config = additional_run_config or {}
         self.run_id: int | None = None
+        self.reuse_existing_run = reuse_existing_run
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -125,16 +129,32 @@ class DbtCloudRunJobOperator(BaseOperator):
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
             )
 
-        trigger_job_response = self.hook.trigger_job_run(
-            account_id=self.account_id,
-            job_id=self.job_id,
-            cause=self.trigger_reason,
-            steps_override=self.steps_override,
-            schema_override=self.schema_override,
-            additional_run_config=self.additional_run_config,
-        )
-        self.run_id = trigger_job_response.json()["data"]["id"]
-        job_run_url = trigger_job_response.json()["data"]["href"]
+        non_terminal_runs = None
+        if self.reuse_existing_run:
+            non_terminal_runs = self.hook.get_job_runs(
+                account_id=self.account_id,
+                payload={
+                    "job_definition_id": self.job_id,
+                    "status": DbtCloudJobRunStatus.NON_TERMINAL_STATUSES,
+                    "order_by": "-created_at",
+                },
+            ).json()["data"]
+            if non_terminal_runs:
+                self.run_id = non_terminal_runs[0]["id"]
+                job_run_url = non_terminal_runs[0]["href"]
+
+        if not self.reuse_existing_run or not non_terminal_runs:
+            trigger_job_response = self.hook.trigger_job_run(
+                account_id=self.account_id,
+                job_id=self.job_id,
+                cause=self.trigger_reason,
+                steps_override=self.steps_override,
+                schema_override=self.schema_override,
+                additional_run_config=self.additional_run_config,
+            )
+            self.run_id = trigger_job_response.json()["data"]["id"]
+            job_run_url = trigger_job_response.json()["data"]["href"]
+
         # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
         # run can be monitored via the operator link.
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
