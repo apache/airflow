@@ -56,7 +56,10 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
 
         return cls(
             timetable=decode_timetable(data["timetable"]),
-            datasets=[],  # don't need the datasets after deserialization
+            # don't need the datasets after deserialization
+            # they are already stored on dataset_triggers attr on DAG
+            # and this is what scheduler looks at
+            datasets=[],
         )
 
     def serialize(self) -> dict[str, typing.Any]:
