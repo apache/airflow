@@ -351,7 +351,7 @@ class DatasetBooleanCondition:
     def __init__(self, *objects):
         self.objects = objects
 
-    def evaluate(self, statuses: dict[str, bool]):
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(self.eval_one(x, statuses) for x in self.objects)
 
     def eval_one(self, obj: Dataset | DatasetAny | DatasetAll, statuses):
