@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List
 
@@ -44,6 +45,16 @@ class BatchQueuedJob:
     command: CommandType
     queue: str
     executor_config: ExecutorConfigType
+    attempt_number: int
+
+
+@dataclass
+class BatchJobInfo:
+    """Contains information about a currently running Batch job."""
+
+    cmd: CommandType
+    queue: str
+    config: ExecutorConfigType
 
 
 class BatchJob:
@@ -78,18 +89,39 @@ class BatchJobCollection:
     def __init__(self):
         self.key_to_id: dict[TaskInstanceKey, str] = {}
         self.id_to_key: dict[str, TaskInstanceKey] = {}
+        self.id_to_failure_counts: dict[str, int] = defaultdict(int)
+        self.id_to_job_info: dict[str, BatchJobInfo] = {}
 
-    def add_job(self, job_id: str, airflow_task_key: TaskInstanceKey):
-        """Add a task to the collection."""
+    def add_job(
+        self,
+        job_id: str,
+        airflow_task_key: TaskInstanceKey,
+        airflow_cmd: CommandType,
+        queue: str,
+        exec_config: ExecutorConfigType,
+        attempt_number: int,
+    ):
+        """Add a job to the collection."""
         self.key_to_id[airflow_task_key] = job_id
         self.id_to_key[job_id] = airflow_task_key
+        self.id_to_failure_counts[job_id] = attempt_number
+        self.id_to_job_info[job_id] = BatchJobInfo(cmd=airflow_cmd, queue=queue, config=exec_config)
 
     def pop_by_id(self, job_id: str) -> TaskInstanceKey:
-        """Delete task from collection based off of Batch Job ID."""
+        """Delete job from collection based off of Batch Job ID."""
         task_key = self.id_to_key[job_id]
         del self.key_to_id[task_key]
         del self.id_to_key[job_id]
+        del self.id_to_failure_counts[job_id]
         return task_key
+
+    def failure_count_by_id(self, job_id: str) -> int:
+        """Get the number of times a job has failed given a Batch Job Id."""
+        return self.id_to_failure_counts[job_id]
+
+    def increment_failure_count(self, job_id: str):
+        """Increment the failure counter given a Batch Job Id."""
+        self.id_to_failure_counts[job_id] += 1
 
     def get_all_jobs(self) -> list[str]:
         """Get all AWS ARNs in collection."""

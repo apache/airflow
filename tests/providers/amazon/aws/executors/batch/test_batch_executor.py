@@ -53,6 +53,7 @@ def set_env_vars():
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_NAME}".upper()] = "some-job-name"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_QUEUE}".upper()] = "some-job-queue"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.JOB_DEFINITION}".upper()] = "some-job-def"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS}".upper()] = "3"
 
 
 @pytest.fixture
@@ -93,11 +94,25 @@ class TestBatchJobCollection:
         # Add first task
         self.first_job_id = "001"
         self.first_airflow_key = mock.Mock(spec=tuple)
-        self.collection.add_job(self.first_job_id, self.first_airflow_key)
+        self.collection.add_job(
+            job_id=self.first_job_id,
+            airflow_task_key=self.first_airflow_key,
+            airflow_cmd="command1",
+            queue="queue1",
+            exec_config={},
+            attempt_number=1,
+        )
         # Add second task
         self.second_job_id = "002"
         self.second_airflow_key = mock.Mock(spec=tuple)
-        self.collection.add_job(self.second_job_id, self.second_airflow_key)
+        self.collection.add_job(
+            job_id=self.second_job_id,
+            airflow_task_key=self.second_airflow_key,
+            airflow_cmd="command2",
+            queue="queue2",
+            exec_config={},
+            attempt_number=1,
+        )
 
     def test_get_and_add(self):
         """Test add_task, task_by_arn, cmd_by_key"""
@@ -170,6 +185,96 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
+
+    def test_attempt_all_tasks_when_tasks_fail(self, mock_executor):
+        """
+        Test task retry behaviour when tasks fail validation.
+
+        Test that when a job fails with a client sided exception, all the jobs are
+        attempted, in order.
+        """
+        airflow_key = mock.Mock(spec=tuple)
+        airflow_cmd1 = mock.Mock(spec=list)
+        airflow_cmd2 = mock.Mock(spec=list)
+        submit_job_args = {
+            "containerOverrides": {"command": ""},
+            "jobDefinition": "some-job-def",
+            "jobName": "some-job-name",
+            "jobQueue": "some-job-queue",
+        }
+        mock_executor.execute_async(airflow_key, airflow_cmd1)
+        mock_executor.execute_async(airflow_key, airflow_cmd2)
+        assert len(mock_executor.pending_jobs) == 2
+
+        mock_executor.batch.submit_job.side_effect = Exception()
+        mock_executor.attempt_submit_jobs()
+        for i in range(int(mock_executor.MAX_SUBMIT_JOB_ATTEMPTS)):
+            submit_job_args["containerOverrides"]["command"] = airflow_cmd1
+            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+
+        for i in range(
+            int(mock_executor.MAX_SUBMIT_JOB_ATTEMPTS), len(mock_executor.batch.submit_job.call_args_list)
+        ):
+            submit_job_args["containerOverrides"]["command"] = airflow_cmd2
+            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+
+    def test_task_retry_on_api_failure(self, mock_executor, caplog):
+        """Test API failure retries"""
+        airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
+        airflow_cmds = [mock.Mock(spec=list), mock.Mock(spec=list)]
+
+        mock_executor.execute_async(airflow_keys[0], airflow_cmds[0])
+        mock_executor.execute_async(airflow_keys[1], airflow_cmds[1])
+        assert len(mock_executor.pending_jobs) == 2
+        jobs = [
+            {
+                "jobName": "job-1",
+                "jobId": "job-1",
+                "status": "FAILED",
+                "statusReason": "Test Failure for job1",
+            },
+            {
+                "jobName": "job-2",
+                "jobId": "job-2",
+                "status": "FAILED",
+                "statusReason": "Test Failure for job2",
+            },
+        ]
+        mock_executor.batch.describe_jobs.return_value = {"jobs": jobs}
+        mock_executor.batch.submit_job.side_effect = [
+            {"jobId": "job-1"},
+            {"jobId": "job-2"},
+            {"jobId": "job-1"},
+            {"jobId": "job-2"},
+            {"jobId": "job-1"},
+            {"jobId": "job-2"},
+        ]
+        mock_executor.attempt_submit_jobs()
+
+        assert len(mock_executor.active_workers.get_all_jobs()) == 2
+        assert len(mock_executor.pending_jobs) == 0
+
+        mock_executor.sync_running_jobs()
+        for i in range(2):
+            assert (
+                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 1 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                in caplog.messages[i]
+            )
+
+        caplog.clear()
+        mock_executor.attempt_submit_jobs()
+        mock_executor.sync_running_jobs()
+        for i in range(2):
+            assert (
+                f'Airflow task {airflow_keys[i]} failed due to {jobs[i]["statusReason"]}. Failure 2 out of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} occurred on {jobs[i]["jobId"]}. Rescheduling.'
+                in caplog.messages[i]
+            )
+
+        caplog.clear()
+        mock_executor.attempt_submit_jobs()
+        mock_executor.sync_running_jobs()
+        for i in range(2):
+            assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
@@ -285,18 +390,27 @@ class TestAwsBatchExecutor:
         airflow_key: str,
         job_id: str = MOCK_JOB_ID,
         status: str = "SUCCEEDED",
+        status_reason: str = "",
     ):
         """
         This function is not mocking sync so much as it is preparing for
         sync to be called. It adds a job to active_workers and mocks the describe_jobs API call.
         """
-        executor.active_workers.add_job(job_id, airflow_key)
+        executor.active_workers.add_job(
+            job_id=job_id,
+            airflow_task_key=airflow_key,
+            airflow_cmd="airflow_cmd",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
 
         after_batch_job = {
             "jobName": "some-job-queue",
             "jobId": job_id,
             "jobQueue": "some-job-queue",
             "status": status,
+            "statusReason": status_reason,
             "createdAt": dt.datetime.now().timestamp(),
             "jobDefinition": "some-job-def",
         }

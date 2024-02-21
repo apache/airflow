@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from collections import deque
+from collections import defaultdict, deque
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List
 
@@ -81,6 +81,13 @@ class AwsBatchExecutor(BaseExecutor):
     .. seealso:: https://docs.aws.amazon.com/batch/latest/APIReference/API_SubmitJob.html for an
     Airflow TaskInstance's executor_config.
     """
+
+    # Maximum number of retries to submit a Batch Job.
+    MAX_SUBMIT_JOB_ATTEMPTS = conf.get(
+        CONFIG_GROUP_NAME,
+        AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS,
+        fallback=CONFIG_DEFAULTS[AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS],
+    )
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
@@ -189,24 +196,98 @@ class AwsBatchExecutor(BaseExecutor):
 
         for job in describe_job_response:
             if job.get_job_state() == State.FAILED:
-                task_key = self.active_workers.pop_by_id(job.job_id)
-                self.fail(task_key)
+                self._handle_failed_job(job)
             elif job.get_job_state() == State.SUCCESS:
                 task_key = self.active_workers.pop_by_id(job.job_id)
                 self.success(task_key)
 
+    def _handle_failed_job(self, job):
+        job_info = self.active_workers.id_to_job_info[job.job_id]
+        task_key = self.active_workers.id_to_key[job.job_id]
+        task_cmd = job_info.cmd
+        queue = job_info.queue
+        exec_info = job_info.config
+        failure_count = self.active_workers.failure_count_by_id(job_id=job.job_id)
+        if int(failure_count) < int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
+            self.log.warning(
+                "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
+                task_key,
+                job.status_reason,
+                failure_count,
+                self.__class__.MAX_SUBMIT_JOB_ATTEMPTS,
+                job.job_id,
+            )
+            self.active_workers.increment_failure_count(job_id=job.job_id)
+            self.active_workers.pop_by_id(job.job_id)
+            self.pending_jobs.append(
+                BatchQueuedJob(
+                    task_key,
+                    task_cmd,
+                    queue,
+                    exec_info,
+                    failure_count + 1,
+                )
+            )
+        else:
+            self.log.error(
+                "Airflow task %s has failed a maximum of %s times. Marking as failed",
+                task_key,
+                failure_count,
+            )
+            self.active_workers.pop_by_id(job.job_id)
+            self.fail(task_key)
+
     def attempt_submit_jobs(self):
-        queue_len = len(self.pending_jobs)
-        for _ in range(queue_len):
-            self.log.info("attempting job run")
+        failure_reasons = defaultdict(int)
+        while len(self.pending_jobs) > 0:
             batch_job = self.pending_jobs.popleft()
             key = batch_job.key
             cmd = batch_job.command
             queue = batch_job.queue
             exec_config = batch_job.executor_config
+            attempt_number = batch_job.attempt_number
+            _failure_reason = []
+            try:
+                submit_job_response = self._submit_job(key, cmd, queue, exec_config or {})
+            except NoCredentialsError:
+                self.pending_jobs.appendleft(batch_job)
+                raise
+            except ClientError as e:
+                error_code = e.response["Error"]["Code"]
+                if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
+                    self.pending_jobs.appendleft(batch_job)
+                    raise
+                _failure_reason.append(str(e))
+            except Exception as e:
+                _failure_reason.append(str(e))
 
-            submit_job_response = self._submit_job(key, cmd, queue, exec_config or {})
-            self.active_workers.add_job(submit_job_response["job_id"], key)
+            if _failure_reason:
+                for reason in _failure_reason:
+                    failure_reasons[reason] += 1
+
+                if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
+                    self.log.error(
+                        f"This job has been unsuccessfully attempted too many times ({attempt_number}). Dropping the task."
+                    )
+                    self.fail(key=key)
+                else:
+                    batch_job.attempt_number += 1
+                    self.pending_jobs.appendleft(batch_job)
+            else:
+                # Success case
+                self.active_workers.add_job(
+                    job_id=submit_job_response["job_id"],
+                    airflow_task_key=key,
+                    airflow_cmd=cmd,
+                    queue=queue,
+                    exec_config=exec_config,
+                    attempt_number=attempt_number,
+                )
+        if failure_reasons:
+            self.log.error(
+                "Pending Batch jobs failed to launch for the following reasons: %s. Retrying later.",
+                dict(failure_reasons),
+            )
 
     def _describe_jobs(self, job_ids) -> list[BatchJob]:
         all_jobs = []
@@ -231,7 +312,9 @@ class AwsBatchExecutor(BaseExecutor):
             raise ValueError('Executor Config should never override "command"')
 
         self.pending_jobs.append(
-            BatchQueuedJob(key=key, command=command, queue=queue, executor_config=executor_config)
+            BatchQueuedJob(
+                key=key, command=command, queue=queue, executor_config=executor_config or {}, attempt_number=1
+            )
         )
 
     def _submit_job(
@@ -244,10 +327,9 @@ class AwsBatchExecutor(BaseExecutor):
         before calling Boto3's "submit_job" function.
         """
         submit_job_api = self._submit_job_kwargs(key, cmd, queue, exec_config)
-        self.log.info("submitting job with these args %s", submit_job_api)
 
-        boto_run_task = self.batch.submit_job(**submit_job_api)
-        submit_job_response = BatchSubmitJobResponseSchema().load(boto_run_task)
+        boto_submit_job = self.batch.submit_job(**submit_job_api)
+        submit_job_response = BatchSubmitJobResponseSchema().load(boto_submit_job)
         return submit_job_response
 
     def _submit_job_kwargs(
