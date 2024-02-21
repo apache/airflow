@@ -17,7 +17,7 @@
  * under the License.
  */
 import React, { useMemo } from "react";
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 
 import {
   DatasetLink,
@@ -63,7 +63,9 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      <Heading size="md">Dataset Events</Heading>
+      <Text as="strong" mb={3}>
+        Dataset Events
+      </Text>
       <Text>Dataset updates that triggered this DAG run.</Text>
       <Table data={data} columns={columns} isLoading={isLoading} />
     </Box>

@@ -17,7 +17,7 @@
  * under the License.
  */
 import React, { useMemo } from "react";
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { Box, Text } from "@chakra-ui/react";
 
 import {
   DatasetLink,
@@ -70,8 +70,10 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   const data = useMemo(() => datasetEvents, [datasetEvents]);
 
   return (
-    <Box mt={3} flexGrow={1}>
-      <Heading size="md">Dataset Events</Heading>
+    <Box my={3} flexGrow={1}>
+      <Text as="strong" mb={3}>
+        Dataset Events
+      </Text>
       <Text>Dataset updates caused by this task instance</Text>
       <Table data={data} columns={columns} isLoading={isLoading} />
     </Box>
