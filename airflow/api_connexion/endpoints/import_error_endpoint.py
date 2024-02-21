@@ -16,26 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from sqlalchemy import func, select
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection,
     import_error_collection_schema,
     import_error_schema,
 )
-from airflow.auth.managers.models.resource_details import AccessView
+from airflow.auth.managers.models.resource_details import AccessView, DagDetails
+from airflow.models.dag import DagModel
 from airflow.models.errors import ImportError as ImportErrorModel
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.api_connexion.types import APIResponse
+    from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
 @security.requires_access_view(AccessView.IMPORT_ERRORS)
@@ -43,12 +46,29 @@ if TYPE_CHECKING:
 def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get an import error."""
     error = session.get(ImportErrorModel, import_error_id)
-
     if error is None:
         raise NotFound(
             "Import error not found",
             detail=f"The ImportError with import_error_id: `{import_error_id}` was not found",
         )
+    session.expunge(error)
+
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+    if not can_read_all_dags:
+        readable_dag_ids = security.get_readable_dags()
+        file_dag_ids = {
+            dag_id[0]
+            for dag_id in session.query(DagModel.dag_id).filter(DagModel.fileloc == error.filename).all()
+        }
+
+        # Can the user read any DAGs in the file?
+        if not readable_dag_ids.intersection(file_dag_ids):
+            raise PermissionDenied(detail="You do not have read permission on any of the DAGs in the file")
+
+        # Check if user has read access to all the DAGs defined in the file
+        if not file_dag_ids.issubset(readable_dag_ids):
+            error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+
     return import_error_schema.dump(error)
 
 
@@ -65,10 +85,41 @@ def get_import_errors(
     """Get all import errors."""
     to_replace = {"import_error_id": "id"}
     allowed_filter_attrs = ["import_error_id", "timestamp", "filename"]
-    total_entries = session.scalars(func.count(ImportErrorModel.id)).one()
+    count_query = select(func.count(ImportErrorModel.id))
     query = select(ImportErrorModel)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+
+    can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+
+    if not can_read_all_dags:
+        # if the user doesn't have access to all DAGs, only display errors from visible DAGs
+        readable_dag_ids = security.get_readable_dags()
+        dagfiles_subq = (
+            select(DagModel.fileloc).distinct().where(DagModel.dag_id.in_(readable_dag_ids)).subquery()
+        )
+        query = query.where(ImportErrorModel.filename.in_(dagfiles_subq))
+        count_query = count_query.where(ImportErrorModel.filename.in_(dagfiles_subq))
+
+    total_entries = session.scalars(count_query).one()
     import_errors = session.scalars(query.offset(offset).limit(limit)).all()
+
+    if not can_read_all_dags:
+        for import_error in import_errors:
+            # Check if user has read access to all the DAGs defined in the file
+            file_dag_ids = (
+                session.query(DagModel.dag_id).filter(DagModel.fileloc == import_error.filename).all()
+            )
+            requests: Sequence[IsAuthorizedDagRequest] = [
+                {
+                    "method": "GET",
+                    "details": DagDetails(id=dag_id[0]),
+                }
+                for dag_id in file_dag_ids
+            ]
+            if not get_auth_manager().batch_is_authorized_dag(requests):
+                session.expunge(import_error)
+                import_error.stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+
     return import_error_collection_schema.dump(
         ImportErrorCollection(import_errors=import_errors, total_entries=total_entries)
     )

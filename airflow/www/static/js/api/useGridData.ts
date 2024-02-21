@@ -35,6 +35,7 @@ import useFilters, {
 } from "src/dag/useFilters";
 import type { Task, DagRun, RunOrdering } from "src/types";
 import { camelCase } from "lodash";
+import useSelection, { RUN_ID } from "src/dag/useSelection";
 
 const DAG_ID_PARAM = "dag_id";
 
@@ -80,6 +81,7 @@ const useGridData = () => {
       filterUpstream,
     },
   } = useFilters();
+  const { firstRunIdSetByUrl } = useSelection();
 
   const query = useQuery(
     [
@@ -91,6 +93,7 @@ const useGridData = () => {
       root,
       filterUpstream,
       filterDownstream,
+      firstRunIdSetByUrl,
     ],
     async () => {
       const params = {
@@ -102,6 +105,7 @@ const useGridData = () => {
         [NUM_RUNS_PARAM]: numRuns,
         [RUN_TYPE_PARAM]: runType,
         [RUN_STATE_PARAM]: runState,
+        [RUN_ID]: firstRunIdSetByUrl || "",
       };
       const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, {
         params,
