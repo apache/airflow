@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Callable
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
@@ -30,6 +31,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import relationship
@@ -202,16 +204,29 @@ class TaskOutletDatasetReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
+dataset_event_dagrun_queue_association_table = Table(
+    "dataset_event_dagrun_queue_association_table",
+    Base.metadata,
+    Column("event_id", ForeignKey("dataset_event.id"), primary_key=True),
+    Column("dag_run_queue_id", ForeignKey("dataset_dag_run_queue.id"), primary_key=True),
+)
+
+
 class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
-    dataset_id = Column(Integer, primary_key=True, nullable=False)
-    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, nullable=False)
+    target_dag_id = Column(StringID(), nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    dataset = relationship("DatasetModel", viewonly=True)
+    events = relationship(
+        "DatasetEvent", secondary=dataset_event_dagrun_queue_association_table, backref="dag_run_queues"
+    )
 
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
+        # PrimaryKeyConstraint(id, dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
@@ -224,6 +239,7 @@ class DatasetDagRunQueue(Base):
             name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
+        UniqueConstraint("dataset_id", "target_dag_id", name="ddrq_dataset_target_dag_unique"),
     )
 
     def __eq__(self, other):
@@ -336,3 +352,145 @@ class DatasetEvent(Base):
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetBooleanCondition:
+    """
+    Base class for boolean conditions on datasets. This class is intended for internal use only.
+
+    :param objects: A variable number of Dataset, DatasetAny, or DatasetAll instances.
+    """
+
+    agg_func: Callable
+
+    def __init__(self, *objects):
+        self.objects = objects
+
+    def evaluate(self, statuses: dict[str, bool]):
+        """
+        Evaluates the boolean condition based on the statuses of datasets.
+
+        :param statuses: A dictionary mapping dataset URIs to their boolean statuses.
+        """
+        return self.agg_func(self.eval_one(x, statuses) for x in self.objects)
+
+    def eval_one(self, obj: Dataset | DatasetAny | DatasetAll, statuses):
+        """
+        Evaluates the status of a single object (Dataset, DatasetAny, or DatasetAll).
+
+        :param obj: The Dataset, DatasetAny, or DatasetAll instance to evaluate.
+        :param statuses: A dictionary mapping dataset URIs to their boolean statuses.
+        """
+        if isinstance(obj, Dataset):
+            return statuses.get(obj.uri, False)
+        return obj.evaluate(statuses=statuses)
+
+    def all_datasets(self) -> dict[str, Dataset]:
+        """Retrieves all unique datasets contained within the boolean condition."""
+        uris = {}
+        for x in self.objects:
+            if isinstance(x, Dataset):
+                if x.uri not in uris:
+                    uris[x.uri] = x
+            else:
+                # keep the first instance
+                for k, v in x.all_datasets().items():
+                    if k not in uris:
+                        uris[k] = v
+        return uris
+
+
+class DatasetAny(DatasetBooleanCondition):
+    """
+    Represents a logical OR condition of datasets.
+
+    Inherits from DatasetBooleanCondition.
+    """
+
+    agg_func = any
+
+    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll):
+        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
+        super().__init__(*objects)
+
+    def __or__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAny(*self.objects, other)
+        return NotImplemented
+
+    def __and__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAll(self, other)
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        return f"DatasetAny({', '.join(map(str, self.objects))})"
+
+
+class DatasetAll(DatasetBooleanCondition):
+    """Represents a logical AND condition of datasets. Inherits from DatasetBooleanCondition."""
+
+    agg_func = all
+
+    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll):
+        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
+        super().__init__(*objects)
+
+    def __or__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAny(self, other)
+        return NotImplemented
+
+    def __and__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAll(*self.objects, other)
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        return f"DatasetAnd({', '.join(map(str, self.objects))})"
+
+
+class DatasetsExpression:
+    """
+    Represents a node in an expression tree for dataset conditions.
+
+    :param value: The value of the node, which can be a 'Dataset', '&', or '|'.
+    :param left: The left child node.
+    :param right: The right child node.
+    """
+
+    def __init__(self, value, left=None, right=None):
+        self.value = value  # value can be 'Dataset', '&', or '|'
+        self.left = left
+        self.right = right
+
+    def __or__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+        return DatasetsExpression("|", self, other)
+
+    def __and__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+        return DatasetsExpression("&", self, other)
+
+    def __repr__(self):
+        if isinstance(self.value, Dataset):
+            return f"Dataset(uri='{self.value.uri}')"
+        elif self.value == "&":
+            return repr(DatasetAll(self.left, self.right))
+        elif self.value == "|":
+            return repr(DatasetAny(self.left, self.right))
+
+
+def extract_datasets(dataset_expression: DatasetsExpression | Dataset):
+    """
+    Extracts the dataset(s) from an DatasetsExpression.
+
+    :param dataset_expression: The DatasetsExpression to extract from.
+    """
+    if isinstance(dataset_expression, DatasetsExpression):
+        if dataset_expression.value == "&":
+            return DatasetAll(dataset_expression.left, dataset_expression.right)
+        elif dataset_expression.value == "|":
+            return DatasetAny(dataset_expression.left, dataset_expression.right)
+        else:
+            raise ValueError("Invalid Expression node value")
+    else:
+        return dataset_expression
