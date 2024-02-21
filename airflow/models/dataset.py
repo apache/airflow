@@ -348,7 +348,7 @@ class DatasetBooleanCondition:
 
     agg_func: Callable
 
-    def __init__(self, *objects):
+    def __init__(self, *objects) -> None:
         self.objects = objects
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
