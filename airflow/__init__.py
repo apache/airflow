@@ -15,24 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Init setup.
-
-Authentication is implemented using flask_login and different environments can
-implement their own login mechanisms by providing an `airflow_login` module
-in their PYTHONPATH. airflow_login should be based off the `airflow.www.login`
-
-isort:skip_file
-"""
 from __future__ import annotations
 
 __version__ = "2.9.0.dev0"
 
-# flake8: noqa: F401
-
 import os
 import sys
-from typing import Callable
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
     # If you are using gevents and start airflow webserver, you might want to run gevent monkeypatching
@@ -51,7 +39,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
-__all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "PY311", "XComArg"]
+__all__ = ["__version__", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "PY311", "XComArg"]
 
 # Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -66,8 +54,6 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 # access certain trivial constants and free functions (e.g. `__version__`).
 if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
-
-login: Callable | None = None
 
 PY36 = sys.version_info >= (3, 6)
 PY37 = sys.version_info >= (3, 7)
