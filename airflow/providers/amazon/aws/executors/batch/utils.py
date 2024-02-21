@@ -80,11 +80,12 @@ class BatchJob:
         return self.STATE_MAPPINGS.get(self.status, State.QUEUED)
 
     def __repr__(self):
+        """Return a visual representation of the Job status."""
         return f"({self.job_id} -> {self.status}, {self.get_job_state()})"
 
 
 class BatchJobCollection:
-    """A Two-way dictionary between Airflow task ids and Batch Job IDs."""
+    """A collection to manage running Batch Jobs."""
 
     def __init__(self):
         self.key_to_id: dict[TaskInstanceKey, str] = {}
