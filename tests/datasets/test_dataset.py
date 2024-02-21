@@ -143,6 +143,7 @@ def create_test_datasets(session):
     session.commit()
     return datasets
 
+
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
 def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test_datasets):
@@ -200,9 +201,9 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
             assert dag.dataset_triggers.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
 
 
-@pytest.fixture
-def setup_datasets_and_models(session):
-    """Fixture to create datasets and corresponding models."""
+@pytest.mark.db_test
+@pytest.mark.usefixtures("clear_datasets")
+def test_dag_with_complex_dataset_triggers(session, dag_maker):
     # Create Dataset instances
     d1 = Dataset(uri="hello1")
     d2 = Dataset(uri="hello2")
@@ -212,14 +213,6 @@ def setup_datasets_and_models(session):
     dm2 = DatasetModel(uri=d2.uri)
     session.add_all([dm1, dm2])
     session.commit()
-
-    return d1, d2
-
-
-@pytest.mark.db_test
-@pytest.mark.usefixtures("clear_datasets")
-def test_dag_with_complex_dataset_triggers(session, dag_maker, setup_datasets_and_models):
-    d1, d2 = setup_datasets_and_models
 
     # Setup a DAG with complex dataset triggers (DatasetAny with DatasetAll)
     with dag_maker(schedule=DatasetAny(d1, DatasetAll(d2, d1))) as dag:
