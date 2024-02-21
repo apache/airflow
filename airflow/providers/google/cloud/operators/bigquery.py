@@ -1688,17 +1688,14 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             )
             gcp_conn_id = bigquery_conn_id
 
-        super().__init__(
-            table_resource=table_resource,
-            bucket=bucket,
-            source_objects=source_objects,
-            schema_object=schema_object,
-            gcs_schema_bucket=gcs_schema_bucket,
-            destination_project_dataset_table=destination_project_dataset_table,
-            labels=labels,
-            impersonation_chain=impersonation_chain,
-            **kwargs,
-        )
+        super().__init__(**kwargs)
+
+        self.table_resource = table_resource
+        self.bucket = bucket or ""
+        self.source_objects = source_objects or []
+        self.schema_object = schema_object or None
+        self.gcs_schema_bucket = gcs_schema_bucket or ""
+        self.destination_project_dataset_table = destination_project_dataset_table or ""
 
         # BQ config
         kwargs_passed = any(
@@ -1757,12 +1754,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.field_delimiter = field_delimiter
             self.table_resource = None
         else:
-            self.table_resource = table_resource
-            self.bucket = ""
-            self.source_objects = []
-            self.schema_object = None
-            self.gcs_schema_bucket = ""
-            self.destination_project_dataset_table = ""
+            pass
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
