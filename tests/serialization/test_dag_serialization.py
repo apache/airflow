@@ -60,6 +60,7 @@ from airflow.sensors.bash import BashSensor
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
+    BaseSerialization,
     DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
@@ -549,13 +550,18 @@ class TestStringifiedDAGs:
             "_task_group",
             "params",
             "_processor_dags_folder",
+        }
+        compare_serialization_list = {
             "dataset_triggers",
         }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(
-                dag, field
-            ), f"{dag.dag_id}.{field} does not match"
+            actual = getattr(serialized_dag, field)
+            expected = getattr(dag, field)
+            if field in compare_serialization_list:
+                actual = BaseSerialization.serialize(actual)
+                expected = BaseSerialization.serialize(expected)
+            assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
         assert dag._processor_dags_folder is None
