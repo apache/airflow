@@ -84,6 +84,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.providers.google.cloud.triggers.vertex_ai import RunPipelineJobTrigger
 from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
@@ -1996,9 +1997,9 @@ class TestVertexAIDeleteModelVersionOperator:
 
 
 class TestVertexAIRunPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
+    def test_execute(self, to_dict_mock, mock_hook):
         op = RunPipelineJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -2022,7 +2023,7 @@ class TestVertexAIRunPipelineJobOperator:
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.run_pipeline_job.assert_called_once_with(
+        mock_hook.return_value.submit_pipeline_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
@@ -2041,9 +2042,68 @@ class TestVertexAIRunPipelineJobOperator:
             experiment=None,
         )
 
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_enters_deferred_state(self, mock_hook):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        mock_hook.return_value.exists.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={"ti": mock.MagicMock()})
+        assert isinstance(exc.value.trigger, RunPipelineJobTrigger), "Trigger is not a RunPipelineJobTrigger"
+
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.RunPipelineJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        expected_pipeline_job = expected_result = {
+            "name": f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/pipelineJobs/{TEST_PIPELINE_JOB_ID}",
+        }
+        mock_hook.return_value.exists.return_value = False
+        mock_xcom_push.return_value = None
+        actual_result = task.execute_complete(
+            context=None, event={"status": "success", "message": "", "job": expected_pipeline_job}
+        )
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self):
+        task = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=None, event={"status": "error", "message": "test message", "job": None}
+            )
+
 
 class TestVertexAIGetPipelineJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
+    @mock.patch("google.cloud.aiplatform_v1.types.PipelineJob.to_dict")
     @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = GetPipelineJobOperator(
