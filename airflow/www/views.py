@@ -1347,7 +1347,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/rendered-templates")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def rendered_templates(self, session):
         """Get rendered Dag."""
@@ -1466,7 +1465,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/rendered-k8s")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def rendered_k8s(self, *, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
@@ -1532,7 +1530,6 @@ class Airflow(AirflowBaseView):
     @expose("/get_logs_with_metadata")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def get_logs_with_metadata(self, session: Session = NEW_SESSION):
         """Retrieve logs including metadata."""
@@ -1613,7 +1610,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/log")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def log(self, session: Session = NEW_SESSION):
         """Retrieve log."""
@@ -1658,7 +1654,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/redirect_to_external_log")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def redirect_to_external_log(self, session: Session = NEW_SESSION):
         """Redirects to external log."""
@@ -1690,7 +1685,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/task")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def task(self, session: Session = NEW_SESSION):
         """Retrieve task."""
@@ -1816,7 +1810,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/xcom")
     @auth.has_access_dag("GET", DagAccessEntity.XCOM)
-    @action_logging
     @provide_session
     def xcom(self, session: Session = NEW_SESSION):
         """Retrieve XCOM."""
@@ -2345,6 +2338,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/blocked", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
+    @action_logging
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
         """Mark Dag Blocked."""
@@ -2980,7 +2974,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/dags/<string:dag_id>/duration")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def duration(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag as duration graph."""
@@ -3132,7 +3125,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/dags/<string:dag_id>/tries")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def tries(self, dag_id: str, session: Session = NEW_SESSION):
         """Show all tries."""
@@ -3214,7 +3206,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def landing_times(self, dag_id: str, session: Session = NEW_SESSION):
         """Show landing times."""
@@ -3334,7 +3325,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/extra_links")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def extra_links(self, *, session: Session = NEW_SESSION):
         """
@@ -3745,7 +3735,6 @@ class Airflow(AirflowBaseView):
             )
 
     @expose("/robots.txt")
-    @action_logging
     def robots(self):
         """
         Return a robots.txt file for blocking certain search engine crawlers.
@@ -5780,7 +5769,6 @@ class DagDependenciesView(AirflowBaseView):
     @expose("/dag-dependencies")
     @auth.has_access_dag("GET", DagAccessEntity.DEPENDENCIES)
     @gzipped
-    @action_logging
     def list(self):
         """Display DAG dependencies."""
         title = "DAG Dependencies"
