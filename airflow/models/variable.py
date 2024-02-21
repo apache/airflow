@@ -168,9 +168,6 @@ class Variable(Base, LoggingMixin):
         :param session: SQL Alchemy Sessions
         :param is_multi_cluster_enabled: is set wrapped by lyft-etl sync_variable_writes_multicluster
         """
-        if not is_multi_cluster_enabled:
-            raise AirflowFailException("Please write Airflow variables using "
-                                       "sync_variable_writes_multicluster defined in lyft-etl")
         # check if the secret exists in the custom secrets backend.
         cls.check_for_write_conflict(key)
         if serialize_json:
