@@ -31,9 +31,7 @@ import pendulum
 
 from airflow.operators.python import is_venv_installed
 
-venv_installed=is_venv_installed()
-
-if venv_installed:
+if is_venv_installed():
     from airflow.decorators import task
     from airflow.models.dag import DAG
     from airflow.operators.empty import EmptyOperator
@@ -147,6 +145,3 @@ if venv_installed:
 
             # Label is optional here, but it can help identify more complex branches
             random_choice_venv >> Label(option) >> t >> join_venv
-else:
-    deg = None
- 
