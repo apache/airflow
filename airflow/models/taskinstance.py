@@ -2378,7 +2378,7 @@ class TaskInstance(Base, LoggingMixin):
                 # a trigger.
                 if raise_on_defer:
                     raise
-                self._defer_task(defer=defer, session=session)
+                self.defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
                     self.dag_id,
@@ -2565,8 +2565,11 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def _defer_task(self, session: Session, defer: TaskDeferred) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it."""
+    def defer_task(self, session: Session, defer: TaskDeferred) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+
+        :meta: private
+        """
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
@@ -2625,6 +2628,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
+        raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance."""
         res = self.check_and_change_state_before_execution(
@@ -2644,7 +2648,12 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         self._run_raw_task(
-            mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+            mark_success=mark_success,
+            test_mode=test_mode,
+            job_id=job_id,
+            pool=pool,
+            session=session,
+            raise_on_defer=raise_on_defer,
         )
 
     def dry_run(self) -> None:

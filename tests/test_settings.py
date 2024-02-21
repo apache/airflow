@@ -16,12 +16,26 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
+from unittest.mock import patch
+
+from airflow import settings
 
 
-def test_get_entity_type():
-    assert get_entity_type(AvpEntities.VARIABLE) == "Airflow::Variable"
+@patch("airflow.settings.conf")
+@patch.multiple("airflow.settings", SQL_ALCHEMY_V1=True)
+def test_encoding_present(mock_conf):
+    mock_conf.getjson.return_value = {}
+
+    engine_args = settings.prepare_engine_args()
+
+    assert "encoding" in engine_args
 
 
-def test_get_action_id():
-    assert get_action_id(AvpEntities.VARIABLE, "GET") == "Variable.GET"
+@patch("airflow.settings.conf")
+@patch.multiple("airflow.settings", SQL_ALCHEMY_V1=False)
+def test_encoding_absent(mock_conf):
+    mock_conf.getjson.return_value = {}
+
+    engine_args = settings.prepare_engine_args()
+
+    assert "encoding" not in engine_args
