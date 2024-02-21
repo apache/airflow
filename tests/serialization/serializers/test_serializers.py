@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+from importlib import metadata
 from unittest.mock import patch
 
 import numpy as np
@@ -26,6 +27,7 @@ import pendulum.tz
 import pytest
 from dateutil.tz import tzutc
 from deltalake import DeltaTable
+from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
@@ -38,7 +40,7 @@ if PY39:
 else:
     from backports.zoneinfo import ZoneInfo
 
-PENDULUM3 = pendulum.__version__.startswith("3")
+PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
 
 class TestSerializers:
