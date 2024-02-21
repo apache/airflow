@@ -1231,6 +1231,7 @@ class TestStringifiedDAGs:
             "executor_config": {},
             "ignore_first_depends_on_past": True,
             "inlets": [],
+            "map_index_template": None,
             "max_active_tis_per_dag": None,
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
