@@ -30,6 +30,15 @@ from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
 
 
+@pytest.fixture
+def clear_datasets():
+    from tests.test_utils.db import clear_db_datasets
+
+    clear_db_datasets()
+    yield
+    clear_db_datasets()
+
+
 @pytest.mark.parametrize(
     ["uri"],
     [
@@ -241,12 +250,3 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
     assert isinstance(
         serialized_dag_dict["dataset_triggers"], dict
     ), "Serialized 'dataset_triggers' should be a dict"
-
-
-@pytest.fixture
-def clear_datasets():
-    from tests.test_utils.db import clear_db_datasets
-
-    clear_db_datasets()
-    yield
-    clear_db_datasets()
