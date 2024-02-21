@@ -30,7 +30,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
 
 
-@pytest.mark.db_test
 @pytest.mark.parametrize(
     ["uri"],
     [
@@ -46,26 +45,22 @@ def test_invalid_uris(uri):
         Dataset(uri=uri)
 
 
-@pytest.mark.db_test
 def test_uri_with_scheme():
     dataset = Dataset(uri="s3://example_dataset")
     EmptyOperator(task_id="task1", outlets=[dataset])
 
 
-@pytest.mark.db_test
 def test_uri_without_scheme():
     dataset = Dataset(uri="example_dataset")
     EmptyOperator(task_id="task1", outlets=[dataset])
 
 
-@pytest.mark.db_test
 def test_fspath():
     uri = "s3://example_dataset"
     dataset = Dataset(uri=uri)
     assert os.fspath(dataset) == uri
 
 
-@pytest.mark.db_test
 @pytest.mark.parametrize(
     "inputs, scenario, expected",
     [
@@ -105,7 +100,6 @@ def test_dataset_logical_conditions_evaluation_and_serialization(inputs, scenari
     assert deserialized.evaluate(statuses) == expected, "Serialization round-trip failed"
 
 
-@pytest.mark.db_test
 @pytest.mark.parametrize(
     "status_values, expected_evaluation",
     [
@@ -149,8 +143,8 @@ def create_test_datasets(session):
     session.commit()
     return datasets
 
-
 @pytest.mark.db_test
+@pytest.mark.usefixtures("clear_datasets")
 def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test_datasets):
     datasets = create_test_datasets
 
@@ -177,7 +171,8 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
 
 
 @pytest.mark.db_test
-def test_dataset_dag_run_queue_processing(session, dag_maker, create_test_datasets):
+@pytest.mark.usefixtures("clear_datasets")
+def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, create_test_datasets):
     datasets = create_test_datasets
     dataset_models = session.query(DatasetModel).all()
 
@@ -205,14 +200,6 @@ def test_dataset_dag_run_queue_processing(session, dag_maker, create_test_datase
             assert dag.dataset_triggers.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
 
 
-@pytest.mark.db_test
-@pytest.mark.usefixtures("create_test_datasets")
-def test_additional_dag_with_no_triggers(dag_maker):
-    # Create an additional DAG to ensure it's not affected by dataset triggers
-    with dag_maker(dag_id="dag2"):
-        EmptyOperator(task_id="hello2")
-
-
 @pytest.fixture
 def setup_datasets_and_models(session):
     """Fixture to create datasets and corresponding models."""
@@ -230,6 +217,7 @@ def setup_datasets_and_models(session):
 
 
 @pytest.mark.db_test
+@pytest.mark.usefixtures("clear_datasets")
 def test_dag_with_complex_dataset_triggers(session, dag_maker, setup_datasets_and_models):
     d1, d2 = setup_datasets_and_models
 
@@ -262,7 +250,7 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker, setup_datasets_an
     ), "Serialized 'dataset_triggers' should be a dict"
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def clear_datasets():
     from tests.test_utils.db import clear_db_datasets
 
