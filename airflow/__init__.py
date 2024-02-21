@@ -51,9 +51,9 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
-__all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
+__all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "PY311", "XComArg"]
 
-# Make `airflow` an namespace package, supporting installing
+# Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
 # lib.)
 __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
