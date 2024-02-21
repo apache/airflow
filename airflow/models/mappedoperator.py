@@ -200,7 +200,6 @@ class OperatorPartial:
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
-        map_index_template = partial_kwargs.pop("map_index_template", None)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -212,6 +211,7 @@ class OperatorPartial:
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
+            map_index_template=partial_kwargs.pop("map_index_template", None),
             params=self.params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
@@ -232,7 +232,6 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            map_index_template=map_index_template,
         )
         return op
 
