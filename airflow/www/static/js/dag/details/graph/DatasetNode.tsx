@@ -44,6 +44,7 @@ const DatasetNode = ({
   data: { label, height, width, latestDagRunId, isZoomedOut },
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
+
   return (
     <Popover>
       <PopoverTrigger>
@@ -66,7 +67,16 @@ const DatasetNode = ({
             fontSize={isZoomedOut ? 24 : undefined}
             textAlign="justify"
           >
-            {!isZoomedOut && (
+            {label}
+          </Text>
+          {!isZoomedOut && (
+            <Text
+              maxWidth={`calc(${width}px - 12px)`}
+              fontWeight={400}
+              fontSize="md"
+              textAlign="justify"
+              color="gray.500"
+            >
               <HiDatabase
                 size="16px"
                 style={{
@@ -75,9 +85,9 @@ const DatasetNode = ({
                   marginRight: "3px",
                 }}
               />
-            )}
-            {label}
-          </Text>
+              Dataset
+            </Text>
+          )}
         </Box>
       </PopoverTrigger>
       <Portal containerRef={containerRef}>

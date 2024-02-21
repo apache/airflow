@@ -152,9 +152,7 @@ const DagNode = ({
                 maxWidth={`calc(${width}px - 12px)`}
                 fontWeight={400}
                 fontSize="md"
-                width="fit-content"
                 color={operatorTextColor}
-                px={1}
               >
                 {task.operator}
               </Text>

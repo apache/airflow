@@ -75,7 +75,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             ...(datasetsCollection?.datasets || []).map(
               (dataset) =>
                 ({
-                  id: dataset.uri,
+                  id: dataset?.id?.toString() || "",
                   value: {
                     class: "dataset",
                     label: dataset.uri,
@@ -93,16 +93,16 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       (t) => t.dagId === dagId
     );
     const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
-    if (dataset.uri) {
+    if (dataset.id) {
       if (producingTask?.taskId) {
         datasetEdges.push({
           sourceId: producingTask.taskId,
-          targetId: dataset.uri,
+          targetId: dataset.id.toString(),
         });
       }
       if (consumingDag && data?.nodes?.children?.length) {
         datasetEdges.push({
-          sourceId: dataset.uri,
+          sourceId: dataset.id.toString(),
           // Point upstream datasets to the first task
           targetId: data.nodes?.children[0].id,
         });
@@ -157,9 +157,6 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       isZoomedOut,
     ]
   );
-
-  console.log(nodes);
-  console.log(nodeEdges);
 
   // Zoom to/from nodes when changing selection, maintain zoom level when changing task selection
   useEffect(() => {
