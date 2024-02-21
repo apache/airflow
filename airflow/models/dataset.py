@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Iterable
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
