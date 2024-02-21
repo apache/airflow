@@ -70,6 +70,25 @@ def test_fspath():
     assert os.fspath(dataset) == uri
 
 
+def test_equal_when_same_uri():
+    uri = "s3://example_dataset"
+    dataset1 = Dataset(uri=uri)
+    dataset2 = Dataset(uri=uri)
+    assert dataset1 == dataset2
+
+
+def test_not_equal_when_different_uri():
+    dataset1 = Dataset(uri="s3://example_dataset")
+    dataset2 = Dataset(uri="s3://other_dataset")
+    assert dataset1 != dataset2
+
+
+def test_hash():
+    uri = "s3://example_dataset"
+    dataset = Dataset(uri=uri)
+    hash(dataset)
+
+
 @pytest.mark.parametrize(
     "inputs, scenario, expected",
     [
