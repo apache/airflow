@@ -35,7 +35,6 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
-    _get_lib_major_version,
     ensure_pod_is_valid_after_unpickling,
     is_sqlalchemy_v1,
     prohibit_commit,
@@ -317,32 +316,13 @@ class TestExecutorConfigType:
 
 
 @pytest.mark.parametrize(
-    "version_string, expected_major_version",
+    "mock_version, expected_result",
     [
-        ("1.4.22", 1),  # Test 1: "1.4.22" parsed as 1
-        ("10.4.22", 10),  # Test 2: "10.4.22" not parsed as 1
-        ("invalid", None),  # Test 3: Invalid version string
-        ("3.x.x", None),  # Test 4: Malformed version
+        ("1.0.0", True),  # Test 1: v1 identified as v1
+        ("2.3.4", False),  # Test 2: v2 not identified as v1
     ],
 )
-def test_get_lib_major_version(version_string, expected_major_version):
-    with mock.patch("airflow.utils.sqlalchemy.version") as mock_version:
-        mock_version.return_value = version_string
-        if expected_major_version is not None:
-            assert _get_lib_major_version("dummy_module") == expected_major_version
-        else:
-            with pytest.raises(ValueError):
-                _get_lib_major_version("dummy_module")
-
-
-@pytest.mark.parametrize(
-    "major_version, expected_result",
-    [
-        (1, True),  # Test 1: v1 identified as v1
-        (2, False),  # Test 2: v2 not identified as v1
-    ],
-)
-def test_is_sqlalchemy_v1(major_version, expected_result):
-    with mock.patch("airflow.utils.sqlalchemy._get_lib_major_version") as mock_get_major_version:
-        mock_get_major_version.return_value = major_version
+def test_is_sqlalchemy_v1(mock_version, expected_result):
+    with mock.patch("airflow.utils.sqlalchemy.metadata") as mock_metadata:
+        mock_metadata.version.return_value = mock_version
         assert is_sqlalchemy_v1() == expected_result
