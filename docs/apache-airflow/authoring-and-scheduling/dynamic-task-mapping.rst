@@ -179,13 +179,13 @@ Consider the following example:
 
 .. code-block:: python
 
-    @task(map_index_template="{{ my_template }}")
-    def my_task(my_template, **kwargs):
+    @task(map_index_template="{{ my_variable }}")
+    def my_task(my_value, **kwargs):
         context = get_current_context()
-        context.update({"my_template": my_template})
+        context["my_variable"] = my_value
 
 
-    my_task.expand(my_template=["abc", "def"])
+    my_task.expand(my_value=["abc", "def"])
 
 In this example, the the tasks will be named "abc" and "def" in the Airflow UI instead of 0 and 1, respectively.
 

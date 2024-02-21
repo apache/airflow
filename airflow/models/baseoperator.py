@@ -290,6 +290,7 @@ def partial(
         "dag": dag,
         "task_group": task_group,
         "task_id": task_id,
+        "map_index_template": map_index_template,
         "start_date": start_date,
         "end_date": end_date,
         "owner": owner,
