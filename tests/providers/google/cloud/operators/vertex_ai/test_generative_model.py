@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 from unittest import mock
-from google.api_core.retry import Retry
 
+from google.api_core.retry import Retry
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     PromptLanguageModelOperator,
@@ -35,6 +35,7 @@ GCP_PROJECT = "test-project"
 GCP_LOCATION = "test-location"
 GCP_CONN_ID = "test-conn"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+
 
 class TestVertexAIPromptLanguageModelOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
