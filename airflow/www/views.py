@@ -2768,7 +2768,6 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/grid")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @gzipped
-    @action_logging
     @provide_session
     def grid(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag's grid view."""
@@ -2834,7 +2833,6 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/calendar")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @gzipped
-    @action_logging
     @provide_session
     def calendar(self, dag_id: str, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
