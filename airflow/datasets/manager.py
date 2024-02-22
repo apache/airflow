@@ -77,7 +77,7 @@ class DatasetManager(LoggingMixin):
         )
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
-            return
+            return None
 
         event_kwargs = {
             "dataset_id": dataset_model.id,

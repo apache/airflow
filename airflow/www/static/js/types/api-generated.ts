@@ -1802,6 +1802,12 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
+    CreateDatasetEvent: {
+      /** @description The URI of the dataset */
+      dataset_uri: string;
+      /** @description The dataset event extra */
+      extra?: { [key: string]: unknown } | null;
+    };
     QueuedEvent: {
       /** @description The datata uri. */
       uri?: string;
@@ -1821,12 +1827,6 @@ export interface components {
     QueuedEventCollection: {
       datasets?: components["schemas"]["QueuedEvent"][];
     } & components["schemas"]["CollectionInfo"];
-    CreateDatasetEvent: {
-      /** @description The URI of the dataset */
-      dataset_uri: string;
-      /** @description The dataset event extra */
-      extra?: { [key: string]: unknown } | null;
-    };
     BasicDAGRun: {
       /** @description Run ID. */
       run_id?: string;
@@ -5170,14 +5170,14 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
+export type CreateDatasetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["CreateDatasetEvent"]
+>;
 export type QueuedEvent = CamelCasedPropertiesDeep<
   components["schemas"]["QueuedEvent"]
 >;
 export type QueuedEventCollection = CamelCasedPropertiesDeep<
   components["schemas"]["QueuedEventCollection"]
->;
-export type CreateDatasetEvent = CamelCasedPropertiesDeep<
-  components["schemas"]["CreateDatasetEvent"]
 >;
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]
