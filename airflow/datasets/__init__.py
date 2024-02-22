@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+import urllib.parse
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
 
 import attr
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
+
+__all__ = ["Dataset", "DatasetAll", "DatasetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -46,14 +48,14 @@ def _sanitize_uri(uri: str) -> str:
         raise ValueError("Dataset URI cannot be just whitespace")
     if not uri.isascii():
         raise ValueError("Dataset URI must only consist of ASCII characters")
-    parsed = urlsplit(uri)
+    parsed = urllib.parse.urlsplit(uri)
     if (normalized_scheme := parsed.scheme.lower()) == "airflow":
         raise ValueError("Dataset scheme 'airflow' is reserved")
     _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
     if auth_exists:
         raise ValueError("Dataset URI must not contain auth information")
     if parsed.query:
-        normalized_query = urlencode(sorted(parse_qsl(parsed.query)))
+        normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:
         normalized_query = ""
     parsed = parsed._replace(
@@ -65,12 +67,26 @@ def _sanitize_uri(uri: str) -> str:
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
         parsed = normalizer(parsed)
-    return urlunsplit(parsed)
+    return urllib.parse.urlunsplit(parsed)
+
+
+@runtime_checkable
+class BaseDatasetEventInput(Protocol):
+    """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
+
+    :meta private:
+    """
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        raise NotImplementedError
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        raise NotImplementedError
 
 
 @attr.define()
-class Dataset(os.PathLike):
-    """A Dataset is used for marking data dependencies between workflows."""
+class Dataset(os.PathLike, BaseDatasetEventInput):
+    """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
         converter=_sanitize_uri,
@@ -83,11 +99,50 @@ class Dataset(os.PathLike):
     def __fspath__(self) -> str:
         return self.uri
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
         else:
             return NotImplemented
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uri)
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        yield self.uri, self
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return statuses.get(self.uri, False)
+
+
+class _DatasetBooleanCondition(BaseDatasetEventInput):
+    """Base class for dataset boolean logic."""
+
+    agg_func: Callable[[Iterable], bool]
+
+    def __init__(self, *objects: BaseDatasetEventInput) -> None:
+        self.objects = objects
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        seen = set()  # We want to keep the first instance.
+        for o in self.objects:
+            for k, v in o.iter_datasets():
+                if k in seen:
+                    continue
+                yield k, v
+                seen.add(k)
+
+
+class DatasetAny(_DatasetBooleanCondition):
+    """Use to combine datasets schedule references in an "and" relationship."""
+
+    agg_func = any
+
+
+class DatasetAll(_DatasetBooleanCondition):
+    """Use to combine datasets schedule references in an "or" relationship."""
+
+    agg_func = all

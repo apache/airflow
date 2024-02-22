@@ -23,8 +23,8 @@ from collections import defaultdict
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import Dataset
-from airflow.models.dataset import DatasetAll, DatasetAny, DatasetDagRunQueue, DatasetModel
+from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
