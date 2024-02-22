@@ -88,7 +88,7 @@ class _DatasetBooleanCondition(BaseDatasetEventInput):
     def __init__(self, *objects: BaseDatasetEventInput) -> None:
         self.objects = objects
 
-    def evaluate(self, statuses: dict[str, bool]):
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
