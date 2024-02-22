@@ -392,16 +392,24 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_AfterWorkdayTimetable):
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
         """
         when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
+
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
+        workdays = [
+            start_date,
+            start_date + timedelta(days=1),
+            start_date + timedelta(days=2),
+        ]
+        mock_get_next_workday.side_effect = workdays
+
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -877,6 +885,19 @@ class TestCliDags:
         )
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+
+    @mock.patch("airflow.models.dag._get_or_create_dagrun")
+    def test_dag_with_parsing_context(self, mock__get_or_create_dagrun):
+        """
+        airflow parsing context should be set when calling `dags test`.
+        """
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "test_dag_parsing_context", DEFAULT_DATE.isoformat()]
+        )
+        dag_command.dag_test(cli_args)
+
+        # if dag_parsing_context is not set, this DAG will only have 1 task
+        assert len(mock__get_or_create_dagrun.call_args[1]["dag"].task_ids) == 2
 
     def test_dag_test_run_inline_trigger(self, dag_maker):
         now = timezone.utcnow()

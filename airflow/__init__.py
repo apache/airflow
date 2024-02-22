@@ -39,7 +39,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
-__all__ = ["__version__", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "PY311", "XComArg"]
+__all__ = ["__version__", "DAG", "Dataset", "XComArg"]
 
 # Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -54,13 +54,6 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 # access certain trivial constants and free functions (e.g. `__version__`).
 if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
-
-PY36 = sys.version_info >= (3, 6)
-PY37 = sys.version_info >= (3, 7)
-PY38 = sys.version_info >= (3, 8)
-PY39 = sys.version_info >= (3, 9)
-PY310 = sys.version_info >= (3, 10)
-PY311 = sys.version_info >= (3, 11)
 
 # Things to lazy import in form {local_name: ('target_module', 'target_name', 'deprecated')}
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
@@ -77,6 +70,16 @@ def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
+        if name.startswith("PY3") and (py_minor := name[3:]) in ("6", "7", "8", "9", "10", "11", "12"):
+            import warnings
+
+            warnings.warn(
+                f"Python version constraint {name!r} is deprecated and will be removed in the future. "
+                f"Please get version info from the 'sys.version_info'.",
+                DeprecationWarning,
+            )
+            return sys.version_info >= (3, int(py_minor))
+
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     elif deprecated:
         import warnings

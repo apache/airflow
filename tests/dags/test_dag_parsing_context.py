@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,21 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
-import sys
-from typing import TYPE_CHECKING
+from datetime import datetime
 
-if TYPE_CHECKING:
-    from _typeshed import ReadableBuffer
+from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dag_parsing_context import get_parsing_context
 
+DAG_ID = "test_dag_parsing_context"
 
-def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
-    """
-    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
+current_dag_id = get_parsing_context().dag_id
 
-    :param __string: The data to hash. Default to empty str byte.
-    :return: The hashed value.
-    """
-    if sys.version_info >= (3, 9):
-        return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
-    return hashlib.md5(__string)
+with DAG(
+    DAG_ID,
+    start_date=datetime(2024, 2, 21),
+    schedule="0 0 * * *",
+) as the_dag:
+    EmptyOperator(task_id="visible_task")
+
+    if current_dag_id == DAG_ID:
+        # this task will be invisible if the DAG ID is not properly set in the parsing context.
+        EmptyOperator(task_id="conditional_task")
