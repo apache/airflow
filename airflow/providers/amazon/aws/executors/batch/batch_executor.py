@@ -356,8 +356,7 @@ class AwsBatchExecutor(BaseExecutor):
                     break
                 time.sleep(heartbeat_interval)
         except Exception:
-            # We catch any and all exceptions because otherwise they would bubble
-            # up and kill the scheduler process.
+            # This should never happen because sync() should never raise an exception.
             self.log.exception("Failed to end %s", self.__class__.__name__)
 
     def terminate(self):

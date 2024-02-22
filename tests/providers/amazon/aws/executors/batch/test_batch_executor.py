@@ -24,7 +24,8 @@ from unittest import mock
 
 import pytest
 import yaml
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
+from marshmallow import ValidationError
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -38,6 +39,7 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
+    BatchExecutorException,
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
@@ -218,6 +220,26 @@ class TestAwsBatchExecutor:
             submit_job_args["containerOverrides"]["command"] = airflow_cmd2
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
 
+    def test_attempt_submit_jobs_failure(self, mock_executor):
+        mock_executor.batch.submit_job.side_effect = NoCredentialsError()
+        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        assert len(mock_executor.pending_jobs) == 1
+        with pytest.raises(NoCredentialsError, match="Unable to locate credentials"):
+            mock_executor.attempt_submit_jobs()
+        assert len(mock_executor.active_workers.get_all_jobs()) == 0
+        assert len(mock_executor.pending_jobs) == 1
+        mock_resp = {
+            "Error": {
+                "Code": "ExpiredTokenException",
+                "Message": "Expired token error",
+            },
+        }
+        mock_executor.batch.submit_job.side_effect = ClientError(mock_resp, "test_submit_jobs")
+        with pytest.raises(ClientError, match="Expired token error"):
+            mock_executor.attempt_submit_jobs()
+        assert len(mock_executor.active_workers.get_all_jobs()) == 0
+        assert len(mock_executor.pending_jobs) == 1
+
     def test_task_retry_on_api_failure(self, mock_executor, caplog):
         """Test API failure retries"""
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
@@ -275,6 +297,49 @@ class TestAwsBatchExecutor:
         mock_executor.sync_running_jobs()
         for i in range(2):
             assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+
+    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
+    def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):
+        mock_exponentional_backoff_retry.return_value = None
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+        mock_executor.sync()
+        mock_exponentional_backoff_retry.assert_called_once()
+        assert mock_executor.IS_BOTO_CONNECTION_HEALTHY is False
+
+    def test_sync_running_jobs_no_jobs(self, mock_executor, caplog):
+        caplog.set_level("DEBUG")
+        assert len(mock_executor.active_workers.get_all_jobs()) == 0
+        mock_executor.sync_running_jobs()
+        assert "No active Airflow tasks, skipping sync" in caplog.messages[0]
+
+    def test_sync_client_error(self, mock_executor, caplog):
+        mock_executor.execute_async("airflow_key", "airflow_cmd")
+        assert len(mock_executor.pending_jobs) == 1
+        mock_resp = {
+            "Error": {
+                "Code": "ExpiredTokenException",
+                "Message": "Expired token error",
+            },
+        }
+        caplog.set_level("WARNING")
+        mock_executor.batch.submit_job.side_effect = ClientError(mock_resp, "test-sync")
+        mock_executor.sync()
+        assert "AWS credentials are either missing or expired" in caplog.messages[0]
+
+    def test_sync_exception(self, mock_executor, caplog):
+        mock_executor.active_workers.add_job(
+            job_id="job_id",
+            airflow_task_key="airflow_key",
+            airflow_cmd="command",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        assert len(mock_executor.active_workers.get_all_jobs()) == 1
+        caplog.set_level("ERROR")
+        mock_executor.batch.describe_jobs.side_effect = Exception("test-exception")
+        mock_executor.sync()
+        assert f"Failed to sync {mock_executor.__class__.__name__}" in caplog.messages[0]
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
@@ -342,6 +407,20 @@ class TestAwsBatchExecutor:
 
         assert "succeeded" in caplog.text
 
+    @mock.patch(
+        "airflow.providers.amazon.aws.executors.batch.boto_schema.BatchDescribeJobsResponseSchema.load"
+    )
+    def test_describe_jobs(self, mock_load, mock_executor):
+        mock_load.side_effect = ValidationError("Test Error")
+        job_ids = ["id-1", "id-2"]
+        with pytest.raises(BatchExecutorException):
+            mock_executor._describe_jobs(job_ids)
+
+    def test_health_check_failure(self, mock_executor):
+        mock_executor.batch.describe_jobs.side_effect = Exception("Test_failure")
+        with pytest.raises(Exception, match="Test_failure"):
+            mock_executor.start()
+
     def test_start_health_check_config(self, set_env_vars):
         executor = AwsBatchExecutor()
 
@@ -364,6 +443,21 @@ class TestAwsBatchExecutor:
 
         mock_executor.terminate()
         mock_executor.batch.terminate_job.assert_called_once()
+
+    def test_terminate_failure(self, mock_executor, caplog):
+        mock_executor.active_workers.add_job(
+            job_id="job_id",
+            airflow_task_key="airflow_key",
+            airflow_cmd="command",
+            queue="queue",
+            exec_config={},
+            attempt_number=1,
+        )
+        assert len(mock_executor.active_workers.get_all_jobs()) == 1
+        caplog.set_level("ERROR")
+        mock_executor.batch.terminate_job.side_effect = Exception("test-exception")
+        mock_executor.terminate()
+        assert f"Failed to terminate {mock_executor.__class__.__name__}" in caplog.messages[0]
 
     def test_end(self, mock_airflow_key, mock_executor):
         """The end() function should call sync 3 times, and the task should fail on the 3rd call"""
