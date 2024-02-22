@@ -86,6 +86,10 @@ class AirflowTaskTimeout(BaseException):
     """Raise when the task execution times-out."""
 
 
+class AirflowTaskTerminated(BaseException):
+    """Raise when the task execution is terminated."""
+
+
 class AirflowWebServerTimeout(AirflowException):
     """Raise when the web server times out."""
 
