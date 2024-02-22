@@ -46,7 +46,7 @@ class BatchJobDetailSchema(Schema):
 
     @post_load
     def make_job(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of BatchJob instead of a dictionary."""
+        """Overwrite marshmallow load() to return an instance of BatchJob instead of a dictionary."""
         return BatchJob(**data)
 
     class Meta:
