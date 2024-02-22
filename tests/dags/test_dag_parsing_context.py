@@ -16,12 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities, get_action_id, get_entity_type
+from datetime import datetime
 
+from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.dag_parsing_context import get_parsing_context
 
-def test_get_entity_type():
-    assert get_entity_type(AvpEntities.VARIABLE) == "Airflow::Variable"
+DAG_ID = "test_dag_parsing_context"
 
+current_dag_id = get_parsing_context().dag_id
 
-def test_get_action_id():
-    assert get_action_id(AvpEntities.VARIABLE, "GET") == "Variable.GET"
+with DAG(
+    DAG_ID,
+    start_date=datetime(2024, 2, 21),
+    schedule="0 0 * * *",
+) as the_dag:
+    EmptyOperator(task_id="visible_task")
+
+    if current_dag_id == DAG_ID:
+        # this task will be invisible if the DAG ID is not properly set in the parsing context.
+        EmptyOperator(task_id="conditional_task")

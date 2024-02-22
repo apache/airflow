@@ -42,7 +42,7 @@ Homebrew for macOS to install required software packages:
 * libxml
 * helm (only for helm chart tests)
 
-Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
+Refer to the `Dockerfile.ci <../Dockerfile.ci>`__ for a comprehensive list
 of required packages.
 
 .. note::

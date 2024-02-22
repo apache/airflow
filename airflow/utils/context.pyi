@@ -65,7 +65,7 @@ class Context(TypedDict, total=False):
     data_interval_start: DateTime
     ds: str
     ds_nodash: str
-    exception: KeyboardInterrupt | Exception | str | None
+    exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list

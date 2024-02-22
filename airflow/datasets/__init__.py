@@ -46,3 +46,12 @@ class Dataset(os.PathLike):
 
     def __fspath__(self):
         return self.uri
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.uri == other.uri
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash(self.uri)
