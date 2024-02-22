@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-21T21:48:09.180598
+# This constraints file was automatically generated on 2024-02-22T01:04:20.140029
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -367,9 +367,9 @@ greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.60.1
-grpcio-tools==1.60.1
-grpcio==1.60.1
+grpcio-status==1.62.0
+grpcio-tools==1.62.0
+grpcio==1.62.0
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -433,7 +433,7 @@ limits==3.9.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.0.0
+looker-sdk==24.2.0
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
