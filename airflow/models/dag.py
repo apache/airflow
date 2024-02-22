@@ -458,9 +458,7 @@ class DAG(LoggingMixin):
         concurrency: int | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-        max_consecutive_failed_dag_runs: int = airflow_conf.getint(
-            "core", "max_consecutive_failed_dag_runs_per_dag"
-        ),
+        max_consecutive_failed_dag_runs: int | None = None,
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
@@ -623,17 +621,21 @@ class DAG(LoggingMixin):
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         self.max_consecutive_failed_dag_runs = max_consecutive_failed_dag_runs
+        if self.max_consecutive_failed_dag_runs is None:
+            self.max_consecutive_failed_dag_runs = airflow_conf.getint(
+                "core", "max_consecutive_failed_dag_runs_per_dag"
+            )
+        if self.max_consecutive_failed_dag_runs < 0:
+            raise AirflowException(
+                f"Invalid max_consecutive_failed_dag_runs: {str(self.max_consecutive_failed_dag_runs)}."
+                f"Requires max_consecutive_failed_dag_runs >= 0"
+            )
         if self.timetable.active_runs_limit is not None:
             if self.timetable.active_runs_limit < self.max_active_runs:
                 raise AirflowException(
                     f"Invalid max_active_runs: {type(self.timetable)} "
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
-        if self.max_consecutive_failed_dag_runs is not None and self.max_consecutive_failed_dag_runs < 0:
-            raise AirflowException(
-                f"Invalid max_consecutive_failed_dag_runs: {str(self.max_consecutive_failed_dag_runs)}."
-                f"Requires max_consecutive_failed_dag_runs >= 0"
-            )
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:

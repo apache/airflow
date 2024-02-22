@@ -102,6 +102,8 @@ TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
 
+import pydevd_pycharm
+pydevd_pycharm.settrace('192.168.1.4', port=40011, stdoutToServer=True, stderrToServer=True)
 
 @pytest.fixture
 def clear_dags():
@@ -1350,6 +1352,19 @@ class TestDag:
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         assert orm_dag.is_paused
         session.close()
+
+    @mock.patch.dict(os.environ, {
+        "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+    })
+    def test_existing_dag_is_paused_config(self):
+        # config should be set properly
+        assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
+        # checking the default value is coming from config
+        dag = DAG("test_dag")
+        assert dag.max_consecutive_failed_dag_runs == 4
+        # but we can override the value using params
+        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        assert dag.max_consecutive_failed_dag_runs == 2
 
     def test_existing_dag_is_paused_after_limit(self):
         def add_failed_dag_run(id, execution_date):
