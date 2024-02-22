@@ -472,6 +472,6 @@ class _VaultClient(LoggingMixin):
             )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+                path=secret_path, secret=secret, mount_point=mount_point, cas=cas
             )
         return response
