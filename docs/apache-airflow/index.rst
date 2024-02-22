@@ -18,28 +18,30 @@
 What is Airflow™?
 =========================================
 
-`Apache Airflow™ <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
-and monitoring distributable, batch-oriented workflows. Airflow's extensible Python framework enables you to build workflows
-connecting with virtually any technology. A web interface helps manage the state of your workflows. Airflow is
-deployable in many ways, varying from a single process on your laptop to a distributed setup across a network of many
-machines to support even the largest of workflows.
+`Apache Airflow™ <https://github.com/apache/airflow>`_ is an open-source
+platform for developing, scheduling, and monitoring distributable,
+batch-oriented workflows. Airflow's extensible Python framework enables you to
+build workflows connecting with virtually any technology. A web interface helps
+manage the state of your workflows. Airflow is deployable in many ways, varying
+from a single process on your laptop to a distributed setup across a network of
+many machines to support even the largest of workflows.
 
 Workflows as code
 =========================================
-The main characteristic of Airflow workflows is that all workflows are defined in Python code as a
+An Airflow™ workflow is defined in Python code as a
 `Directed Acyclic Graph <https://en.wikipedia.org/wiki/Directed_acyclic_graph>`__.
 
-"Workflows as code" serves several purposes:
+"Workflow as code" is useful because it is:
 
-- **Dynamic**: Airflow pipelines are configured as Python code, allowing for dynamic pipeline generation.
-- **Extensible**: The Airflow™ framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
-- **Flexible**: Workflows can be easily parameterized by using the built-in `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
+:**Dynamic**: Airflow™ pipelines are configured as Python code, allowing for dynamic pipeline generation.
+:**Extensible**: The Airflow™ framework contains operators to connect with numerous technologies. All Airflow™ components are extensible to easily adjust to your environment.
+:**Flexible**: Airflow™ workflows can be easily parameterized by using the built-in `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
 
 Take a look at the following snippet of code:
 
 .. code-block:: python
 
-  # Create tasks using a decorated DAG and pass values between those tasks.
+  '''Create some tasks using a decorated DAG and pass values between them using xcoms.'''
   from datetime import datetime
   from airflow.decorators import task, dag
 
@@ -47,52 +49,66 @@ Take a look at the following snippet of code:
   def define_dag():
 
     @task
-    def add_one(x):                                                               # Add one
-      print(f"AAAAAAAAAAAA A2 add one to: {x}")                                   # Look in the airflow/logs folder to see the results
-      return x + 1
+    def start():                                                                  # Start message
+      print("Started")
 
     @task
-    def sum_it(values):                                                           # Sum the values
-      return sum(values)
+    def make_air(p):                                                              # Create some data
+      return "air"
 
     @task
-    def print_it(ban):                                                            # Print the sum
-      print(f"BBBBBBBBBBBBBB2 total is:  {ban}")                                  # Look in the airflow/logs folder to see the results
+    def make_flow(p):                                                             # Create some data
+      return "flow"
+
+    @task
+    def concatenate(a, b):                                                        # Concatenate
+      return f"{a} {b}"
+
+    @task
+    def say_it(ban):                                                              # Print the sum
+      print(f"AAAAAA:  {ban}")                                                    # Look in the airflow/logs folder to see the results
 
     @task
     def say_it_twice(ban):                                                        # Print the sum again
-      print(f"CCCCCCCCCCCCCC2 total is:  {ban} {ban}")                            # Look in the airflow/logs folder to see the results
+      print(f"BBBBBB:  {ban} {ban}")                                              # Look in the airflow/logs folder to see the results
 
-    added_values = add_one.expand(x=[1, 2, 3, 4, 5, 6])                           # These get executed in parallel
-    summed       = sum_it        (added_values)                                   # The results of each return in add_one are returned as array via xcom inter task communication
-    print_it                     (summed)                                         # Print the result in the airflow logs/folder
-    say_it_twice                 (summed)                                         # Print the result in the airflow logs/folder
+    @task
+    def finished(s1, s2):                                                         # Finish message
+      print("Finished")
+
+    s = start       ()                                                            # First task
+    c = concatenate (make_air(s), make_flow(s))                                   # Make the data after the start task has run and concatenate it
+    p = say_it      (c)                                                           # Print the concatenated data once it is ready
+    q = say_it_twice(c)
+    finished        (p, q)                                                        # Final task runs after all prints have been completed
 
   define_dag()                                                                    # Call the decorated routine to define the dag
 
-
-Here you see:
+Here you can see:
 
 - A `DAG <https://en.wikipedia.org/wiki/Directed_acyclic_graph>`__ named "demo" created via the ``@dag`` decorator, starting on Feb 21st 2024 and running once a day.
-- Four task descriptions created via ``@task`` decorators that between them take an array of numbers, add them up and print their sum.
-- The execution order dependencies between the tasks can be explicitly stated with ``>>`` or inferred by Airflow from their parameters.
+- A ``start`` task that runs first because it is not dependent on anything else.
+- Two ``make`` tasks that create some data and return it through xcoms.
+- A ``concatenate`` task that uses the data created by the ``make`` tasks.
+- Two ``print`` tasks that print the data in different ways.
+- A final ``finish`` task that runs after the ``print`` tasks have finished.
 
-Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
-of the "demo" DAG is visible in the web interface:
+Airflow™ evaluates this script after you save it into the ``dags/`` folder and
+executes the tasks at the set interval and in the defined order. The status of
+the "demo" ``DAG`` is visible in the web interface:
 
 .. image:: /img/demo_graph_view.png
-  :alt: Demo DAG in the Graph View, showing the status of one DAG run
+  :alt: Demo DAG in the Graph View, showing the status of one ``DAG`` run
 
-This example demonstrates a simple Python script, but these tasks can run any arbitrary code. Think
-of running a Spark job, moving data between two buckets, or sending an email. The same structure can also be
-seen running over time:
+The result of running this ``DAG`` can be seen in the ``logs/`` folder, where
+each green column on the left represents one DAG run:
 
-.. image:: /img/demo_grid_view.png
-  :alt: Demo DAG in the Grid View, showing the status of all DAG runs
+.. image:: /img/demo_log.png
+  :alt: Output from Demo DAG
 
-Each column represents one DAG run. These are two of the most used views in Airflow, but there are several
-other views which allow you to deep dive into the state of your workflows.
-
+This example demonstrates a simple Python script, but such tasks can run any
+arbitrary code: think of running a Spark job, or moving data between two
+buckets or sending an email.
 
 Why Airflow™?
 =========================================
