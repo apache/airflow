@@ -37,11 +37,11 @@ import type { Row, SortingRule } from "react-table";
 import { MdClose, MdSearch } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
-import { useDatasets } from "src/api";
+import { useDatasetsSummary } from "src/api";
 import { Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
-import type { DateOption } from "src/api/useDatasets";
+import type { DateOption } from "src/api/useDatasetsSummary";
 
 interface Props {
   onSelect: (datasetId: string) => void;
@@ -99,7 +99,7 @@ const DatasetsList = ({ onSelect }: Props) => {
   const {
     data: { datasets, totalEntries },
     isLoading,
-  } = useDatasets({
+  } = useDatasetsSummary({
     limit,
     offset,
     order,
