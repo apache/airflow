@@ -509,8 +509,9 @@ def skip_if_wrong_backend(marker, item):
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
             f"The test requires one of {valid_backend_names} backend started and "
-            f"{environment_variable_name} environment variable to be set to 'true' (it is "
-            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
+            f"{environment_variable_name} environment variable to be set to either of {valid_backend_names}"
+            f" (it is currently set to {environment_variable_value}'). "
+            f"It can be set by specifying backend at breeze startup: {item}"
         )
 
 
