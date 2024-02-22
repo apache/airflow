@@ -774,17 +774,17 @@ def prepare_provider_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    temp_provider_packages = None
+    packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override provider_packages with values from PACKAGE_LIST
-        temp_provider_packages = tuple(package_list.split(","))
-    if provider_packages and package_list:
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if provider_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
-            f"Overriding to {temp_provider_packages}"
+            f"Overriding to {packages_list_as_tuple}"
         )
-    provider_packages = temp_provider_packages or ()
+    provider_packages = packages_list_as_tuple or provider_packages
 
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
@@ -1464,17 +1464,17 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
-    temp_doc_packages = None
+    packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override doc_packages with values from PACKAGE_LIST
-        temp_doc_packages = tuple(package_list.split(","))
-    if doc_packages and package_list:
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
-            f"Overriding to {temp_doc_packages}"
+            f"Overriding to {packages_list_as_tuple}"
         )
-    doc_packages = temp_doc_packages or ()
+    doc_packages = packages_list_as_tuple or doc_packages
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(
