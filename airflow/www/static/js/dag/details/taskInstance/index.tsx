@@ -28,6 +28,8 @@ import NotesAccordion from "src/dag/details/NotesAccordion";
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
+import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import TriggererInfo from "./TriggererInfo";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -106,6 +108,10 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           tryNumber={taskInstance?.tryNumber || gridInstance.tryNumber}
         />
       )}
+      {group.hasOutletDatasets && (
+        <DatasetUpdateEvents taskId={taskId} runId={runId} />
+      )}
+      <TriggererInfo taskInstance={taskInstance} />
       <Details
         gridInstance={gridInstance}
         taskInstance={taskInstance}

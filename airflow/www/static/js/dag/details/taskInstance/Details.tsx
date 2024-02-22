@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code } from "@chakra-ui/react";
+import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
@@ -32,7 +32,6 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
-import DatasetUpdateEvents from "./DatasetUpdateEvents";
 
 interface Props {
   gridInstance: GridTaskInstance;
@@ -48,7 +47,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 
   const mappedStates = !taskInstance ? gridInstance.mappedStates : undefined;
 
-  const { isMapped, tooltip, operator, hasOutletDatasets, triggerRule } = group;
+  const { isMapped, tooltip, operator, triggerRule } = group;
 
   const { totalTasks, childTaskMap } = getGroupAndMapSummary({
     group,
@@ -82,39 +81,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isOverall = (isMapped || isGroup) && "Overall ";
 
   return (
-    <Flex flexWrap="wrap" justifyContent="space-between">
-      {!!taskInstance?.trigger && !!taskInstance?.triggererJob && (
-        <>
-          <Text as="strong" mb={3}>
-            Triggerer info
-          </Text>
-          <Table variant="striped" mb={3}>
-            <Tbody>
-              <Tr>
-                <Td>Trigger class</Td>
-                <Td>{`${taskInstance?.trigger?.classpath}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Trigger ID</Td>
-                <Td>{`${taskInstance?.trigger?.id}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Trigger creation time</Td>
-                <Td>{`${taskInstance?.trigger?.createdDate}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Assigned triggerer</Td>
-                <Td>{`${taskInstance?.triggererJob?.hostname}`}</Td>
-              </Tr>
-              <Tr>
-                <Td>Latest triggerer heartbeat</Td>
-                <Td>{`${taskInstance?.triggererJob?.latestHeartbeat}`}</Td>
-              </Tr>
-            </Tbody>
-          </Table>
-        </>
-      )}
-
+    <Box mt={3} flexGrow={1}>
       <Text as="strong" mb={3}>
         Task Instance Details
       </Text>
@@ -305,10 +272,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
           )}
         </Tbody>
       </Table>
-      {hasOutletDatasets && (
-        <DatasetUpdateEvents taskId={taskId} runId={runId} />
-      )}
-    </Flex>
+    </Box>
   );
 };
 
