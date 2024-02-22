@@ -44,17 +44,18 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
 
 
+# Used to lookup an ExecutorName via a string alias or module path. An
+# executor may have both so we need two lookup dicts.
+_alias_to_executors: dict[str, ExecutorName] = {}
+_module_to_executors: dict[str, ExecutorName] = {}
+# Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
+_executor_names: list[ExecutorName] = []
+# Used to cache executors so that we don't construct executor objects unnecessarily
+_loaded_executors: dict[ExecutorName, BaseExecutor] = {}
+
+
 class ExecutorLoader:
     """Keeps constants for all the currently available executors."""
-
-    # Used to lookup an ExecutorName via a string alias or module path. An
-    # executor may have both so we need two lookup dicts.
-    _alias_to_executors: dict[str, ExecutorName] = {}
-    _module_to_executors: dict[str, ExecutorName] = {}
-    # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
-    _executor_names: list[ExecutorName] = []
-    # Used to cache executors so that we don't construct executor objects unnecessarily
-    _loaded_executors: dict[ExecutorName, BaseExecutor] = {}
 
     executors = {
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
@@ -91,8 +92,8 @@ class ExecutorLoader:
         """
         from airflow.configuration import conf
 
-        if cls._executor_names:
-            return cls._executor_names
+        if _executor_names:
+            return _executor_names
 
         executor_names_raw = conf.get_mandatory_list_value("core", "EXECUTOR")
 
@@ -142,12 +143,11 @@ class ExecutorLoader:
         for executor_name in executor_names:
             # Executors will not always have aliases
             if executor_name.alias:
-                cls._alias_to_executors[executor_name.alias] = executor_name
+                _alias_to_executors[executor_name.alias] = executor_name
             # All executors will have a module path
-            cls._module_to_executors[executor_name.module_path] = executor_name
-
-        # Cache the executor names, so the logic of this method only runs once
-        cls._executor_names = executor_names
+            _module_to_executors[executor_name.module_path] = executor_name
+            # Cache the executor names, so the logic of this method only runs once
+            _executor_names.append(executor_name)
 
         return executor_names
 
@@ -186,9 +186,9 @@ class ExecutorLoader:
     @classmethod
     def lookup_executor_name_by_str(cls, executor_name_str: str) -> ExecutorName:
         # lookup the executor by alias first, if not check if we're given a module path
-        if executor_name := cls._alias_to_executors.get(executor_name_str):
+        if executor_name := _alias_to_executors.get(executor_name_str):
             return executor_name
-        elif executor_name := cls._module_to_executors.get(executor_name_str):
+        elif executor_name := _module_to_executors.get(executor_name_str):
             return executor_name
         else:
             raise AirflowException(f"Unknown executor being loaded: {executor_name}")
@@ -212,8 +212,8 @@ class ExecutorLoader:
             _executor_name = executor_name
 
         # Check if the executor has been previously loaded. Avoid constructing a new object
-        if _executor_name in cls._loaded_executors:
-            return cls._loaded_executors[_executor_name]
+        if _executor_name in _loaded_executors:
+            return _loaded_executors[_executor_name]
 
         try:
             if _executor_name.alias == CELERY_KUBERNETES_EXECUTOR:
@@ -239,7 +239,7 @@ class ExecutorLoader:
         executor.name = _executor_name
         # Cache this executor by name here, so we can look it up later if it is
         # requested again, and not have to construct a new object
-        cls._loaded_executors[_executor_name] = executor
+        _loaded_executors[_executor_name] = executor
 
         return executor
 
