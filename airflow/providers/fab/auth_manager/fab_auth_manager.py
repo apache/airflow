@@ -168,7 +168,11 @@ class FabAuthManager(BaseAuthManager):
             validate_responses=True,
         )
 
-        connexion_app.extensions["csrf"].exempt(api.blueprint)
+        # Exempt the API blueprint from CSRF protection
+        # Ref: https://github.com/apache/airflow/pull/36052#issuecomment-1898786641
+        if api:
+            self.appbuilder.app.extensions["csrf"].exempt(api.blueprint)
+
         return api.blueprint if api else None
 
     def get_user_display_name(self) -> str:
