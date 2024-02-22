@@ -28,9 +28,8 @@ import {
 import { getDagRunLabel, getMetaValue, getTask } from "src/utils";
 import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
-import { useGridData } from "src/api";
+import { useGridData, useTaskInstance } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
-import { useTaskInstance } from "src/api";
 
 import BreadcrumbText from "./BreadcrumbText";
 
@@ -52,7 +51,7 @@ const Header = () => {
     dagRunId: runId || "",
     taskId: taskId || "",
     mapIndex,
-    enabled: mapIndex !== undefined
+    enabled: mapIndex !== undefined,
   });
 
   const dagRun = dagRuns.find((r) => r.runId === runId);
@@ -75,9 +74,9 @@ const Header = () => {
     // If a runId includes the runtype then parse the time, otherwise use the custom run id
     const runName =
       runId.includes("manual__") ||
-        runId.includes("scheduled__") ||
-        runId.includes("backfill__") ||
-        runId.includes("dataset_triggered__") ? (
+      runId.includes("scheduled__") ||
+      runId.includes("backfill__") ||
+      runId.includes("dataset_triggered__") ? (
         <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
       ) : (
         runId
@@ -141,7 +140,10 @@ const Header = () => {
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}
           >
-            <BreadcrumbText label="Map Index" value={taskInstance?.renderedMapIndex || mapIndex} />
+            <BreadcrumbText
+              label="Map Index"
+              value={taskInstance?.renderedMapIndex || mapIndex}
+            />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
