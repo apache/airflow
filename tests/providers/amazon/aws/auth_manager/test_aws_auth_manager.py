@@ -519,7 +519,7 @@ class TestAwsAuthManager:
         assert result
 
     @patch.object(AwsAuthManager, "get_user")
-    def test_get_permitted_menu_items(self, mock_get_user, auth_manager, test_user):
+    def test_filter_permitted_menu_items(self, mock_get_user, auth_manager, test_user):
         batch_is_authorized_output = [
             {
                 "request": {
@@ -575,7 +575,7 @@ class TestAwsAuthManager:
 
         mock_get_user.return_value = test_user
 
-        result = auth_manager.get_permitted_menu_items(
+        result = auth_manager.filter_permitted_menu_items(
             [
                 MenuItem("Category1", childs=[MenuItem(RESOURCE_CONNECTION), MenuItem(RESOURCE_VARIABLE)]),
                 MenuItem("Category2", childs=[MenuItem(RESOURCE_DATASET)]),
@@ -622,9 +622,9 @@ class TestAwsAuthManager:
         assert result[1].name == RESOURCE_AUDIT_LOG
 
     @patch.object(AwsAuthManager, "get_user")
-    def test_get_permitted_menu_items_logged_out(self, mock_get_user, auth_manager):
+    def test_filter_permitted_menu_items_logged_out(self, mock_get_user, auth_manager):
         mock_get_user.return_value = None
-        result = auth_manager.get_permitted_menu_items(
+        result = auth_manager.filter_permitted_menu_items(
             [
                 MenuItem(RESOURCE_AUDIT_LOG),
             ]
@@ -633,10 +633,10 @@ class TestAwsAuthManager:
         assert result == []
 
     @patch.object(AwsAuthManager, "get_user")
-    def test_get_permitted_menu_items_wrong_menu_item(self, mock_get_user, auth_manager, test_user):
+    def test_filter_permitted_menu_items_wrong_menu_item(self, mock_get_user, auth_manager, test_user):
         mock_get_user.return_value = test_user
         with pytest.raises(AirflowException, match="Unknown resource name"):
-            auth_manager.get_permitted_menu_items(
+            auth_manager.filter_permitted_menu_items(
                 [
                     MenuItem("Test"),
                 ]

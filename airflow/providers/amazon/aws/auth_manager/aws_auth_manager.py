@@ -22,9 +22,6 @@ from typing import TYPE_CHECKING, Sequence, cast
 
 from flask import session, url_for
 
-from airflow.auth.managers.models.resource_details import (
-    AccessView,
-)
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
@@ -69,6 +66,7 @@ from airflow.security.permissions import (
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
     from airflow.auth.managers.models.resource_details import (
+        AccessView,
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
@@ -445,7 +443,7 @@ class AwsAuthManager(BaseAuthManager):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
 
-    def get_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         """
         Filter menu items based on user permissions.
 
