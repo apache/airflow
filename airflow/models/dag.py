@@ -80,6 +80,13 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
+from airflow.datasets import (
+    BaseDatasetEventInput,
+    Dataset,
+    DatasetAll,
+    DatasetsExpression,
+    extract_datasets,
+)
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -100,14 +107,6 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.param import DagParam, ParamsDict
-from airflow.datasets import (
-    BaseDatasetEventInput,
-    Dataset,
-    DatasetAll,
-    DatasetAny,
-    DatasetsExpression,
-    extract_datasets,
-)
 from airflow.models.taskinstance import (
     Context,
     TaskInstance,
@@ -590,7 +589,7 @@ class DAG(LoggingMixin):
         self.dataset_triggers: BaseDatasetEventInput | None = None
         if isinstance(schedule, DatasetsExpression):
             self.dataset_triggers = extract_datasets(dataset_expression=schedule)
-        elif isinstance(schedule, (DatasetAll, DatasetAny)):
+        elif isinstance(schedule, BaseDatasetEventInput):
             self.dataset_triggers = schedule
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
