@@ -35,14 +35,13 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetAll, DatasetAny
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
@@ -790,7 +789,7 @@ class DependencyDetector:
             return
         if not dag.dataset_triggers:
             return
-        for uri in dag.dataset_triggers.all_datasets().keys():
+        for uri, _ in dag.dataset_triggers.iter_datasets():
             yield DagDependency(
                 source="dataset",
                 target=dag.dag_id,

@@ -80,6 +80,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
+from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -98,16 +99,16 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import (
+from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
+from airflow.models.param import DagParam, ParamsDict
+from airflow.datasets import (
+    BaseDatasetEventInput,
+    Dataset,
     DatasetAll,
     DatasetAny,
-    DatasetBooleanCondition,
-    DatasetDagRunQueue,
-    DatasetModel,
     DatasetsExpression,
     extract_datasets,
 )
-from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
     TaskInstance,
@@ -152,7 +153,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
 
-    from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
@@ -176,7 +176,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"], DatasetsExpression]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"], DatasetsExpression]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -588,14 +588,12 @@ class DAG(LoggingMixin):
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: DatasetBooleanCondition | None = None
+        self.dataset_triggers: BaseDatasetEventInput | None = None
         if isinstance(schedule, DatasetsExpression):
             self.dataset_triggers = extract_datasets(dataset_expression=schedule)
         elif isinstance(schedule, (DatasetAll, DatasetAny)):
             self.dataset_triggers = schedule
-        if isinstance(schedule, Collection) and not isinstance(schedule, str):
-            from airflow.datasets import Dataset
-
+        elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
             self.dataset_triggers = DatasetAll(*schedule)
@@ -3185,7 +3183,7 @@ class DAG(LoggingMixin):
                 if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
                     curr_orm_dag.schedule_dataset_references = []
             else:
-                for dataset in dag.dataset_triggers.all_datasets().values():
+                for _, dataset in dag.dataset_triggers.iter_datasets():
                     dag_references[dag.dag_id].add(dataset.uri)
                     input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
@@ -3797,14 +3795,14 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: DatasetBooleanCondition, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseDatasetEventInput, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
             try:
                 return cond.evaluate(statuses)
             except AttributeError:
-                log.warning("dag '%s' has old serialization; skipping dag run creation.", dag_id)
+                log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None
 
         # this loads all the DDRQ records.... may need to limit num dags
