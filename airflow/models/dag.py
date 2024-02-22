@@ -80,7 +80,6 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -176,7 +175,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"], DatasetsExpression]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, DatasetsExpression, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 

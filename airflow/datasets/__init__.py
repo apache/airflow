@@ -50,7 +50,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     __version__: ClassVar[int] = 1
 
     @uri.validator
-    def _check_uri(self, attr, uri: str):
+    def _check_uri(self, attr, uri: str) -> None:
         if uri.isspace():
             raise ValueError(f"{attr.name} cannot be just whitespace")
         try:
@@ -64,7 +64,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __fspath__(self) -> str:
         return self.uri
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
         else:
@@ -73,14 +73,10 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __hash__(self):
         return hash(self.uri)
 
-    def __or__(self, other):
-        from airflow.models.dataset import DatasetAny
-
+    def __or__(self, other: Dataset):
         return DatasetAny(self, other)
 
-    def __and__(self, other):
-        from airflow.models.dataset import DatasetAll
-
+    def __and__(self, other: Dataset):
         return DatasetAll(self, other)
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
@@ -116,8 +112,90 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
+    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll) -> None:
+        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
+        super().__init__(*objects)
+
+    def __or__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAny(*self.objects, other)
+        return NotImplemented
+
+    def __and__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAll(self, other)
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        return f"DatasetAny({', '.join(map(str, self.objects))})"
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
+
+    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll):
+        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
+        super().__init__(*objects)
+
+    def __or__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAny(self, other)
+        return NotImplemented
+
+    def __and__(self, other):
+        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
+            return DatasetAll(*self.objects, other)
+        return NotImplemented
+
+    def __repr__(self) -> str:
+        return f"DatasetAll({', '.join(map(str, self.objects))})"
+
+
+class DatasetsExpression:
+    """
+    Represents a node in an expression tree for dataset conditions.
+
+    :param value: The value of the node, which can be a 'Dataset', '&', or '|'.
+    :param left: The left child node.
+    :param right: The right child node.
+    """
+
+    def __init__(self, value, left=None, right=None) -> None:
+        self.value = value  # value can be 'Dataset', '&', or '|'
+        self.left = left
+        self.right = right
+
+    def __or__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+        return DatasetsExpression("|", self, other)
+
+    def __and__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+        return DatasetsExpression("&", self, other)
+
+    def __repr__(self) -> str:
+        if isinstance(self.value, Dataset):
+            return f"Dataset(uri='{self.value.uri}')"
+        elif self.value == "&":
+            return repr(DatasetAll(self.left, self.right))
+        elif self.value == "|":
+            return repr(DatasetAny(self.left, self.right))
+        else:
+            return f"Invalid DatasetsExpression(value={self.value})"
+
+
+def extract_datasets(
+    dataset_expression: DatasetsExpression | Dataset,
+) -> BaseDatasetEventInput:
+    """
+    Extract datasets from the given DatasetsExpression.
+
+    :param dataset_expression: The DatasetsExpression to extract from.
+    """
+    if isinstance(dataset_expression, DatasetsExpression):
+        if dataset_expression.value == "&":
+            return DatasetAll(dataset_expression.left, dataset_expression.right)
+        elif dataset_expression.value == "|":
+            return DatasetAny(dataset_expression.left, dataset_expression.right)
+        raise ValueError("Invalid Expression node value")
+    return dataset_expression

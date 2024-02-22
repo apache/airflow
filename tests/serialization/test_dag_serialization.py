@@ -554,9 +554,6 @@ class TestStringifiedDAGs:
         compare_serialization_list = {
             "dataset_triggers",
         }
-        compare_serialization_list = {
-            "dataset_triggers",
-        }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
             actual = getattr(serialized_dag, field)
