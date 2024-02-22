@@ -37,6 +37,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
@@ -348,9 +349,11 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
+    if is_sqlalchemy_v1():
+        # Allow the user to specify an encoding for their DB otherwise default
+        # to utf-8 so jobs & users with non-latin1 characters can still use us.
+        # This parameter was removed in SQLAlchemy 2.x.
+        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 

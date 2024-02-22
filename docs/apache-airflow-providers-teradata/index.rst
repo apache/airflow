@@ -71,7 +71,7 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-teradata
+apache-airflow-providers-teradata package
 ------------------------------------------------------
 
 `Teradata <https://www.teradata.com/>`__
@@ -82,15 +82,15 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This is a provider package for ``teradata`` provider. All classes for this provider package
-are in ``airflow.providers.teradata`` python package.
+This package is for the ``teradata`` provider.
+All classes for this package are included in the ``airflow.providers.teradata`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-teradata``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-teradata``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

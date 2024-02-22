@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime as dt
+from importlib import metadata
 from typing import TYPE_CHECKING, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from packaging import version
 from pendulum.datetime import DateTime
 
 if TYPE_CHECKING:
@@ -29,7 +31,7 @@ if TYPE_CHECKING:
 
     from airflow.typing_compat import Literal
 
-_PENDULUM3 = pendulum.__version__.startswith("3")
+_PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 # UTC Timezone as a tzinfo instance. Actual value depends on pendulum version:
 # - Timezone("UTC") in pendulum 3
 # - FixedTimezone(0, "UTC") in pendulum 2

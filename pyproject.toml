@@ -679,7 +679,7 @@ discord = [ # source: airflow/providers/discord/provider.yaml
   "apache-airflow[http]",
 ]
 docker = [ # source: airflow/providers/docker/provider.yaml
-  "docker>=5.0.3",
+  "docker>=6",
   "python-dotenv>=0.21.0",
 ]
 elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
@@ -1340,6 +1340,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
+"airflow/__init__.py" = ["F401"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1420,9 +1421,6 @@ combine-as-imports = true
 "airflow/providers_manager.py" = ["D105"]
 "airflow/sensors/base.py" = ["D105"]
 "airflow/sensors/external_task.py" = ["D105"]
-"airflow/ti_deps/deps/base_ti_dep.py" = ["D105"]
-"airflow/ti_deps/deps/task_not_running_dep.py" = ["D105"]
-"airflow/ti_deps/deps/valid_state_dep.py" = ["D105"]
 "airflow/timetables/events.py" = ["D105"]
 "airflow/triggers/base.py" = ["D105"]
 "airflow/utils/context.py" = ["D105"]
@@ -1464,8 +1462,17 @@ combine-as-imports = true
 banned-module-level-imports = ["numpy", "pandas"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+# Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
+"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
+"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
+"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
+"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
+"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
+"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
+# Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
@@ -1478,6 +1485,12 @@ banned-module-level-imports = ["numpy", "pandas"]
 "typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
+# Flask deprecations, worthwhile to keep it until we migrate to Flask 3.0+
+"flask._app_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask._request_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
