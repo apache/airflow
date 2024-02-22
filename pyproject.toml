@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.31",
+    "trove-classifiers==2024.2.22",
 ]
 build-backend = "hatchling.build"
 
@@ -1544,6 +1544,7 @@ omit = [
     "airflow/www/node_modules/**",
     "airflow/providers/google/ads/_vendor/**",
 ]
+
 
 [tool.coverage.report]
 skip_empty = true
