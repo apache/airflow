@@ -76,6 +76,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
@@ -2413,7 +2414,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, force_fail=True, session=session)
                 session.commit()
                 raise
-            except (AirflowTaskTimeout, AirflowException) as e:
+            except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 # for case when task is marked as success/failed externally
@@ -2498,7 +2499,7 @@ class TaskInstance(Base, LoggingMixin):
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
-            raise AirflowException("Task received SIGTERM signal")
+            raise AirflowTaskTerminated("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 

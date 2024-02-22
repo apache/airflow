@@ -56,7 +56,7 @@ if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     node_modules_directory = www_directory / "node_modules"
     dist_directory = www_directory / "static" / "dist"
-    WWW_HASH_FILE.parent.mkdir(exist_ok=True)
+    WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
         old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
         new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")

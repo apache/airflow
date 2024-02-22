@@ -26,7 +26,8 @@ import { Wrapper } from "src/utils/testUtils";
 
 import type { NodeProps } from "reactflow";
 import type { Task, TaskInstance } from "src/types";
-import { CustomNodeProps, BaseNode as Node } from "./Node";
+import type { CustomNodeProps } from "./Node";
+import DagNode from "./DagNode";
 
 const mockNode: NodeProps<CustomNodeProps> = {
   id: "task_id",
@@ -34,6 +35,7 @@ const mockNode: NodeProps<CustomNodeProps> = {
     label: "task_id",
     height: 50,
     width: 200,
+    class: "dag",
     instance: {
       state: "success",
       runId: "run_id",
@@ -65,7 +67,7 @@ const mockNode: NodeProps<CustomNodeProps> = {
 
 describe("Test Graph Node", () => {
   test("Renders normal task correctly", async () => {
-    const { getByText, getByTestId } = render(<Node {...mockNode} />, {
+    const { getByText, getByTestId } = render(<DagNode {...mockNode} />, {
       wrapper: Wrapper,
     });
 
@@ -77,7 +79,7 @@ describe("Test Graph Node", () => {
 
   test("Renders mapped task correctly", async () => {
     const { getByText } = render(
-      <Node
+      <DagNode
         {...mockNode}
         data={{
           ...mockNode.data,
@@ -99,7 +101,7 @@ describe("Test Graph Node", () => {
 
   test("Renders task group correctly", async () => {
     const { getByText } = render(
-      <Node
+      <DagNode
         {...mockNode}
         data={{ ...mockNode.data, childCount: 5, isOpen: false }}
       />,
@@ -114,7 +116,7 @@ describe("Test Graph Node", () => {
 
   test("Renders normal task correctly", async () => {
     const { getByTestId } = render(
-      <Node {...mockNode} data={{ ...mockNode.data, isActive: false }} />,
+      <DagNode {...mockNode} data={{ ...mockNode.data, isActive: false }} />,
       {
         wrapper: Wrapper,
       }
