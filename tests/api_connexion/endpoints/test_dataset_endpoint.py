@@ -580,9 +580,19 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
 
 
 class TestPostDatasetEvents(TestDatasetEndpoint):
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
+
+    @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, session):
         self._create_dataset(session)
-        event_payload = {"dataset_uri": "TEST_DATASET_URI", "extra": {"foo": "bar"}}
+        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
         response = self.client.post(
             "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -591,13 +601,14 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "id": ANY,
+            "created_dagruns": [],
             "dataset_uri": event_payload["dataset_uri"],
             "dataset_id": ANY,
             "extra": {"foo": "bar"},
             "source_dag_id": None,
             "source_task_id": None,
             "source_run_id": None,
-            "source_map_index": None,
+            "source_map_index": -1,
             "timestamp": self.default_time,
         }
 
