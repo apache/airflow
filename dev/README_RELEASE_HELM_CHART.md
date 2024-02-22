@@ -25,6 +25,7 @@
   - [Set environment variables](#set-environment-variables)
   - [Setup k8s environment (mainly helm chart)](#setup-k8s-environment-mainly-helm-chart)
   - [Build Release Notes](#build-release-notes)
+  - [Update minimum version of Kubernetes](#update-minimum-version-of-kubernetes)
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
@@ -152,6 +153,15 @@ You can leave the k8s environment now:
 ```shell
 exit
 ```
+
+## Update minimum version of Kubernetes
+
+The minimum version of Kubernetes should be updated according to
+https://github.com/apache/airflow/blob/main/README.md#requirements in two places:
+
+* [../helm-chart/README.md](../helm-chart/README.md)
+* [../docs/helm-chart/index.rst](../docs/helm-chart/index.rst)
+
 
 ## Build RC artifacts
 
