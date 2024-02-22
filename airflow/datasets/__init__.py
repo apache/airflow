@@ -49,7 +49,12 @@ def _sanitize_uri(uri: str) -> str:
     if not uri.isascii():
         raise ValueError("Dataset URI must only consist of ASCII characters")
     parsed = urllib.parse.urlsplit(uri)
-    if (normalized_scheme := parsed.scheme.lower()) == "airflow":
+    if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
+        return uri
+    normalized_scheme = parsed.scheme.lower()
+    if normalized_scheme.startswith("x-"):
+        return uri
+    if normalized_scheme == "airflow":
         raise ValueError("Dataset scheme 'airflow' is reserved")
     _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
     if auth_exists:

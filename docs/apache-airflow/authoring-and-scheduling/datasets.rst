@@ -65,25 +65,29 @@ Airflow makes no assumptions about the content or location of the data represent
 
 A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``https`` (by the HTTP provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
 
-.. note::
+What is valid URI?
+------------------
 
-    Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
+Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
 
-    The URI is also case sensitive, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
-
-    Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part to correctly distinguish between resources.
-
-If you wish to define datasets with a scheme without additional semantic constraints, use a scheme with the prefix ``x-``. Airflow will skip any semantic validation on URIs with such schemes.
+The URI is also case sensitive, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
 
 Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
 
-If you try to use either of the examples below, your code will cause a ValueError to be raised, and Airflow will not import it.
+Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part to correctly distinguish between resources.
 
 .. code-block:: python
 
     # invalid datasets:
     reserved = Dataset("airflow://example_dataset")
     not_ascii = Dataset("èxample_datašet")
+
+If you wish to define datasets with a scheme without additional semantic constraints, use a scheme with the prefix ``x-``. Airflow will skip any semantic validation on URIs with such schemes.
+
+.. code-block:: python
+
+    # valid dataset, treated as a plain string
+    my_ds = Dataset("x-my-thing://foobarbaz")
 
 The identifier does not have to be absolute; it can be a scheme-less, relative URI, or even just a simple path or string:
 
