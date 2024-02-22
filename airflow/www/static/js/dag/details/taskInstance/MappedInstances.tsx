@@ -68,7 +68,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const data = useMemo(
     () =>
       taskInstances.map((mi) => ({
-        mapIndex: mi.renderedMapIndex === null ? mi.mapIndex : mi.renderedMapIndex,
+        mapIndex: mi.renderedMapIndex || mi.mapIndex,
         state: (
           <Flex alignItems="center">
             <StatusWithNotes
