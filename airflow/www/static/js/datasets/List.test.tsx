@@ -22,7 +22,7 @@
 import React from "react";
 import { render } from "@testing-library/react";
 
-import * as useDatasetsModule from "src/api/useDatasets";
+import * as useDatasetsModule from "src/api/useDatasetsSummary";
 import { Wrapper } from "src/utils/testUtils";
 
 import type { UseQueryResult } from "react-query";
