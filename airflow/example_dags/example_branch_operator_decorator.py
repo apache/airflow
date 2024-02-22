@@ -94,7 +94,9 @@ if is_venv_installed():
 
         join >> random_choice_ext_py
 
-        join_ext_py = EmptyOperator(task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        join_ext_py = EmptyOperator(
+            task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+        )
 
         for option in options:
 
