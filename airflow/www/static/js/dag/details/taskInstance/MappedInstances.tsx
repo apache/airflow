@@ -18,7 +18,7 @@
  */
 
 import React, { useState, useMemo, useRef } from "react";
-import { Flex, Box } from "@chakra-ui/react";
+import { Flex, Box, VisuallyHidden } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
 
@@ -68,7 +68,8 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const data = useMemo(
     () =>
       taskInstances.map((mi) => ({
-        mapIndex: mi.renderedMapIndex || mi.mapIndex,
+        ...mi,
+        renderedMapIndex: mi.renderedMapIndex,
         state: (
           <Flex alignItems="center">
             <StatusWithNotes
@@ -94,6 +95,9 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Map Index",
         accessor: "mapIndex",
+        Cell: ({ cell: { row } }: any) => (
+          row.original.renderedMapIndex || row.original.mapIndex
+        )
       },
       {
         Header: "State",
