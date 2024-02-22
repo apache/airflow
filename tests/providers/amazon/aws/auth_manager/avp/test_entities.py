@@ -24,4 +24,4 @@ def test_get_entity_type():
 
 
 def test_get_action_id():
-    assert get_action_id(AvpEntities.VARIABLE, "GET") == "Variable::GET"
+    assert get_action_id(AvpEntities.VARIABLE, "GET") == "Variable.GET"

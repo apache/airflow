@@ -812,7 +812,7 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
 def _handle_failure(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    error: None | str | Exception | KeyboardInterrupt,
+    error: None | str | BaseException,
     session: Session,
     test_mode: bool | None = None,
     context: Context | None = None,
@@ -2378,7 +2378,7 @@ class TaskInstance(Base, LoggingMixin):
                 # a trigger.
                 if raise_on_defer:
                     raise
-                self._defer_task(defer=defer, session=session)
+                self.defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
                     self.dag_id,
@@ -2411,7 +2411,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, force_fail=True, session=session)
                 session.commit()
                 raise
-            except AirflowException as e:
+            except (AirflowTaskTimeout, AirflowException) as e:
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 # for case when task is marked as success/failed externally
@@ -2426,10 +2426,6 @@ class TaskInstance(Base, LoggingMixin):
                     self.handle_failure(e, test_mode, context, session=session)
                     session.commit()
                     raise
-            except (Exception, KeyboardInterrupt) as e:
-                self.handle_failure(e, test_mode, context, session=session)
-                session.commit()
-                raise
             except SystemExit as e:
                 # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
                 # Therefore, here we must handle only error codes.
@@ -2437,6 +2433,10 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(msg, test_mode, context, session=session)
                 session.commit()
                 raise Exception(msg)
+            except BaseException as e:
+                self.handle_failure(e, test_mode, context, session=session)
+                session.commit()
+                raise
             finally:
                 Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
                 # Same metric with tagging
@@ -2565,8 +2565,11 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def _defer_task(self, session: Session, defer: TaskDeferred) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it."""
+    def defer_task(self, session: Session, defer: TaskDeferred) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+
+        :meta: private
+        """
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
@@ -2625,6 +2628,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
+        raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance."""
         res = self.check_and_change_state_before_execution(
@@ -2644,7 +2648,12 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         self._run_raw_task(
-            mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+            mark_success=mark_success,
+            test_mode=test_mode,
+            job_id=job_id,
+            pool=pool,
+            session=session,
+            raise_on_defer=raise_on_defer,
         )
 
     def dry_run(self) -> None:
@@ -2734,7 +2743,7 @@ class TaskInstance(Base, LoggingMixin):
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance | TaskInstancePydantic,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
@@ -2829,7 +2838,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,

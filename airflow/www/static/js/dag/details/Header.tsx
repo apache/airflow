@@ -47,13 +47,18 @@ const Header = () => {
   } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
 
-  // clearSelection if the current selected dagRun is
-  // filtered out.
+  const group = getTask({ taskId, task: groups });
+
+  // If runId and/or taskId can't be found remove the selection
   useEffect(() => {
-    if (runId && !dagRun) {
+    if (runId && !dagRun && taskId && !group) {
       clearSelection();
+    } else if (runId && !dagRun) {
+      onSelect({ taskId });
+    } else if (taskId && !group) {
+      onSelect({ runId });
     }
-  }, [clearSelection, dagRun, runId]);
+  }, [dagRun, taskId, group, runId, onSelect, clearSelection]);
 
   let runLabel;
   if (dagRun && runId) {
@@ -75,15 +80,13 @@ const Header = () => {
     );
   }
 
-  const group = getTask({ taskId, task: groups });
-
   const lastIndex = taskId ? taskId.lastIndexOf(".") : null;
   const taskName =
     taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
   const isDagDetails = !runId && !taskId;
   const isRunDetails = !!(runId && !taskId);
-  const isTaskDetails = runId && taskId && mapIndex === undefined;
+  const isTaskDetails = !runId && taskId;
   const isMappedTaskDetails = runId && taskId && mapIndex !== undefined;
 
   return (
@@ -109,7 +112,11 @@ const Header = () => {
       {taskId && (
         <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink
-            onClick={() => onSelect({ runId, taskId })}
+            onClick={() =>
+              mapIndex !== undefined
+                ? onSelect({ runId, taskId })
+                : onSelect({ taskId })
+            }
             _hover={isTaskDetails ? { cursor: "default" } : undefined}
           >
             <BreadcrumbText

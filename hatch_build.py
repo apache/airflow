@@ -153,11 +153,11 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         Any modifications to the build data will be seen by the build target.
         """
         if version == "standard":
-            all_possible_non_airlfow_dependencies = []
+            all_possible_non_airflow_dependencies = []
             for extra, deps in self.metadata.core.optional_dependencies.items():
                 for dep in deps:
                     if not dep.startswith("apache-airflow"):
-                        all_possible_non_airlfow_dependencies.append(dep)
+                        all_possible_non_airflow_dependencies.append(dep)
             # remove devel dependencies from optional dependencies for standard packages
             self.metadata.core._optional_dependencies = {
                 key: value
@@ -167,7 +167,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
             # This is the special dependency in wheel package that is used to install all possible
             # 3rd-party dependencies for airflow for the CI image. It is exposed in the wheel package
             # because we want to use for building the image cache from GitHub URL.
-            self.metadata.core._optional_dependencies["devel-ci"] = all_possible_non_airlfow_dependencies
+            self.metadata.core._optional_dependencies["devel-ci"] = all_possible_non_airflow_dependencies
             # Replace editable dependencies with provider dependencies for provider packages
             for dependency_id in DEPENDENCIES.keys():
                 if DEPENDENCIES[dependency_id]["state"] != "ready":

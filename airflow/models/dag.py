@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import collections
 import copy
 import functools
 import itertools
@@ -31,7 +30,7 @@ import time
 import traceback
 import warnings
 import weakref
-from collections import deque
+from collections import abc, defaultdict, deque
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from inspect import signature
@@ -99,6 +98,13 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
+from airflow.models.dataset import (
+    DatasetAll,
+    DatasetAny,
+    DatasetBooleanCondition,
+    DatasetDagRunQueue,
+    DatasetModel,
+)
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -462,7 +468,7 @@ class DAG(LoggingMixin):
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
-        params: collections.abc.MutableMapping | None = None,
+        params: abc.MutableMapping | None = None,
         access_control: dict | None = None,
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
@@ -580,25 +586,28 @@ class DAG(LoggingMixin):
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.dataset_triggers: Collection[Dataset] = []
-
+        self.dataset_triggers: DatasetBooleanCondition | None = None
+        if isinstance(schedule, (DatasetAll, DatasetAny)):
+            self.dataset_triggers = schedule
         if isinstance(schedule, Collection) and not isinstance(schedule, str):
             from airflow.datasets import Dataset
 
             if not all(isinstance(x, Dataset) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets")
-            self.dataset_triggers = list(schedule)
+            self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
         elif schedule is not NOTSET:
             schedule_interval = schedule
 
-        if self.dataset_triggers:
+        if isinstance(schedule, DatasetOrTimeSchedule):
+            self.timetable = schedule
+            self.dataset_triggers = self.timetable.datasets
+            self.schedule_interval = self.timetable.summary
+        elif self.dataset_triggers:
             self.timetable = DatasetTriggeredTimetable()
             self.schedule_interval = self.timetable.summary
         elif timetable:
-            if isinstance(timetable, DatasetOrTimeSchedule):
-                self.dataset_triggers = timetable.datasets
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
@@ -3081,7 +3090,7 @@ class DAG(LoggingMixin):
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
-            query = cls._get_latest_runs_query(dags=list(existing_dags.keys()))
+            query = cls._get_latest_runs_stmt(dags=list(existing_dags.keys()))
             latest_runs = {run.dag_id: run for run in session.scalars(query)}
 
             # Get number of active dagruns for all dags we are processing as a single query.
@@ -3156,8 +3165,8 @@ class DAG(LoggingMixin):
             TaskOutletDatasetReference,
         )
 
-        dag_references = collections.defaultdict(set)
-        outlet_references = collections.defaultdict(set)
+        dag_references = defaultdict(set)
+        outlet_references = defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
@@ -3168,12 +3177,13 @@ class DAG(LoggingMixin):
         # later we'll persist them to the database.
         for dag in dags:
             curr_orm_dag = existing_dags.get(dag.dag_id)
-            if not dag.dataset_triggers:
+            if dag.dataset_triggers is None:
                 if curr_orm_dag and curr_orm_dag.schedule_dataset_references:
                     curr_orm_dag.schedule_dataset_references = []
-            for dataset in dag.dataset_triggers:
-                dag_references[dag.dag_id].add(dataset.uri)
-                input_datasets[DatasetModel.from_public(dataset)] = None
+            else:
+                for dataset in dag.dataset_triggers.all_datasets().values():
+                    dag_references[dag.dag_id].add(dataset.uri)
+                    input_datasets[DatasetModel.from_public(dataset)] = None
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets = [x for x in task.outlets or [] if isinstance(x, Dataset)]
@@ -3229,7 +3239,7 @@ class DAG(LoggingMixin):
             for obj in dag_refs_stored - dag_refs_needed:
                 session.delete(obj)
 
-        existing_task_outlet_refs_dict = collections.defaultdict(set)
+        existing_task_outlet_refs_dict = defaultdict(set)
         for dag_id, orm_dag in existing_dags.items():
             for todr in orm_dag.task_outlet_dataset_references:
                 existing_task_outlet_refs_dict[(dag_id, todr.task_id)].add(todr)
@@ -3254,9 +3264,9 @@ class DAG(LoggingMixin):
             cls.bulk_write_to_db(dag.subdags, processor_subdir=processor_subdir, session=session)
 
     @classmethod
-    def _get_latest_runs_query(cls, dags: list[str]) -> Query:
+    def _get_latest_runs_stmt(cls, dags: list[str]) -> Select:
         """
-        Query the database to retrieve the last automated run for each dag.
+        Build a select statement for retrieve the last automated run for each dag.
 
         :param dags: dags to query
         """
@@ -3269,7 +3279,7 @@ class DAG(LoggingMixin):
                     DagRun.dag_id == existing_dag_id,
                     DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
                 )
-                .subquery()
+                .scalar_subquery()
             )
             query = select(DagRun).where(
                 DagRun.dag_id == existing_dag_id, DagRun.execution_date == last_automated_runs_subq
@@ -3512,7 +3522,7 @@ class DagOwnerAttributes(Base):
 
     @classmethod
     def get_all(cls, session) -> dict[str, dict[str, str]]:
-        dag_links: dict = collections.defaultdict(dict)
+        dag_links: dict = defaultdict(dict)
         for obj in session.scalars(select(cls)):
             dag_links[obj.dag_id].update({obj.owner: obj.link})
         return dag_links
@@ -3781,23 +3791,43 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
-        from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
+        from airflow.models.serialized_dag import SerializedDagModel
 
-        # these dag ids are triggered by datasets, and they are ready to go.
-        dataset_triggered_dag_info = {
-            x.dag_id: (x.first_queued_time, x.last_queued_time)
-            for x in session.execute(
-                select(
-                    DagScheduleDatasetReference.dag_id,
-                    func.max(DDRQ.created_at).label("last_queued_time"),
-                    func.min(DDRQ.created_at).label("first_queued_time"),
-                )
-                .join(DagScheduleDatasetReference.queue_records, isouter=True)
-                .group_by(DagScheduleDatasetReference.dag_id)
-                .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
-            )
-        }
-        dataset_triggered_dag_ids = set(dataset_triggered_dag_info)
+        def dag_ready(dag_id: str, cond: DatasetBooleanCondition, statuses: dict) -> bool | None:
+            # if dag was serialized before 2.9 and we *just* upgraded,
+            # we may be dealing with old version.  In that case,
+            # just wait for the dag to be reserialized.
+            try:
+                return cond.evaluate(statuses)
+            except AttributeError:
+                log.warning("dag '%s' has old serialization; skipping dag run creation.", dag_id)
+                return None
+
+        # this loads all the DDRQ records.... may need to limit num dags
+        all_records = session.scalars(select(DatasetDagRunQueue)).all()
+        by_dag = defaultdict(list)
+        for r in all_records:
+            by_dag[r.target_dag_id].append(r)
+        del all_records
+        dag_statuses = {}
+        for dag_id, records in by_dag.items():
+            dag_statuses[dag_id] = {x.dataset.uri: True for x in records}
+        ser_dags = session.scalars(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
+        ).all()
+        for ser_dag in ser_dags:
+            dag_id = ser_dag.dag_id
+            statuses = dag_statuses[dag_id]
+            if not dag_ready(dag_id, cond=ser_dag.dag.dataset_triggers, statuses=statuses):
+                del by_dag[dag_id]
+                del dag_statuses[dag_id]
+        del dag_statuses
+        dataset_triggered_dag_info = {}
+        for dag_id, records in by_dag.items():
+            times = sorted(x.created_at for x in records)
+            dataset_triggered_dag_info[dag_id] = (times[0], times[-1])
+        del by_dag
+        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
             exclusion_list = set(
                 session.scalars(
@@ -3908,7 +3938,7 @@ def dag(
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
-    params: collections.abc.MutableMapping | None = None,
+    params: abc.MutableMapping | None = None,
     access_control: dict | None = None,
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
@@ -4030,7 +4060,7 @@ class DagContext:
 
     """
 
-    _context_managed_dags: collections.deque[DAG] = deque()
+    _context_managed_dags: deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 
@@ -4057,12 +4087,12 @@ class DagContext:
             return None
 
 
-def _run_trigger(trigger):
-    async def _run_trigger_main():
+def _run_inline_trigger(trigger):
+    async def _run_inline_trigger_main():
         async for event in trigger.run():
             return event
 
-    return asyncio.run(_run_trigger_main())
+    return asyncio.run(_run_inline_trigger_main())
 
 
 def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
@@ -4083,7 +4113,7 @@ def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Sessio
             break
         except TaskDeferred as e:
             log.info("[DAG TEST] running trigger in line")
-            event = _run_trigger(e.trigger)
+            event = _run_inline_trigger(e.trigger)
             ti.next_method = e.method_name
             ti.next_kwargs = {"event": event.payload} if event else e.kwargs
             log.info("[DAG TEST] Trigger completed")

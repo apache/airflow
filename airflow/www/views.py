@@ -131,6 +131,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
+from airflow.utils.types import NOTSET
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -147,6 +148,7 @@ from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidge
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
@@ -935,20 +937,44 @@ class Airflow(AirflowBaseView):
 
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
-            import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
+            if get_auth_manager().is_authorized_view(access_view=AccessView.IMPORT_ERRORS):
+                import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
 
-            if not get_auth_manager().is_authorized_dag(method="GET"):
-                # if the user doesn't have access to all DAGs, only display errors from visible DAGs
-                import_errors = import_errors.join(
-                    DagModel, DagModel.fileloc == errors.ImportError.filename
-                ).where(DagModel.dag_id.in_(filter_dag_ids))
+                can_read_all_dags = get_auth_manager().is_authorized_dag(method="GET")
+                if not can_read_all_dags:
+                    # if the user doesn't have access to all DAGs, only display errors from visible DAGs
+                    import_errors = import_errors.where(
+                        errors.ImportError.filename.in_(
+                            select(DagModel.fileloc)
+                            .distinct()
+                            .where(DagModel.dag_id.in_(filter_dag_ids))
+                            .subquery()
+                        )
+                    )
 
-            import_errors = session.scalars(import_errors)
-            for import_error in import_errors:
-                flash(
-                    f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}",
-                    "dag_import_error",
-                )
+                import_errors = session.scalars(import_errors)
+                for import_error in import_errors:
+                    stacktrace = import_error.stacktrace
+                    if not can_read_all_dags:
+                        # Check if user has read access to all the DAGs defined in the file
+                        file_dag_ids = (
+                            session.query(DagModel.dag_id)
+                            .filter(DagModel.fileloc == import_error.filename)
+                            .all()
+                        )
+                        requests: Sequence[IsAuthorizedDagRequest] = [
+                            {
+                                "method": "GET",
+                                "details": DagDetails(id=dag_id[0]),
+                            }
+                            for dag_id in file_dag_ids
+                        ]
+                        if not get_auth_manager().batch_is_authorized_dag(requests):
+                            stacktrace = "REDACTED - you do not have read permission on all DAGs in the file"
+                    flash(
+                        f"Broken DAG: [{import_error.filename}]\r{stacktrace}",
+                        "dag_import_error",
+                    )
 
         from airflow.plugins_manager import import_errors as plugin_import_errors
 
@@ -1918,6 +1944,23 @@ class Airflow(AirflowBaseView):
                     form_field_schema.pop("custom_html_form")
             if "description_md" in form_field_schema:
                 form_field["description"] = wwwutils.wrapped_markdown(form_field_schema["description_md"])
+            # Check for default values and pre-populate
+            if k in request.values:
+                if form_field_schema.get("type", None) in [
+                    "boolean",
+                    "array",
+                    ["array", "null"],
+                    "object",
+                    ["object", "null"],
+                ]:
+                    try:
+                        form_field["value"] = json.loads(request.values.get(k, ""))
+                    except JSONDecodeError:
+                        flash(
+                            f'Could not pre-populate field "{k}" due to parsing error of value "{request.values.get(k)}"'
+                        )
+                else:
+                    form_field["value"] = request.values.get(k)
         if form_trust_problems:
             flash(
                 Markup(
@@ -1975,6 +2018,15 @@ class Airflow(AirflowBaseView):
             for run_id, run_conf in ((run.run_id, run.conf) for run in recent_runs)
             if isinstance(run_conf, dict) and any(run_conf)
         }
+        render_params = {
+            "dag": dag,
+            "dag_id": dag_id,
+            "run_id": run_id,
+            "origin": origin,
+            "doc_md": wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
+            "recent_confs": recent_confs,
+            "is_dag_run_conf_overrides_params": is_dag_run_conf_overrides_params,
+        }
 
         if request.method == "GET" or (
             not request_conf and (ui_fields_defined or show_trigger_form_if_no_params)
@@ -1982,7 +2034,6 @@ class Airflow(AirflowBaseView):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
-            doc_md = wwwutils.wrapped_markdown(getattr(dag, "doc_md", None))
             form = DateTimeForm(data={"execution_date": request_execution_date})
 
             if request_conf:
@@ -1990,7 +2041,12 @@ class Airflow(AirflowBaseView):
             else:
                 try:
                     default_conf = json.dumps(
-                        {str(k): v.resolve(suppress_exception=True) for k, v in dag.params.items()},
+                        {
+                            str(k): v.resolve(
+                                value=request.values.get(k, default=NOTSET), suppress_exception=True
+                            )
+                            for k, v in dag.params.items()
+                        },
                         indent=4,
                         ensure_ascii=False,
                     )
@@ -1999,14 +2055,9 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
-                dag=dag,
-                dag_id=dag_id,
-                origin=origin,
+                **render_params,
                 conf=default_conf,
-                doc_md=doc_md,
                 form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                recent_confs=recent_confs,
             )
 
         try:
@@ -2017,13 +2068,9 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
-                dag=dag,
-                dag_id=dag_id,
-                origin=origin,
+                **render_params,
                 conf=request_conf or {},
                 form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                recent_confs=recent_confs,
             )
 
         dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, execution_date=execution_date)
@@ -2048,13 +2095,9 @@ class Airflow(AirflowBaseView):
                 return self.render_template(
                     "airflow/trigger.html",
                     form_fields=form_fields,
-                    dag=dag,
-                    dag_id=dag_id,
-                    origin=origin,
+                    **render_params,
                     conf=request_conf,
                     form=form,
-                    is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                    recent_confs=recent_confs,
                 )
 
         run_conf = {}
@@ -2067,13 +2110,9 @@ class Airflow(AirflowBaseView):
                     return self.render_template(
                         "airflow/trigger.html",
                         form_fields=form_fields,
-                        dag=dag,
-                        dag_id=dag_id,
-                        origin=origin,
+                        **render_params,
                         conf=request_conf,
                         form=form,
-                        is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                        recent_confs=recent_confs,
                     )
             except json.decoder.JSONDecodeError:
                 flash("Invalid JSON configuration, not parseable", "error")
@@ -2081,13 +2120,9 @@ class Airflow(AirflowBaseView):
                 return self.render_template(
                     "airflow/trigger.html",
                     form_fields=form_fields,
-                    dag=dag,
-                    dag_id=dag_id,
-                    origin=origin,
+                    **render_params,
                     conf=request_conf,
                     form=form,
-                    is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
-                    recent_confs=recent_confs,
                 )
 
         if dag.get_is_paused():
@@ -2123,12 +2158,8 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
-                dag=dag,
-                dag_id=dag_id,
-                origin=origin,
+                **render_params,
                 conf=request_conf,
-                form=form,
-                is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
@@ -3429,6 +3460,7 @@ class Airflow(AirflowBaseView):
     def grid_data(self):
         """Return grid data."""
         dag_id = request.args.get("dag_id")
+        run_id = request.args.get("dag_run_id")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
         if not dag:
@@ -3446,25 +3478,44 @@ class Airflow(AirflowBaseView):
         if num_runs is None:
             num_runs = conf.getint("webserver", "default_dag_run_display_number")
 
-        try:
-            base_date = timezone.parse(request.args["base_date"], strict=True)
-        except (KeyError, ValueError):
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
+        dagrun = None
+        if run_id:
+            with create_session() as session:
+                dagrun = dag.get_dagrun(run_id=run_id, session=session)
+                if not dagrun:
+                    return {"error": f"can't find dag_run_id={run_id}"}, 404
+            base_date = dagrun.execution_date
+        else:
+            try:
+                base_date = timezone.parse(request.args["base_date"], strict=True)
+            except (KeyError, ValueError):
+                base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
             query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
 
         run_types = request.args.getlist("run_type")
         if run_types:
+            if run_id:
+                return {"error": "Can not provide filters when dag_run_id filter is selected."}, 400
             query = query.where(DagRun.run_type.in_(run_types))
 
         run_states = request.args.getlist("run_state")
         if run_states:
+            if run_id:
+                return {"error": "Can not provide filters when dag_run_id filter is selected."}, 400
             query = query.where(DagRun.state.in_(run_states))
 
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
         )
+        if dagrun:
+            found_requested_run_id = any(True for d in dag_runs if d.run_id == run_id)
+            if not found_requested_run_id:
+                return {
+                    "error": f"Dag with dag_run_id={run_id} found, but not in selected time range or filters."
+                }, 404
+
         encoded_runs = [wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs]
         data = {
             "groups": dag_to_grid(dag, dag_runs, session),

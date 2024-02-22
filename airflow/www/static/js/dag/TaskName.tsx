@@ -17,14 +17,13 @@
  * under the License.
  */
 
-import React, { MouseEventHandler, CSSProperties } from "react";
-import { Text, TextProps, useTheme } from "@chakra-ui/react";
+import React, { CSSProperties } from "react";
+import { Text, TextProps, useTheme, chakra } from "@chakra-ui/react";
 import { FiChevronUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
 
 interface Props extends TextProps {
   isGroup?: boolean;
   isMapped?: boolean;
-  onToggle: MouseEventHandler<HTMLDivElement>;
   isOpen?: boolean;
   label: string;
   id?: string;
@@ -35,12 +34,12 @@ interface Props extends TextProps {
 const TaskName = ({
   isGroup = false,
   isMapped = false,
-  onToggle,
   isOpen = false,
   label,
   id,
   setupTeardownType,
   isZoomedOut,
+  onClick,
   ...rest
 }: Props) => {
   const { colors } = useTheme();
@@ -51,34 +50,34 @@ const TaskName = ({
   };
   return (
     <Text
-      cursor={isGroup ? "pointer" : undefined}
-      onClick={onToggle}
+      cursor="pointer"
       data-testid={id}
-      width="100%"
       color={colors.gray[800]}
       fontSize={isZoomedOut ? 24 : undefined}
       textAlign="justify"
       {...rest}
     >
-      {label}
-      {isMapped && " [ ]"}
-      {isGroup && (
-        <FiChevronUp
-          size={isZoomedOut ? 24 : 15}
-          strokeWidth={3}
-          style={{
-            transition: "transform 0.5s",
-            transform: `rotate(${isOpen ? 0 : 180}deg)`,
-            ...iconStyle,
-          }}
-        />
-      )}
-      {setupTeardownType === "setup" && (
-        <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-      )}
-      {setupTeardownType === "teardown" && (
-        <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-      )}
+      <chakra.span onClick={onClick}>
+        {label}
+        {isMapped && " [ ]"}
+        {isGroup && (
+          <FiChevronUp
+            size={isZoomedOut ? 24 : 15}
+            strokeWidth={3}
+            style={{
+              transition: "transform 0.5s",
+              transform: `rotate(${isOpen ? 0 : 180}deg)`,
+              ...iconStyle,
+            }}
+          />
+        )}
+        {setupTeardownType === "setup" && (
+          <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+        )}
+        {setupTeardownType === "teardown" && (
+          <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+        )}
+      </chakra.span>
     </Text>
   );
 };

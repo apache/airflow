@@ -112,6 +112,30 @@ def test_home_status_filter_cookie(admin_client):
 
 
 @pytest.fixture(scope="module")
+def user_no_importerror(app):
+    """Create User that cannot access Import Errors"""
+    return create_user(
+        app,
+        username="user_no_importerrors",
+        role_name="role_no_importerrors",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ],
+    )
+
+
+@pytest.fixture()
+def client_no_importerror(app, user_no_importerror):
+    """Client for User that cannot access Import Errors"""
+    return client_with_login(
+        app,
+        username="user_no_importerrors",
+        password="user_no_importerrors",
+    )
+
+
+@pytest.fixture(scope="module")
 def user_single_dag(app):
     """Create User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return create_user(
@@ -120,6 +144,7 @@ def user_single_dag(app):
         role_name="role_single_dag",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
             (permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_FILTER_DAG_IDS[0])),
         ],
     )
@@ -232,6 +257,24 @@ def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
             _process_file(path, session)
 
 
+@pytest.fixture()
+def broken_dags_after_working(tmp_path):
+    # First create and process a DAG file that works
+    path = tmp_path / "all_in_one.py"
+    with create_session() as session:
+        contents = "from airflow import DAG\n"
+        for i, dag_id in enumerate(TEST_FILTER_DAG_IDS):
+            contents += f"dag{i} = DAG('{dag_id}')\n"
+        path.write_text(contents)
+        _process_file(path, session)
+
+    # Then break it!
+    with create_session() as session:
+        contents += "foobar()"
+        path.write_text(contents)
+        _process_file(path, session)
+
+
 def test_home_filter_tags(working_dags, admin_client):
     with admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
@@ -247,6 +290,12 @@ def test_home_importerrors(broken_dags, user_client):
     check_content_in_response("Import Errors", resp)
     for dag_id in TEST_FILTER_DAG_IDS:
         check_content_in_response(f"/{dag_id}.py", resp)
+
+
+def test_home_no_importerrors_perm(broken_dags, client_no_importerror):
+    # Users without "can read on import errors" don't see any import errors
+    resp = client_no_importerror.get("home", follow_redirects=True)
+    check_content_not_in_response("Import Errors", resp)
 
 
 @pytest.mark.parametrize(
@@ -266,9 +315,21 @@ def test_home_importerrors_filtered_singledag_user(broken_dags_with_read_perm, c
     check_content_in_response("Import Errors", resp)
     # They can see the first DAGs import error
     check_content_in_response(f"/{TEST_FILTER_DAG_IDS[0]}.py", resp)
+    check_content_in_response("Traceback", resp)
     # But not the rest
     for dag_id in TEST_FILTER_DAG_IDS[1:]:
         check_content_not_in_response(f"/{dag_id}.py", resp)
+
+
+def test_home_importerrors_missing_read_on_all_dags_in_file(broken_dags_after_working, client_single_dag):
+    # If a user doesn't have READ on all DAGs in a file, that files traceback is redacted
+    resp = client_single_dag.get("home", follow_redirects=True)
+    check_content_in_response("Import Errors", resp)
+    # They can see the DAG file has an import error
+    check_content_in_response("all_in_one.py", resp)
+    # And the traceback is redacted
+    check_content_not_in_response("Traceback", resp)
+    check_content_in_response("REDACTED", resp)
 
 
 def test_home_dag_list(working_dags, user_client):
@@ -375,9 +436,14 @@ def test_dashboard_flash_messages_type(user_client):
     check_content_in_response("alert-foo", resp)
 
 
-def test_audit_log_view(user_client, working_dags):
-    resp = user_client.get("/dags/filter_test_1/audit_log")
+def test_audit_log_view_admin(admin_client, working_dags):
+    resp = admin_client.get("/dags/filter_test_1/audit_log")
     check_content_in_response("Dag Audit Log", resp)
+
+
+def test_audit_log_view_user(user_client, working_dags):
+    resp = user_client.get("/dags/filter_test_1/audit_log")
+    check_content_not_in_response("Dag Audit Log", resp, resp_code=302)
 
 
 @pytest.mark.parametrize(

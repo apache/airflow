@@ -619,6 +619,7 @@ def start_airflow(
 )
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
+@option_answer
 @argument_doc_packages
 def build_docs(
     builder: str,
