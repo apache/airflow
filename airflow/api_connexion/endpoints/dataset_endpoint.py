@@ -36,6 +36,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     QueuedEvent,
     QueuedEventCollection,
     TaskOutletDatasetReference,
+    create_dataset_event_schema,
     dataset_collection_schema,
     dataset_event_collection_schema,
     dataset_event_schema,
@@ -334,10 +335,12 @@ def delete_dataset_queued_events(
 )
 def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     """Post dataset event."""
+    body = get_json_request_dict()
     try:
-        json_body = dataset_event_schema.load(get_json_request_dict(), session=session)
+        json_body = create_dataset_event_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
+
     uri = json_body["dataset_uri"]
     dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
     if not dataset:

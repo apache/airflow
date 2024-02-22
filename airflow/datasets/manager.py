@@ -63,7 +63,7 @@ class DatasetManager(LoggingMixin):
         extra=None,
         session: Session,
         **kwargs,
-    ) -> None:
+    ) -> DatasetEvent | None:
         """
         Register dataset related changes.
 
@@ -92,7 +92,8 @@ class DatasetManager(LoggingMixin):
                     "source_map_index": task_instance.map_index,
                 }
             )
-        session.add(DatasetEvent(**event_kwargs))
+        dataset_event = DatasetEvent(**event_kwargs)
+        session.add(dataset_event)
         session.flush()
 
         self.notify_dataset_changed(dataset=dataset)
@@ -101,6 +102,7 @@ class DatasetManager(LoggingMixin):
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
+        return dataset_event
 
     def notify_dataset_created(self, dataset: Dataset):
         """Run applicable notification actions when a dataset is created."""
