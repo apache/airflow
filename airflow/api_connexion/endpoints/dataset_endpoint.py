@@ -339,11 +339,10 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
     uri = json_body["dataset_uri"]
-    dm = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-    if not dm:
+    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
+    if not dataset:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
-    timestamp = datetime.now()
-    timestamp = timestamp.astimezone(timezone.utc)
+    timestamp = datetime.now(timezone.utc)
     extra = json_body.get("extra", {})
     dataset_event = dataset_manager.register_dataset_change(
         dataset=Dataset(uri),
