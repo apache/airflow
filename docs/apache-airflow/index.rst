@@ -19,48 +19,63 @@ What is Airflow™?
 =========================================
 
 `Apache Airflow™ <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
-and monitoring batch-oriented workflows. Airflow's extensible Python framework enables you to build workflows
+and monitoring distributable, batch-oriented workflows. Airflow's extensible Python framework enables you to build workflows
 connecting with virtually any technology. A web interface helps manage the state of your workflows. Airflow is
-deployable in many ways, varying from a single process on your laptop to a distributed setup to support even
-the biggest workflows.
+deployable in many ways, varying from a single process on your laptop to a distributed setup across a network of many
+machines to support even the largest of workflows.
 
 Workflows as code
 =========================================
-The main characteristic of Airflow workflows is that all workflows are defined in Python code. "Workflows as
-code" serves several purposes:
+The main characteristic of Airflow workflows is that all workflows are defined in Python code as a
+`Directed Acyclic Graph <https://en.wikipedia.org/wiki/Directed_acyclic_graph>`__.
+
+"Workflows as code" serves several purposes:
 
 - **Dynamic**: Airflow pipelines are configured as Python code, allowing for dynamic pipeline generation.
 - **Extensible**: The Airflow™ framework contains operators to connect with numerous technologies. All Airflow components are extensible to easily adjust to your environment.
-- **Flexible**: Workflow parameterization is built-in leveraging the `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
+- **Flexible**: Workflows can be easily parameterized by using the built-in `Jinja <https://jinja.palletsprojects.com>`_ templating engine.
 
 Take a look at the following snippet of code:
 
 .. code-block:: python
 
-    from datetime import datetime
+  # Create tasks using a decorated DAG and pass values between those tasks.
+  from datetime import datetime
+  from airflow.decorators import task, dag
 
-    from airflow import DAG
-    from airflow.decorators import task
-    from airflow.operators.bash import BashOperator
+  @dag(dag_id="demo", start_date=datetime(2024, 2, 21))                           # Decorate the following function to make a dag.
+  def define_dag():
 
-    # A DAG represents a workflow, a collection of tasks
-    with DAG(dag_id="demo", start_date=datetime(2022, 1, 1), schedule="0 0 * * *") as dag:
-        # Tasks are represented as operators
-        hello = BashOperator(task_id="hello", bash_command="echo hello")
+    @task
+    def add_one(x):                                                               # Add one
+      print(f"AAAAAAAAAAAA A2 add one to: {x}")                                   # Look in the airflow/logs folder to see the results
+      return x + 1
 
-        @task()
-        def airflow():
-            print("airflow")
+    @task
+    def sum_it(values):                                                           # Sum the values
+      return sum(values)
 
-        # Set dependencies between tasks
-        hello >> airflow()
+    @task
+    def print_it(ban):                                                            # Print the sum
+      print(f"BBBBBBBBBBBBBB2 total is:  {ban}")                                  # Look in the airflow/logs folder to see the results
+
+    @task
+    def say_it_twice(ban):                                                        # Print the sum again
+      print(f"CCCCCCCCCCCCCC2 total is:  {ban} {ban}")                            # Look in the airflow/logs folder to see the results
+
+    added_values = add_one.expand(x=[1, 2, 3, 4, 5, 6])                           # These get executed in parallel
+    summed       = sum_it        (added_values)                                   # The results of each return in add_one are returned as array via xcom inter task communication
+    print_it                     (summed)                                         # Print the result in the airflow logs/folder
+    say_it_twice                 (summed)                                         # Print the result in the airflow logs/folder
+
+  define_dag()                                                                    # Call the decorated routine to define the dag
 
 
 Here you see:
 
-- A DAG named "demo", starting on Jan 1st 2022 and running once a day. A DAG is Airflow's representation of a workflow.
-- Two tasks, a BashOperator running a Bash script and a Python function defined using the ``@task`` decorator
-- ``>>`` between the tasks defines a dependency and controls in which order the tasks will be executed
+- A `DAG <https://en.wikipedia.org/wiki/Directed_acyclic_graph>`__ named "demo" created via the ``@dag`` decorator, starting on Feb 21st 2024 and running once a day.
+- Four task descriptions created via ``@task`` decorators that between them take an array of numbers, add them up and print their sum.
+- The execution order dependencies between the tasks can be explicitly stated with ``>>`` or inferred by Airflow from their parameters.
 
 Airflow evaluates this script and executes the tasks at the set interval and in the defined order. The status
 of the "demo" DAG is visible in the web interface:
@@ -68,7 +83,7 @@ of the "demo" DAG is visible in the web interface:
 .. image:: /img/demo_graph_view.png
   :alt: Demo DAG in the Graph View, showing the status of one DAG run
 
-This example demonstrates a simple Bash and Python script, but these tasks can run any arbitrary code. Think
+This example demonstrates a simple Python script, but these tasks can run any arbitrary code. Think
 of running a Spark job, moving data between two buckets, or sending an email. The same structure can also be
 seen running over time:
 
