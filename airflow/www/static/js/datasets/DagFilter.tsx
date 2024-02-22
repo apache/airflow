@@ -18,10 +18,12 @@
  */
 
 import React from "react";
+import { HStack } from "@chakra-ui/react";
 import { Size, useChakraSelectProps } from "chakra-react-select";
 
 import type { DatasetDependencies } from "src/api/useDatasetDependencies";
 import MultiSelect from "src/components/MultiSelect";
+import InfoTooltip from "src/components/InfoTooltip";
 
 interface Props {
   datasetDependencies?: DatasetDependencies;
@@ -58,6 +60,10 @@ const DagFilter = ({
     isClearable: false,
     selectedOptionStyle: "check",
     chakraStyles: {
+      container: (p) => ({
+        ...p,
+        width: "100%",
+      }),
       placeholder: (p) => ({
         ...p,
         color: "gray.700",
@@ -87,21 +93,24 @@ const DagFilter = ({
   });
 
   return (
-    <MultiSelect
-      {...multiSelectStyles}
-      isDisabled={!datasetDependencies}
-      value={transformArrayToMultiSelectOptions(filteredDagIds)}
-      onChange={(dagOptions) => {
-        if (
-          Array.isArray(dagOptions) &&
-          dagOptions.every((dagOption) => "value" in dagOption)
-        ) {
-          onFilterDags(dagOptions.map((option) => option.value));
-        }
-      }}
-      options={options}
-      placeholder="Filter by DAG ID"
-    />
+    <HStack width="100%">
+      <MultiSelect
+        {...multiSelectStyles}
+        isDisabled={!datasetDependencies}
+        value={transformArrayToMultiSelectOptions(filteredDagIds)}
+        onChange={(dagOptions) => {
+          if (
+            Array.isArray(dagOptions) &&
+            dagOptions.every((dagOption) => "value" in dagOption)
+          ) {
+            onFilterDags(dagOptions.map((option) => option.value));
+          }
+        }}
+        options={options}
+        placeholder="Filter graph by DAG ID"
+      />
+      <InfoTooltip label="Filter Datasets graph by anything that may be connected to one or more DAGs. Does not filter the datasets list." />
+    </HStack>
   );
 };
 
