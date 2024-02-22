@@ -63,7 +63,7 @@ class DatasetManager(LoggingMixin):
         extra=None,
         session: Session,
         **kwargs,
-    ) -> DatasetEvent | None:
+    ) -> None:
         """
         Register dataset related changes.
 
@@ -77,7 +77,7 @@ class DatasetManager(LoggingMixin):
         )
         if not dataset_model:
             self.log.warning("DatasetModel %s not found", dataset)
-            return None
+            return
 
         event_kwargs = {
             "dataset_id": dataset_model.id,
