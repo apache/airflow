@@ -773,8 +773,8 @@ def prepare_provider_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-
-    if len(package_list):
+    temp_provider_packages = None
+    if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override provider_packages with values from PACKAGE_LIST
         temp_provider_packages = tuple(package_list.split(","))
@@ -783,7 +783,7 @@ def prepare_provider_packages(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
             f"Overriding to {temp_provider_packages}"
         )
-    provider_packages = temp_provider_packages
+    provider_packages = temp_provider_packages or ()
 
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
@@ -1463,7 +1463,8 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
-    if len(package_list):
+    temp_doc_packages = None
+    if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override doc_packages with values from PACKAGE_LIST
         temp_doc_packages = tuple(package_list.split(","))
@@ -1472,7 +1473,7 @@ def publish_docs(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
             f"Overriding to {temp_doc_packages}"
         )
-    doc_packages = temp_doc_packages
+    doc_packages = temp_doc_packages or ()
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(

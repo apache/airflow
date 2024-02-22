@@ -649,8 +649,8 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
-
-    if len(package_list):
+    temp_doc_packages = None
+    if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override doc_packages with values from PACKAGE_LIST
         temp_doc_packages = tuple(package_list.split(","))
@@ -659,7 +659,7 @@ def build_docs(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
             f"Overriding to {temp_doc_packages}"
         )
-    doc_packages = temp_doc_packages
+    doc_packages = temp_doc_packages or ()
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,
