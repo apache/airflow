@@ -20,6 +20,7 @@ import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
 import {
+  CodeCell,
   DatasetLink,
   Table,
   TimeCell,
@@ -62,6 +63,12 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
         Header: "Triggered Runs",
         accessor: "createdDagruns",
         Cell: TriggeredRuns,
+      },
+      {
+        Header: "Extra",
+        accessor: "extra",
+        Cell: CodeCell,
+        disableSortBy: true,
       },
     ],
     []

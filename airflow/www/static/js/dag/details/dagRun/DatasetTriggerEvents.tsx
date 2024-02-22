@@ -20,6 +20,7 @@ import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
 import {
+  CodeCell,
   DatasetLink,
   Table,
   TaskInstanceLink,
@@ -54,6 +55,12 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
         Header: "When",
         accessor: "timestamp",
         Cell: TimeCell,
+      },
+      {
+        Header: "Extra",
+        accessor: "extra",
+        Cell: CodeCell,
+        disableSortBy: true,
       },
     ],
     []
