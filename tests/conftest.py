@@ -1243,7 +1243,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
     if captured_warnings:
         print("\n ======================== Warning summary =============================\n")
         print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
-        print(f"   After removing duplicates, {len(captured_warnings.values())}  of them remained.")
+        print(f"   After removing duplicates, {len(captured_warnings.values())} of them remained.")
         print(f"   They are stored in {warning_output_path} file.")
         print("\n ======================================================================\n")
         warnings_as_json = []
