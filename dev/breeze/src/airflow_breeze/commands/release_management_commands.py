@@ -144,7 +144,7 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import check_python_3_9_or_above, get_python_version_list
+from airflow_breeze.utils.python_versions import check_python_version, get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
@@ -511,7 +511,7 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_3_9_or_above()
+    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -742,6 +742,14 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     help="Clean dist directory before building packages. Useful when you want to build multiple packages "
     " in a clean environment",
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers
@@ -750,6 +758,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
 @option_verbose
 def prepare_provider_packages(
     clean_dist: bool,
+    package_list: str,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -760,10 +769,22 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
-    check_python_3_9_or_above()
+    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    temp_provider_packages = None
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override provider_packages with values from PACKAGE_LIST
+        temp_provider_packages = tuple(package_list.split(","))
+    if provider_packages and package_list:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {temp_provider_packages}"
+        )
+    provider_packages = temp_provider_packages or ()
+
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
         provider_packages=provider_packages,
@@ -1410,6 +1431,14 @@ def run_publish_docs_in_parallel(
     type=str,
     multiple=True,
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @option_parallelism
 @option_run_in_parallel
 @option_skip_cleanup
@@ -1423,6 +1452,7 @@ def publish_docs(
     include_removed_providers: bool,
     override_versioned: bool,
     package_filter: tuple[str, ...],
+    package_list: str,
     parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1433,6 +1463,17 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
+    temp_doc_packages = None
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override doc_packages with values from PACKAGE_LIST
+        temp_doc_packages = tuple(package_list.split(","))
+    if doc_packages and package_list:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {temp_doc_packages}"
+        )
+    doc_packages = temp_doc_packages or ()
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(
@@ -2619,7 +2660,7 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_3_9_or_above()
+    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -2761,7 +2802,7 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_3_9_or_above()
+    check_python_version()
 
     import yaml
 

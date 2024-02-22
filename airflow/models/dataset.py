@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable, Iterable
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
@@ -337,49 +336,3 @@ class DatasetEvent(Base):
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
-
-
-class DatasetBooleanCondition:
-    """
-    Base class for boolean logic for dataset triggers.
-
-    :meta private:
-    """
-
-    agg_func: Callable[[Iterable], bool]
-
-    def __init__(self, *objects) -> None:
-        self.objects = objects
-
-    def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return self.agg_func(self.eval_one(x, statuses) for x in self.objects)
-
-    def eval_one(self, obj: Dataset | DatasetAny | DatasetAll, statuses) -> bool:
-        if isinstance(obj, Dataset):
-            return statuses.get(obj.uri, False)
-        return obj.evaluate(statuses=statuses)
-
-    def all_datasets(self) -> dict[str, Dataset]:
-        uris = {}
-        for x in self.objects:
-            if isinstance(x, Dataset):
-                if x.uri not in uris:
-                    uris[x.uri] = x
-            else:
-                # keep the first instance
-                for k, v in x.all_datasets().items():
-                    if k not in uris:
-                        uris[k] = v
-        return uris
-
-
-class DatasetAny(DatasetBooleanCondition):
-    """Use to combine datasets schedule references in an "and" relationship."""
-
-    agg_func = any
-
-
-class DatasetAll(DatasetBooleanCondition):
-    """Use to combine datasets schedule references in an "or" relationship."""
-
-    agg_func = all

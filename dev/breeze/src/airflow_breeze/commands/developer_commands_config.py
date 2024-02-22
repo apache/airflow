@@ -297,6 +297,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",
+                "--package-list",
             ],
         },
     ],
