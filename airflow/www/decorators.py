@@ -42,7 +42,9 @@ logger = logging.getLogger(__name__)
 def _mask_body(json_body):
     result = {}
     try:
-        result.update({(k, secrets_masker.redact(v, k, 0)) for k, v in json_body.items()})
+        result.update(
+            {k: "***" if secrets_masker.should_hide_value_for_key(k) else v for k, v in json_body.items()}
+        )
     except json.JSONDecodeError:
         result = {}
     return result
@@ -68,13 +70,14 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 fields_skip_logging = {"csrf_token", "_csrf_token", "is_paused"}
 
                 extra_fields = {
-                    k: secrets_masker.redact(v, k)
+                    k: "***" if secrets_masker.should_hide_value_for_key(k) else v
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
                 }
 
                 if request.blueprint == "/api/v1":
-                    extra_fields.update({"body": _mask_body(request.json)})
+                    if request.headers.get("content-type") == "application/json" and request.json:
+                        extra_fields.update({"body": _mask_body(request.json)})
                     if f"{request.origin}/" == request.root_url:
                         event_name = f"ui.{f.__name__}"
                     else:

@@ -62,7 +62,6 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "authorization",
         "passphrase",
         "login",
-        "key",
         "value",
         "passwd",
         "password",
