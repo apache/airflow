@@ -778,7 +778,7 @@ def prepare_provider_packages(
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override provider_packages with values from PACKAGE_LIST
         temp_provider_packages = tuple(package_list.split(","))
-    if provider_packages and len(package_list):
+    if provider_packages and package_list:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
             f"Overriding to {temp_provider_packages}"
@@ -1468,7 +1468,7 @@ def publish_docs(
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override doc_packages with values from PACKAGE_LIST
         temp_doc_packages = tuple(package_list.split(","))
-    if doc_packages and len(package_list):
+    if doc_packages and package_list:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
             f"Overriding to {temp_doc_packages}"
