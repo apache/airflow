@@ -78,7 +78,7 @@ if TYPE_CHECKING:
 
 @security.requires_access_dag("DELETE", DagAccessEntity.RUN)
 @provide_session
-@action_logging(event="api.delete_dag_run")
+@action_logging
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run."""
     deleted_count = session.execute(
@@ -300,7 +300,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
 @provide_session
-@action_logging(event="api.post_dag_run")
+@action_logging
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -372,7 +372,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @provide_session
-@action_logging(event="api.update_dag_run_state")
+@action_logging
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
     dag_run: DagRun | None = session.scalar(
@@ -399,7 +399,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
-@action_logging(event="api.clear_dag_run")
+@action_logging
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
@@ -446,7 +446,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 
 
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
-@action_logging(event="api.set_dag_run_note")
+@action_logging
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
