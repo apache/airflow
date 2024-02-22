@@ -38,9 +38,7 @@ from airflow.api_connexion.schemas.connection_schema import (
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.security import permissions
 from airflow.utils import helpers
-from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
 from airflow.www.decorators import action_logging
@@ -50,17 +48,10 @@ if TYPE_CHECKING:
 
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
-RESOURCE_EVENT_PREFIX = "connection"
-
 
 @security.requires_access_connection("DELETE")
 @provide_session
-@action_logging(
-    event=action_event_from_permission(
-        prefix=RESOURCE_EVENT_PREFIX,
-        permission=permissions.ACTION_CAN_DELETE,
-    ),
-)
+@action_logging
 def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
@@ -111,12 +102,7 @@ def get_connections(
 
 @security.requires_access_connection("PUT")
 @provide_session
-@action_logging(
-    event=action_event_from_permission(
-        prefix=RESOURCE_EVENT_PREFIX,
-        permission=permissions.ACTION_CAN_EDIT,
-    ),
-)
+@action_logging
 def patch_connection(
     *,
     connection_id: str,
@@ -149,12 +135,7 @@ def patch_connection(
 
 @security.requires_access_connection("POST")
 @provide_session
-@action_logging(
-    event=action_event_from_permission(
-        prefix=RESOURCE_EVENT_PREFIX,
-        permission=permissions.ACTION_CAN_CREATE,
-    ),
-)
+@action_logging
 def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create connection entry."""
     body = request.json
