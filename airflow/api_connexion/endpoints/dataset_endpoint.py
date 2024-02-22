@@ -356,5 +356,4 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     if not dataset_event:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
     event = dataset_event_schema.dump(dataset_event)
-    event.pop("created_dagruns")
     return event
