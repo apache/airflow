@@ -773,7 +773,7 @@ class LazyXComAccess(collections.abc.Sequence):
         return NotImplemented
 
     def __getstate__(self) -> Any:
-        """Return the state and properties of a query."""
+        """Return the state and properties of the query."""
         # We don't want to go to the trouble of serializing the entire Query
         # object, including its filters, hints, etc. (plus SQLAlchemy does not
         # provide a public API to inspect a query's contents). Converting the
@@ -790,7 +790,7 @@ class LazyXComAccess(collections.abc.Sequence):
             return (str(statement), query.count())
 
     def __setstate__(self, state: Any) -> None:
-        """Set the state of a query."""
+        """Set the state of the query."""
         statement, self._len = state
         self._query = Query(XCom.value).from_statement(text(statement))
 
