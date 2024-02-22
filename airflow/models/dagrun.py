@@ -562,9 +562,7 @@ class DagRun(Base, LoggingMixin):
         return session.scalars(tis).all()
 
     @internal_api_call
-    def _check_last_n_dagruns_failed(
-        self, dag_id: str, max_consecutive_failed_dag_runs: int, session: Session
-    ):
+    def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
         dag_runs = (
             session.query(DagRun)

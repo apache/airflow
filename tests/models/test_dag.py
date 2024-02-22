@@ -102,8 +102,6 @@ TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
 
-import pydevd_pycharm
-pydevd_pycharm.settrace('192.168.1.4', port=40011, stdoutToServer=True, stderrToServer=True)
 
 @pytest.fixture
 def clear_dags():
@@ -1353,9 +1351,12 @@ class TestDag:
         assert orm_dag.is_paused
         session.close()
 
-    @mock.patch.dict(os.environ, {
-        "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
-    })
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+        },
+    )
     def test_existing_dag_is_paused_config(self):
         # config should be set properly
         assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
