@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import typing
 
-from airflow.datasets import DatasetAll, _DatasetBooleanCondition
+from airflow.datasets import BaseDatasetEventInput, DatasetAll
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
@@ -37,10 +37,13 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
     """Combine time-based scheduling with event-based scheduling."""
 
     def __init__(
-        self, timetable: Timetable, datasets: Collection[Dataset] | _DatasetBooleanCondition
+        self,
+        *,
+        timetable: Timetable,
+        datasets: Collection[Dataset] | BaseDatasetEventInput,
     ) -> None:
         self.timetable = timetable
-        if isinstance(datasets, _DatasetBooleanCondition):
+        if isinstance(datasets, BaseDatasetEventInput):
             self.datasets = datasets
         else:
             self.datasets = DatasetAll(*datasets)
@@ -72,7 +75,7 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
     def validate(self) -> None:
         if isinstance(self.timetable, DatasetTriggeredSchedule):
             raise AirflowTimetableInvalid("cannot nest dataset timetables")
-        if not isinstance(self.datasets, _DatasetBooleanCondition):
+        if not isinstance(self.datasets, BaseDatasetEventInput):
             raise AirflowTimetableInvalid("all elements in 'datasets' must be datasets")
 
     @property
