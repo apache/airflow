@@ -324,7 +324,7 @@ class DistributionPackageInfo(NamedTuple):
         dists_info = []
         if package_format in ["sdist", "both"]:
             for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
-                if not file.is_file():
+                if not file.is_file() or "-source.tar.gz" in file.name:
                     continue
                 dists_info.append(cls.from_sdist(filepath=file))
         if package_format in ["wheel", "both"]:
@@ -479,7 +479,7 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple
             "--no-cache",
             "--no-binary",
             dist_info.package,
-            dist_info.filepath.__fspath__(),
+            dist_info.filepath.as_posix(),
         ],
         check=False,
         # We should run `pip wheel` outside of Project directory for avoid the case
@@ -522,6 +522,14 @@ def prepare_airflow_packages(
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
+        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        packages = DistributionPackageInfo.dist_packages(
+            package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+        )
+        for dist_info in packages:
+            get_console().print(str(dist_info))
+        get_console().print()
+        _check_sdist_to_wheel_dists(packages)
     else:
         _build_airflow_packages_with_docker(
             package_format=package_format,
@@ -529,13 +537,6 @@ def prepare_airflow_packages(
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
     get_console().print("[success]Successfully prepared Airflow packages:")
-    packages = DistributionPackageInfo.dist_packages(
-        package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
-    )
-    for dist_info in packages:
-        get_console().print(str(dist_info))
-    get_console().print()
-    _check_sdist_to_wheel_dists(packages)
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
