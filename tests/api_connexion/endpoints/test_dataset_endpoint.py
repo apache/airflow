@@ -77,7 +77,6 @@ def configured_app(minimal_app_for_api):
     delete_user(connexion_app.app, username="test_queued_event")  # type: ignore
 
 
-
 class TestDatasetEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
 
