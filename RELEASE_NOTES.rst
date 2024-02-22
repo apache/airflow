@@ -77,6 +77,11 @@ https://docs.python.org/3/library/exceptions.html#KeyboardInterrupt
 
 Bug Fixes
 """""""""
+- Sort dag processing stats by last_runtime (#37302)
+- Allow pre-population of trigger form values via URL parameters (#37497)
+- Base date for fetching dag grid view must include selected run_id (#34887)
+- Check permissions for ImportError (#37468)
+- Move ``IMPORT_ERROR`` from DAG related permissions to view related permissions (#37292)
 - Change ``AirflowTaskTimeout`` to inherit ``BaseException`` (#35653)
 - Revert "Fix future DagRun rarely triggered by race conditions when max_active_runs reached its upper limit. (#31414)" (#37596)
 - Change margin to padding so first task can be selected (#37527)
