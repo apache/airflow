@@ -22,7 +22,6 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [How to run system tests](#how-to-run-system-tests)
   - [Running via Airflow](#running-via-airflow)
   - [Running via Pytest](#running-via-pytest)
