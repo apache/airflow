@@ -1837,8 +1837,8 @@ webserver:
         The audit logs in the db will not be affected by this parameter.
       version_added: 2.3.0
       type: string
-      example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
+      example: "cli_task_run,running,success"
+      default: ~
     audit_view_included_events:
       description: |
         Comma separated string of view events to include in dag audit view.
