@@ -286,7 +286,6 @@ class TestSFTPToGCSOperatorStream:
         mock_temp_dest_blob.upload_from_file.assert_called()
 
     def test_stream_single_object_getfo_method(self):
-        mock_dest_blob, mock_temp_dest_blob = MagicMock(), MagicMock()
         self.task.stream_method = 'getfo'
         self.task.execute(None)
         self.mock_sftp_hook.return_value.get_conn.assert_called()
