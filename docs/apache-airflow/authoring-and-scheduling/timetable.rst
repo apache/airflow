@@ -222,19 +222,13 @@ Combining conditional dataset expressions with time-based schedules enhances sch
     from airflow.timetables.trigger import CronTriggerTimetable
 
     with DAG(
-        dag_id="conditional_dataset_and_time_based_timetable",
-        catchup=False,
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        # Conditional dataset and time based timetable
         schedule=DatasetOrTimeSchedule(
             timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
         ),
-        tags=["dataset-time-based-timetable"],
-    ) as dag:
-        BashOperator(
-            task_id="conditional_dataset_and_time_based_timetable",
-            bash_command="sleep 5",
-            outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
-        )
+        ...
+    ):
+        ...
 
 
 Timetables comparisons

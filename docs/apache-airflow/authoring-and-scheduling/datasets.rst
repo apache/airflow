@@ -270,15 +270,11 @@ To schedule a DAG to run only when two specific datasets have both been updated,
     dag2_dataset = Dataset("s3://dag2/output_1.txt")
 
     with DAG(
-        dag_id="consume_1_and_2_with_dataset_expressions",
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        # Consume dataset 1 and 2 with dataset expressions
         schedule=(dag1_dataset & dag2_dataset),
-    ) as dag:
-        BashOperator(
-            task_id="consume_1_and_2_with_dataset_expressions",
-            bash_command="sleep 5",
-            outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
-        )
+        ...
+    ):
+        ...
 
 **Scheduling Based on Any Dataset Update**
 
@@ -287,15 +283,11 @@ To trigger a DAG execution when either of two datasets is updated, apply the OR 
 .. code-block:: python
 
     with DAG(
-        dag_id="consume_1_or_2_with_dataset_expressions",
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        # Consume dataset 1 or 2 with dataset expressions
         schedule=(dag1_dataset | dag2_dataset),
-    ) as dag:
-        BashOperator(
-            task_id="consume_1_or_2_with_dataset_expressions",
-            bash_command="sleep 5",
-            outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
-        )
+        ...
+    ):
+        ...
 
 **Complex Conditional Logic**
 
@@ -306,15 +298,11 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
     dag3_dataset = Dataset("s3://dag3/output_3.txt")
 
     with DAG(
-        dag_id="consume_1_or_both_2_and_3_with_dataset_expressions",
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        # Consume dataset 1 or both 2 and 3 with dataset expressions
         schedule=(dag1_dataset | (dag2_dataset & dag3_dataset)),
-    ) as dag:
-        BashOperator(
-            task_id="consume_1_or_both_2_and_3_with_dataset_expressions",
-            bash_command="sleep 5",
-            outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
-        )
+        ...
+    ):
+        ...
 
 Combining Dataset and Time-Based Schedules
 ------------------------------------------
@@ -325,4 +313,4 @@ With the introduction of ``DatasetTimetable``, it is now possible to schedule DA
 
 For more detailed information on ``DatasetTimetable`` and its usage, refer to the corresponding section in :ref:`DatasetTimetable <dataset-timetable-section>`.
 
-These examples illustrate how Airflow's conditional dataset expressions can be used to create complex, data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.
+These examples illustrate how Airflow's conditional dataset expressions can be used to create complex data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.

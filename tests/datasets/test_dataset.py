@@ -323,6 +323,7 @@ test_cases = [
         DatasetAll(dataset1, dataset2, DatasetAll(dataset3, dataset4)),
     ),
     (lambda: dataset1 | dataset2 | dataset3, DatasetAny(dataset1, dataset2, dataset3)),
+    (lambda: dataset1 & dataset2 & dataset3, DatasetAll(dataset1, dataset2, dataset3)),
     (
         lambda: ((dataset1 & dataset2) | dataset3) & (dataset4 | dataset5),
         DatasetAll(DatasetAny(DatasetAll(dataset1, dataset2), dataset3), DatasetAny(dataset4, dataset5)),

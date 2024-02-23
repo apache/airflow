@@ -46,7 +46,6 @@ dataset dependencies. This DAG is configured to execute either when both dataset
 dataset_produces_2 datasets have been updated or according to a specific cron schedule, showcasing
 Airflow's versatility in handling mixed triggers for dataset and time-based scheduling.
 
-
 The DAGs dataset_consumes_1_never_scheduled and dataset_consumes_unknown_never_scheduled will not run
 automatically as they depend on datasets that do not get updated or are not produced by any scheduled tasks.
 """

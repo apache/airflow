@@ -192,10 +192,11 @@ def extract_datasets(
 
     :param dataset_expression: The DatasetsExpression to extract from.
     """
-    if isinstance(dataset_expression, DatasetsExpression):
-        if dataset_expression.value == "&":
-            return DatasetAll(dataset_expression.left, dataset_expression.right)
-        elif dataset_expression.value == "|":
-            return DatasetAny(dataset_expression.left, dataset_expression.right)
-        raise ValueError("Invalid Expression node value")
-    return dataset_expression
+    if not isinstance(dataset_expression, DatasetsExpression):
+        return dataset_expression
+
+    if dataset_expression.value == "&":
+        return DatasetAll(dataset_expression.left, dataset_expression.right)
+    elif dataset_expression.value == "|":
+        return DatasetAny(dataset_expression.left, dataset_expression.right)
+    raise ValueError("Invalid Expression node value")
