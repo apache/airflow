@@ -23,7 +23,7 @@ from collections import defaultdict
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import Dataset, DatasetAll, DatasetAny, extract_datasets
+from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny, extract_datasets
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -271,14 +271,14 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
     ), "Serialized 'dataset_triggers' should be a dict"
 
 
-def datasets_equal(d1, d2):
+def datasets_equal(d1: BaseDatasetEventInput, d2: BaseDatasetEventInput) -> bool:
     if type(d1) != type(d2):
         return False
 
-    if isinstance(d1, Dataset):
+    if isinstance(d1, Dataset) and isinstance(d2, Dataset):
         return d1.uri == d2.uri
 
-    elif isinstance(d1, (DatasetAny, DatasetAll)):
+    elif isinstance(d1, (DatasetAny, DatasetAll)) and isinstance(d2, (DatasetAny, DatasetAll)):
         if len(d1.objects) != len(d2.objects):
             return False
 

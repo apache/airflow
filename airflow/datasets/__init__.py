@@ -73,10 +73,10 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __hash__(self):
         return hash(self.uri)
 
-    def __or__(self, other: Dataset):
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
         return DatasetAny(self, other)
 
-    def __and__(self, other: Dataset):
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
         return DatasetAll(self, other)
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
@@ -112,16 +112,16 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll) -> None:
+    def __init__(self, *objects: BaseDatasetEventInput) -> None:
         """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
         super().__init__(*objects)
 
-    def __or__(self, other):
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
         if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
             return DatasetAny(*self.objects, other)
         return NotImplemented
 
-    def __and__(self, other):
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
         if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
             return DatasetAll(self, other)
         return NotImplemented
@@ -135,16 +135,16 @@ class DatasetAll(_DatasetBooleanCondition):
 
     agg_func = all
 
-    def __init__(self, *objects: Dataset | DatasetAny | DatasetAll):
+    def __init__(self, *objects: BaseDatasetEventInput):
         """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
         super().__init__(*objects)
 
-    def __or__(self, other):
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
         if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
             return DatasetAny(self, other)
         return NotImplemented
 
-    def __and__(self, other):
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
         if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
             return DatasetAll(*self.objects, other)
         return NotImplemented
@@ -167,10 +167,10 @@ class DatasetsExpression:
         self.left = left
         self.right = right
 
-    def __or__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+    def __or__(self, other: BaseDatasetEventInput | DatasetsExpression) -> DatasetsExpression:
         return DatasetsExpression("|", self, other)
 
-    def __and__(self, other: Dataset | DatasetsExpression) -> DatasetsExpression:
+    def __and__(self, other: BaseDatasetEventInput | DatasetsExpression) -> DatasetsExpression:
         return DatasetsExpression("&", self, other)
 
     def __repr__(self) -> str:
@@ -181,7 +181,7 @@ class DatasetsExpression:
         elif self.value == "|":
             return repr(DatasetAny(self.left, self.right))
         else:
-            return f"Invalid DatasetsExpression(value={self.value})"
+            raise ValueError(f"Invalid DatasetsExpression(value={self.value})")
 
 
 def extract_datasets(

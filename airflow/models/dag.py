@@ -174,7 +174,9 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, DatasetsExpression, Collection["Dataset"]]
+ScheduleArg = Union[
+    ArgNotSet, ScheduleInterval, Timetable, DatasetsExpression, BaseDatasetEventInput, Collection["Dataset"]
+]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
