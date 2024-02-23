@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-23T16:28:08.377236
+# This constraints file was automatically generated on 2024-02-23T20:17:57.420795
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -307,7 +307,7 @@ gcsfs==2024.2.0
 geomet==0.2.1.post1
 gevent==24.2.1
 gitdb==4.0.11
-google-ads==23.0.0
+google-ads==23.1.0
 google-analytics-admin==0.22.6
 google-api-core==2.17.1
 google-api-python-client==2.119.0
@@ -479,19 +479,19 @@ openlineage-python==1.9.0
 openlineage_sql==1.9.0
 openpyxl==3.1.2
 opensearch-py==2.4.2
-opentelemetry-api==1.22.0
-opentelemetry-exporter-otlp-proto-common==1.22.0
-opentelemetry-exporter-otlp-proto-grpc==1.22.0
-opentelemetry-exporter-otlp-proto-http==1.22.0
-opentelemetry-exporter-otlp==1.22.0
-opentelemetry-exporter-prometheus==0.43b0
-opentelemetry-proto==1.22.0
-opentelemetry-sdk==1.22.0
-opentelemetry-semantic-conventions==0.43b0
+opentelemetry-api==1.23.0
+opentelemetry-exporter-otlp-proto-common==1.23.0
+opentelemetry-exporter-otlp-proto-grpc==1.23.0
+opentelemetry-exporter-otlp-proto-http==1.23.0
+opentelemetry-exporter-otlp==1.23.0
+opentelemetry-exporter-prometheus==0.44b0
+opentelemetry-proto==1.23.0
+opentelemetry-sdk==1.23.0
+opentelemetry-semantic-conventions==0.44b0
 opsgenie-sdk==2.1.5
 oracledb==2.0.1
 ordered-set==4.1.0
-orjson==3.9.14
+orjson==3.9.15
 oss2==2.18.4
 packaging==23.2
 pandas-gbq==0.21.0
@@ -540,8 +540,8 @@ pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.20.0
-pydantic==2.6.1
-pydantic_core==2.16.2
+pydantic==2.6.2
+pydantic_core==2.16.3
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.6
@@ -675,7 +675,7 @@ towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.1
 trino==0.328.0
-trove-classifiers==2024.2.22
+trove-classifiers==2024.2.23
 twine==5.0.0
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
