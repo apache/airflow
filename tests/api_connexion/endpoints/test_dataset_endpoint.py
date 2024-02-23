@@ -604,7 +604,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
             "created_dagruns": [],
             "dataset_uri": event_payload["dataset_uri"],
             "dataset_id": ANY,
-            "extra": {"foo": "bar"},
+            "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
             "source_task_id": None,
             "source_run_id": None,

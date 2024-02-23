@@ -347,6 +347,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
     timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
+    extra["from_rest_api"] = True
     dataset_event = dataset_manager.register_dataset_change(
         dataset=Dataset(uri),
         timestamp=timestamp,
