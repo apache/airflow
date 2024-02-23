@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-22T22:58:55.294958
+# This constraints file was automatically generated on 2024-02-23T04:51:39.624535
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -203,7 +203,7 @@ azure-core==1.30.0
 azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
 azure-identity==1.15.0
-azure-keyvault-secrets==4.7.0
+azure-keyvault-secrets==4.8.0
 azure-kusto-data==4.3.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
@@ -342,7 +342,7 @@ google-cloud-memcache==1.9.2
 google-cloud-monitoring==2.19.2
 google-cloud-orchestration-airflow==1.12.0
 google-cloud-os-login==2.14.2
-google-cloud-pubsub==2.19.4
+google-cloud-pubsub==2.19.6
 google-cloud-redis==2.15.2
 google-cloud-resource-manager==1.12.2
 google-cloud-run==0.10.4
@@ -509,7 +509,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
-pinotdb==5.1.2
+pinotdb==5.1.3
 pipdeptree==2.14.0
 pipx==1.4.3
 pkginfo==1.9.6
@@ -533,7 +533,7 @@ pure-eval==0.2.2
 pure-sasl==0.6.2
 py-partiql-parser==0.5.1
 py4j==0.10.9.7
-pyOpenSSL==23.3.0
+pyOpenSSL==24.0.0
 pyarrow-hotfix==0.6
 pyarrow==14.0.2
 pyasn1-modules==0.3.0
@@ -626,7 +626,7 @@ smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.7.0
+snowflake-connector-python==3.7.1
 snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -696,7 +696,7 @@ types-python-slugify==8.0.2.20240127
 types-pytz==2024.1.0.20240203
 types-redis==4.6.0.20240218
 types-requests==2.31.0.20240218
-types-setuptools==69.1.0.20240217
+types-setuptools==69.1.0.20240223
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
