@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-22T19:44:31.739309
+# This constraints file was automatically generated on 2024-02-22T22:49:17.108091
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -157,7 +157,7 @@ cron-descriptor==1.4.3
 croniter==2.0.1
 cryptography==41.0.7
 curlify==2.2.1
-databricks-sql-connector==2.9.3
+databricks-sql-connector==2.9.4
 datadog==0.48.0
 db-dtypes==1.2.0
 debugpy==1.8.1
@@ -175,13 +175,13 @@ duckdb==0.10.0
 ecdsa==0.18.0
 editables==0.5
 elastic-transport==8.12.0
-elasticsearch==8.12.0
+elasticsearch==8.12.1
 email-validator==1.3.1
 entrypoints==0.4
 enum34==1.1.10
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
-eventlet==0.35.1
+eventlet==0.35.2
 exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
@@ -204,10 +204,10 @@ gitdb==4.0.11
 google-ads==23.0.0
 google-analytics-admin==0.22.5
 google-api-core==2.17.1
-google-api-python-client==2.118.0
+google-api-python-client==2.119.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
-google-auth==2.28.0
+google-auth==2.28.1
 google-cloud-aiplatform==1.42.1
 google-cloud-appengine-logging==1.4.1
 google-cloud-audit-log==0.2.5
@@ -260,9 +260,9 @@ greenlet==3.0.3
 grpc-google-iam-v1==0.13.0
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
-grpcio-status==1.60.1
-grpcio-tools==1.60.1
-grpcio==1.60.1
+grpcio-status==1.62.0
+grpcio-tools==1.62.0
+grpcio==1.62.0
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -326,7 +326,7 @@ limits==3.9.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.0.0
+looker-sdk==24.2.0
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -342,7 +342,7 @@ more-itertools==10.2.0
 moto==5.0.2
 mpmath==1.3.0
 msal-extensions==1.1.0
-msal==1.26.0
+msal==1.27.0
 msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
@@ -447,7 +447,7 @@ pygraphviz==1.11
 pyiceberg==0.6.0
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.6.1
+pymongo==4.6.2
 pymssql==2.2.11
 pyodbc==5.1.0
 pyparsing==3.1.1
@@ -573,7 +573,7 @@ towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.1
 trino==0.328.0
-trove-classifiers==2024.1.31
+trove-classifiers==2024.2.22
 twine==5.0.0
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
@@ -608,7 +608,7 @@ userpath==1.9.1
 validators==0.22.0
 vertica-python==1.3.8
 vine==5.1.0
-virtualenv==20.25.0
+virtualenv==20.25.1
 watchtower==3.0.1
 wcwidth==0.2.13
 weaviate-client==3.26.2
