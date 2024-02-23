@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-23T04:51:39.744708
+# This constraints file was automatically generated on 2024-02-23T10:23:22.762843
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -278,7 +278,6 @@ docker==7.0.0
 docopt==0.6.2
 docutils==0.20.1
 duckdb==0.10.0
-ecdsa==0.18.0
 editables==0.5
 elastic-transport==8.12.0
 elasticsearch==8.12.1
@@ -572,7 +571,6 @@ python-dateutil==2.8.2
 python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
-python-jose==3.3.0
 python-ldap==3.4.4
 python-nvd3==0.15.0
 python-slugify==8.0.4
@@ -651,7 +649,6 @@ sqlalchemy-drill==1.1.4
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
 sqlparse==0.4.4
-sshpubkeys==3.3.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
