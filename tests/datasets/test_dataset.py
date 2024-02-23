@@ -23,7 +23,7 @@ from collections import defaultdict
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny, extract_datasets
+from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -334,5 +334,4 @@ test_cases = [
 @pytest.mark.parametrize("expression, expected", test_cases)
 def test_extract_datasets(expression, expected):
     expr = expression()
-    result = extract_datasets(expr)
-    assert datasets_equal(result, expected)
+    assert datasets_equal(expr, expected)

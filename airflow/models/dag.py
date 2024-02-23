@@ -80,13 +80,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import (
-    BaseDatasetEventInput,
-    Dataset,
-    DatasetAll,
-    DatasetsExpression,
-    extract_datasets,
-)
+from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -174,9 +168,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
 # See also: https://discuss.python.org/t/9126/7
 ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
-ScheduleArg = Union[
-    ArgNotSet, ScheduleInterval, Timetable, DatasetsExpression, BaseDatasetEventInput, Collection["Dataset"]
-]
+ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, BaseDatasetEventInput, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
@@ -589,9 +581,7 @@ class DAG(LoggingMixin):
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: BaseDatasetEventInput | None = None
-        if isinstance(schedule, DatasetsExpression):
-            self.dataset_triggers = extract_datasets(dataset_expression=schedule)
-        elif isinstance(schedule, BaseDatasetEventInput):
+        if isinstance(schedule, BaseDatasetEventInput):
             self.dataset_triggers = schedule
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, Dataset) for x in schedule):
@@ -599,7 +589,7 @@ class DAG(LoggingMixin):
             self.dataset_triggers = DatasetAll(*schedule)
         elif isinstance(schedule, Timetable):
             timetable = schedule
-        elif schedule is not NOTSET and not isinstance(schedule, DatasetsExpression):
+        elif schedule is not NOTSET and not isinstance(schedule, BaseDatasetEventInput):
             schedule_interval = schedule
 
         if isinstance(schedule, DatasetOrTimeSchedule):
