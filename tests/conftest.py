@@ -86,7 +86,7 @@ if platform.system() == "Darwin":
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
-    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags/test_invalid_dup_task.py",
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests/test_utils/perf/dags/elastic_dag.py",
 ]
