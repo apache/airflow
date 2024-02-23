@@ -3313,6 +3313,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def create_job_for_partition_get(
         self,
         dataset_id: str | None,
+        table_id: str | None = None,
         project_id: str | None = None,
     ):
         """Create a new job and get the job_id using gcloud-aio."""
@@ -3322,7 +3323,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
             query_request = {
                 "query": "SELECT partition_id "
-                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`",
+                f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`"
+                + (f" WHERE table_id={table_id}" if table_id else ""),
                 "useLegacySql": False,
             }
             job_query_resp = await job_client.query(query_request, cast(Session, session))
