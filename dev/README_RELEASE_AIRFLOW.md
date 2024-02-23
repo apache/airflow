@@ -489,7 +489,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
-cd asf-dist/dev/airflow/X.Y.Zrc1
+cd asf-dist/dev/airflow/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
