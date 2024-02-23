@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -24,7 +23,7 @@ from connexion import NoContent
 from marshmallow import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
-from airflow.utils import timezone
+
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -48,6 +47,7 @@ from airflow.datasets import Dataset
 from airflow.datasets.manager import dataset_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.security import permissions
+from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session

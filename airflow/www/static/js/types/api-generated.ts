@@ -5487,7 +5487,7 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
 >;
-export type PostDatasetEventVariables = CamelCasedPropertiesDeep<
+export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
   operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
