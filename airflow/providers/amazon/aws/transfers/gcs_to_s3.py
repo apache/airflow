@@ -118,7 +118,7 @@ class GCSToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
+        self.gcs_bucket = gcs_bucket or bucket
         if bucket:
             warnings.warn(
                 "The ``bucket`` parameter is deprecated and will be removed in a future version. "
@@ -126,9 +126,7 @@ class GCSToS3Operator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.gcs_bucket = bucket
-        if gcs_bucket:
-            self.gcs_bucket = gcs_bucket
+
         if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
         self.prefix = prefix
