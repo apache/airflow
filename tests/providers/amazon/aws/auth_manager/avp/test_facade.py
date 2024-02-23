@@ -220,3 +220,63 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 AirflowException, match="Error occurred while making an authorization decision."
             ):
                 facade.is_authorized(method="GET", entity_type=AvpEntities.VARIABLE, user=test_user)
+
+    @pytest.mark.parametrize(
+        "user, avp_response, expected",
+        [
+            (
+                test_user,
+                {"results": [{"decision": "ALLOW"}, {"decision": "DENY"}]},
+                False,
+            ),
+            (
+                test_user,
+                {"results": [{"decision": "ALLOW"}, {"decision": "ALLOW"}]},
+                True,
+            ),
+            (
+                None,
+                {"results": [{"decision": "ALLOW"}, {"decision": "ALLOW"}]},
+                False,
+            ),
+        ],
+    )
+    def test_batch_is_authorized_successful(self, facade, user, avp_response, expected):
+        mock_batch_is_authorized = Mock(return_value=avp_response)
+        facade.avp_client.batch_is_authorized = mock_batch_is_authorized
+
+        with conf_vars(
+            {
+                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
+            }
+        ):
+            result = facade.batch_is_authorized(
+                requests=[
+                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                ],
+                user=user,
+            )
+
+        assert result == expected
+
+    def test_batch_is_authorized_unsuccessful(self, facade):
+        avp_response = {"results": [{}, {"errors": []}, {"errors": [{"errorDescription": "Error"}]}]}
+        mock_batch_is_authorized = Mock(return_value=avp_response)
+        facade.avp_client.batch_is_authorized = mock_batch_is_authorized
+
+        with conf_vars(
+            {
+                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
+            }
+        ):
+            with pytest.raises(
+                AirflowException, match="Error occurred while making a batch authorization decision."
+            ):
+                facade.batch_is_authorized(
+                    requests=[
+                        {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                        {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                    ],
+                    user=test_user,
+                )

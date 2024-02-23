@@ -57,18 +57,26 @@ class ExtractorManager(LoggingMixin):
         self.extractors: dict[str, type[BaseExtractor]] = {}
         self.default_extractor = DefaultExtractor
 
-        # Comma-separated extractors in OPENLINEAGE_EXTRACTORS variable.
-        # Extractors should implement BaseExtractor
+        # Built-in Extractors like Bash and Python
         for extractor in _iter_extractor_types():
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
+        # Semicolon-separated extractors in Airflow configuration or OPENLINEAGE_EXTRACTORS variable.
+        # Extractors should implement BaseExtractor
         env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
         # skip either when it's empty string or None
         if env_extractors:
             for extractor in env_extractors.split(";"):
                 extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
                 for operator_class in extractor.get_operator_classnames():
+                    if operator_class in self.extractors:
+                        self.log.debug(
+                            "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
+                            operator_class,
+                            extractor,
+                            self.extractors[operator_class],
+                        )
                     self.extractors[operator_class] = extractor
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):

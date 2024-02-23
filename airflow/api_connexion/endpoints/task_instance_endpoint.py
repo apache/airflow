@@ -383,7 +383,6 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
             {
                 "method": "GET",
                 "details": DagDetails(id=id),
-                "user": g.user,
             }
             for id in dag_ids
         ]

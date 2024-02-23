@@ -324,7 +324,7 @@ class DistributionPackageInfo(NamedTuple):
         dists_info = []
         if package_format in ["sdist", "both"]:
             for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
-                if not file.is_file():
+                if not file.is_file() or "-source.tar.gz" in file.name:
                     continue
                 dists_info.append(cls.from_sdist(filepath=file))
         if package_format in ["wheel", "both"]:
@@ -435,13 +435,13 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
             if not venv_created:
                 venv_path = (Path(tmp_dir_name) / ".venv").resolve().absolute()
                 venv_command_result = run_command(
-                    [sys.executable, "-m", "venv", venv_path.__fspath__()],
+                    [sys.executable, "-m", "venv", venv_path.as_posix()],
                     check=False,
                     capture_output=True,
                 )
                 if venv_command_result.returncode != 0:
                     get_console().print(
-                        f"[error]Error when initializing virtualenv in {venv_path.__fspath__()}:[/]\n"
+                        f"[error]Error when initializing virtualenv in {venv_path.as_posix()}:[/]\n"
                         f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
                     )
                 python_path = venv_path / "bin" / "python"
@@ -450,8 +450,19 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                         f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
                     )
                     sys.exit(1)
-                pip_command = (python_path.__fspath__(), "-m", "pip")
-                run_command([*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"], check=True)
+                pip_command = (python_path.as_posix(), "-m", "pip")
+                result = run_command(
+                    [*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    get_console().print(
+                        f"[error]Error when installing pip in {venv_path.as_posix()}[/]\n"
+                        f"{result.stdout}\n{result.stderr}"
+                    )
+                    sys.exit(1)
                 venv_created = True
 
             returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
@@ -479,12 +490,14 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple
             "--no-cache",
             "--no-binary",
             dist_info.package,
-            dist_info.filepath.__fspath__(),
+            dist_info.filepath.as_posix(),
         ],
         check=False,
         # We should run `pip wheel` outside of Project directory for avoid the case
         # when some files presented into the project directory, but not included in sdist.
         cwd=cwd,
+        capture_output=True,
+        text=True,
     )
     if (returncode := result_pip_wheel.returncode) == 0:
         get_console().print(
@@ -492,7 +505,8 @@ def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple
         )
     else:
         get_console().print(
-            f"[error]Unable to build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+            f"[error]Unable to build wheel from sdist distribution for package {dist_info.package!r}.[/]\n"
+            f"{result_pip_wheel.stdout}\n{result_pip_wheel.stderr}"
         )
     return returncode
 
@@ -522,20 +536,23 @@ def prepare_airflow_packages(
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
+        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        packages = DistributionPackageInfo.dist_packages(
+            package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+        )
+        get_console().print()
+        _check_sdist_to_wheel_dists(packages)
+        get_console().print("\n[info]Packages available in dist:[/]\n")
+        for dist_info in packages:
+            get_console().print(str(dist_info))
+        get_console().print()
     else:
         _build_airflow_packages_with_docker(
             package_format=package_format,
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
-    get_console().print("[success]Successfully prepared Airflow packages:")
-    packages = DistributionPackageInfo.dist_packages(
-        package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
-    )
-    for dist_info in packages:
-        get_console().print(str(dist_info))
-    get_console().print()
-    _check_sdist_to_wheel_dists(packages)
+    get_console().print("[success]Successfully prepared Airflow packages")
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -773,17 +790,17 @@ def prepare_provider_packages(
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
-    temp_provider_packages = None
+    packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override provider_packages with values from PACKAGE_LIST
-        temp_provider_packages = tuple(package_list.split(","))
-    if provider_packages and package_list:
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if provider_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
-            f"Overriding to {temp_provider_packages}"
+            f"Overriding to {packages_list_as_tuple}"
         )
-    provider_packages = temp_provider_packages or ()
+    provider_packages = packages_list_as_tuple or provider_packages
 
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
@@ -858,14 +875,15 @@ def prepare_provider_packages(
         get_console().print("\n[warning]No packages prepared!\n")
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
-    get_console().print("\n[info]Packages available in dist:\n")
     packages = DistributionPackageInfo.dist_packages(
         package_format=package_format, dist_directory=DIST_DIR, build_type="providers"
     )
+    get_console().print()
+    _check_sdist_to_wheel_dists(packages)
+    get_console().print("\n[info]Packages available in dist:\n")
     for dist_info in packages:
         get_console().print(str(dist_info))
     get_console().print()
-    _check_sdist_to_wheel_dists(packages)
 
 
 def run_generate_constraints(
@@ -1463,17 +1481,17 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
-    temp_doc_packages = None
+    packages_list_as_tuple: tuple[str, ...] = ()
     if package_list and len(package_list):
         get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
         # Override doc_packages with values from PACKAGE_LIST
-        temp_doc_packages = tuple(package_list.split(","))
-    if doc_packages and package_list:
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and packages_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
-            f"Overriding to {temp_doc_packages}"
+            f"Overriding to {packages_list_as_tuple}"
         )
-    doc_packages = temp_doc_packages or ()
+    doc_packages = packages_list_as_tuple or doc_packages
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(

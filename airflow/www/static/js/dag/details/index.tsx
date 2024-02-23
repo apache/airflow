@@ -312,6 +312,7 @@ const Details = ({
               pr={4}
               mt="4px"
               onClick={() => {
+                onChangeTab(0);
                 onSelect({ taskId });
               }}
             >
