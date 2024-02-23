@@ -301,6 +301,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 2
+        assert {"TEST_EVENT_1", "TEST_EVENT_2"} == {x["event"] for x in response_data["event_logs"]}
 
     def test_should_filter_eventlogs_by_excluded_events(self, create_log_model):
         for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:
