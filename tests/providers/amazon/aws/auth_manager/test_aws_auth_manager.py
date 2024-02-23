@@ -642,6 +642,65 @@ class TestAwsAuthManager:
                 ]
             )
 
+    @pytest.mark.parametrize(
+        "methods, user",
+        [
+            (None, None),
+            (["PUT", "GET"], AwsAuthManagerUser(user_id="test_user_id", groups=[])),
+        ],
+    )
+    @patch.object(AwsAuthManager, "get_user")
+    def test_filter_permitted_dag_ids(self, mock_get_user, methods, user, auth_manager, test_user):
+        dag_ids = {"dag_1", "dag_2"}
+        batch_is_authorized_output = [
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_1"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
+                },
+                "decision": "DENY",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.PUT"},
+                    "resource": {"entityType": "Airflow::Dag", "entityId": "dag_2"},
+                },
+                "decision": "ALLOW",
+            },
+        ]
+        auth_manager.avp_facade.get_batch_is_authorized_results = Mock(
+            return_value=batch_is_authorized_output
+        )
+
+        mock_get_user.return_value = test_user
+
+        result = auth_manager.filter_permitted_dag_ids(
+            dag_ids=dag_ids,
+            methods=methods,
+            user=user,
+        )
+
+        auth_manager.avp_facade.get_batch_is_authorized_results.assert_called()
+        assert result == {"dag_2"}
+
     @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):
         auth_manager.get_url_login()
