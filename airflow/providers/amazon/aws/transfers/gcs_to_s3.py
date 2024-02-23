@@ -100,8 +100,8 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        gcs_bucket: str | None = None,
-        bucket: str | None = None,
+        gcs_bucket: str,
+        bucket: str,
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -118,7 +118,7 @@ class GCSToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.gcs_bucket = gcs_bucket or bucket
+
         if bucket:
             warnings.warn(
                 "The ``bucket`` parameter is deprecated and will be removed in a future version. "
@@ -126,9 +126,10 @@ class GCSToS3Operator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-
+            
         if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
+        self.gcs_bucket = gcs_bucket or bucket
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
