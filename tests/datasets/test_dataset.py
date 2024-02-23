@@ -89,6 +89,55 @@ def test_hash():
     hash(dataset)
 
 
+def test_dataset_logic_operations():
+    result_or = dataset1 | dataset2
+    assert isinstance(result_or, DatasetAny)
+    result_and = dataset1 & dataset2
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_dataset_iter_datasets():
+    assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+
+
+def test_dataset_evaluate():
+    assert dataset1.evaluate({"s3://bucket1/data1": True}) is True
+    assert dataset1.evaluate({"s3://bucket1/data1": False}) is False
+
+
+def test_dataset_any_operations():
+    result_or = (dataset1 | dataset2) | dataset3
+    assert isinstance(result_or, DatasetAny)
+    assert len(result_or.objects) == 3
+    result_and = (dataset1 | dataset2) & dataset3
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_dataset_all_operations():
+    result_or = (dataset1 & dataset2) | dataset3
+    assert isinstance(result_or, DatasetAny)
+    result_and = (dataset1 & dataset2) & dataset3
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_datasetbooleancondition_evaluate_iter():
+    """
+    Tests _DatasetBooleanCondition's evaluate and iter_datasets methods through DatasetAny and DatasetAll.
+    Ensures DatasetAny evaluate returns True with any true condition, DatasetAll evaluate returns False if
+    any condition is false, and both classes correctly iterate over datasets without duplication.
+    """
+    any_condition = DatasetAny(dataset1, dataset2)
+    all_condition = DatasetAll(dataset1, dataset2)
+    assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
+    assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
+
+    # Testing iter_datasets indirectly through the subclasses
+    datasets_any = set(any_condition.iter_datasets())
+    datasets_all = set(all_condition.iter_datasets())
+    assert datasets_any == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
+    assert datasets_all == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
+
+
 @pytest.mark.parametrize(
     "inputs, scenario, expected",
     [
@@ -332,6 +381,6 @@ test_cases = [
 
 
 @pytest.mark.parametrize("expression, expected", test_cases)
-def test_extract_datasets(expression, expected):
+def test_evaluate_datasets_expression(expression, expected):
     expr = expression()
     assert datasets_equal(expr, expected)
