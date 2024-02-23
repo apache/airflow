@@ -1360,7 +1360,7 @@ class Airflow(AirflowBaseView):
 
         logging.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+        dag_run = dag.get_dagrun(execution_date=dttm)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
