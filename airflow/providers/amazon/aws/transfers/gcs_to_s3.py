@@ -100,8 +100,8 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        gcs_bucket: str,
-        bucket: str,
+        gcs_bucket: str | None = None,
+        bucket: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -128,7 +128,7 @@ class GCSToS3Operator(BaseOperator):
         self.gcs_bucket = gcs_bucket or bucket
         if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
-        
+
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
@@ -217,7 +217,7 @@ class GCSToS3Operator(BaseOperator):
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
-                    object_name=file, bucket_name=self.gcs_bucket, user_project=self.gcp_user_project
+                    object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)
