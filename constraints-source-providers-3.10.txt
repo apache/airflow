@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-23T20:12:01.895371
+# This constraints file was automatically generated on 2024-02-23T21:16:14.700525
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -149,7 +149,7 @@ colorlog==4.8.0
 comm==0.2.1
 confluent-kafka==2.3.0
 connexion==2.14.2
-coverage==7.4.2
+coverage==7.4.3
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.1
@@ -345,7 +345,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.44
+mypy-boto3-rds==1.34.49
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.14
 mypy-extensions==1.0.0
