@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-23T10:17:19.503434
+# This constraints file was automatically generated on 2024-02-23T16:22:46.906877
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -126,7 +126,7 @@ opentelemetry-sdk==1.22.0
 opentelemetry-semantic-conventions==0.43b0
 ordered-set==4.1.0
 packaging==23.2
-pandas==2.2.0
+pandas==2.2.1
 pathspec==0.12.1
 pendulum==3.0.0
 platformdirs==4.2.0
