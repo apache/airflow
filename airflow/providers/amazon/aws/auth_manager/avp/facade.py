@@ -248,7 +248,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
     def _build_is_authorized_request_payload(self, request: IsAuthorizedRequest, user: AwsAuthManagerUser):
         """
-        Build payload of individual authorization request send through ``batch_is_authorized`` API.
+        Build a payload of an individual authorization request that could be sent through the ``batch_is_authorized`` API.
 
         :param request: the request information
         :param user: the user
