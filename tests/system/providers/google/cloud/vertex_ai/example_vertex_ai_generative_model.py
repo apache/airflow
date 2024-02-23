@@ -35,7 +35,7 @@ DAG_ID = "example_vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 LANGUAGE_MODEL = "text-bison"
-MULTIMODAL_MODAL = "gemini-pro"
+MULTIMODAL_MODEL = "gemini-pro"
 
 with DAG(
     dag_id=DAG_ID,
@@ -57,11 +57,11 @@ with DAG(
 
     # [START how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
     prompt_multimodal_model_task = PromptMultimodalModelOperator(
-        task_id="generative_model_task",
+        task_id="prompt_multimodal_model_task",
         project_id=PROJECT_ID,
         location=REGION,
         prompt=PROMPT,
-        pretrained_model=MULTIMODAL_MODAL,
+        pretrained_model=MULTIMODAL_MODEL,
     )
     # [END how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
 
