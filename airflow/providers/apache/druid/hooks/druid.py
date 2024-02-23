@@ -53,9 +53,9 @@ class DruidHook(BaseHook):
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
-    :parm verify_ssl: Either a boolean, in which case it controls whether we verify the server's TLS
+    :param verify_ssl: Either a boolean, in which case it controls whether we verify the server's TLS
                       certificate, or a string, in which case it must be a path to a CA bundle to use.
-                      Defaults to True.
+                      Defaults to True
     """
 
     def __init__(
@@ -108,8 +108,9 @@ class DruidHook(BaseHook):
         url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth(),
-                                  verify=self.verify_ssl)
+        req_index = requests.post(
+            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.verify_ssl
+        )
 
         code = req_index.status_code
         not_accepted = not (200 <= code < 300)
