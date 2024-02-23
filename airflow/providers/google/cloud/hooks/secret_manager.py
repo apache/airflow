@@ -63,7 +63,7 @@ class SecretsManagerHook(GoogleBaseHook):
 
     def get_conn(self) -> _SecretManagerClient:
         """
-        Retrieves the connection to Secret Manager.
+        Retrieve the connection to Secret Manager.
 
         :return: Secret Manager client.
         """

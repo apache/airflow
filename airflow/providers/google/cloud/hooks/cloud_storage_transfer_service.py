@@ -510,7 +510,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
 
     def get_conn(self) -> StorageTransferServiceAsyncClient:
         """
-        Returns async connection to the Storage Transfer Service.
+        Return async connection to the Storage Transfer Service.
 
         :return: Google Storage Transfer asynchronous client.
         """
@@ -520,7 +520,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
 
     async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
         """
-        Gets the latest state of a long-running operations in Google Storage Transfer Service.
+        Get the latest state of a long-running operations in Google Storage Transfer Service.
 
         :param job_names: (Required) List of names of the jobs to be fetched.
         :return: Object that yields Transfer jobs.
@@ -533,7 +533,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
 
     async def get_latest_operation(self, job: TransferJob) -> Message | None:
         """
-        Gets the latest operation of the given TransferJob instance.
+        Get the latest operation of the given TransferJob instance.
 
         :param job: Transfer job instance.
         :return: The latest job operation.

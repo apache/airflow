@@ -272,7 +272,6 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.sql = sql
         self.use_legacy_sql = use_legacy_sql
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -313,6 +312,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
                         project_id=hook.project_id,
+                        location=self.location or hook.location,
                         poll_interval=self.poll_interval,
                         impersonation_chain=self.impersonation_chain,
                     ),
@@ -321,7 +321,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -438,6 +438,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
                         project_id=hook.project_id,
+                        location=self.location or hook.location,
                         sql=self.sql,
                         pass_value=self.pass_value,
                         tolerance=self.tol,
@@ -459,7 +460,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -594,6 +595,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     second_job_id=job_2.job_id,
                     project_id=hook.project_id,
                     table=self.table,
+                    location=self.location or hook.location,
                     metrics_thresholds=self.metrics_thresholds,
                     date_filter_column=self.date_filter_column,
                     days_back=self.days_back,
@@ -606,7 +608,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -795,9 +797,6 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         **kwargs,
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
-        self.table = table
-        self.checks = checks
-        self.partition_clause = partition_clause
         self.gcp_conn_id = gcp_conn_id
         self.use_legacy_sql = use_legacy_sql
         self.location = location
@@ -961,7 +960,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.job_project_id = job_project_id
-        self.max_results = int(max_results)
+        self.max_results = max_results
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
         self.location = location
@@ -997,7 +996,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += "*"
         query += (
             f" from `{self.table_project_id or hook.project_id}.{self.dataset_id}"
-            f".{self.table_id}` limit {self.max_results}"
+            f".{self.table_id}` limit {int(self.max_results)}"
         )
         return query
 
@@ -1024,7 +1023,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 self.table_project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
-                self.max_results,
+                int(self.max_results),
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(
@@ -1038,7 +1037,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             rows = hook.list_rows(
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                max_results=self.max_results,
+                max_results=int(self.max_results),
                 selected_fields=self.selected_fields,
                 location=self.location,
                 project_id=self.table_project_id or hook.project_id,
@@ -1068,6 +1067,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
                 project_id=self.job_project_id or hook.project_id,
+                location=self.location or hook.location,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
                 impersonation_chain=self.impersonation_chain,
@@ -1076,7 +1076,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -1213,6 +1213,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        job_id: str | list[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1238,7 +1239,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
-        self.job_id: str | list[str] | None = None
+        self.job_id = job_id
 
     def execute(self, context: Context):
         if self.hook is None:
@@ -1474,7 +1475,7 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
         self.gcs_schema_object = gcs_schema_object
         self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
-        self.time_partitioning = {} if time_partitioning is None else time_partitioning
+        self.time_partitioning = time_partitioning or {}
         self.labels = labels
         self.view = view
         self.materialized_view = materialized_view
@@ -1689,6 +1690,13 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 
         super().__init__(**kwargs)
 
+        self.table_resource = table_resource
+        self.bucket = bucket or ""
+        self.source_objects = source_objects or []
+        self.schema_object = schema_object or None
+        self.gcs_schema_bucket = gcs_schema_bucket or ""
+        self.destination_project_dataset_table = destination_project_dataset_table or ""
+
         # BQ config
         kwargs_passed = any(
             [
@@ -1746,12 +1754,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             self.field_delimiter = field_delimiter
             self.table_resource = None
         else:
-            self.table_resource = table_resource
-            self.bucket = ""
-            self.source_objects = []
-            self.schema_object = None
-            self.gcs_schema_bucket = ""
-            self.destination_project_dataset_table = ""
+            pass
 
         if table_resource and kwargs_passed:
             raise ValueError("You provided both `table_resource` and exclusive keywords arguments.")
@@ -2876,6 +2879,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
                         project_id=self.project_id,
+                        location=self.location or hook.location,
                         poll_interval=self.poll_interval,
                         impersonation_chain=self.impersonation_chain,
                     ),
@@ -2885,7 +2889,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             self._handle_job_error(job)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.

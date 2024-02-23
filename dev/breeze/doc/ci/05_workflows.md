@@ -237,7 +237,7 @@ code.
 | Upgrade checks                  | Performs checks if there are some pending upgrades       |          | Yes      | Yes        | Yes              |
 | Static checks                   | Performs full static checks                              | Yes (6)  | Yes      | Yes        | Yes (7)          |
 | Basic static checks             | Performs basic static checks (no image)                  | Yes (6)  |          |            |                  |
-| Build docs                      | Builds and tests publishing of the documentation         | Yes      | Yes      | Yes        | Yes              |
+| Build docs                      | Builds and tests publishing of the documentation         | Yes      | Yes (11) | Yes        | Yes              |
 | Spellcheck docs                 | Spellcheck docs                                          | Yes      | Yes      | Yes        | Yes              |
 | Tests wheel provider packages   | Tests if provider packages can be built and released     | Yes      | Yes      | Yes        |                  |
 | Tests Airflow compatibility     | Compatibility of provider packages with older Airflow    | Yes      | Yes      | Yes        |                  |
@@ -292,6 +292,9 @@ via `skip-provider-tests` selective check output.
 
 `(10)` Only run the builds in case PR is run by a committer from
 "apache" repository and in scheduled build.
+
+`(11)` Docs publishing is only done in Canary run, to handle the case where
+cloning whole airflow site on Public Runner cannot complete due to the size of the repository.
 
 ## CodeQL scan
 

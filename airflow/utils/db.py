@@ -543,6 +543,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="qdrant_default",
+            conn_type="qdrant",
+            host="qdrant",
+            port=6333,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="redis_default",
             conn_type="redis",
             host="redis",
@@ -637,6 +646,17 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="tabular_default",
             conn_type="tabular",
             host="https://api.tabulardata.io/ws/v1",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="teradata_default",
+            conn_type="teradata",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="schema",
         ),
         session,
     )

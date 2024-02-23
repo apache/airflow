@@ -67,7 +67,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         self.ensure_utc = ensure_utc
 
     def query(self):
-        """Queries mysql and returns a cursor to the results."""
+        """Query mysql and returns a cursor to the results."""
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         conn = mysql.get_conn()
         cursor = conn.cursor()

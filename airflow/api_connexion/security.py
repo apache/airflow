@@ -145,10 +145,11 @@ def requires_access_dag(
             # ``access`` means here:
             # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
             # - if no DAG id is provided: is the user authorized to access all DAGs
-            if dag_id or access:
+            if dag_id or access or access_entity:
                 return access
 
-            # No DAG id is provided and the user is not authorized to access all DAGs
+            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
+            # on DAG level
             # If method is "GET", return whether the user has read access to any DAGs
             # If method is "PUT", return whether the user has edit access to any DAGs
             return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (

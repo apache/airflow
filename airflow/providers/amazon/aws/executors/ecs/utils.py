@@ -127,9 +127,9 @@ class EcsExecutorTask:
 
     def get_task_state(self) -> str:
         """
-        This is the primary logic that handles state in an ECS task.
+        Determine the state of an ECS task based on its status and other relevant attributes.
 
-        It will determine if a status is:
+        It can return one of the following statuses:
             QUEUED - Task is being provisioned.
             RUNNING - Task is launched on ECS.
             REMOVED - Task provisioning has failed for some reason. See `stopped_reason`.
@@ -173,7 +173,7 @@ class EcsTaskCollection:
         exec_config: ExecutorConfigType,
         attempt_number: int,
     ):
-        """Adds a task to the collection."""
+        """Add a task to the collection."""
         arn = task.task_arn
         self.tasks[arn] = task
         self.key_to_arn[airflow_task_key] = arn
@@ -182,7 +182,7 @@ class EcsTaskCollection:
         self.key_to_failure_counts[airflow_task_key] = attempt_number
 
     def update_task(self, task: EcsExecutorTask):
-        """Updates the state of the given task based on task ARN."""
+        """Update the state of the given task based on task ARN."""
         self.tasks[task.task_arn] = task
 
     def task_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
@@ -195,7 +195,7 @@ class EcsTaskCollection:
         return self.tasks[arn]
 
     def pop_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
-        """Deletes task from collection based off of Airflow Task Instance Key."""
+        """Delete task from collection based off of Airflow Task Instance Key."""
         arn = self.key_to_arn[task_key]
         task = self.tasks[arn]
         del self.key_to_arn[task_key]
@@ -227,11 +227,11 @@ class EcsTaskCollection:
         return self.key_to_task_info[task_key]
 
     def __getitem__(self, value):
-        """Gets a task by AWS ARN."""
+        """Get a task by AWS ARN."""
         return self.task_by_arn(value)
 
     def __len__(self):
-        """Determines the number of tasks in collection."""
+        """Determine the number of tasks in collection."""
         return len(self.tasks)
 
 

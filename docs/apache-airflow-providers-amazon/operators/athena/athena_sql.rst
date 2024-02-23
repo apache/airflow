@@ -36,7 +36,7 @@ Operators
 Execute a SQL query
 ===================
 
-The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against Amazon Athena using a `Athena connection <../../connections/athena.rst>`_.
+The generic ``SQLExecuteQueryOperator`` can be used to execute SQL queries against Amazon Athena using a `Athena connection <../../connections/athena.html>`_.
 
 To execute a single SQL query against an Amazon Athena without bringing back the results to Airflow,
 please use ``AthenaOperator`` instead.

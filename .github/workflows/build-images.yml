@@ -42,6 +42,11 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
+  # Version of Python used for reproducibility of the packages built
+  # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
+  # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
+  # TODO: remove me when we switch to Python 3.9 as minimal version
+  REPRODUCIBLE_PYTHON_VERSION: "3.9"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -55,7 +60,7 @@ jobs:
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      python-versions: "${{ steps.selective-checks.python-versions }}"
+      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -155,13 +160,16 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ${{fromJson(needs.build-info.outputs.python-versions)}}
     permissions:
       contents: read
       packages: write
     timeout-minutes: 80
-    name: >
-      Build CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    name: Build CI image ${{ matrix.python-version }}
+    runs-on: ["ubuntu-22.04"]
     needs: [build-info]
     if: |
       needs.build-info.outputs.ci-image-build == 'true' &&
@@ -217,9 +225,10 @@ jobs:
       #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
       #  ISOLATED FROM THE RUNNER.
       ####################################################################################################
-      - name: >
-          Build CI Images ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+      - name: Build CI Image ${{ matrix.python-version }}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-ci-images
+        with:
+          python-version: ${{ matrix.python-version }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
@@ -228,14 +237,16 @@ jobs:
           BUILD_TIMEOUT_MINUTES: 70
 
   build-prod-images:
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ${{fromJson(needs.build-info.outputs.python-versions)}}
     permissions:
       contents: read
       packages: write
     timeout-minutes: 80
-    name: >
-      Build PROD images
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    name: Build PROD image ${{ matrix.python-version }}
+    runs-on: ["ubuntu-22.04"]
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.prod-image-build == 'true' &&
@@ -294,13 +305,14 @@ jobs:
       ####################################################################################################
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-      - name: >
-          Build PROD Images
-          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        with:
+          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
+      - name: Build PROD Image ${{ matrix.python-version }}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
         with:
           build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
           chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+          python-version: ${{ matrix.python-version }}
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}

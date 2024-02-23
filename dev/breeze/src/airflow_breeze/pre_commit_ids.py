@@ -120,6 +120,7 @@ PRE_COMMIT_LIST = [
     "update-breeze-cmd-output",
     "update-breeze-readme-config-hash",
     "update-build-dependencies",
+    "update-chart-dependencies",
     "update-common-sql-api-stubs",
     "update-er-diagram",
     "update-extras",

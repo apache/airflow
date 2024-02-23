@@ -60,7 +60,7 @@ class GCSBlobTrigger(BaseTrigger):
         self.hook_params = hook_params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes GCSBlobTrigger arguments and classpath."""
+        """Serialize GCSBlobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger",
             {
@@ -93,7 +93,7 @@ class GCSBlobTrigger(BaseTrigger):
 
     async def _object_exists(self, hook: GCSAsyncHook, bucket_name: str, object_name: str) -> str:
         """
-        Checks for the existence of a file in Google Cloud Storage.
+        Check for the existence of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob_name to check in the Google cloud
@@ -143,7 +143,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         self.hook_params = hook_params
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes GCSCheckBlobUpdateTimeTrigger arguments and classpath."""
+        """Serialize GCSCheckBlobUpdateTimeTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.gcs.GCSCheckBlobUpdateTimeTrigger",
             {
@@ -181,7 +181,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         self, hook: GCSAsyncHook, bucket_name: str, object_name: str, target_date: datetime
     ) -> tuple[bool, dict[str, Any]]:
         """
-        Checks if the object in the bucket is updated.
+        Check if the object in the bucket is updated.
 
         :param hook: GCSAsyncHook Hook class
         :param bucket_name: The Google Cloud Storage bucket where the object is.
@@ -248,7 +248,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
         self.prefix = prefix
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes GCSPrefixBlobTrigger arguments and classpath."""
+        """Serialize GCSPrefixBlobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.gcs.GCSPrefixBlobTrigger",
             {
@@ -282,7 +282,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
 
     async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
         """
-        Returns names of blobs which match the given prefix for a given bucket.
+        Return names of blobs which match the given prefix for a given bucket.
 
         :param hook: The async hook to use for listing the blobs
         :param bucket_name: The Google Cloud Storage bucket where the object is.
@@ -344,7 +344,7 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
         self.last_activity_time: datetime | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes GCSUploadSessionTrigger arguments and classpath."""
+        """Serialize GCSUploadSessionTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.gcs.GCSUploadSessionTrigger",
             {
@@ -377,7 +377,11 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_time(self) -> datetime:
-        """This is just a wrapper of datetime.datetime.now to simplify mocking in the unittests."""
+        """
+        Get current local date and time.
+
+        This is just a wrapper of datetime.datetime.now to simplify mocking in the unittests.
+        """
         return datetime.now()
 
     def _is_bucket_updated(self, current_objects: set[str]) -> dict[str, str]:

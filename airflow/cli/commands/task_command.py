@@ -18,6 +18,7 @@
 """Task sub-commands."""
 from __future__ import annotations
 
+import functools
 import importlib
 import json
 import logging
@@ -34,13 +35,13 @@ from sqlalchemy import select
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagRunNotFound, TaskInstanceNotFound
+from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
@@ -588,7 +589,8 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
-def task_test(args, dag: DAG | None = None) -> None:
+@provide_session
+def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
     """Test task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
@@ -632,7 +634,22 @@ def task_test(args, dag: DAG | None = None) -> None:
             if args.dry_run:
                 ti.dry_run()
             else:
-                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True, raise_on_defer=True)
+    except TaskDeferred as defer:
+        ti.defer_task(defer=defer, session=session)
+        log.info("[TASK TEST] running trigger in line")
+
+        event = _run_inline_trigger(defer.trigger)
+        ti.next_method = defer.method_name
+        ti.next_kwargs = {"event": event.payload} if event else defer.kwargs
+
+        execute_callable = getattr(task, ti.next_method)
+        if ti.next_kwargs:
+            execute_callable = functools.partial(execute_callable, **ti.next_kwargs)
+        context = ti.get_template_context(ignore_param_exceptions=False)
+        execute_callable(context)
+
+        log.info("[TASK TEST] Trigger completed")
     except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()

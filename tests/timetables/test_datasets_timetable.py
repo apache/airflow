@@ -127,7 +127,6 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
     serialized = dataset_timetable.serialize()
     assert serialized == {
         "timetable": "mock_serialized_timetable",
-        "datasets": [{"uri": "test_dataset", "extra": None}],
     }
 
 

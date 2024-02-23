@@ -105,7 +105,7 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
         yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
-        """Returns a representation of a DataScanJob instance as a dict."""
+        """Return a representation of a DataScanJob instance as a dict."""
         return DataScanJob.to_dict(job)
 
 
@@ -187,5 +187,5 @@ class DataplexDataProfileJobTrigger(BaseTrigger):
         yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": self._convert_to_dict(job)})
 
     def _convert_to_dict(self, job: DataScanJob) -> dict:
-        """Returns a representation of a DataScanJob instance as a dict."""
+        """Return a representation of a DataScanJob instance as a dict."""
         return DataScanJob.to_dict(job)

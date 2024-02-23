@@ -61,7 +61,7 @@ class DebugExecutor(BaseExecutor):
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
-        """The method is replaced by custom trigger_task implementation."""
+        """Replace the method with a custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True

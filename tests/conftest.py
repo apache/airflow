@@ -71,6 +71,7 @@ if run_db_tests_only:
 AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
 AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
+os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "plugins")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
@@ -85,7 +86,7 @@ if platform.system() == "Darwin":
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
-    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags/test_invalid_dup_task.py",
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests/test_utils/perf/dags/elastic_dag.py",
 ]
@@ -508,8 +509,9 @@ def skip_if_wrong_backend(marker, item):
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
             f"The test requires one of {valid_backend_names} backend started and "
-            f"{environment_variable_name} environment variable to be set to 'true' (it is "
-            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
+            f"{environment_variable_name} environment variable to be set to either of {valid_backend_names}"
+            f" (it is currently set to {environment_variable_value}'). "
+            f"It can be set by specifying backend at breeze startup: {item}"
         )
 
 
@@ -1119,6 +1121,18 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
 
 
+@pytest.fixture()
+def cleanup_providers_manager():
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager()._cleanup()
+    ProvidersManager().initialize_providers_configuration()
+    try:
+        yield
+    finally:
+        ProvidersManager()._cleanup()
+
+
 # The code below is a modified version of capture-warning code from
 # https://github.com/athinkingape/pytest-capture-warnings
 
@@ -1229,7 +1243,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
     if captured_warnings:
         print("\n ======================== Warning summary =============================\n")
         print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
-        print(f"   After removing duplicates, {len(captured_warnings.values())}  of them remained.")
+        print(f"   After removing duplicates, {len(captured_warnings.values())} of them remained.")
         print(f"   They are stored in {warning_output_path} file.")
         print("\n ======================================================================\n")
         warnings_as_json = []
@@ -1278,3 +1292,26 @@ def configure_warning_output(config):
 
 
 # End of modified code from  https://github.com/athinkingape/pytest-capture-warnings
+
+if TYPE_CHECKING:
+    # Static checkers do not know about pytest fixtures' types and return,
+    # In case if them distributed through third party packages.
+    # This hack should help with autosuggestion in IDEs.
+    from pytest_mock import MockerFixture
+    from requests_mock.contrib.fixture import Fixture as RequestsMockFixture
+    from time_machine import TimeMachineFixture
+
+    # pytest-mock
+    @pytest.fixture
+    def mocker() -> MockerFixture:
+        ...
+
+    # requests-mock
+    @pytest.fixture
+    def requests_mock() -> RequestsMockFixture:
+        ...
+
+    # time-machine
+    @pytest.fixture  # type: ignore[no-redef]
+    def time_machine() -> TimeMachineFixture:
+        ...

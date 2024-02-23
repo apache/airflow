@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -155,4 +155,4 @@ def get_tag_date(tag: str) -> str | None:
     timestamp: int = (
         tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
     )
-    return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.fromtimestamp(timestamp, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

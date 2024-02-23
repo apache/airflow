@@ -35,6 +35,7 @@
     :caption: Guides
 
     PrestoTransferOperator types <operators/transfer/gcs_to_presto>
+    Connection types <connections>
 
 .. toctree::
     :hidden:
