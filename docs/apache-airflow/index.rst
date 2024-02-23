@@ -48,11 +48,13 @@ Take a look at the following snippet of code:
   from airflow import DAG
   from airflow.operators.bash import BashOperator
 
-  with DAG(dag_id="demo_hw", start_date=datetime.datetime.now(), tags=["demo"]) as dag:
-      hello = BashOperator(task_id="hello", bash_command="echo hello")
-      world = BashOperator(task_id="world", bash_command="echo world")
+  with DAG(dag_id="demo_hw", start_date=datetime.datetime.now(), tags=['demo']) as dag:
+    hello = BashOperator(task_id="hello", bash_command="echo hello")
+    world = BashOperator(task_id="world", bash_command="echo world")
+    fromA = BashOperator(task_id="from_Airflow", bash_command="echo 'from Airflow'")
 
-      hello >> world
+    hello >> world
+    hello >> fromA
 
 Here you can see:
 
