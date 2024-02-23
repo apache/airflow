@@ -135,7 +135,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         *,
         requests: Sequence[IsAuthorizedRequest],
         user: AwsAuthManagerUser,
-    ):
+    ) -> list[dict]:
         """
         Make a batch authorization decision against Amazon Verified Permissions.
 
