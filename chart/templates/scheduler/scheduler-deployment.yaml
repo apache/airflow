@@ -166,7 +166,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+          {{- include "git_sync_container" (merge . (dict "is_init" "true")) | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
           {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}

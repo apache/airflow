@@ -132,3 +132,30 @@ class TestGitSyncWorker:
         )
 
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+
+    def test_can_repo_url_be_templated(self):
+        docs = render_chart(
+            values={
+                "testValues": {
+                    "dict": {
+                        "key": "aa",
+                    },
+                },
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "repo": "https://github.com/{{ .Values.testValues.dict.key }}/{{ .Release.Namespace }}.git",
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            namespace="bb",
+        )
+
+        assert {"name": "GIT_SYNC_REPO", "value": "https://github.com/aa/bb.git"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+
+        assert {"name": "GITSYNC_REPO", "value": "https://github.com/aa/bb.git"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )

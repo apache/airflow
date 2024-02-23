@@ -160,7 +160,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
+          {{- include "git_sync_container" (merge . (dict "is_init" "true")) | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
           {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}

@@ -252,9 +252,9 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_BRANCH
       value: {{ .Values.dags.gitSync.branch | quote }}
     - name: GIT_SYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
+      value: {{ tpl .Values.dags.gitSync.repo . | quote }}
     - name: GITSYNC_REPO
-      value: {{ .Values.dags.gitSync.repo | quote }}
+      value: {{ tpl .Values.dags.gitSync.repo . | quote }}
     - name: GIT_SYNC_DEPTH
       value: {{ .Values.dags.gitSync.depth | quote }}
     - name: GITSYNC_DEPTH
