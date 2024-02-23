@@ -3510,6 +3510,16 @@ export interface operations {
         before?: components["parameters"]["Before"];
         /** Timestamp to select event logs occurring after. */
         after?: components["parameters"]["After"];
+        /**
+         * One or more event names separated by commas. If set, only return event logs with events matching this pattern.
+         * *New in version 2.9.0*
+         */
+        included_events?: string;
+        /**
+         * One or more event names separated by commas. If set, only return event logs with events that do not match this pattern.
+         * *New in version 2.9.0*
+         */
+        excluded_events?: string;
       };
     };
     responses: {
