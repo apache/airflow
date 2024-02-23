@@ -1111,7 +1111,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, method=None
+            mount_point="secret", path="path", secret={"key": "value"}, method=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1145,7 +1145,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, method="post")
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, method="post"
+            mount_point="secret", path="path", secret={"key": "value"}, method="post"
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
