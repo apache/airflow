@@ -99,6 +99,16 @@ with DAG(
     )
     # [END howto_operator_sftp_to_gcs_move_specific_files]
 
+    # [START howto_operator_sftp_to_gcs_copy_single_file_with_stream]
+    copy_file_from_sftp_to_gcs = SFTPToGCSOperator(
+        task_id="file-copy-sftp-to-gcs-with-stream",
+        source_path=f"{FILE_LOCAL_PATH}/{OBJECT_SRC_1}",
+        destination_bucket=BUCKET_NAME,
+        use_stream = True,
+        stream_method = "getfo",
+    )
+    # [END howto_operator_sftp_to_gcs_copy_single_file_with_stream]
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )

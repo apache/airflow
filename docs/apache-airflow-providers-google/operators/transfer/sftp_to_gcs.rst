@@ -110,15 +110,11 @@ This method is more efficient for large files or in environments with limited di
     - ``max_concurrent_prefetch_requests``: Control the concurrency level for prefetching in the ``"getfo"`` method.
     - ``callback``: Provide a custom callback function for progress tracking during file transfer.
 
-Example usage
-```
-    transfer_operator = SFTPToGCSOperator(
-        ...
-        use_stream=True,
-        stream_method="getfo",
-        ...
-    )
-```
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_sftp_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sftp_to_gcs_copy_single_file_with_stream]
+    :end-before: [END howto_operator_sftp_to_gcs_copy_single_file_with_stream]
 
 Reference
 ^^^^^^^^^
