@@ -37,6 +37,11 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 
 
+# Amazon Verified Permissions allows only up to 30 requests per batch_is_authorized call. See
+# https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/verifiedpermissions/client/batch_is_authorized.html
+NB_REQUESTS_PER_BATCH = 30
+
+
 class IsAuthorizedRequest(TypedDict, total=False):
     """Represent the parameters of ``is_authorized`` method in AVP facade."""
 
@@ -125,6 +130,52 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         return resp["decision"] == "ALLOW"
 
+    def get_batch_is_authorized_results(
+        self,
+        *,
+        requests: Sequence[IsAuthorizedRequest],
+        user: AwsAuthManagerUser,
+    ) -> list[dict]:
+        """
+        Make a batch authorization decision against Amazon Verified Permissions.
+
+        Return a list of results for each request.
+
+        :param requests: the list of requests containing the method, the entity_type and the entity ID
+        :param user: the user
+        """
+        entity_list = self._get_user_role_entities(user)
+
+        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
+
+        avp_requests = [self._build_is_authorized_request_payload(request, user) for request in requests]
+        avp_requests_chunks = [
+            avp_requests[i : i + NB_REQUESTS_PER_BATCH]
+            for i in range(0, len(avp_requests), NB_REQUESTS_PER_BATCH)
+        ]
+
+        results = []
+        for avp_requests in avp_requests_chunks:
+            resp = self.avp_client.batch_is_authorized(
+                policyStoreId=self.avp_policy_store_id,
+                requests=avp_requests,
+                entities={"entityList": entity_list},
+            )
+
+            self.log.debug("Authorization response: %s", resp)
+
+            has_errors = any(len(result.get("errors", [])) > 0 for result in resp["results"])
+
+            if has_errors:
+                self.log.error(
+                    "Error occurred while making a batch authorization decision. Result: %s", resp["results"]
+                )
+                raise AirflowException("Error occurred while making a batch authorization decision.")
+
+            results.extend(resp["results"])
+
+        return results
+
     def batch_is_authorized(
         self,
         *,
@@ -134,53 +185,42 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         """
         Make a batch authorization decision against Amazon Verified Permissions.
 
-        Check whether the user has permissions to access given resources.
+        Check whether the user has permissions to access all resources.
 
         :param requests: the list of requests containing the method, the entity_type and the entity ID
         :param user: the user
         """
         if user is None:
             return False
+        results = self.get_batch_is_authorized_results(requests=requests, user=user)
+        return all(result["decision"] == "ALLOW" for result in results)
 
-        entity_list = self._get_user_role_entities(user)
+    def get_batch_is_authorized_single_result(
+        self,
+        *,
+        batch_is_authorized_results: list[dict],
+        request: IsAuthorizedRequest,
+        user: AwsAuthManagerUser,
+    ) -> dict:
+        """
+        Get a specific authorization result from the output of ``get_batch_is_authorized_results``.
 
-        self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
+        :param batch_is_authorized_results: the response from the ``batch_is_authorized`` API
+        :param request: the request information. Used to find the result in the response.
+        :param user: the user
+        """
+        request_payload = self._build_is_authorized_request_payload(request, user)
 
-        avp_requests = [
-            prune_dict(
-                {
-                    "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
-                    "action": {
-                        "actionType": get_entity_type(AvpEntities.ACTION),
-                        "actionId": get_action_id(request["entity_type"], request["method"]),
-                    },
-                    "resource": {
-                        "entityType": get_entity_type(request["entity_type"]),
-                        "entityId": request.get("entity_id", "*"),
-                    },
-                    "context": self._build_context(request.get("context")),
-                }
-            )
-            for request in requests
-        ]
+        for result in batch_is_authorized_results:
+            if result["request"] == request_payload:
+                return result
 
-        resp = self.avp_client.batch_is_authorized(
-            policyStoreId=self.avp_policy_store_id,
-            requests=avp_requests,
-            entities={"entityList": entity_list},
+        self.log.error(
+            "Could not find the authorization result for request %s in results %s.",
+            request_payload,
+            batch_is_authorized_results,
         )
-
-        self.log.debug("Authorization response: %s", resp)
-
-        has_errors = any(len(result.get("errors", [])) > 0 for result in resp["results"])
-
-        if has_errors:
-            self.log.error(
-                "Error occurred while making a batch authorization decision. Result: %s", resp["results"]
-            )
-            raise AirflowException("Error occurred while making a batch authorization decision.")
-
-        return all(result["decision"] == "ALLOW" for result in resp["results"])
+        raise AirflowException("Could not find the authorization result.")
 
     @staticmethod
     def _get_user_role_entities(user: AwsAuthManagerUser) -> list[dict]:
@@ -205,3 +245,25 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         return {
             "contextMap": context,
         }
+
+    def _build_is_authorized_request_payload(self, request: IsAuthorizedRequest, user: AwsAuthManagerUser):
+        """
+        Build a payload of an individual authorization request that could be sent through the ``batch_is_authorized`` API.
+
+        :param request: the request information
+        :param user: the user
+        """
+        return prune_dict(
+            {
+                "principal": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
+                "action": {
+                    "actionType": get_entity_type(AvpEntities.ACTION),
+                    "actionId": get_action_id(request["entity_type"], request["method"]),
+                },
+                "resource": {
+                    "entityType": get_entity_type(request["entity_type"]),
+                    "entityId": request.get("entity_id", "*"),
+                },
+                "context": self._build_context(request.get("context")),
+            }
+        )
