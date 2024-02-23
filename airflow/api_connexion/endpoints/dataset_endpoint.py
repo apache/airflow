@@ -333,8 +333,8 @@ def delete_dataset_queued_events(
         permission=permissions.ACTION_CAN_CREATE,
     ),
 )
-def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
-    """Post dataset event."""
+def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
+    """Create dataset event."""
     body = get_json_request_dict()
     try:
         json_body = create_dataset_event_schema.load(body)

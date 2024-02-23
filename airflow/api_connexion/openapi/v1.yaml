@@ -2161,7 +2161,7 @@ paths:
       summary: Create dataset event
       description: Create dataset event
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
-      operationId: post_dataset_event
+      operationId: create_dataset_event
       tags: [Dataset]
       requestBody:
         required: true
