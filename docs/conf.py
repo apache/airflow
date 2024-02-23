@@ -350,7 +350,7 @@ if PACKAGE_NAME.startswith("apache-airflow-providers"):
     manual_substitutions_in_generated_html = ["example-dags.html", "operators.html", "index.html"]
 if PACKAGE_NAME == "docker-stack":
     # Substitute in links
-    manual_substitutions_in_generated_html = ["build.html"]
+    manual_substitutions_in_generated_html = ["build.html", "index.html"]
 
 html_css_files = ["custom.css"]
 

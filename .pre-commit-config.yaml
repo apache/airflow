@@ -326,7 +326,6 @@ repos:
           (?x)^(
               ^.*__init__\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
