@@ -126,7 +126,7 @@ class GCSToS3Operator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            
+
         if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
         self.gcs_bucket = gcs_bucket or bucket
