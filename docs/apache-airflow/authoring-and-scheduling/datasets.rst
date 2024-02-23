@@ -261,18 +261,13 @@ To schedule a DAG to run only when two specific datasets have both been updated,
 
 .. code-block:: python
 
-    from airflow.models import DAG
-    from airflow.operators.bash import BashOperator
-    from airflow.datasets import Dataset
-    import pendulum
-
     dag1_dataset = Dataset("s3://dag1/output_1.txt")
     dag2_dataset = Dataset("s3://dag2/output_1.txt")
 
     with DAG(
         # Consume dataset 1 and 2 with dataset expressions
         schedule=(dag1_dataset & dag2_dataset),
-        ...
+        ...,
     ):
         ...
 
@@ -285,7 +280,7 @@ To trigger a DAG execution when either of two datasets is updated, apply the OR 
     with DAG(
         # Consume dataset 1 or 2 with dataset expressions
         schedule=(dag1_dataset | dag2_dataset),
-        ...
+        ...,
     ):
         ...
 
@@ -300,7 +295,7 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
     with DAG(
         # Consume dataset 1 or both 2 and 3 with dataset expressions
         schedule=(dag1_dataset | (dag2_dataset & dag3_dataset)),
-        ...
+        ...,
     ):
         ...
 

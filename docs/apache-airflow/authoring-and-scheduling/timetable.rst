@@ -192,23 +192,15 @@ Here's an example of a DAG using ``DatasetTimetable``:
 
     from airflow.timetables.dataset import DatasetTimetable
     from airflow.timetables.trigger import CronTriggerTimetable
-    from airflow.datasets import Dataset
-    from airflow.models import DAG
-    from airflow.operators.bash import BashOperator
-    import pendulum
 
-    with DAG(
-        dag_id="dataset_and_time_based_timetable",
-        catchup=False,
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        schedule=DatasetTimetable(time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), event=[dag1_dataset]),
-        tags=["dataset-time-based-timetable"],
-    ) as dag7:
-        BashOperator(
-            outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
-            task_id="consuming_dataset_time_based",
-            bash_command="sleep 5",
-        )
+
+    @dag(
+        schedule=DatasetTimetable(time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), event=[dag1_dataset])
+        # Additional arguments here, replace this comment with actual arguments
+    )
+    def example_dag():
+        # DAG tasks go here
+        pass
 
 In this example, the DAG is scheduled to run every Wednesday at 01:00 UTC based on the ``CronTriggerTimetable``, and it is also triggered by updates to ``dag1_dataset``.
 
@@ -221,14 +213,16 @@ Combining conditional dataset expressions with time-based schedules enhances sch
     from airflow.timetables import DatasetOrTimeSchedule
     from airflow.timetables.trigger import CronTriggerTimetable
 
-    with DAG(
-        # Conditional dataset and time based timetable
+
+    @dag(
         schedule=DatasetOrTimeSchedule(
             timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
-        ),
-        ...
-    ):
-        ...
+        )
+        # Additional arguments here, replace this comment with actual arguments
+    )
+    def example_dag():
+        # DAG tasks go here
+        pass
 
 
 Timetables comparisons
