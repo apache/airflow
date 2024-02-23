@@ -291,14 +291,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
             assert response.status_code == 200
             assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
 
-    def test_should_filter_eventlogs_by_included_events(self, create_log_model, session):
-        create_log_model(event="TEST_EVENT_1", when=self.default_time)
-        create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
-        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
-        log_model_3.dttm = self.default_time_2
-
-        session.add(log_model_3)
-        session.flush()
+    def test_should_filter_eventlogs_by_included_events(self, create_log_model):
+        for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:
+            create_log_model(event=event, when=self.default_time)
         response = self.client.get(
             "/api/v1/eventLogs?included_events=TEST_EVENT_1,TEST_EVENT_2",
             environ_overrides={"REMOTE_USER": "test_granular"},
@@ -307,14 +302,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
         response_data = response.json
         assert len(response_data["event_logs"]) == 2
 
-    def test_should_filter_eventlogs_by_excluded_events(self, create_log_model, session):
-        create_log_model(event="TEST_EVENT_1", when=self.default_time)
-        create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
-        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
-        log_model_3.dttm = self.default_time_2
-
-        session.add(log_model_3)
-        session.flush()
+    def test_should_filter_eventlogs_by_excluded_events(self, create_log_model):
+        for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:
+            create_log_model(event=event, when=self.default_time)
         response = self.client.get(
             "/api/v1/eventLogs?excluded_events=TEST_EVENT_1,TEST_EVENT_2",
             environ_overrides={"REMOTE_USER": "test_granular"},
@@ -322,6 +312,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 1
+        assert {"cli_scheduler"} == {x["event"] for x in response_data["event_logs"]}
 
 
 class TestGetEventLogPagination(TestEventLogEndpoint):
