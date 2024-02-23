@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -24,7 +24,7 @@ from connexion import NoContent
 from marshmallow import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import joinedload, subqueryload
-
+from airflow.utils import timezone
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -345,7 +345,7 @@ def post_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
     if not dataset:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
-    timestamp = datetime.now(timezone.utc)
+    timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
     dataset_event = dataset_manager.register_dataset_change(
         dataset=Dataset(uri),
