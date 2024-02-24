@@ -1267,6 +1267,10 @@ def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, ses
 
 @pytest.mark.parametrize("flag_upstream_failed", [True, False])
 def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_failed):
+    """
+    t3 depends on t2, which depends on t1 for expansion. Since t1 has not yet run, t2 has not expanded yet,
+    and we need to guarantee this lack of expansion does not fail the dependency-checking logic.
+    """
     with dag_maker(session=session):
 
         @task
@@ -1288,6 +1292,39 @@ def test_mapped_task_check_before_expand(dag_maker, session, flag_upstream_faile
         session=session,
         flag_upstream_failed=flag_upstream_failed,
         expected_reason="requires all upstream tasks to have succeeded, but found 1",
+    )
+
+
+@pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+def test_mapped_task_group_finished_upstream_before_expand(
+    dag_maker, session, flag_upstream_failed, expected_ti_state
+):
+    """
+    t3 depends on t2, which was skipped before it was expanded. We need to guarantee this lack of expansion
+    does not fail the dependency-checking logic.
+    """
+    with dag_maker(session=session):
+
+        @task
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            return t.override(task_id="t3")(x=x)
+
+        t.override(task_id="t2").expand(x=t.override(task_id="t1")([1, 2])) >> tg.expand(x=[1, 2])
+
+    dr: DagRun = dag_maker.create_dagrun()
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    tis["t2"].set_state(SKIPPED, session=session)
+    session.flush()
+    _test_trigger_rule(
+        ti=tis["tg.t3"],
+        session=session,
+        flag_upstream_failed=flag_upstream_failed,
+        expected_reason="requires all upstream tasks to have succeeded, but found 1",
+        expected_ti_state=expected_ti_state,
     )
 
 
@@ -1454,106 +1491,129 @@ class TestTriggerRuleDepSetupConstraint:
         assert status.reason.startswith("All setup tasks must complete successfully")
         assert self.get_ti(dr, "w2").state == expected
 
-    @pytest.mark.parametrize(
-        "map_index, flag_upstream_failed, expected_ti_state",
-        [(2, True, None), (3, True, REMOVED), (4, True, REMOVED), (3, False, None)],
+
+@pytest.mark.parametrize(
+    "map_index, flag_upstream_failed, expected_ti_state",
+    [(2, True, None), (3, True, REMOVED), (4, True, REMOVED), (3, False, None)],
+)
+def test_setup_constraint_mapped_task_upstream_removed_and_success(
+    dag_maker,
+    session,
+    get_mapped_task_dagrun,
+    map_index,
+    flag_upstream_failed,
+    expected_ti_state,
+):
+    """
+    Dynamically mapped setup task with successful and removed upstream tasks. Expect rule to be
+    successful. State is set to REMOVED for map index >= n success
+    """
+    dr, _, setup_task = get_mapped_task_dagrun(add_setup_tasks=True)
+
+    ti = dr.get_task_instance(task_id="setup_3", map_index=map_index, session=session)
+    ti.task = setup_task
+
+    _test_trigger_rule(
+        ti=ti,
+        session=session,
+        flag_upstream_failed=flag_upstream_failed,
+        expected_ti_state=expected_ti_state,
     )
-    def test_setup_constraint_mapped_task_upstream_removed_and_success(
-        self,
-        dag_maker,
-        session,
-        get_mapped_task_dagrun,
-        monkeypatch,
-        map_index,
-        flag_upstream_failed,
-        expected_ti_state,
-    ):
-        """
-        Dynamically mapped setup task with successful and removed upstream tasks. Expect rule to be
-        successful. State is set to REMOVED for map index >= n success
-        """
-        dr, _, task = get_mapped_task_dagrun(add_setup_tasks=True)
 
-        ti = dr.get_task_instance(task_id="setup_3", map_index=map_index, session=session)
-        ti.task = task
 
-        upstream_states = _UpstreamTIStates(
-            success=3,
-            skipped=0,
-            failed=0,
-            removed=2,
-            upstream_failed=0,
-            done=5,
-            skipped_setup=0,
-            success_setup=0,
-        )
-        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+@pytest.mark.parametrize(
+    "flag_upstream_failed, wait_for_past_depends_before_skipping, past_depends_met, expected_ti_state, expect_failure",
+    [
+        (False, True, True, None, False),
+        (False, True, False, None, False),
+        (False, False, False, None, False),
+        (False, False, True, None, False),
+        (True, False, False, SKIPPED, False),
+        (True, False, True, SKIPPED, False),
+        (True, True, False, None, True),
+        (True, True, True, SKIPPED, False),
+    ],
+)
+def test_setup_constraint_wait_for_past_depends_before_skipping(
+    dag_maker,
+    session,
+    get_task_instance,
+    monkeypatch,
+    flag_upstream_failed,
+    wait_for_past_depends_before_skipping,
+    past_depends_met,
+    expected_ti_state,
+    expect_failure,
+):
+    """
+    Setup task with a skipped upstream task.
+    * If flag_upstream_failed is False then do not expect either a failure nor a modified state.
+    * If flag_upstream_failed is True and wait_for_past_depends_before_skipping is False then expect the
+      state to be set to SKIPPED but no failure.
+    * If both flag_upstream_failed and wait_for_past_depends_before_skipping are True then if the past
+      depends are met the state is expected to be SKIPPED and no failure, otherwise the state is not
+      expected to change but the trigger rule should fail.
+    """
+    ti = get_task_instance(
+        trigger_rule=TriggerRule.ALL_DONE,
+        success=1,
+        skipped=1,
+        failed=0,
+        removed=0,
+        upstream_failed=0,
+        done=2,
+        setup_tasks=["FakeTaskID", "OtherFakeTaskID"],
+    )
 
+    ti.task.xcom_pull.return_value = None
+    xcom_mock = Mock(return_value=True if past_depends_met else None)
+    with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
         _test_trigger_rule(
             ti=ti,
             session=session,
             flag_upstream_failed=flag_upstream_failed,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             expected_ti_state=expected_ti_state,
+            expected_reason=(
+                "Task should be skipped but the past depends are not met" if expect_failure else ""
+            ),
         )
 
-    @pytest.mark.parametrize(
-        "flag_upstream_failed, wait_for_past_depends_before_skipping, past_depends_met, expected_ti_state, expect_failure",
-        [
-            (False, True, True, None, False),
-            (False, True, False, None, False),
-            (False, False, False, None, False),
-            (False, False, True, None, False),
-            (True, False, False, SKIPPED, False),
-            (True, False, True, SKIPPED, False),
-            (True, True, False, None, True),
-            (True, True, True, SKIPPED, False),
-        ],
+
+@pytest.mark.parametrize("flag_upstream_failed, expected_ti_state", [(True, SKIPPED), (False, None)])
+def test_setup_mapped_task_group_finished_upstream_before_expand(
+    dag_maker, session, flag_upstream_failed, expected_ti_state
+):
+    """
+    t3 indirectly depends on t1, which was skipped before it was expanded. We need to guarantee this lack of
+    expansion does not fail the dependency-checking logic.
+    """
+    with dag_maker(session=session):
+
+        @task(trigger_rule=TriggerRule.ALL_DONE)
+        def t(x):
+            return x
+
+        @task_group
+        def tg(x):
+            return t.override(task_id="t3")(x=x)
+
+        vals = t.override(task_id="t1")([1, 2]).as_setup()
+        t.override(task_id="t2").expand(x=vals).as_setup() >> tg.expand(x=[1, 2]).as_setup()
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    tis["t1"].set_state(SKIPPED, session=session)
+    tis["t2"].set_state(SUCCESS, session=session)
+    session.flush()
+    _test_trigger_rule(
+        ti=tis["tg.t3"],
+        session=session,
+        flag_upstream_failed=flag_upstream_failed,
+        expected_reason="All setup tasks must complete successfully.",
+        expected_ti_state=expected_ti_state,
     )
-    def test_setup_constraint_wait_for_past_depends_before_skipping(
-        self,
-        dag_maker,
-        session,
-        get_task_instance,
-        monkeypatch,
-        flag_upstream_failed,
-        wait_for_past_depends_before_skipping,
-        past_depends_met,
-        expected_ti_state,
-        expect_failure,
-    ):
-        """
-        Setup task with a skipped upstream task.
-        * If flag_upstream_failed is False then do not expect either a failure nor a modified state.
-        * If flag_upstream_failed is True and wait_for_past_depends_before_skipping is False then expect the
-          state to be set to SKIPPED but no failure.
-        * If both flag_upstream_failed and wait_for_past_depends_before_skipping are True then if the past
-          depends are met the state is expected to be SKIPPED and no failure, otherwise the state is not
-          expected to change but the trigger rule should fail.
-        """
-        ti = get_task_instance(
-            trigger_rule=TriggerRule.ALL_DONE,
-            success=1,
-            skipped=1,
-            failed=0,
-            removed=0,
-            upstream_failed=0,
-            done=2,
-            setup_tasks=["FakeTaskID", "OtherFakeTaskID"],
-        )
-
-        ti.task.xcom_pull.return_value = None
-        xcom_mock = Mock(return_value=True if past_depends_met else None)
-        with mock.patch("airflow.models.taskinstance.TaskInstance.xcom_pull", xcom_mock):
-            _test_trigger_rule(
-                ti=ti,
-                session=session,
-                flag_upstream_failed=flag_upstream_failed,
-                wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-                expected_ti_state=expected_ti_state,
-                expected_reason=(
-                    "Task should be skipped but the past depends are not met" if expect_failure else ""
-                ),
-            )
 
 
 def _test_trigger_rule(
