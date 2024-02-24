@@ -16,16 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* global moment */
+
 import React, { useMemo, useRef, useState } from "react";
-import { Box, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  FormControl,
+  FormHelperText,
+  FormLabel,
+  Input,
+  HStack,
+} from "@chakra-ui/react";
+import type { SortingRule } from "react-table";
+import { snakeCase } from "lodash";
 
 import { CodeCell, Table, TimeCell } from "src/components/Table";
 import { useEventLogs } from "src/api";
 import { getMetaValue, useOffsetTop } from "src/utils";
 import type { DagRun } from "src/types";
-import Time from "src/components/Time";
-import type { SortingRule } from "react-table";
-import { snakeCase } from "lodash";
+import LinkButton from "src/components/LinkButton";
 
 interface Props {
   taskId?: string;
@@ -94,13 +105,48 @@ const AuditLog = ({ taskId, run }: Props) => {
       ref={logRef}
       overflowY="auto"
     >
-      {!!run && (
-        <Text>
-          Showing logs between Dag Run Queued at (
-          <Time dateTime={run.queuedAt} />) and Last Scheduling Decision (
-          <Time dateTime={run.lastSchedulingDecision} />)
-        </Text>
-      )}
+      <Flex justifyContent="right">
+        <LinkButton href={getMetaValue("audit_log_url")}>
+          View full cluster Audit Log
+        </LinkButton>
+      </Flex>
+      <HStack spacing={2} alignItems="flex-start">
+        <FormControl>
+          <FormLabel>Show Logs After</FormLabel>
+          <Input
+            type="datetime"
+            // @ts-ignore
+            placeholder={run?.queuedAt ? moment(run?.queuedAt).format() : ""}
+            isDisabled
+          />
+          {!!run && run?.queuedAt && (
+            <FormHelperText>After selected DAG Run Queued At</FormHelperText>
+          )}
+        </FormControl>
+        <FormControl>
+          <FormLabel>Show Logs Before</FormLabel>
+          <Input
+            type="datetime"
+            placeholder={
+              run?.lastSchedulingDecision
+                ? // @ts-ignore
+                  moment(run?.lastSchedulingDecision).format()
+                : ""
+            }
+            isDisabled
+          />
+          {!!run && run?.lastSchedulingDecision && (
+            <FormHelperText>
+              Before selected DAG Run Last Scheduling Decision
+            </FormHelperText>
+          )}
+        </FormControl>
+        <FormControl>
+          <FormLabel>Filter by Task ID</FormLabel>
+          <Input placeholder={taskId} isDisabled />
+          <FormHelperText />
+        </FormControl>
+      </HStack>
       <Table
         data={memoData || []}
         columns={columns}

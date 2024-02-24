@@ -84,7 +84,7 @@ const tabToIndex = (tab?: string) => {
       return 2;
     case "code":
       return 3;
-    case "audit_logs":
+    case "audit_log":
       return 4;
     case "logs":
     case "mapped_tasks":
@@ -103,6 +103,8 @@ const indexToTab = (
   isMappedTaskSummary: boolean
 ) => {
   switch (index) {
+    case 0:
+      return "details";
     case 1:
       return "graph";
     case 2:
@@ -110,7 +112,7 @@ const indexToTab = (
     case 3:
       return "code";
     case 4:
-      return "audit_logs";
+      return "audit_log";
     case 5:
       if (isMappedTaskSummary) return "mapped_tasks";
       if (isTaskInstance) return "logs";
@@ -118,7 +120,6 @@ const indexToTab = (
     case 6:
       if (isTaskInstance) return "xcom";
       return undefined;
-    case 0:
     default:
       return undefined;
   }
@@ -179,13 +180,16 @@ const Details = ({
   );
 
   useEffect(() => {
-    // Default to graph tab when navigating from a task instance to a dagrun
-    const tabCount = runId && taskId && !isGroup ? 6 : 4;
-    if (tabCount === 6 && tabIndex > 5) {
-      if (!runId && taskId) onChangeTab(0);
-      else onChangeTab(1);
-    }
-  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
+    // Change to graph or task duration tab if the tab is no longer defined
+    if (indexToTab(tabIndex, isTaskInstance, isMappedTaskSummary) === undefined)
+      onChangeTab(showTaskDetails ? 0 : 1);
+  }, [
+    tabIndex,
+    isTaskInstance,
+    isMappedTaskSummary,
+    showTaskDetails,
+    onChangeTab,
+  ]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -281,14 +285,12 @@ const Details = ({
               Code
             </Text>
           </Tab>
-          {(!isGroup || !taskId) && (
-            <Tab>
-              <MdPlagiarism size={16} />
-              <Text as="strong" ml={1}>
-                Audit Log
-              </Text>
-            </Tab>
-          )}
+          <Tab>
+            <MdPlagiarism size={16} />
+            <Text as="strong" ml={1}>
+              Audit Log
+            </Text>
+          </Tab>
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -373,11 +375,12 @@ const Details = ({
           <TabPanel height="100%">
             <DagCode />
           </TabPanel>
-          {(!isGroup || !taskId) && (
-            <TabPanel height="100%">
-              <AuditLog taskId={taskId || undefined} run={run} />
-            </TabPanel>
-          )}
+          <TabPanel height="100%">
+            <AuditLog
+              taskId={isGroup || !taskId ? undefined : taskId}
+              run={run}
+            />
+          </TabPanel>
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
