@@ -287,7 +287,8 @@
         "_log_config_logger_name": { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
-        "partial_kwargs": { "type": "object" }
+        "partial_kwargs": { "type": "object" },
+        "map_index_template": { "type": "string" }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
