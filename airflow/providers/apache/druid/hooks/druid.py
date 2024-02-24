@@ -20,15 +20,17 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 import requests
 from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class IngestionType(Enum):
