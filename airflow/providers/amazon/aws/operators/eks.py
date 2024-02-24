@@ -248,7 +248,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.wait_for_completion = wait_for_completion
         if deferrable:
-            self.wait_for_completion = False
+            self.wait_for_completion = bool(False)
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -498,7 +498,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.wait_for_completion = wait_for_completion
         if deferrable:
-            self.wait_for_completion = False
+            self.wait_for_completion = bool(False)
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -622,7 +622,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.wait_for_completion = wait_for_completion
         if deferrable:
-            self.wait_for_completion = False
+            self.wait_for_completion = bool(False)
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -723,7 +723,7 @@ class EksDeleteClusterOperator(BaseOperator):
         self.force_delete_compute = force_delete_compute
         self.wait_for_completion = wait_for_completion
         if deferrable:
-            self.wait_for_completion = False
+            self.wait_for_completion = bool(False)
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.deferrable = deferrable
