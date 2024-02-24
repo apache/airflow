@@ -66,7 +66,7 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
-        verify_ssl: bool | str = True,
+        verify_ssl: bool = True,
     ) -> None:
         super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
@@ -107,8 +107,9 @@ class DruidHook(BaseHook):
             return None
 
     def get_verify(self) -> bool | str:
-        if not self.verify_ssl and self.conn.extra_dejson.get("ca_bundle_path", None):
-            return self.conn.extra_dejson.get("ca_bundle_path")
+        ca_bundle_path: str | None = self.conn.extra_dejson.get("ca_bundle_path", None)
+        if not self.verify_ssl and ca_bundle_path:
+            return ca_bundle_path
 
         return self.verify_ssl
 

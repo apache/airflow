@@ -53,7 +53,7 @@ class DruidOperator(BaseOperator):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
         ingestion_type: IngestionType = IngestionType.BATCH,
-        verify_ssl: bool | str = True,
+        verify_ssl: bool = True,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
