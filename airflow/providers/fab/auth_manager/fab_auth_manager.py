@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
 from connexion.options import SwaggerUIOptions
-from flask import Blueprint, url_for
+from flask import url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -148,7 +148,7 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
-    def get_api_endpoints(self, connexion_app: connexion.FlaskApp) -> None | Blueprint:
+    def set_api_endpoints(self, connexion_app: connexion.FlaskApp) -> None:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
             specification = safe_load(f)
@@ -157,7 +157,7 @@ class FabAuthManager(BaseAuthManager):
             swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
         )
 
-        api = connexion_app.add_api(
+        connexion_app.add_api(
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
@@ -165,7 +165,7 @@ class FabAuthManager(BaseAuthManager):
             strict_validation=True,
             validate_responses=True,
         )
-        return api.blueprint if api else None
+        return None
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""
