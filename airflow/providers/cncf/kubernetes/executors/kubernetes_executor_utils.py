@@ -235,6 +235,34 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                 )
+            elif (
+                self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                and "status" in event["raw_object"]
+            ):
+                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
+                # Init containers and base container statuses to check.
+                # Skipping the other containers statuses check.
+                container_statuses_to_check = []
+                if "initContainerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.extend(event["raw_object"]["status"]["initContainerStatuses"])
+                if "containerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.append(event["raw_object"]["status"]["containerStatuses"][0])
+                for container_status in container_statuses_to_check:
+                    container_status_state = container_status["state"]
+                    if "waiting" in container_status_state:
+                        if (
+                            container_status_state["waiting"]["reason"]
+                            in self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                        ):
+                            if (
+                                container_status_state["waiting"]["reason"] == "ErrImagePull"
+                                and container_status_state["waiting"]["message"] == "pull QPS exceeded"
+                            ):
+                                continue
+                            self.watcher_queue.put(
+                                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                            )
+                            break
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
