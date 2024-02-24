@@ -2476,7 +2476,7 @@ jobs:
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
   push-buildx-cache-to-github-registry:
-    timeout-minutes: 120
+    timeout-minutes: 110
     name: "Push Image Cache"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
@@ -2570,7 +2570,7 @@ jobs:
   # There is no point in running this one in "canary" run, because the above step is doing the
   # same build anyway.
   build-ci-arm-images:
-    timeout-minutes: 50
+    timeout-minutes: 110
     name: >
       Build CI ARM images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
