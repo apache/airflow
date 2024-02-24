@@ -1444,6 +1444,12 @@ export interface components {
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
       /**
+       * @description Rendered name of an expanded task instance, if the task is mapped.
+       *
+       * *New in version 2.9.0*
+       */
+      rendered_map_index?: string | null;
+      /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*

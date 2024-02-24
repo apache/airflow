@@ -234,6 +234,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queue": "default",
             "queued_when": None,
             "rendered_fields": {},
+            "rendered_map_index": None,
             "sla_miss": None,
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",

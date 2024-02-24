@@ -3598,6 +3598,13 @@ components:
           type: string
         sla_miss:
           $ref: "#/components/schemas/SLAMiss"
+        rendered_map_index:
+          description: |
+            Rendered name of an expanded task instance, if the task is mapped.
+
+            *New in version 2.9.0*
+          type: string
+          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
