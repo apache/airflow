@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'task_acks_late' configuration to Celery Executor (#37066)``
+
+Misc
+~~~~
+
+* ``improve info for prevent celery command autoscale misconfig (#36576)``
+
 3.5.2
 .....
 

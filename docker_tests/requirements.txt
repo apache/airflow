@@ -1,3 +1,5 @@
-pytest>=7.4.4
+# Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
+# Internal meta-task for track https://github.com/apache/airflow/issues/37156
+pytest>=7.4.4,<8.0
 pytest-xdist
 requests

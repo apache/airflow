@@ -25,7 +25,7 @@ import boto3
 import pytest
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
-from moto import mock_eks
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -104,7 +104,7 @@ class TestCustomEKSServiceWaiters:
             assert waiter in hook.list_waiters()
             assert waiter in hook._list_custom_waiters()
 
-    @mock_eks
+    @mock_aws
     def test_existing_waiter_inherited(self):
         """
         AwsBaseHook::get_waiter will first check if there is a custom waiter with the

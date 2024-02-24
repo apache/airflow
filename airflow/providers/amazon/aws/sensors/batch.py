@@ -60,8 +60,8 @@ class BatchSensor(BaseSensorOperator):
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        poke_interval: float = 5,
-        max_retries: int = 5,
+        poke_interval: float = 30,
+        max_retries: int = 4200,
         **kwargs,
     ):
         super().__init__(**kwargs)

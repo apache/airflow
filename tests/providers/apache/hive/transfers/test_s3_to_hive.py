@@ -193,7 +193,7 @@ class TestS3ToHiveTransfer:
         assert self._check_file_equality(bz2_txt_nh, fn_bz2, ".bz2"), "bz2 Compressed file not as expected"
 
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
-    @moto.mock_s3
+    @moto.mock_aws
     def test_execute(self, mock_hiveclihook):
         conn = boto3.client("s3")
         if conn.meta.region_name == "us-east-1":
@@ -226,7 +226,7 @@ class TestS3ToHiveTransfer:
             s32hive.execute(None)
 
     @mock.patch("airflow.providers.apache.hive.transfers.s3_to_hive.HiveCliHook")
-    @moto.mock_s3
+    @moto.mock_aws
     def test_execute_with_select_expression(self, mock_hiveclihook):
         conn = boto3.client("s3")
         if conn.meta.region_name == "us-east-1":

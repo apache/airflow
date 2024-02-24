@@ -283,7 +283,7 @@ class ParallelMonitor(Thread):
         self.time_in_seconds = time_in_seconds
         self.debug_resources = debug_resources
         self.progress_matcher = progress_matcher
-        self.start_time = datetime.datetime.utcnow()
+        self.start_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def print_single_progress(self, output: Output):
         if self.progress_matcher:
@@ -312,7 +312,7 @@ class ParallelMonitor(Thread):
     def print_summary(self):
         import psutil
 
-        time_passed = datetime.datetime.utcnow() - self.start_time
+        time_passed = datetime.datetime.now(tz=datetime.timezone.utc) - self.start_time
         get_console().rule()
         for output in self.outputs:
             self.print_single_progress(output)

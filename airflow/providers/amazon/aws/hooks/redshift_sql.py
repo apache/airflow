@@ -200,7 +200,7 @@ class RedshiftSQLHook(DbApiHook):
         return redshift_connector.connect(**conn_kwargs)
 
     def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
-        """Returns Redshift specific information for OpenLineage."""
+        """Return Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         authority = self._get_openlineage_redshift_authority_part(connection)
@@ -252,9 +252,9 @@ class RedshiftSQLHook(DbApiHook):
             return hostname
 
     def get_openlineage_database_dialect(self, connection: Connection) -> str:
-        """Returns redshift dialect."""
+        """Return redshift dialect."""
         return "redshift"
 
     def get_openlineage_default_schema(self) -> str | None:
-        """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
+        """Return current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA();")[0]

@@ -25,6 +25,21 @@ from airflow.utils import timezone
 log = logging.getLogger(__name__)
 
 
+def calculate_next_attempt_delay(
+    attempt_number: int,
+    max_delay: int = 60 * 2,
+    exponent_base: int = 4,
+) -> timedelta:
+    """
+    Calculate the exponential backoff (in seconds) until the next attempt.
+
+    :param attempt_number: Number of attempts since last success.
+    :param max_delay: Maximum delay in seconds between retries. Default 120.
+    :param exponent_base: Exponent base to calculate delay. Default 4.
+    """
+    return timedelta(seconds=min((exponent_base**attempt_number), max_delay))
+
+
 def exponential_backoff_retry(
     last_attempt_time: datetime,
     attempts_since_last_successful: int,
@@ -34,7 +49,7 @@ def exponential_backoff_retry(
     exponent_base: int = 4,
 ) -> None:
     """
-    Retries a callable function with exponential backoff between attempts if it raises an exception.
+    Retry a callable function with exponential backoff between attempts if it raises an exception.
 
     :param last_attempt_time: Timestamp of last attempt call.
     :param attempts_since_last_successful: Number of attempts since last success.
@@ -47,8 +62,10 @@ def exponential_backoff_retry(
         log.error("Max attempts reached. Exiting.")
         return
 
-    delay = min((exponent_base**attempts_since_last_successful), max_delay)
-    next_retry_time = last_attempt_time + timedelta(seconds=delay)
+    next_retry_time = last_attempt_time + calculate_next_attempt_delay(
+        attempt_number=attempts_since_last_successful, max_delay=max_delay, exponent_base=exponent_base
+    )
+
     current_time = timezone.utcnow()
 
     if current_time >= next_retry_time:
@@ -56,5 +73,7 @@ def exponential_backoff_retry(
             callable_function()
         except Exception:
             log.exception("Error calling %r", callable_function.__name__)
-            next_delay = min((exponent_base ** (attempts_since_last_successful + 1)), max_delay)
+            next_delay = calculate_next_attempt_delay(
+                attempts_since_last_successful + 1, max_delay, exponent_base
+            )
             log.info("Waiting for %s seconds before retrying.", next_delay)

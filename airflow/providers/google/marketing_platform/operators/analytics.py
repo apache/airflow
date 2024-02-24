@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import csv
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -32,6 +33,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    reason=(
+        "The `GoogleAnalyticsListAccountsOperator` class is deprecated, please use "
+        "`GoogleAnalyticsAdminListAccountsOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsListAccountsOperator(BaseOperator):
     """
     Lists all accounts to which the user has access.
@@ -76,13 +84,6 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use "
-            f"`GoogleAnalyticsAdminListAccountsOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-
         super().__init__(**kwargs)
 
         self.api_version = api_version
@@ -99,6 +100,13 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         return result
 
 
+@deprecated(
+    reason=(
+        "The `GoogleAnalyticsGetAdsLinkOperator` class is deprecated, please use "
+        "`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
     """
     Returns a web property-Google Ads link to which the user has access.
@@ -149,12 +157,6 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use "
-            f"`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
         self.account_id = account_id
         self.web_property_ad_words_link_id = web_property_ad_words_link_id
@@ -177,6 +179,13 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         return result
 
 
+@deprecated(
+    reason=(
+        "The `GoogleAnalyticsRetrieveAdsLinksListOperator` class is deprecated, please use "
+        "`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     """
     Lists webProperty-Google Ads links for a given web property.
@@ -224,12 +233,6 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use "
-            f"`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
         self.account_id = account_id
         self.web_property_id = web_property_id
@@ -250,6 +253,13 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
         return result
 
 
+@deprecated(
+    reason=(
+        "The `GoogleAnalyticsDataImportUploadOperator` class is deprecated, please use "
+        "`GoogleAnalyticsAdminCreateDataStreamOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
     """
     Take a file from Cloud Storage and uploads it to GA via data import API.
@@ -303,12 +313,6 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use "
-            f"`GoogleAnalyticsAdminCreateDataStreamOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
         self.storage_bucket = storage_bucket
         self.storage_name_object = storage_name_object
@@ -356,6 +360,13 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
             )
 
 
+@deprecated(
+    reason=(
+        "The `GoogleAnalyticsDeletePreviousDataUploadsOperator` class is deprecated, please use "
+        "`GoogleAnalyticsAdminDeleteDataStreamOperator` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
     """
     Deletes previous GA uploads to leave the latest file to control the size of the Data Set Quota.
@@ -395,12 +406,6 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        warnings.warn(
-            f"The `{type(self).__name__}` operator is deprecated, please use "
-            f"`GoogleAnalyticsAdminDeleteDataStreamOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
 
         self.account_id = account_id

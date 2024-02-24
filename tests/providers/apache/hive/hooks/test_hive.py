@@ -17,22 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow import PY311
-
-if PY311:
-    pytest.skip(
-        "The tests are skipped because Apache Hive provider is not supported on Python 3.11",
-        allow_module_level=True,
-    )
-
 import datetime
 import itertools
 from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
+import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -880,20 +871,12 @@ class TestHiveCli:
         self.nondefault_schema = "nondefault"
 
     @pytest.mark.parametrize(
-        "extra_dejson, correct_proxy_user, run_as, proxy_user",
+        "extra_dejson, correct_proxy_user, proxy_user",
         [
-            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None, None),
-            ({"proxy_user": "owner"}, "hive.server2.proxy.user=dummy_dag_owner", "dummy_dag_owner", None),
-            ({"proxy_user": "login"}, "hive.server2.proxy.user=admin", None, None),
-            (
-                {"proxy_user": "as_param"},
-                "hive.server2.proxy.user=param_proxy_user",
-                None,
-                "param_proxy_user",
-            ),
+            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
         ],
     )
-    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, run_as, proxy_user):
+    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
         returner.extra_dejson = extra_dejson
@@ -901,7 +884,6 @@ class TestHiveCli:
         hook.use_beeline = True
         hook.conn = returner
         hook.proxy_user = proxy_user
-        hook.run_as = run_as
 
         # Run
         result = hook._prepare_cli_cmd()

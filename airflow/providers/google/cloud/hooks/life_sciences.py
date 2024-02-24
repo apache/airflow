@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import time
-import warnings
 from typing import Sequence
 
 import google.api_core.path_template
+from deprecated import deprecated
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -32,6 +32,15 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 TIME_TO_SLEEP_IN_SECONDS = 5
 
 
+@deprecated(
+    reason=(
+        "This hook is deprecated. Consider using "
+        "Google Cloud Batch Operators' hook instead. "
+        "The Life Sciences API (beta) will be discontinued "
+        "on July 8, 2025 in favor of Google Cloud Batch."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class LifeSciencesHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Life Sciences APIs.
@@ -76,17 +85,9 @@ class LifeSciencesHook(GoogleBaseHook):
         )
         self.api_version = api_version
 
-        warnings.warn(
-            """This hook is deprecated. Consider using Google Cloud Batch Operators' hook instead.
-            The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
-            of Google Cloud Batch.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
     def get_conn(self) -> build:
         """
-        Retrieves the connection to Cloud Life Sciences.
+        Retrieve the connection to Cloud Life Sciences.
 
         :return: Google Cloud Life Sciences service object.
         """
@@ -98,7 +99,7 @@ class LifeSciencesHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def run_pipeline(self, body: dict, location: str, project_id: str) -> dict:
         """
-        Runs a pipeline.
+        Run a pipeline.
 
         :param body: The request body.
         :param location: The location of the project. For example: "us-east1".
@@ -136,7 +137,7 @@ class LifeSciencesHook(GoogleBaseHook):
 
     def _wait_for_operation_to_complete(self, operation_name: str) -> None:
         """
-        Waits for the named operation to complete - checks status of the asynchronous call.
+        Wait for the named operation to complete - checks status of the asynchronous call.
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.

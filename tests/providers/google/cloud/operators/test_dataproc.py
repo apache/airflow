@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
+from google.api_core.retry_async import AsyncRetry
 from google.cloud import dataproc
 from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 
@@ -676,6 +677,19 @@ class TestsClusterGenerator:
         )
         cluster = generator.make()
         assert CONFIG_WITH_GPU_ACCELERATOR == cluster
+
+    def test_build_with_default_value_for_internal_ip_only(self):
+        generator = ClusterGenerator(project_id="project_id")
+        cluster = generator.make()
+        assert "internal_ip_only" not in cluster["gce_cluster_config"]
+
+    def test_build_sets_provided_value_for_internal_ip_only(self):
+        for internal_ip_only in [True, False]:
+            generator = ClusterGenerator(
+                project_id="project_id", internal_ip_only=internal_ip_only, subnetwork_uri="subnetwork_uri"
+            )
+            cluster = generator.make()
+            assert cluster["gce_cluster_config"]["internal_ip_only"] == internal_ip_only
 
 
 class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
@@ -2055,6 +2069,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
         mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once()
 
+        mock_hook.return_value.wait_for_operation.assert_not_called()
         assert isinstance(exc.value.trigger, DataprocOperationTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
@@ -2088,6 +2103,35 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_called_once_with(
             name=operation_name
         )
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_wait_for_operation_on_execute(self, mock_hook):
+        template = {}
+
+        custom_timeout = 10800
+        custom_retry = mock.MagicMock(AsyncRetry)
+        op = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template=template,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=custom_retry,
+            timeout=custom_timeout,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        mock_op = MagicMock()
+        mock_hook.return_value.instantiate_inline_workflow_template.return_value = mock_op
+
+        op.execute(context=MagicMock())
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.wait_for_operation.assert_called_once_with(
+            timeout=custom_timeout, result_retry=custom_retry, operation=mock_op
+        )
+        mock_op.return_value.result.assert_not_called()
 
 
 @pytest.mark.db_test
