@@ -1255,7 +1255,7 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 
