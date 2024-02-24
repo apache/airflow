@@ -36,8 +36,9 @@ from airflow.utils.trigger_rule import TriggerRule
 pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
     from sqlalchemy.orm.session import Session
+
+    from airflow.models.dagrun import DagRun
 
 SKIPPED = TaskInstanceState.SKIPPED
 UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
