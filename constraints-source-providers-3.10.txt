@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-23T21:16:14.700525
+# This constraints file was automatically generated on 2024-02-24T08:38:05.735631
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -143,7 +143,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.49
+cohere==4.50
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -400,7 +400,7 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.1.3
-pipdeptree==2.14.0
+pipdeptree==2.15.1
 pipx==1.4.3
 pkginfo==1.9.6
 platformdirs==3.11.0
