@@ -109,6 +109,7 @@ class DruidHook(BaseHook):
     def get_verify(self) -> bool | str:
         ca_bundle_path: str | None = self.conn.extra_dejson.get("ca_bundle_path", None)
         if not self.verify_ssl and ca_bundle_path:
+            self.log.info("Using CA bundle to verify connection")
             return ca_bundle_path
 
         return self.verify_ssl
