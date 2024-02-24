@@ -239,6 +239,9 @@ airflow/www/node_modules
 # Exclude link to docs
 airflow/www/static/docs
 
+# Exclude out directory
+out/
+
 # Exclude python generated files
 **/__pycache__/
 **/*.py[cod]
@@ -351,7 +354,6 @@ def _build_local_build_image():
     run_command(
         [
             "docker",
-            "buildx",
             "build",
             ".",
             "-f",
