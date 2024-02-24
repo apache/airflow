@@ -435,8 +435,8 @@ class TriggerRuleDep(BaseTIDep):
                 if success + failed <= 0:
                     yield self._failing_status(
                         reason=(
-                            f"Task's trigger rule '{trigger_rule}'"
-                            "requires at least one upstream task failure or success"
+                            f"Task's trigger rule '{trigger_rule}' "
+                            "requires at least one upstream task failure or success "
                             f"but none were failed or success. upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
@@ -517,14 +517,6 @@ class TriggerRuleDep(BaseTIDep):
                         reason=(
                             f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
                             f"completed, but found {len(upstream_tasks) - done} task(s) that were not done. "
-                            f"upstream_states={upstream_states}, "
-                            f"upstream_task_ids={task.upstream_task_ids}"
-                        )
-                    )
-                elif upstream_setup is None:  # for now, None only happens in mapped case
-                    yield self._failing_status(
-                        reason=(
-                            f"Task's trigger rule '{trigger_rule}' cannot have mapped tasks as upstream. "
                             f"upstream_states={upstream_states}, "
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
