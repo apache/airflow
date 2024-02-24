@@ -120,6 +120,7 @@ Bug Fixes
 
 Miscellaneous
 """""""""""""
+- Install latest docker ``CLI`` instead of specific one (#37651)
 - Bump ``undici`` from ``5.26.3`` to ``5.28.3`` in ``/airflow/www`` (#37493)
 - Add Python ``3.12`` exclusions in ``providers/pyproject.toml`` (#37404)
 - Remove ``markdown`` from core dependencies (#37396)
