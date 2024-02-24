@@ -18,7 +18,6 @@
 """Task runner for cgroup to run Airflow task."""
 from __future__ import annotations
 
-import datetime
 import os
 import uuid
 from typing import TYPE_CHECKING
@@ -27,6 +26,7 @@ import psutil
 from cgroupspy import trees
 
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
+from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
 from airflow.utils.platform import getuser
 from airflow.utils.process_utils import reap_process_group
@@ -137,7 +137,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             return
 
         # Create a unique cgroup name
-        cgroup_name = f"airflow/{datetime.datetime.utcnow():%Y-%m-%d}/{uuid.uuid4()}"
+        cgroup_name = f"airflow/{timezone.utcnow():%Y-%m-%d}/{uuid.uuid4()}"
 
         self.mem_cgroup_name = f"memory/{cgroup_name}"
         self.cpu_cgroup_name = f"cpu/{cgroup_name}"

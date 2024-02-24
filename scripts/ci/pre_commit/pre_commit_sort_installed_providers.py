@@ -27,7 +27,6 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-DEV_DIR_PATH = AIRFLOW_SOURCES / "dev"
 
 
 def stable_sort(x):
@@ -45,7 +44,7 @@ def sort_file(path: Path):
 
 
 if __name__ == "__main__":
-    prod_image_installed_providers_path = DEV_DIR_PATH / "prod_image_installed_providers.txt"
-    airflow_pre_installed_providers_path = DEV_DIR_PATH / "airflow_pre_installed_providers.txt"
+    prod_image_installed_providers_path = AIRFLOW_SOURCES / "prod_image_installed_providers.txt"
+    airflow_pre_installed_providers_path = AIRFLOW_SOURCES / "airflow_pre_installed_providers.txt"
     sort_file(prod_image_installed_providers_path)
     sort_file(airflow_pre_installed_providers_path)

@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import settings
+from airflow.utils import timezone
 from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
@@ -102,9 +103,7 @@ class FileProcessorHandler(logging.Handler):
         return self.filename_template.format(filename=ctx["filename"])
 
     def _get_log_directory(self):
-        now = datetime.utcnow()
-
-        return os.path.join(self.base_log_folder, now.strftime("%Y-%m-%d"))
+        return os.path.join(self.base_log_folder, timezone.utcnow().strftime("%Y-%m-%d"))
 
     def _symlink_latest_log_directory(self):
         """

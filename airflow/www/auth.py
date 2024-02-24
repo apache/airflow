@@ -88,7 +88,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
 
 def has_access_with_pk(f):
     """
-    This decorator is used to check permissions on views.
+    Check permissions on views.
 
     The implementation is very similar from
     https://github.com/dpgaspar/Flask-AppBuilder/blob/c6fecdc551629e15467fde5d06b4437379d90592/flask_appbuilder/security/decorators.py#L134
@@ -345,5 +345,5 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
 
 
 def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
-    """Decorator that checks current user's permissions to access the website."""
+    """Check current user's permissions to access the website."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))

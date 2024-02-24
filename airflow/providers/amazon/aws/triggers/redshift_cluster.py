@@ -290,7 +290,7 @@ class RedshiftClusterTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes RedshiftClusterTrigger arguments and classpath."""
+        """Serialize RedshiftClusterTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger",
             {
@@ -302,7 +302,7 @@ class RedshiftClusterTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Simple async function run until the cluster status match the target status."""
+        """Run async until the cluster status matches the target status."""
         try:
             hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
             while True:

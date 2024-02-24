@@ -25,6 +25,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 from shutil import rmtree
+from tempfile import mkdtemp
 
 import yaml
 from rich.console import Console
@@ -98,6 +99,34 @@ def build_airflow_packages(package_format: str):
         console.print("[red]Error building Airflow packages")
         sys.exit(build_process.returncode)
     else:
+        if package_format in ["both", "sdist"]:
+            console.print("[bright_blue]Checking if sdist packages can be built into wheels")
+            for file in (AIRFLOW_SOURCES_ROOT / "dist").glob("apache_airflow-[0-9]*.tar.gz"):
+                console.print(f"[bright_blue]Validate build wheel from sdist: {file.name}")
+                if "-sources.tar.gz" not in file.name:
+                    # no need to delete - we are in temporary container
+                    tmpdir = mkdtemp()
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-m",
+                            "pip",
+                            "wheel",
+                            "--wheel-dir",
+                            tmpdir,
+                            "--no-deps",
+                            "--no-cache",
+                            "--no-binary",
+                            ":all:",
+                            file.as_posix(),
+                        ],
+                        check=False,
+                    )
+                    if result.returncode != 0:
+                        console.print(f"[red]Error installing {file.name}")
+                        sys.exit(result.returncode)
+                    console.print(f"[green]Sdist package {file.name} can be built into wheels")
+                console.print("[green]Sdist package is installed successfully.")
         console.print("[green]Airflow packages built successfully")
 
 

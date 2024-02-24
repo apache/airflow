@@ -165,6 +165,13 @@ option_upgrade = click.option(
     is_flag=True,
     envvar="UPGRADE",
 )
+option_use_docker = click.option(
+    "--use-docker",
+    help="Use Docker to start k8s executor (otherwise k9s from PATH is used and only"
+    " run with docker if not found on PATH).",
+    is_flag=True,
+    envvar="USE_DOCKER",
+)
 option_use_standard_naming = click.option(
     "--use-standard-naming",
     help="Use standard naming.",
@@ -1206,10 +1213,11 @@ def deploy_airflow(
 )
 @option_python
 @option_kubernetes_version
+@option_use_docker
 @option_verbose
 @option_dry_run
 @click.argument("k9s_args", nargs=-1, type=click.UNPROCESSED)
-def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
+def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[str, ...]):
     result = create_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -1223,29 +1231,59 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
     if not k9s_editor:
         env["K9S_EDITOR"] = env["EDITOR"]
     kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-    result = run_command(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-it",
-            "--network",
-            "host",
-            "-e",
-            "EDITOR",
-            "-e",
-            "K9S_EDITOR",
-            "-v",
-            f"{kubeconfig_file}:/root/.kube/config",
-            "quay.io/derailed/k9s",
-            "--namespace",
-            HELM_AIRFLOW_NAMESPACE,
-            *k9s_args,
-        ],
-        env=env,
-        check=False,
-    )
-    if result.returncode != 0:
+    found_k9s = shutil.which("k9s")
+    if not use_docker and found_k9s:
+        get_console().print(
+            "[info]Running k9s tool found in PATH at $(found_k9s). Use --use-docker to run using docker."
+        )
+        result = run_command(
+            [
+                "k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        sys.exit(result.returncode)
+    else:
+        get_console().print("[info]Running k9s tool using docker.")
+        result = run_command(
+            [
+                "docker",
+                "run",
+                "--rm",
+                "-it",
+                "--network",
+                "host",
+                "-e",
+                "EDITOR",
+                "-e",
+                "K9S_EDITOR",
+                "-v",
+                f"{kubeconfig_file}:/root/.kube/config",
+                "derailed/k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        if result.returncode != 0:
+            get_console().print(
+                "\n[warning]If you see `exec /bin/k9s: exec format error` it might be because"
+                " of known kind bug (https://github.com/kubernetes-sigs/kind/issues/3510).\n"
+            )
+            get_console().print(
+                "\n[info]In such case you might want to pull latest `kindest` images. "
+                "For example if you run kubernetes version v1.25.16 you might need to run:\n"
+                "[special]* run `breeze k8s delete-cluster` (note k8s version printed after "
+                "Python version)\n"
+                "* run `docker pull kindest/node:v1.25.16`\n"
+                "* restart docker engine\n\n"
+            )
         sys.exit(result.returncode)
 
 

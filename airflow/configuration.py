@@ -1871,7 +1871,8 @@ class AirflowConfigParser(ConfigParser):
                 stacklevel=4 + extra_stacklevel,
             )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """Return the state of the object as a dictionary for pickling."""
         return {
             name: getattr(self, name)
             for name in [
@@ -1883,8 +1884,9 @@ class AirflowConfigParser(ConfigParser):
             ]
         }
 
-    def __setstate__(self, state):
-        self.__init__()
+    def __setstate__(self, state) -> None:
+        """Restore the state of the object from a dictionary representation."""
+        self.__init__()  # type: ignore[misc]
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
@@ -1985,6 +1987,8 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
             FERNET_KEY = _generate_fernet_key()
             conf.remove_option("core", "fernet_key")
             conf.set("core", "fernet_key", FERNET_KEY)
+        pathlib.Path(airflow_config.__fspath__()).touch()
+        make_group_other_inaccessible(airflow_config.__fspath__())
         with open(airflow_config, "w") as file:
             conf.write(
                 file,
@@ -1994,7 +1998,6 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 extra_spacing=True,
                 only_defaults=True,
             )
-        make_group_other_inaccessible(airflow_config.__fspath__())
     return conf
 
 

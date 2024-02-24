@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_sns
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
 
 
-@mock_sns
+@mock_aws
 class TestSnsHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = SnsHook(aws_conn_id="aws_default")

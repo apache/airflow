@@ -106,11 +106,13 @@ sensitive information accessible through connection configuration.
 They also have the ability to create a Webserver Denial of Service
 situation and should be trusted not to misuse this capability.
 
+Only admin users have access to audit logs.
+
 Operations users
 ................
 
 The primary difference between an operator and admin is the ability to manage and grant permissions
-to other users - only admins are able to do this. Otherwise assume they have the same access as an admin.
+to other users, and access audit logs - only admins are able to do this. Otherwise assume they have the same access as an admin.
 
 Connection configuration users
 ..............................
@@ -133,6 +135,14 @@ Regular users
 
 They can view and interact with the UI and API. They are able to view and edit DAGs,
 task instances, and DAG runs, and view task logs.
+
+Viewer users
+............
+
+They can view information related to DAGs, in a read only fashion, task logs, and other relevant details.
+This role is suitable for users who require read-only access without the ability to trigger or modify DAGs.
+
+Viewers also do not have permission to access audit logs.
 
 For more information on the capabilities of authenticated UI users, see :doc:`apache-airflow-providers-fab:auth-manager/access-control`.
 
@@ -208,6 +218,12 @@ the DAG Author to execute arbitrary code in those processes.
 The Deployment Manager might decide to introduce additional control mechanisms to prevent DAG authors from
 executing arbitrary code. This is all fully in hands of the Deployment Manager and it is discussed in the
 following chapter.
+
+Access to All DAGs
+........................................................................
+
+All DAG authors have access to all DAGs in the airflow deployment. This means that they can view, modify,
+and update any DAG without restrictions at any time.
 
 Responsibilities of Deployment Managers
 ---------------------------------------

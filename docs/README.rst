@@ -162,19 +162,18 @@ Running the Docs Locally
 ------------------------
 
 After you build the documentation, you can check the formatting, style, and documentation build at ``http://localhost:28080/docs/``
-by starting a Breeze environment or by running the following command from the root directory.
-
-You need to have Python installed to run the command:
+by starting a Breeze environment. Alternatively, you can run the following command from the root directory:
 
 .. code-block:: bash
 
     docs/start_doc_server.sh
 
+This command requires Python to be installed. This method is lighter on the system resources as you do not need to
+launch the webserver just to view docs.
 
-Then, view your docs at ``localhost:8000``. If you use a virtual machine, like WSL2,
-you need to find the WSL2 machine IP address and replace "0.0.0.0" in your browser with it. The address looks like
-``http://n.n.n.n:8000``, where n.n.n.n is the IP of the WSL2.
-
+Once the server is running, you can view your documentation at http://localhost:8000. If you're using a virtual machine
+like WSL2, you'll need to find the IP address of the WSL2 machine and replace "0.0.0.0" in your browser with it.
+The address will look like http://n.n.n.n:8000, where n.n.n.n is the IP of the WSL2 machine.
 
 Cross-referencing syntax
 ========================
@@ -258,6 +257,19 @@ While easy to resolve, there's `a Sphinx bug <https://github.com/sphinx-doc/sphi
 warning to report the wrong line in the file for your missing white space. If your PR has the ``unexpected unindent`` warning blocking your build,
 and the line number it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
 list, code block, or other whitespace-sensitive markup element.
+
+
+spelling error with class or method name
+****************************************
+When a spelling error occurs that has a class/function/method name as incorrectly spelled,
+instead of whitelisting it in docs/spelling_wordlist.txt you should make sure that
+this name is quoted with backticks "`" - this should exclude it from spellchecking process.
+
+In this example error, You should change the line with error so that the whole path is inside backticks "`".
+.. code-block:: text
+
+    Incorrect Spelling: 'BaseAsyncSessionFactory'
+    Line with Error: ' airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated'
 
 Support
 =======

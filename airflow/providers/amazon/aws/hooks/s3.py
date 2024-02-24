@@ -1369,6 +1369,10 @@ class S3Hook(AwsBaseHook):
         """
         Download a file from the S3 location to the local file system.
 
+        Note:
+            This function shadows the 'download_file' method of S3 API, but it is not the same.
+            If you want to use the original method from S3 API, please use 'S3Hook.get_conn().download_file()'
+
         .. seealso::
             - :external+boto3:py:meth:`S3.Object.download_fileobj`
 
@@ -1386,12 +1390,6 @@ class S3Hook(AwsBaseHook):
             Default: True.
         :return: the file name.
         """
-        self.log.info(
-            "This function shadows the 'download_file' method of S3 API, but it is not the same. If you "
-            "want to use the original method from S3 API, please call "
-            "'S3Hook.get_conn().download_file()'"
-        )
-
         self.log.info("Downloading source S3 file from Bucket %s with path %s", bucket_name, key)
 
         try:

@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 from deprecated import deprecated
 
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -371,6 +372,8 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
+        event = validate_execute_complete_event(event)
+
         if event and event["status"] == "error":
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             if self.soft_fail:

@@ -26,7 +26,7 @@ from io import StringIO
 from unittest.mock import ANY, patch
 
 import pytest
-from moto import mock_ssm
+from moto import mock_aws
 
 from tests.system.providers.amazon.aws import utils
 from tests.system.providers.amazon.aws.utils import (
@@ -54,7 +54,7 @@ def provide_test_name():
         yield name
 
 
-@mock_ssm
+@mock_aws
 class TestAmazonSystemTestHelpers:
     FETCH_VARIABLE_TEST_CASES = [
         # Format is:

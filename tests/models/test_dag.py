@@ -24,6 +24,7 @@ import os
 import pickle
 import re
 import sys
+import warnings
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
@@ -39,6 +40,7 @@ import time_machine
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect
+from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
@@ -1422,19 +1424,30 @@ class TestDag:
     def test_tree_view(self):
         """Verify correctness of dag.tree_view()."""
         with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-            op1 = EmptyOperator(task_id="t1")
+            op1_a = EmptyOperator(task_id="t1_a")
+            op1_b = EmptyOperator(task_id="t1_b")
             op2 = EmptyOperator(task_id="t2")
             op3 = EmptyOperator(task_id="t3")
-            op1 >> op2 >> op3
+            op1_b >> op2
+            op1_a >> op2 >> op3
 
             with redirect_stdout(StringIO()) as stdout:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 
             stdout_lines = stdout.splitlines()
-            assert "t1" in stdout_lines[0]
+            assert "t1_a" in stdout_lines[0]
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]
+            assert "t1_b" in stdout_lines[3]
+            assert dag.get_tree_view() == (
+                "<Task(EmptyOperator): t1_a>\n"
+                "    <Task(EmptyOperator): t2>\n"
+                "        <Task(EmptyOperator): t3>\n"
+                "<Task(EmptyOperator): t1_b>\n"
+                "    <Task(EmptyOperator): t2>\n"
+                "        <Task(EmptyOperator): t3>\n"
+            )
 
     def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
@@ -4137,34 +4150,35 @@ class TestTaskClearingSetupTeardownBehavior:
                 dag.validate_setup_teardown()
 
 
-def test_get_latest_runs_query_one_dag(dag_maker, session):
-    with dag_maker(dag_id="dag1") as dag1:
-        ...
-    query = DAG._get_latest_runs_query(dags=[dag1.dag_id])
-    actual = [x.strip() for x in str(query.compile()).splitlines()]
-    expected = [
-        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
-    ]
-    assert actual == expected
+def test_statement_latest_runs_one_dag():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=SAWarning)
+
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
+        expected = [
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
+        ]
+        assert actual == expected, compiled_stmt
 
 
-def test_get_latest_runs_query_two_dags(dag_maker, session):
-    with dag_maker(dag_id="dag1") as dag1:
-        ...
-    with dag_maker(dag_id="dag2") as dag2:
-        ...
-    query = DAG._get_latest_runs_query(dags=[dag1.dag_id, dag2.dag_id])
-    actual = [x.strip() for x in str(query.compile()).splitlines()]
-    print("\n".join(actual))
-    expected = [
-        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
-        "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
-        "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
-    ]
-    assert actual == expected
+def test_statement_latest_runs_many_dag():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=SAWarning)
+
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
+        expected = [
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
+            "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
+        ]
+        assert actual == expected, compiled_stmt

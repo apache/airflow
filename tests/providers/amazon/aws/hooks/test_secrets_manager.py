@@ -20,12 +20,12 @@ from __future__ import annotations
 import base64
 import json
 
-from moto import mock_secretsmanager
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.secrets_manager import SecretsManagerHook
 
 
-@mock_secretsmanager
+@mock_aws
 class TestSecretsManagerHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = SecretsManagerHook(aws_conn_id="aws_default")

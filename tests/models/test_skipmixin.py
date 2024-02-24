@@ -55,7 +55,7 @@ class TestSkipMixin:
     @patch("airflow.utils.timezone.utcnow")
     def test_skip(self, mock_now, dag_maker):
         session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone("UTC"))
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
         mock_now.return_value = now
         with dag_maker("dag"):
             tasks = [EmptyOperator(task_id="task")]
@@ -77,7 +77,7 @@ class TestSkipMixin:
     @patch("airflow.utils.timezone.utcnow")
     def test_skip_none_dagrun(self, mock_now, dag_maker):
         session = settings.Session()
-        now = datetime.datetime.utcnow().replace(tzinfo=pendulum.timezone("UTC"))
+        now = datetime.datetime.now(tz=pendulum.timezone("UTC"))
         mock_now.return_value = now
         with dag_maker(
             "dag",

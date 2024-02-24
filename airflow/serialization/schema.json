@@ -81,6 +81,36 @@
       ],
       "additionalProperties": false
     },
+    "typed_dataset_cond": {
+      "type": "object",
+      "properties": {
+        "__type": {
+            "anyOf": [{
+                "type": "string",
+                "constant": "dataset_or"
+            },
+            {
+                "type": "string",
+                "constant": "dataset_and"
+            }
+            ]
+        },
+        "__var": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {"$ref": "#/definitions/typed_dataset"},
+                    {    "$ref": "#/definitions/typed_dataset_cond"}
+                    ]
+            }
+        }
+      },
+    "required": [
+        "__type",
+        "__var"
+        ],
+        "additionalProperties": false
+    },
     "dict": {
       "description": "A python dictionary containing values of any type",
       "type": "object"
@@ -119,9 +149,9 @@
           ]
         },
         "dataset_triggers": {
-            "type": "array",
-            "items": { "$ref": "#/definitions/typed_dataset" }
-        },
+        "$ref": "#/definitions/typed_dataset_cond"
+
+},
         "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",

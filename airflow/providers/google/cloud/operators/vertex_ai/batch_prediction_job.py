@@ -263,7 +263,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         return batch_prediction_job
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_batch_prediction_job()
 

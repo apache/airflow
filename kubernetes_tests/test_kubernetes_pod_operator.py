@@ -957,7 +957,6 @@ class TestKubernetesPodOperatorSystem:
                 "kind: Pod",
                 "metadata:",
                 "  annotations: {}",
-                "  cluster_name: null",
                 "  creation_timestamp: null",
                 "  deletion_grace_period_seconds: null",
             ]

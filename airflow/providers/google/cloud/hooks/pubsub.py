@@ -93,7 +93,7 @@ class PubSubHook(GoogleBaseHook):
 
     def get_conn(self) -> PublisherClient:
         """
-        Retrieves connection to Google Cloud Pub/Sub.
+        Retrieve connection to Google Cloud Pub/Sub.
 
         :return: Google Cloud Pub/Sub client object.
         """
@@ -118,7 +118,7 @@ class PubSubHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
-        Publishes messages to a Pub/Sub topic.
+        Publish messages to a Pub/Sub topic.
 
         :param topic: the Pub/Sub topic to which to publish; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -191,7 +191,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Creates a Pub/Sub topic, if it does not already exist.
+        Create a Pub/Sub topic, if it does not already exist.
 
         :param topic: the Pub/Sub topic name to create; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -264,7 +264,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a Pub/Sub topic if it exists.
+        Delete a Pub/Sub topic if it exists.
 
         :param topic: the Pub/Sub topic name to delete; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -318,7 +318,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
-        Creates a Pub/Sub subscription, if it does not already exist.
+        Create a Pub/Sub subscription, if it does not already exist.
 
         :param topic: the Pub/Sub topic name that the subscription will be bound
             to create; do not include the ``projects/{project}/subscriptions/`` prefix.
@@ -435,7 +435,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a Pub/Sub subscription, if it exists.
+        Delete a Pub/Sub subscription, if it exists.
 
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the ``projects/{project}/subscriptions/`` prefix.
@@ -483,7 +483,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:
         """
-        Pulls up to ``max_messages`` messages from Pub/Sub subscription.
+        Pull up to ``max_messages`` messages from Pub/Sub subscription.
 
         :param subscription: the Pub/Sub subscription name to pull from; do not
             include the 'projects/{project}/topics/' prefix.
@@ -596,7 +596,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_subscriber_client(self) -> SubscriberAsyncClient:
         """
-        Returns async connection to the Google PubSub.
+        Return async connection to the Google PubSub.
 
         :return: Google Pub/Sub asynchronous client.
         """
@@ -671,7 +671,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:
         """
-        Pulls up to ``max_messages`` messages from Pub/Sub subscription.
+        Pull up to ``max_messages`` messages from Pub/Sub subscription.
 
         :param subscription: the Pub/Sub subscription name to pull from; do not
             include the 'projects/{project}/topics/' prefix.
