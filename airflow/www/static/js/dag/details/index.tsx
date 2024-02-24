@@ -42,6 +42,7 @@ import {
   MdOutlineViewTimeline,
   MdSyncAlt,
   MdHourglassBottom,
+  MdPlagiarism,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -63,6 +64,7 @@ import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
 import TaskDetails from "./task";
+import AuditLog from "./AuditLog";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -82,11 +84,13 @@ const tabToIndex = (tab?: string) => {
       return 2;
     case "code":
       return 3;
+    case "audit_logs":
+      return 4;
     case "logs":
     case "mapped_tasks":
-      return 4;
-    case "xcom":
       return 5;
+    case "xcom":
+      return 6;
     case "details":
     default:
       return 0;
@@ -106,10 +110,12 @@ const indexToTab = (
     case 3:
       return "code";
     case 4:
+      return "audit_logs";
+    case 5:
       if (isMappedTaskSummary) return "mapped_tasks";
       if (isTaskInstance) return "logs";
       return undefined;
-    case 5:
+    case 6:
       if (isTaskInstance) return "xcom";
       return undefined;
     case 0:
@@ -173,9 +179,9 @@ const Details = ({
   );
 
   useEffect(() => {
-    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
-    const tabCount = runId && taskId && !isGroup ? 5 : 4;
-    if (tabCount === 4 && tabIndex > 3) {
+    // Default to graph tab when navigating from a task instance to a dagrun
+    const tabCount = runId && taskId && !isGroup ? 6 : 4;
+    if (tabCount === 6 && tabIndex > 5) {
       if (!runId && taskId) onChangeTab(0);
       else onChangeTab(1);
     }
@@ -275,6 +281,14 @@ const Details = ({
               Code
             </Text>
           </Tab>
+          {(!isGroup || !taskId) && (
+            <Tab>
+              <MdPlagiarism size={16} />
+              <Text as="strong" ml={1}>
+                Audit Log
+              </Text>
+            </Tab>
+          )}
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -359,6 +373,11 @@ const Details = ({
           <TabPanel height="100%">
             <DagCode />
           </TabPanel>
+          {(!isGroup || !taskId) && (
+            <TabPanel height="100%">
+              <AuditLog taskId={taskId || undefined} run={run} />
+            </TabPanel>
+          )}
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
