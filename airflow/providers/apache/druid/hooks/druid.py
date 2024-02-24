@@ -107,7 +107,7 @@ class DruidHook(BaseHook):
             return None
 
     def get_verify(self) -> bool | str:
-        if not self.verify_ssl and self.conn.extra_dejson.get("ca_bundle_path"):
+        if not self.verify_ssl and self.conn.extra_dejson.get("ca_bundle_path", None):
             return self.conn.extra_dejson.get("ca_bundle_path")
 
         return self.verify_ssl
