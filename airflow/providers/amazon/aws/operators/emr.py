@@ -723,15 +723,14 @@ class EmrCreateJobFlowOperator(BaseOperator):
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         wait_for_completion: bool = False,
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
-        if waiter_max_attempts is NOTSET:
+        if waiter_countdown:
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
@@ -742,7 +741,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             # waiter_countdown defaults to never timing out, which is not supported
             # by boto waiters, so we will set it here to "a very long time" for now.
             waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-        if waiter_delay is NOTSET:
+        if waiter_check_interval_seconds:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
@@ -757,8 +756,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
-        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
-        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
+        self.waiter_max_attempts = waiter_max_attempts or 60
+        self.waiter_delay = waiter_delay or 30
         self.deferrable = deferrable
 
     @cached_property
