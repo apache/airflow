@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
+from functools import cached_property
 from typing import Any, Iterable
 
 import requests
@@ -26,6 +27,7 @@ from pydruid.db import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
@@ -75,16 +77,19 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
+    @cached_property
+    def conn(self) -> Connection:
+        return self.get_connection(self.druid_ingest_conn_id)
+
     def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
         """Get Druid connection url."""
-        conn = self.get_connection(self.druid_ingest_conn_id)
-        host = conn.host
-        port = conn.port
-        conn_type = conn.conn_type or "http"
+        host = self.conn.host
+        port = self.conn.port
+        conn_type = self.conn.conn_type or "http"
         if ingestion_type == IngestionType.BATCH:
-            endpoint = conn.extra_dejson.get("endpoint", "")
+            endpoint = self.conn.extra_dejson.get("endpoint", "")
         else:
-            endpoint = conn.extra_dejson.get("msq_endpoint", "")
+            endpoint = self.conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
@@ -93,9 +98,8 @@ class DruidHook(BaseHook):
 
         If these details have not been set then returns None.
         """
-        conn = self.get_connection(self.druid_ingest_conn_id)
-        user = conn.login
-        password = conn.password
+        user = self.conn.login
+        password = self.conn.password
         if user is not None and password is not None:
             return requests.auth.HTTPBasicAuth(user, password)
         else:
