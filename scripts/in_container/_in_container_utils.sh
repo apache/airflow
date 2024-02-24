@@ -60,8 +60,35 @@ function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
+function in_container_get_packaging_tool() {
+    if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL="uv pip"
+        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_UNINSTALL_FLAGS=""
+        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
+        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        # We need to lie about VIRTUAL_ENV to make uv works
+        # Until https://github.com/astral-sh/uv/issues/1396 is fixed
+        VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
+        export VIRTUAL_ENV
+    else
+        echo
+        echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL="pip"
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        export EXTRA_UNINSTALL_FLAGS="--yes"
+        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
+        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+    fi
+}
+
 function in_container_basic_check() {
     assert_in_container
+    in_container_get_packaging_tool
     in_container_go_to_airflow_sources
 }
 
@@ -93,3 +120,4 @@ function in_container_set_colors() {
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
+export AIRFLOW_USE_UV=${AIRFLOW_USE_UV:="false"}

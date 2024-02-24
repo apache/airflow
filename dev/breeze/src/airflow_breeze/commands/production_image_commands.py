@@ -152,6 +152,15 @@ def prepare_for_building_prod_image(prod_image_params: BuildProdParams):
     )
 
 
+option_use_uv_prod = click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=False,
+    help="Use uv instead of pip as packaging tool.",
+    envvar="USE_UV",
+)
+
+
 @click.group(
     cls=BreezeGroup, name="prod-image", help="Tools that developers can use to manually manage PROD images"
 )
@@ -244,6 +253,7 @@ def prod_image():
 @option_runtime_apt_deps
 @option_skip_cleanup
 @option_tag_as_latest
+@option_use_uv_prod
 @option_verbose
 @option_version_suffix_for_pypi
 def build(
@@ -296,6 +306,7 @@ def build(
     skip_cleanup: bool,
     tag_as_latest: bool,
     use_constraints_for_context_packages: bool,
+    use_uv: bool,
     version_suffix_for_pypi: str,
 ):
     """
@@ -354,6 +365,7 @@ def build(
         runtime_apt_deps=runtime_apt_deps,
         tag_as_latest=tag_as_latest,
         use_constraints_for_context_packages=use_constraints_for_context_packages,
+        use_uv=use_uv,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:

@@ -24,8 +24,6 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -42,7 +40,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     fi
 
     # shellcheck disable=SC2206
-    local pip_flags=(
+    local packaging_flags=(
         # Don't quote this -- if it is empty we don't want it to create an
         # empty array element
         --find-links="file:///docker-context-files"
@@ -92,7 +90,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo
             # force reinstall all airflow + provider packages with constraints found in
             set -x
-            pip install "${pip_flags[@]}" --root-user-action ignore --upgrade \
+            ${PACKAGING_TOOL} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" --upgrade \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
                 ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
             set +x
@@ -101,7 +99,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
             echo
             set -x
-            pip install "${pip_flags[@]}" --root-user-action ignore \
+            ${PACKAGING_TOOL} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
                 ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
@@ -112,13 +110,13 @@ function install_airflow_and_providers_from_docker_context_files(){
         echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
         echo
         set -x
-        pip install "${pip_flags[@]}" --root-user-action ignore \
+        ${PACKAGING_TOOL} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
         set +x
     fi
-    common::install_pip_version
-    pip check
+    common::install_packaging_tool
+    ${PACKAGING_TOOL} check
 }
 
 # Simply install all other (non-apache-airflow) packages placed in docker-context files
@@ -126,7 +124,6 @@ function install_airflow_and_providers_from_docker_context_files(){
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
 function install_all_other_packages_from_docker_context_files() {
-
     echo
     echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
     echo
@@ -136,20 +133,20 @@ function install_all_other_packages_from_docker_context_files() {
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_packages}" ]]; then
         set -x
-        pip install ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
-        common::install_pip_version
+        ${PACKAGING_TOOL} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+        common::install_packaging_tool
         set +x
     fi
 }
 
 common::get_colors
+common::get_packaging_tool
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
-common::show_pip_version_and_location
+common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files
 
-common::show_pip_version_and_location
 install_all_other_packages_from_docker_context_files
