@@ -125,8 +125,8 @@ class TestBaseAuthManager:
     def test_get_cli_commands_return_empty_list(self, auth_manager):
         assert auth_manager.get_cli_commands() == []
 
-    def test_get_api_endpoints_return_none(self, auth_manager):
-        assert auth_manager.get_api_endpoints() is None
+    def test_set_api_endpoints_return_none(self, auth_manager):
+        assert auth_manager.set_api_endpoints() is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()

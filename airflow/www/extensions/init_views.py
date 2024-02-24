@@ -304,8 +304,4 @@ def init_api_experimental(app):
 def init_api_auth_provider(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
-    blueprint = auth_mgr.get_api_endpoints(connexion_app)
-    if blueprint:
-        base_paths.append(blueprint.url_prefix if blueprint.url_prefix else "")
-        flask_app = connexion_app.app
-        flask_app.extensions["csrf"].exempt(blueprint)
+    auth_mgr.set_api_endpoints(connexion_app)
