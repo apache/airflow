@@ -37,9 +37,8 @@ class DruidOperator(BaseOperator):
         of the ingestion job. Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :param ingestion_type: The ingestion type of the job. Could be IngestionType.Batch or IngestionType.MSQ
-    :param verify_ssl: Either a boolean, in which case it controls whether we verify the server's TLS
-                      certificate, or a string, in which case it must be a path to a CA bundle to use.
-                      Defaults to True.
+    :param verify_ssl: Whether to use SSL encryption to submit indexing job. If set to False then checks
+                       connection information for path to a CA bundle to use. Defaults to True
     """
 
     template_fields: Sequence[str] = ("json_index_file",)

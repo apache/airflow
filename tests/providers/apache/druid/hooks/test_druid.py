@@ -260,7 +260,7 @@ class TestDruidHook:
             (False, None, False),
             (True, None, True),
             (False, "path/to/ca_bundle", "path/to/ca_bundle"),
-            (True, "path/to/ca_bundle", True)
+            (True, "path/to/ca_bundle", True),
         ],
     )
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
@@ -270,6 +270,7 @@ class TestDruidHook:
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(verify_ssl=verify_ssl_arg)
         assert hook.get_verify() == expected_return_value
+
 
 class TestDruidDbApiHook:
     def setup_method(self):
