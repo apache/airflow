@@ -2230,6 +2230,7 @@ class Airflow(AirflowBaseView):
                 form_fields=form_fields,
                 **render_params,
                 conf=request_conf,
+                form=form,
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
