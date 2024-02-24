@@ -105,6 +105,12 @@ class DruidHook(BaseHook):
         else:
             return None
 
+    def get_verify(self) -> bool | str:
+        if not self.verify_ssl and self.conn.extra_dejson.get("ca_bundle_path"):
+            return self.conn.extra_dejson.get("ca_bundle_path")
+
+        return self.verify_ssl
+
     def submit_indexing_job(
         self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
     ) -> None:
@@ -113,7 +119,7 @@ class DruidHook(BaseHook):
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(
-            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.verify_ssl
+            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.get_verify()
         )
 
         code = req_index.status_code
