@@ -15,6 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
+# DO NOT MODIFY THIS FILE unless it is a serious bugfix - all the new celery commands should be added in celery provider.
+# This file is kept for backward compatibility only.
 """Celery command."""
 from __future__ import annotations
 
@@ -28,7 +32,6 @@ import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
-from deprecated import deprecated
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
@@ -41,8 +44,9 @@ from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
+logging.warning("Use celery command from providers package, Use celery provider > 3.5.2")
 
-@deprecated(reason="Use command from providers package, Use celery provider > 3.5.2", version="2.8.2")
+
 @cli_utils.action_cli
 @providers_configuration_loaded
 def flower(args):
@@ -116,7 +120,6 @@ def logger_setup_handler(logger, **kwargs):
         logger.handlers[:] = [below_error_handler, from_error_handler]
 
 
-@deprecated(reason="Use command from providers package, Use celery provider > 3.5.2", version="2.8.2")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def worker(args):
@@ -214,7 +217,6 @@ def worker(args):
     )
 
 
-@deprecated(reason="Use command from providers package, Use celery provider > 3.5.2", version="2.8.2")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def stop_worker(args):
