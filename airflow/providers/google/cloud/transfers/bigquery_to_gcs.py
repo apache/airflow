@@ -350,3 +350,69 @@ class BigQueryToGCSOperator(BaseOperator):
             }
 
         return OperatorLineage(inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets)
+
+
+class BigQueryDatasetToGCSOperator(BaseOperator):
+    # TODO: Docs
+    template_fields: Sequence[str] = (
+        "source_project_dataset_table",
+        "destination_cloud_storage_uris",
+        "export_format",
+        "labels",
+        "impersonation_chain",
+        "job_id",
+    )
+    template_ext: Sequence[str] = ()
+    ui_color = "#e4e6f0"
+    operator_extra_links = (BigQueryTableLink(),)
+
+    def __init__(
+        self,
+        *,
+        source_project_dataset: str,
+        destination_cloud_storage_uris: list[str],
+        project_id: str | None = None,
+        compression: str = "NONE",
+        export_format: str = "PARQUET",
+        field_delimiter: str = ",",
+        print_header: bool = True,
+        gcp_conn_id: str = "google_cloud_default",
+        labels: dict | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        result_retry: Retry = DEFAULT_RETRY,
+        result_timeout: float | None = None,
+        job_id: str | None = None,
+        force_rerun: bool = False,
+        reattach_states: set[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.source_project_dataset = source_project_dataset
+        self.destination_cloud_storage_uris = destination_cloud_storage_uris
+        self.compression = compression
+        self.export_format = export_format
+        self.field_delimiter = field_delimiter
+        self.print_header = print_header
+        self.gcp_conn_id = gcp_conn_id
+        self.labels = labels
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.result_retry = result_retry
+        self.result_timeout = result_timeout
+        self.job_id = job_id
+        self.force_rerun = force_rerun
+        self.reattach_states: set[str] = reattach_states or set()
+        self.hook: BigQueryHook | None = None
+        self.deferrable = deferrable
+
+        self._job_id: str = ""
+
+    def execute(self, context: Context):
+        # TODO:
+        # Using the BigQuery hook, List all available tables for the dataset
+        # For each table, create a config and export to the related path
+        # TODO: How to handle interrupts: give a list of the snapshotted tables and the ones that didn't get exported.
+        pass
