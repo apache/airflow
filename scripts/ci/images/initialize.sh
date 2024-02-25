@@ -30,4 +30,4 @@ sudo service docker start
 # This instance will run for maximum 40 minutes and
 # It will terminate itself after that (it can also
 # be terminated immediately when the job finishes)
-echo "sudo shutdown -h now" | at now +40 min
+echo "sudo shutdown -h now" | at now +90 min
