@@ -49,7 +49,7 @@ class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         zone: str,
-        resource_id: str,
+        resource_id: str | None = None,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -151,9 +151,8 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = resource_id
         if "name" in body:
-            self.resource_id = self.body["name"]
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -163,7 +162,6 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
-        resource_id = self.resource_id  # this line for validate-operators-init pre-commit
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
         super().__init__(
             resource_id=resource_id,
@@ -335,9 +333,8 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = resource_id
         if "name" in body:
-            self.resource_id = self.body["name"]
+            resource_id = self.body["name"]
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
@@ -349,7 +346,6 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
-        resource_id = self.resource_id  # this line for validate-operators-init pre-commit
         super().__init__(
             resource_id=resource_id,
             zone=zone,
@@ -899,9 +895,8 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body = body
         self.request_id = request_id
-        self.resource_id = resource_id
         if "name" in body:
-            self.resource_id = self.body["name"]
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -912,7 +907,6 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
-        resource_id = self.resource_id  # this line for validate-operators-init pre-commit
         super().__init__(
             project_id=project_id,
             zone="global",
@@ -1486,11 +1480,9 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         **kwargs,
     ) -> None:
         self.body = body
-        self.zone = zone
         self.request_id = request_id
-        self.resource_id = resource_id
         if "name" in body:
-            self.resource_id = self.body["name"]
+            resource_id = self.body["name"]
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -1500,7 +1492,6 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
             )
         self._field_sanitizer = GcpBodyFieldSanitizer(GCE_INSTANCE_FIELDS_TO_SANITIZE)
-        resource_id = self.resource_id  # this line for validate-operators-init pre-commit
         super().__init__(
             project_id=project_id,
             zone=zone,
