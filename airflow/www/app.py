@@ -21,6 +21,7 @@ import warnings
 from datetime import timedelta
 
 import connexion
+from flask import request
 from flask_appbuilder import SQLA
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
@@ -72,6 +73,15 @@ csrf = CSRFProtect()
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
     connexion_app = connexion.FlaskApp(__name__)
+
+    @connexion_app.app.before_request
+    def before_request():
+        """Exempts the view function associated with '/api/v1' requests from CSRF protection."""
+        if request.path.startswith("/api/v1"):  # TODO: make sure this path is correct
+            view_function = flask_app.view_functions.get(request.endpoint)
+            if view_function:
+                # Exempt the view function from CSRF protection
+                connexion_app.app.extensions["csrf"].exempt(view_function)
 
     connexion_app.add_middleware(
         CORSMiddleware,
