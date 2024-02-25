@@ -31,7 +31,24 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+* ``Enhancement: Performance enhancement for insert_rows method DbApiHook with fast executemany + SAP Hana support (#37246)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Add more-itertools as dependency of common-sql (#37359)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+
+1.10.1
+......
 
 Misc
 ~~~~
@@ -42,6 +59,9 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 1.10.0
 ......

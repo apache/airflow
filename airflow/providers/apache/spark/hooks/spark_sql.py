@@ -56,7 +56,7 @@ class SparkSqlHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Return custom field behaviour."""
+        """Return custom UI field behaviour for Spark SQL connection."""
         return {
             "hidden_fields": ["schema", "login", "password", "extra"],
             "relabeling": {},
@@ -64,7 +64,7 @@ class SparkSqlHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to Spark SQL connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -94,9 +94,8 @@ class SparkSqlHook(BaseHook):
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         options: dict = {}
         conn: Connection | None = None
 

@@ -55,7 +55,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         self._batch_prediction_job: BatchPredictionJob | None = None
 
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
-        """Returns JobServiceClient."""
+        """Return JobServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -66,7 +66,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -75,7 +75,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
 
     @staticmethod
     def extract_batch_prediction_job_id(obj: dict) -> str:
-        """Returns unique id of the batch_prediction_job."""
+        """Return unique id of the batch_prediction_job."""
         return obj["name"].rpartition("/")[-1]
 
     def cancel_batch_prediction_job(self) -> None:
@@ -252,7 +252,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a BatchPredictionJob. Can only be called on jobs that already finished.
+        Delete a BatchPredictionJob. Can only be called on jobs that already finished.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -285,7 +285,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
-        Gets a BatchPredictionJob.
+        Get a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -321,7 +321,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListBatchPredictionJobsPager:
         """
-        Lists BatchPredictionJobs in a Location.
+        List BatchPredictionJobs in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

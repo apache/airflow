@@ -26,13 +26,20 @@
 Changelog
 ---------
 
-5.6.0
+5.6.1
 .....
 
-Features
-~~~~~~~~
+Misc
+~~~~
 
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split contributing docs to multiple files (#36969)``
+
+5.6.0
+.....
 
 Misc
 ~~~~
@@ -44,6 +51,9 @@ Misc
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 5.5.0
 .....

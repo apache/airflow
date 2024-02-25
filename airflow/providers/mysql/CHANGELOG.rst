@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+5.5.3
+.....
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 5.5.2
 .....
 
@@ -37,6 +45,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 5.5.1
 .....

@@ -35,20 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.1
+.....
+
+Latest change: 2024-01-30
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+`8708bffa87 <https://github.com/apache/airflow/commit/8708bffa879e57a3c9379376fee5d6186027412d>`_  2024-01-26   ``Split contributing docs to multiple files (#36969)``
+=================================================================================================  ===========  ==================================================================================
+
 5.6.0
 .....
 
-Latest change: 2024-01-10
+Latest change: 2024-01-26
 
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+`0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
 `6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 `d105c7115f <https://github.com/apache/airflow/commit/d105c7115f56f88d48a2888484a0ed7d1c01576f>`_  2024-01-09   ``Get rid of pyarrow-hotfix for CVE-2023-47248 (#36697)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
-=================================================================================================  ===========  ==================================================================================================
+=================================================================================================  ===========  ====================================================================================================================
 
 5.5.0
 .....

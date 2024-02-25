@@ -312,9 +312,11 @@ class TestStatsAllowAndBlockLists:
     @pytest.mark.parametrize(
         "match_pattern, expect_incr",
         [
-            ("^stat", True),
-            ("a.{4}o", True),
-            ("^banana", False),
+            ("^stat", True),  # Match: Regex Startswith
+            ("a.{4}o", True),  # Match: RegEx Pattern
+            ("foo", True),  # Match: Any substring
+            ("stat", True),  # Match: Substring Startswith
+            ("^banana", False),  # No match
         ],
     )
     def test_regex_matches(self, match_pattern, expect_incr):

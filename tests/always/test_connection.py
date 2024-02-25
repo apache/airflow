@@ -22,6 +22,7 @@ import os
 import re
 from collections import namedtuple
 from unittest import mock
+from urllib.parse import quote
 
 import pytest
 import sqlalchemy
@@ -397,6 +398,7 @@ class TestConnection:
         expected_calls = []
         if test_config.test_conn_attributes.get("password"):
             expected_calls.append(mock.call(test_config.test_conn_attributes["password"]))
+            expected_calls.append(mock.call(quote(test_config.test_conn_attributes["password"])))
 
         if test_config.test_conn_attributes.get("extra_dejson"):
             expected_calls.append(mock.call(test_config.test_conn_attributes["extra_dejson"]))
@@ -627,7 +629,7 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI": "postgresql://username:password@ec2.compute.com:5432/the_database",
+            "AIRFLOW_CONN_TEST_URI": "postgresql://username:password%21@ec2.compute.com:5432/the_database",
         },
     )
     def test_using_env_var(self):
@@ -635,10 +637,10 @@ class TestConnection:
         assert "ec2.compute.com" == conn.host
         assert "the_database" == conn.schema
         assert "username" == conn.login
-        assert "password" == conn.password
+        assert "password!" == conn.password
         assert 5432 == conn.port
 
-        self.mask_secret.assert_called_once_with("password")
+        self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
 
     @mock.patch.dict(
         "os.environ",
@@ -752,7 +754,7 @@ class TestConnection:
             conn = Connection(
                 conn_id=f"test-{os.getpid()}",
                 conn_type="http",
-                password="s3cr3t",
+                password="s3cr3t!",
                 extra='{"apikey":"masked too"}',
             )
             session.add(conn)
@@ -768,7 +770,8 @@ class TestConnection:
 
             assert self.mask_secret.mock_calls == [
                 # We should have called it _again_ when loading from the DB
-                mock.call("s3cr3t"),
+                mock.call("s3cr3t!"),
+                mock.call(quote("s3cr3t!")),
                 mock.call({"apikey": "masked too"}),
             ]
         finally:

@@ -39,7 +39,7 @@ Accepted
 
 ## Context
 
-The [Breeze](https://github.com/apache/airflow/blob/main/dev/breeze/doc/breeze.rst) is
+The [Breeze](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst) is
 a command line development environment for Apache Airflow that makes
 it easy to setup Airflow development and test environment easily
 (< 10 minutes is the goal) and enable contributors to run any subset

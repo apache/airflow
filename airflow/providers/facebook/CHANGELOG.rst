@@ -27,29 +27,6 @@
 Changelog
 ---------
 
-3.5.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
-
-Bug Fixes
-~~~~~~~~~
-
-
-Misc
-~~~~
-
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
-   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
-   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
-   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
-
 3.4.0
 .....
 

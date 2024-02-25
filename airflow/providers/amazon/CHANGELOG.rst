@@ -26,6 +26,46 @@
 Changelog
 ---------
 
+8.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Executor - Add backoff on failed task retry (#37109)``
+* ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
+* ``Adding Amazon Neptune Hook and Operators (#37000)``
+* ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+* ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+* ``Add extra operator links for EMR Serverless (#34225)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'log_query' to format SQL statement correctly in 'AthenaOperator' (#36962)``
+* ``check sagemaker training job status before deferring 'SageMakerTrainingOperator' (#36685)``
+
+Misc
+~~~~
+
+* ``Merge all ECS executor configs following recursive python dict update (#37137)``
+* ``Update default value for 'BatchSensor' (#37234)``
+* ``remove info log from download_file (#37211)``
+* ``S3ToRedshiftOperator templating aws_conn_id (#37195)``
+* ``Updates to ECS Docs (#37125)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+* ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 support in amazon provider (#37275)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+   * ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
+   * ``Limit moto to version below 5.0.0 (#37054)``
+   * ``docs: Add doc page with providers deprecations (#37075)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+
 8.17.0
 ......
 
@@ -70,6 +110,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 8.16.0
 ......

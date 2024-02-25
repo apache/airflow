@@ -23,8 +23,9 @@ description: |
 
 state: ready
 source-date-epoch: 1705912297
+# note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 4.4.0
+  - 4.3.1
   - 4.3.0
   - 4.2.0
   - 4.1.1
@@ -58,6 +59,10 @@ operators:
   - integration-name: Telegram
     python-modules:
       - airflow.providers.telegram.operators.telegram
+
+connection-types:
+  - hook-class-name: airflow.providers.telegram.hooks.telegram.TelegramHook
+    connection-type: telegram
 
 hooks:
   - integration-name: Telegram

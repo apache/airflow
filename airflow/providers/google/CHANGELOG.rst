@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+10.15.0
+.......
+
+Features
+~~~~~~~~
+
+* ``add service_file support to GKEPodAsyncHook (#37081)``
+* ``Update GCP Dataproc ClusterGenerator to support GPU params (#37036)``
+* ``Create DataprocStartClusterOperator and DataprocStopClusterOperator (#36996)``
+* ``Implement deferrable mode for CreateHyperparameterTuningJobOperator (#36594)``
+* ``Enable '_enable_tcp_keepalive' functionality for GKEPodHook (#36999)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
+* ``Fix metadata override for ComputeEngineSSHHook (#37192)``
+* ``Fix assignment of template field in '__init__' in 'custom_job' (#36789)``
+* ``Fix location requirement in DataflowTemplatedJobStartOperator (#37069)``
+* ``Fix assignment of template field in '__init__' in 'CloudDataTransferServiceCreateJobOperator' (#36909)``
+* ``Fixed the hardcoded default namespace value for GCP Data Fusion links. (#35379)``
+* ``Do not ignore the internal_ip_only if set to false in Dataproc cluster config (#37014)``
+
+Misc
+~~~~
+
+* ``Revert protection against back-compatibility issue with google-core-api (#37111)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 lint fixes for google provider (#37304)``
+   * ``D401 lint fixes for all hooks in google provider (#37296)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 10.14.0
 .......
 
@@ -46,8 +81,10 @@ Features
 
 * ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
 * ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 * ``Implement Google Analytics Admin (GA4) operators (#36276)``
+* ``Add operator to diagnose cluster (#36899)``
+* ``Add scopes into a GCP token (#36974)``
+* ``feat: full support for google credentials in gcloud-aio clients (#36849)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -61,6 +98,7 @@ Bug Fixes
 * ``prevent templated field logic checks in operators __init__ (#36489)``
 * ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
 * ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+* ``Fix google operators handling of impersonation chain (#36903)``
 
 Misc
 ~~~~
@@ -78,6 +116,9 @@ Misc
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
    * ``Run mypy checks for full packages in CI (#36638)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 10.13.1
 .......

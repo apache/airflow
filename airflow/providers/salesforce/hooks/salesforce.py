@@ -72,9 +72,8 @@ class SalesforceHook(BaseHook):
         salesforce_conn_id: str = default_conn_name,
         session_id: str | None = None,
         session: Session | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.conn_id = salesforce_conn_id
         self.session_id = session_id
         self.session = session
@@ -94,7 +93,7 @@ class SalesforceHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -117,7 +116,7 @@ class SalesforceHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
             "relabeling": {
@@ -155,7 +154,7 @@ class SalesforceHook(BaseHook):
         return conn
 
     def get_conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)."""
+        """Return a Salesforce instance. (cached)."""
         return self.conn
 
     def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:

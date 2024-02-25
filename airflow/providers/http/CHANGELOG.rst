@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+4.9.1
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Added D401 support to http, smtp and sftp provider (#37303)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 4.9.0
 .....
 
@@ -34,7 +49,7 @@ Features
 ~~~~~~~~
 
 * ``Allow default requests parameters like proxy to be defined in extra options field of a Airflow HTTP Connection (#36733)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+* ``Add deferrable implementation in HTTPSensor (#36904)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -47,6 +62,9 @@ Bug Fixes
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 4.8.0
 .....

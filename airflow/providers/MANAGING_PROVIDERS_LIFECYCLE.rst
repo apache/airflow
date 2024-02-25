@@ -29,7 +29,8 @@ new provider.
 Another recommendation that will help you is to look for a provider that works similar to yours. That way it will
 help you to set up tests and other dependencies.
 
-First, you need to set up your local development environment. See `Contribution Quick Start <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst>`_
+First, you need to set up your local development environment. See
+`Contributors Quick Start <../../contributing-docs/03_contributors_quick_start.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
 easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
@@ -128,7 +129,7 @@ Add chicken-egg-provider to constraint generation
 This is controlled by ``chicken_egg_providers`` property in Selective Checks - and our CI will automatically
 build and use those chicken-egg providers during the CI process if pre-release version of Airflow is built.
 
-The short provider id (``common.io`` for example) for such a provider should be added
+The short ``provider id`` (``common.io`` for example) for such a provider should be added
 to ``CHICKEN_EGG_PROVIDERS`` list in ``src/airflow_breeze/utils/selective_checks.py``:
 
 This list will be kept here until the official version of Airflow the chicken-egg-providers depend on
@@ -186,14 +187,15 @@ by ``pip``).
 Integration tests
 -----------------
 
-See `Airflow Integration Tests <https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests>`_
+See `Airflow Integration Tests <../../contributing-docs/testing/integration-tests.rst>`_
 
 
 Documentation
 -------------
 
 An important part of building a new provider is the documentation.
-Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/main/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
+Some steps for documentation occurs automatically by ``pre-commit`` see
+`Installing pre-commit guide <../../contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
 
 Those are important files in the airflow source tree that affect providers. The ``pyproject.toml`` in root
 Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
@@ -318,8 +320,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    breeze build-docs --package-filter apache-airflow
+    breeze build-docs <provider id>
+    breeze build-docs apache-airflow
 
 Additional changes needed for cross-dependent providers
 =======================================================

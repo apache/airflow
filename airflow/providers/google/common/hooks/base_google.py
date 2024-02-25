@@ -24,7 +24,6 @@ import json
 import logging
 import os
 import tempfile
-import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
@@ -36,6 +35,7 @@ import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
+from deprecated import deprecated
 from gcloud.aio.auth.token import Token
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
@@ -79,6 +79,8 @@ INVALID_REASONS = [
 
 def is_soft_quota_exception(exception: Exception):
     """
+    Check for quota violation errors.
+
     API for Google services does not have a standardized way to report quota violation errors.
 
     The function has been adapted by trial and error to the following services:
@@ -100,6 +102,8 @@ def is_soft_quota_exception(exception: Exception):
 
 def is_operation_in_progress_exception(exception: Exception) -> bool:
     """
+    Handle operation in-progress exceptions.
+
     Some calls return 429 (too many requests!) or 409 errors (Conflict) in case of operation in progress.
 
     * Google Cloud SQL
@@ -195,7 +199,7 @@ class GoogleBaseHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, PasswordField, StringField
@@ -228,7 +232,7 @@ class GoogleBaseHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -239,9 +243,8 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
@@ -250,7 +253,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_project_id: str | None = None
 
     def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
-        """Returns the Credentials object for Google API and the associated project_id."""
+        """Return the Credentials object for Google API and the associated project_id."""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
@@ -300,12 +303,12 @@ class GoogleBaseHook(BaseHook):
         return credentials, project_id
 
     def get_credentials(self) -> google.auth.credentials.Credentials:
-        """Returns the Credentials object for Google API."""
+        """Return the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
     def _get_access_token(self) -> str:
-        """Returns a valid access token from Google API Credentials."""
+        """Return a valid access token from Google API Credentials."""
         credentials = self.get_credentials()
         auth_req = google.auth.transport.requests.Request()
         # credentials.token is None
@@ -316,7 +319,7 @@ class GoogleBaseHook(BaseHook):
     @functools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
         """
-        Returns the email address associated with the currently logged in account.
+        Return the email address associated with the currently logged in account.
 
         If a service account is used, it returns the service account.
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
@@ -342,7 +345,7 @@ class GoogleBaseHook(BaseHook):
         return oauth2_client.tokeninfo().execute()["email"]
 
     def _authorize(self) -> google_auth_httplib2.AuthorizedHttp:
-        """Returns an authorized HTTP object to be used to build a Google cloud service hook connection."""
+        """Return an authorized HTTP object to be used to build a Google cloud service hook connection."""
         credentials = self.get_credentials()
         http = build_http()
         http = set_user_agent(http, "airflow/" + version.version)
@@ -351,7 +354,7 @@ class GoogleBaseHook(BaseHook):
 
     def _get_field(self, f: str, default: Any = None) -> Any:
         """
-        Fetches a field from extras, and returns it.
+        Fetch a field from extras, and returns it.
 
         This is some Airflow magic. The google_cloud_platform hook type adds
         custom UI elements to the hook page, which allow admins to specify
@@ -391,6 +394,10 @@ class GoogleBaseHook(BaseHook):
             )
 
     @property
+    @deprecated(
+        reason="Please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def client_info(self) -> ClientInfo:
         """
         Return client information used to generate a user-agent for API calls.
@@ -401,11 +408,6 @@ class GoogleBaseHook(BaseHook):
         the Google Cloud. It is not supported by The Google APIs Python Client that use Discovery
         based APIs.
         """
-        warnings.warn(
-            "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return CLIENT_INFO
 
     @property
@@ -421,7 +423,7 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def quota_retry(*args, **kwargs) -> Callable:
-        """Provides a mechanism to repeat requests in response to exceeding a temporary quota limit."""
+        """Provide a mechanism to repeat requests in response to exceeding a temporary quota limit."""
 
         def decorator(fun: Callable):
             default_kwargs = {
@@ -437,7 +439,7 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def operation_in_progress_retry(*args, **kwargs) -> Callable[[T], T]:
-        """Provides a mechanism to repeat requests in response to operation in progress (HTTP 409) limit."""
+        """Provide a mechanism to repeat requests in response to operation in progress (HTTP 409) limit."""
 
         def decorator(fun: T):
             default_kwargs = {
@@ -454,7 +456,7 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def fallback_to_default_project_id(func: Callable[..., RT]) -> Callable[..., RT]:
         """
-        Decorator that provides fallback for Google Cloud project id.
+        Provide fallback for Google Cloud project id. To be used as a decorator.
 
         If the project is None it will be replaced with the project_id from the
         service account the Hook is authenticated with. Project id can be specified
@@ -487,7 +489,7 @@ class GoogleBaseHook(BaseHook):
     @staticmethod
     def provide_gcp_credential_file(func: T) -> T:
         """
-        Provides a Google Cloud credentials for Application Default Credentials (ADC) strategy support.
+        Provide a Google Cloud credentials for Application Default Credentials (ADC) strategy support.
 
         It is recommended to use ``provide_gcp_credential_file_as_context`` context
         manager to limit the scope when authorization data is available. Using context
@@ -504,7 +506,7 @@ class GoogleBaseHook(BaseHook):
     @contextmanager
     def provide_gcp_credential_file_as_context(self) -> Generator[str | None, None, None]:
         """
-        Provides a Google Cloud credentials for Application Default Credentials (ADC) strategy support.
+        Provide a Google Cloud credentials for Application Default Credentials (ADC) strategy support.
 
         See:
             `Application Default Credentials (ADC)
@@ -540,7 +542,7 @@ class GoogleBaseHook(BaseHook):
     @contextmanager
     def provide_authorized_gcloud(self) -> Generator[None, None, None]:
         """
-        Provides a separate gcloud configuration with current credentials.
+        Provide a separate gcloud configuration with current credentials.
 
         The gcloud tool allows you to login to Google Cloud only - ``gcloud auth login`` and
         for the needs of Application Default Credentials ``gcloud auth application-default login``.
@@ -642,8 +644,10 @@ class _CredentialsToken(Token):
         *,
         project: str | None = None,
         session: ClientSession | None = None,
+        scopes: Sequence[str] | None = None,
     ) -> None:
-        super().__init__(session=cast(Session, session))
+        _scopes: list[str] | None = list(scopes) if scopes else None
+        super().__init__(session=cast(Session, session), scopes=_scopes)
         self.credentials = credentials
         self.project = project
 
@@ -659,6 +663,7 @@ class _CredentialsToken(Token):
             credentials=credentials,
             project=project,
             session=session,
+            scopes=hook.scopes,
         )
 
     async def get_project(self) -> str | None:
@@ -669,7 +674,10 @@ class _CredentialsToken(Token):
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
-        self.access_token_acquired_at = datetime.datetime.utcnow()
+        # access_token_acquired_at is specific to gcloud-aio's Token. On subsequent calls of `get` it will be used
+        # with `datetime.datetime.utcnow()`. Therefore we have to use an offset-naive datetime.
+        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
+        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
         self.acquiring = None
 
 
@@ -679,7 +687,6 @@ class GoogleBaseAsyncHook(BaseHook):
     sync_hook_class: Any = None
 
     def __init__(self, **kwargs: Any):
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
         self._hook_kwargs = kwargs
         self._sync_hook = None
 
@@ -690,11 +697,15 @@ class GoogleBaseAsyncHook(BaseHook):
         return self._sync_hook
 
     async def get_token(self, *, session: ClientSession | None = None) -> _CredentialsToken:
-        """Returns a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
+        """Return a Token instance for use in [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients."""
         sync_hook = await self.get_sync_hook()
         return await _CredentialsToken.from_hook(sync_hook, session=session)
 
     async def service_file_as_context(self) -> Any:
-        """This is the async equivalent of the non-async GoogleBaseHook's `provide_gcp_credential_file_as_context` method."""
+        """
+        Provide a Google Cloud credentials for Application Default Credentials (ADC) strategy support.
+
+        This is the async equivalent of the non-async GoogleBaseHook's `provide_gcp_credential_file_as_context` method.
+        """
         sync_hook = await self.get_sync_hook()
         return await sync_to_async(sync_hook.provide_gcp_credential_file_as_context)()

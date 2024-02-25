@@ -65,4 +65,6 @@ done via ``synchronize-local-mounts`` command.
   :width: 100%
   :alt: Breeze setup synchronize-local-mounts
 
+-----
+
 Next step: Follow the `CI tasks <08_ci_tasks.rst>`_ guide to learn how to use Breeze for regular development tasks.

@@ -46,7 +46,7 @@ class TabularHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Tabular connection."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -61,8 +61,8 @@ class TabularHook(BaseHook):
             },
         }
 
-    def __init__(self, tabular_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, tabular_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = tabular_conn_id
 
     def test_connection(self) -> tuple[bool, str]:

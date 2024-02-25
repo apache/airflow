@@ -65,6 +65,7 @@ class TestDruidSubmitHook:
     def test_submit_ok(self, requests_mock):
         task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
+            status_code=200,
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = requests_mock.get(
@@ -81,6 +82,7 @@ class TestDruidSubmitHook:
     def test_submit_sql_based_ingestion_ok(self, requests_mock):
         task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/v2/sql/task",
+            status_code=202,
             text='{"taskId":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = requests_mock.get(
@@ -93,6 +95,25 @@ class TestDruidSubmitHook:
 
         assert task_post.called_once
         assert status_check.called_once
+
+    def test_submit_with_correct_ssl_arg(self, requests_mock):
+        self.db_hook.verify_ssl = "/path/to/ca.crt"
+        task_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/indexer/v1/task",
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = requests_mock.get(
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
+            text='{"status":{"status": "SUCCESS"}}',
+        )
+
+        self.db_hook.submit_indexing_job("Long json file")
+
+        assert task_post.called_once
+        assert status_check.called_once
+        if task_post.called_once:
+            verify_ssl = task_post.request_history[0].verify
+            assert "/path/to/ca.crt" == verify_ssl
 
     def test_submit_correct_json_body(self, requests_mock):
         task_post = requests_mock.post(

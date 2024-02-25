@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+8.6.1
+.....
+
+Misc
+~~~~
+
+* ``Remove the remaining references to use the token bypassing the Connection in the Slack provider. (#37112)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
 8.6.0
 .....
 
@@ -34,7 +47,6 @@ Features
 ~~~~~~~~
 
 * ``Optionally use 'client.files_upload_v2' in Slack Provider (#36757)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -45,6 +57,9 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 8.5.1
 .....

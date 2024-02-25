@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import time
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -37,6 +38,16 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+@deprecated(
+    reason=(
+        "This class is deprecated. Please use "
+        "`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`. "
+        "Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>, "
+        "'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,"
+        "'session_parameters': <session_parameters>}`."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database.
@@ -104,15 +115,6 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
                 **hook_params,
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
-            Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
-            'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
-            'session_parameters': <session_parameters>}`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         validated_descriptions: list[Sequence[Sequence]] = []
@@ -571,7 +573,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute callback when the trigger fires; returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

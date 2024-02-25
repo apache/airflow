@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_sqs
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
@@ -73,7 +73,7 @@ class TestSqsPublishOperator:
         assert op.hook._config is not None
         assert op.hook._config.read_timeout == 42
 
-    @mock_sqs
+    @mock_aws
     def test_execute_success(self, mocked_context):
         self.sqs_client.create_queue(QueueName=QUEUE_NAME)
 
@@ -89,7 +89,7 @@ class TestSqsPublishOperator:
         assert message["Messages"][0]["MessageId"] == result["MessageId"]
         assert message["Messages"][0]["Body"] == "hello"
 
-    @mock_sqs
+    @mock_aws
     def test_execute_failure_fifo_queue(self, mocked_context):
         self.sqs_client.create_queue(QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true"})
 
@@ -101,7 +101,7 @@ class TestSqsPublishOperator:
         with pytest.raises(ClientError, match=error_message):
             op.execute(mocked_context)
 
-    @mock_sqs
+    @mock_aws
     def test_execute_success_fifo_queue(self, mocked_context):
         self.sqs_client.create_queue(
             QueueName=FIFO_QUEUE_NAME, Attributes={"FifoQueue": "true", "ContentBasedDeduplication": "true"}

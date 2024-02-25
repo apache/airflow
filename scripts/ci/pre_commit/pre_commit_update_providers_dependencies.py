@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import sys
@@ -237,17 +236,25 @@ def generate_dependencies(
     for dependency, dependency_info in dependencies.items():
         if dependency_info["state"] in ["suspended", "removed"]:
             continue
-        result_content.append(f"{normalize_extra(dependency)} = [")
         deps = dependency_info["deps"]
+        deps = [dep for dep in deps if not dep.startswith("apache-airflow>=")]
+        devel_deps = dependency_info.get("devel-deps")
+        if not deps and not devel_deps:
+            result_content.append(
+                f"{normalize_extra(dependency)} = [] "
+                f"# source: airflow/providers/{dependency.replace('.', '/')}/provider.yaml"
+            )
+            continue
+        result_content.append(
+            f"{normalize_extra(dependency)} = "
+            f"[ # source: airflow/providers/{dependency.replace('.', '/')}/provider.yaml"
+        )
         if not isinstance(deps, list):
             raise TypeError(f"Wrong type of 'deps' {deps} for {dependency} in {DEPENDENCIES_JSON_FILE_PATH}")
         for dep in deps:
             if dep.startswith("apache-airflow-providers-"):
                 dep = convert_to_extra_dependency(dep)
-            elif dep.startswith("apache-airflow>="):
-                continue
             result_content.append(f'  "{dep}{get_python_exclusion(dependency_info)}",')
-        devel_deps = dependency_info.get("devel-deps")
         if devel_deps:
             result_content.append(f"  # Devel dependencies for the {dependency} provider")
             for dep in devel_deps:
@@ -280,7 +287,7 @@ def get_dependency_type(dependency_type: str) -> ParsedDependencyTypes | None:
     return None
 
 
-def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]):
+def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]) -> bool:
     file_content = PYPROJECT_TOML_FILE_PATH.read_text()
     result_content: list[str] = []
     copying = True
@@ -315,14 +322,12 @@ def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]):
             if line.strip().endswith(" = ["):
                 FOUND_EXTRAS[current_type].append(line.split(" = [")[0].strip())
         line_count += 1
-    PYPROJECT_TOML_FILE_PATH.write_text("\n".join(result_content) + "\n")
-
-
-def calculate_my_hash():
-    my_file = MY_FILE.resolve()
-    hash_md5 = hashlib.md5()
-    hash_md5.update(my_file.read_bytes())
-    return hash_md5.hexdigest()
+    result_content.append("")
+    new_file_content = "\n".join(result_content)
+    if file_content != new_file_content:
+        PYPROJECT_TOML_FILE_PATH.write_text(new_file_content)
+        return True
+    return False
 
 
 if __name__ == "__main__":
@@ -366,9 +371,10 @@ if __name__ == "__main__":
     )
     new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
     old_md5sum = MY_MD5SUM_FILE.read_text().strip() if MY_MD5SUM_FILE.exists() else ""
-    new_md5sum = calculate_my_hash()
-    if new_dependencies != old_dependencies or new_md5sum != old_md5sum:
-        DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
+    old_content = DEPENDENCIES_JSON_FILE_PATH.read_text() if DEPENDENCIES_JSON_FILE_PATH.exists() else ""
+    new_content = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
+    DEPENDENCIES_JSON_FILE_PATH.write_text(new_content)
+    if new_content != old_content:
         if os.environ.get("CI"):
             console.print()
             console.print(f"There is a need to regenerate {DEPENDENCIES_JSON_FILE_PATH}")
@@ -386,13 +392,15 @@ if __name__ == "__main__":
             )
             console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
-            update_pyproject_toml(unique_sorted_dependencies)
-            console.print(f"Written {PYPROJECT_TOML_FILE_PATH}")
+    if update_pyproject_toml(unique_sorted_dependencies):
+        if os.environ.get("CI"):
+            console.print(f"There is a need to regenerate {PYPROJECT_TOML_FILE_PATH}")
+            console.print(
+                f"[red]You need to run the following command locally and commit generated "
+                f"{PYPROJECT_TOML_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
+            )
+            console.print("breeze static-checks --type update-providers-dependencies --all-files")
             console.print()
-            MY_MD5SUM_FILE.write_text(new_md5sum + "\n")
-        sys.exit(1)
-    else:
-        console.print(
-            "[green]No need to regenerate dependencies!\n[/]"
-            f"The {DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} is up to date!\n"
-        )
+        else:
+            console.print(f"Written {PYPROJECT_TOML_FILE_PATH}")
+    console.print()

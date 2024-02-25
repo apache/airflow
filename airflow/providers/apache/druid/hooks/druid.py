@@ -53,6 +53,9 @@ class DruidHook(BaseHook):
                     the Druid job for the status of the ingestion job.
                     Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
+    :param verify_ssl: Either a boolean, in which case it controls whether we verify the server's TLS
+                      certificate, or a string, in which case it must be a path to a CA bundle to use.
+                      Defaults to True
     """
 
     def __init__(
@@ -60,13 +63,14 @@ class DruidHook(BaseHook):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
-        **kwargs,
+        verify_ssl: bool | str = True,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
         self.header = {"content-type": "application/json"}
+        self.verify_ssl = verify_ssl
 
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
@@ -104,12 +108,15 @@ class DruidHook(BaseHook):
         url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
-        req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
+        req_index = requests.post(
+            url, data=json_index_spec, headers=self.header, auth=self.get_auth(), verify=self.verify_ssl
+        )
 
         code = req_index.status_code
-        if code != 200:
+        not_accepted = not (200 <= code < 300)
+        if not_accepted:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
-            raise AirflowException(f"Did not get 200 when submitting the Druid job to {url}")
+            raise AirflowException(f"Did not get 200 or 202 when submitting the Druid job to {url}")
 
         req_json = req_index.json()
         # Wait until the job is completed

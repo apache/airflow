@@ -1916,7 +1916,7 @@ class TestBackfillJob:
         executor = MockExecutor()
 
         ti_status = BackfillJobRunner._DagRunTaskStatus()
-        ti_status.active_runs.append(dr)
+        ti_status.active_runs.add(dr)
         ti_status.to_run = {ti.key: ti for ti in dr.task_instances}
 
         job = Job(executor=executor)
@@ -2103,3 +2103,31 @@ class TestBackfillJob:
         assert dag_run.state == DagRunState.FAILED
 
         dag.clear()
+
+    def test_backfill_failed_dag_with_upstream_failed_task(self, dag_maker):
+        self.dagbag.process_file(str(TEST_DAGS_FOLDER / "test_backfill_with_upstream_failed_task.py"))
+        dag = self.dagbag.get_dag("test_backfill_with_upstream_failed_task")
+
+        # We have to use the "fake" version of perform_heartbeat due to the 'is_unit_test' check in
+        # the original one. However, instead of using the original version of perform_heartbeat,
+        # we can simply wait for a LocalExecutor's worker cycle. The approach with sleep works well now,
+        # but it can be replaced with checking the state of the LocalTaskJob.
+        def fake_perform_heartbeat(*args, **kwargs):
+            import time
+
+            time.sleep(1)
+
+        with mock.patch("airflow.jobs.backfill_job_runner.perform_heartbeat", fake_perform_heartbeat):
+            job = Job(executor=ExecutorLoader.load_executor("LocalExecutor"))
+            job_runner = BackfillJobRunner(
+                job=job,
+                dag=dag,
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                rerun_failed_tasks=True,
+            )
+            with pytest.raises(BackfillUnfinished):
+                run_job(job=job, execute_callable=job_runner._execute)
+
+        dr: DagRun = dag.get_last_dagrun()
+        assert dr.state == State.FAILED

@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.6.0
 .....
 
-Latest change: 2024-01-10
+Latest change: 2024-01-22
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `457bdae18e <https://github.com/apache/airflow/commit/457bdae18e7f57f9bc6989fd6028ecb92cecf7ed>`_  2024-01-10   ``Add connection UI form and docs for discord webhook connection (#36720)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``

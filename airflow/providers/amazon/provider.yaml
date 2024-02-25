@@ -22,8 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1705911803
+source-date-epoch: 1707636119
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.18.0
   - 8.17.0
   - 8.16.0
   - 8.15.0
@@ -118,12 +120,14 @@ additional-extras:
 devel-dependencies:
   - aiobotocore>=2.7.0
   - aws_xray_sdk>=2.12.0
-  - moto[cloudformation,glue]>=4.2.12
+  - moto[cloudformation,glue]>=5.0.0
   - mypy-boto3-appflow>=1.33.0
   - mypy-boto3-rds>=1.33.0
   - mypy-boto3-redshift-data>=1.33.0
   - mypy-boto3-s3>=1.33.0
   - s3fs>=2023.10.0
+  - openapi-schema-validator>=0.6.2
+  - openapi-spec-validator>=0.7.1
 
 integrations:
   - integration-name: Amazon Athena
@@ -337,6 +341,12 @@ integrations:
     external-doc-url: https://aws.amazon.com/verified-permissions/
     logo: /integration-logos/aws/Amazon-Verified-Permissions.png
     tags: [aws]
+  - integration-name: Amazon Neptune
+    external-doc-url: https://aws.amazon.com/neptune/
+    logo: /integration-logos/aws/Amazon-Neptune_64.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/neptune.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -416,6 +426,9 @@ operators:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.operators.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.operators.neptune
 
 sensors:
   - integration-name: Amazon Athena
@@ -602,6 +615,9 @@ hooks:
   - integration-name: Amazon Verified Permissions
     python-modules:
       - airflow.providers.amazon.aws.hooks.verified_permissions
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.neptune
 
 triggers:
   - integration-name: Amazon Web Services
@@ -654,6 +670,9 @@ triggers:
   - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue_databrew
+  - integration-name: Amazon Neptune
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.neptune
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -746,6 +765,10 @@ extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
   - airflow.providers.amazon.aws.links.emr.EmrClusterLink
   - airflow.providers.amazon.aws.links.emr.EmrLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink

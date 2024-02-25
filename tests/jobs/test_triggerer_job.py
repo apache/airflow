@@ -266,7 +266,7 @@ def test_trigger_lifecycle(session):
 class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_canceled(self, session) -> None:
+    async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -278,7 +278,7 @@ class TestTriggerRunner:
 
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_timeout(self, session, caplog) -> None:
+    async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -431,7 +431,7 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id
@@ -458,7 +458,7 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id

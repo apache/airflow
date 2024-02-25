@@ -48,7 +48,7 @@ class BaseAzureServiceBusHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -62,7 +62,7 @@ class BaseAzureServiceBusHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "host", "extra", "login", "password"],
             "relabeling": {"schema": "Connection String"},
@@ -75,8 +75,8 @@ class BaseAzureServiceBusHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_service_bus_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, azure_service_bus_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.conn_id = azure_service_bus_conn_id
 
     def get_conn(self):

@@ -22,6 +22,8 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -132,7 +134,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -247,7 +249,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -269,6 +271,15 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         raise AirflowException(message)
 
 
+@deprecated(
+    reason=(
+        "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `BigQueryTableExistenceSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
     Checks for the existence of a table in Google Big Query.
@@ -299,17 +310,18 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     """
 
     def __init__(self, **kwargs):
-        warnings.warn(
-            "Class `BigQueryTableExistenceAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `BigQueryTableExistenceSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, **kwargs)
 
 
+@deprecated(
+    reason=(
+        "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
+        "will be removed in a future release. "
+        "Please use `BigQueryTablePartitionExistenceSensor` and "
+        "set `deferrable` attribute to `True` instead"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):
     """
     Checks for the existence of a partition within a table in Google BigQuery.
@@ -341,12 +353,4 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
     """
 
     def __init__(self, **kwargs):
-        warnings.warn(
-            "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `BigQueryTablePartitionExistenceSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(deferrable=True, **kwargs)

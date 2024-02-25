@@ -69,7 +69,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes MLEngineStartTrainingJobTrigger arguments and classpath."""
+        """Serialize MLEngineStartTrainingJobTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger",
             {
@@ -89,7 +89,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent."""
+        """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:

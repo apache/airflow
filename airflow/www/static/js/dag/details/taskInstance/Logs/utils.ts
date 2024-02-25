@@ -21,6 +21,8 @@
 
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
+import sanitizeHtml from "sanitize-html";
+
 export enum LogLevel {
   DEBUG = "DEBUG",
   INFO = "INFO",
@@ -97,7 +99,30 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      parsedLines.push(parsedLine);
+      // sanitize the lines to remove any tags that may cause HTML injection
+      const sanitizedLine = sanitizeHtml(parsedLine, {
+        allowedTags: ["a"],
+        allowedAttributes: {
+          a: ["href", "target", "style"],
+        },
+        transformTags: {
+          a: (tagName, attribs) => {
+            attribs.style = "color: blue; text-decoration: underline;";
+            return {
+              tagName: "a",
+              attribs,
+            };
+          },
+        },
+      });
+
+      // for lines with links, transform to hyperlinks
+      const lineWithHyperlinks = sanitizedLine.replace(
+        /((https?:\/\/|http:\/\/)[^\s]+)/g,
+        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+      );
+
+      parsedLines.push(lineWithHyperlinks);
     }
   });
 

@@ -34,6 +34,9 @@ Features
 
 * ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 1.4.0
 .....
 

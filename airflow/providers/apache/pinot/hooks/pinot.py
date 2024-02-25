@@ -68,9 +68,8 @@ class PinotAdminHook(BaseHook):
         conn_id: str = "pinot_admin_default",
         cmd_path: str = "pinot-admin.sh",
         pinot_admin_system_exit: bool = False,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         conn = self.get_connection(conn_id)
         self.host = conn.host
         self.port = str(conn.port)

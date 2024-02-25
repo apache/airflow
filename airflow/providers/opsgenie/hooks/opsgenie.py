@@ -52,8 +52,8 @@ class OpsgenieAlertHook(BaseHook):
     conn_type = "opsgenie"
     hook_name = "Opsgenie"
 
-    def __init__(self, opsgenie_conn_id: str = "opsgenie_default", **kwargs) -> None:
-        super().__init__(**kwargs)  # type: ignore[misc]
+    def __init__(self, opsgenie_conn_id: str = "opsgenie_default") -> None:
+        super().__init__()  # type: ignore[misc]
         self.conn_id = opsgenie_conn_id
         configuration = Configuration()
         conn = self.get_connection(self.conn_id)
@@ -161,7 +161,7 @@ class OpsgenieAlertHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Opsgenie connection."""
         return {
             "hidden_fields": ["port", "schema", "login", "extra"],
             "relabeling": {"password": "Opsgenie API Key"},

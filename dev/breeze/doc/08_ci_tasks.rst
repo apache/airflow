@@ -19,6 +19,7 @@ CI tasks
 ========
 
 Breeze hase a number of commands that are mostly used in CI environment to perform cleanup.
+Detailed description of the CI design can be found in `CI design <ci/README.md>`_.
 
 .. contents:: :local:
 
@@ -90,7 +91,7 @@ The selective-check command will produce the set of ``name=value`` pairs of outp
 from the context of the commit/PR to be merged via stderr output.
 
 More details about the algorithm used to pick the right tests and the available outputs can be
-found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
+found in `Selective Checks <ci/04_selective_checks.md>`_.
 
 These are all available flags of ``selective-check`` command:
 
@@ -129,6 +130,8 @@ These are all available flags of ``find-backtracking-candidates`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_find-backtracking-candidates.svg
   :width: 100%
   :alt: Breeze ci find-backtracking-candidates
+
+-----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how
 release managers are using Breeze to release various Airflow artifacts.

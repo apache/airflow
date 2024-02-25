@@ -45,7 +45,7 @@ class AzureFileShareHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -59,7 +59,7 @@ class AzureFileShareHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -80,9 +80,8 @@ class AzureFileShareHook(BaseHook):
         file_path: str | None = None,
         directory_path: str | None = None,
         azure_fileshare_conn_id: str = "azure_fileshare_default",
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self._conn_id = azure_fileshare_conn_id
         self.share_name = share_name
         self.file_path = file_path

@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update DatabricksSqlOperator to work with namedtuple (#37025)``
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
 6.1.0
 .....
 
@@ -33,12 +48,13 @@ Features
 ~~~~~~~~
 
 * ``[FEAT] adds repair run functionality for databricks (#36601)``
-* ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix databricks_sql hook query failing on empty result for return_tuple (#36827)``
+* ``Rename columns to valid namedtuple attributes + ensure Row.fields are retrieved as tuple (#36949)``
+* ``check status before DatabricksSubmitRunOperator & DatabricksSubmitRunOperator executes in deferrable mode (#36862)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -46,6 +62,9 @@ Bug Fixes
    * ``Run mypy checks for full packages in CI (#36638)``
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 6.0.0
 .....

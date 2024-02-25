@@ -73,6 +73,9 @@ In the case of conflicts, the order of precedence from lowest to highest is:
 3. Load any values provided in the RUN_TASK_KWARGS option if one is
    provided.
 
+.. note::
+   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
+
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -80,7 +83,7 @@ Required config options:
 -  CONTAINER_NAME - Name of the container that will be used to execute
    Airflow tasks via the ECS executor. The container should be specified
    in the ECS Task Definition. Required.
--  REGION - The name of the AWS Region where Amazon ECS is configured.
+-  REGION_NAME - The name of the AWS Region where Amazon ECS is configured.
    Required.
 
 Optional config options:
@@ -88,7 +91,7 @@ Optional config options:
 
 -  ASSIGN_PUBLIC_IP - Whether to assign a public IP address to the
    containers launched by the ECS executor. Defaults to "False".
--  CONN_ID - The Airflow connection (i.e. credentials) used by the ECS
+-  AWS_CONN_ID - The Airflow connection (i.e. credentials) used by the ECS
    executor to make API calls to AWS ECS. Defaults to "aws_default".
 -  LAUNCH_TYPE - Launch type can either be 'FARGATE' OR 'EC2'. Defaults
    to "FARGATE".
@@ -113,6 +116,9 @@ For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
 provider package.
 
+.. note::
+   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
+
 .. _dockerfile_for_ecs_executor:
 
 Dockerfile for ECS Executor
@@ -125,38 +131,8 @@ integration, allowing you to interact with AWS services within your
 Airflow environment. It also includes options to load DAGs (Directed
 Acyclic Graphs) from either an S3 bucket or a local folder.
 
-Base Image
-~~~~~~~~~~
-
-The Docker image is built upon the ``apache/airflow:latest`` image. See
-`here <https://hub.docker.com/r/apache/airflow>`__ for more information
-about the image.
-
-Important note: The Airflow and python versions in this image must align
-with the Airflow and python versions on the host/container which is
-running the Airflow scheduler process (which in turn runs the executor).
-The Airflow version of the image can be verified by running the
-container locally with the following command:
-
-.. code-block:: bash
-
-   docker run <image_name> version
-
-Similarly, the python version of the image can be verified the following
-command:
-
-.. code-block:: bash
-
-   docker run <image_name> python --version
-
-Ensure that these versions match the versions on the host/container
-which is running the Airflow scheduler process (and thus, the ECS
-executor.) Apache Airflow images with specific python versions can be
-downloaded from the Dockerhub registry, and filtering tags by the
-`python
-version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8>`__.
-For example, the tag ``latest-python3.8`` specifies that the image will
-have python 3.8 installed.
+Download this image to use for the docker build commands below or create
+your own image if you prefer.
 
 Prerequisites
 ~~~~~~~~~~~~~
@@ -164,12 +140,13 @@ Prerequisites
 Docker must be installed on your system. Instructions for installing
 Docker can be found `here <https://docs.docker.com/get-docker/>`__.
 
-AWS Credentials
-~~~~~~~~~~~~~~~
+Building an Image
+~~~~~~~~~~~~~~~~~
 
-The `AWS CLI <https://aws.amazon.com/cli/>`__ is installed within the
-container, and there are multiple ways to pass AWS authentication
-information to the container. This guide will cover 2 methods.
+The `AWS CLI <https://aws.amazon.com/cli/>`__ will be installed within the
+image, and there are multiple ways to pass AWS authentication
+information to the container and thus multiple ways to build the image.
+This guide will cover 2 methods.
 
 The most secure method is to use IAM roles. When creating an ECS Task
 Definition, you are able to select a Task Role and a Task Execution
@@ -203,6 +180,14 @@ below:
 When creating the Task Definition for the ECS cluster (see the :ref:`setup guide <setup_guide>` for more details), select the appropriate
 newly created Task Role and Task Execution role for the Task Definition.
 
+Then you can build your image by ``cd``-ing to the directory with the Dockerfile and running:
+
+.. code-block:: bash
+
+   docker build -t my-airflow-image \
+    --build-arg aws_default_region=YOUR_DEFAULT_REGION .
+
+
 The second method is to use the build-time arguments
 (``aws_access_key_id``, ``aws_secret_access_key``,
 ``aws_default_region``, and ``aws_session_token``).
@@ -226,13 +211,41 @@ Replace ``YOUR_ACCESS_KEY``, ``YOUR_SECRET_KEY``,
 ``YOUR_SESSION_TOKEN``, and ``YOUR_DEFAULT_REGION`` with valid AWS
 credentials.
 
-Alternatively, you can authenticate to AWS using the ``~/.aws`` folder.
-See instructions on how to generate this folder
-`here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html>`__.
-Uncomment the line in the Dockerfile to copy the ``./.aws`` folder from
-your host machine to the container's ``/home/airflow/.aws`` directory.
-Keep in mind the Docker build context when copying the ``.aws`` folder
-to the container.
+
+Base Image
+~~~~~~~~~~
+
+The Docker image created above is built upon the ``apache/airflow:latest`` image. See
+`here <https://hub.docker.com/r/apache/airflow>`__ for more information
+about the image.
+
+Important note: The Airflow and python versions in this image must align
+with the Airflow and python versions on the host/container which is
+running the Airflow scheduler process (which in turn runs the executor).
+The Airflow version of the image can be verified by running the
+container locally with the following command:
+
+.. code-block:: bash
+
+   docker run my-airflow-image version
+
+Similarly, the python version of the image can be verified the following
+command:
+
+.. code-block:: bash
+
+   docker run my-airflow-image python --version
+
+Ensure that these versions match the versions on the host/container
+which is running the Airflow scheduler process (and thus, the ECS
+executor.) Apache Airflow images with specific python versions can be
+downloaded from the Dockerhub registry, and filtering tags by the
+`python
+version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8>`__.
+For example, the tag ``latest-python3.8`` specifies that the image will
+have python 3.8 installed. Update your Dockerfile to use the correct Airflow
+image for your Python version.
+
 
 Loading DAGs
 ~~~~~~~~~~~~
@@ -251,8 +264,8 @@ Dockerfile to synchronize the DAGs from the specified S3 bucket to the
 provide ``container_dag_path`` as a build argument if you want to store
 the DAGs in a directory other than ``/opt/airflow/dags``.
 
-Add ``--build-arg s3_url=YOUR_S3_URL`` in the docker build command.
-Replace ``YOUR_S3_URL`` with the URL of your S3 bucket. Make sure you
+Add ``--build-arg s3_uri=YOUR_S3_URI`` in the docker build command.
+Replace ``YOUR_S3_URI`` with the URI of your S3 bucket. Make sure you
 have the appropriate permissions to read from the bucket.
 
 Note that the following command is also passing in AWS credentials as
@@ -265,7 +278,7 @@ build arguments.
     --build-arg aws_secret_access_key=YOUR_SECRET_KEY \
     --build-arg aws_default_region=YOUR_DEFAULT_REGION \
     --build-arg aws_session_token=YOUR_SESSION_TOKEN \
-    --build-arg s3_url=YOUR_S3_URL .
+    --build-arg s3_uri=YOUR_S3_URI .
 
 From Local Folder
 ^^^^^^^^^^^^^^^^^
@@ -559,11 +572,11 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 
 .. code-block:: bash
 
-   export AIRFLOW**CORE**EXECUTOR='airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor'
+   export AIRFLOW__CORE__EXECUTOR='airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor'
 
-   export AIRFLOW**DATABASE**SQL*ALCHEMY*CONN=<postgres-connection-string>
+   export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=<postgres-connection-string>
 
-   export AIRFLOW__AWS_ECS_EXECUTOR__REGION=<executor-region>
+   export AIRFLOW__AWS_ECS_EXECUTOR__REGION_NAME=<executor-region>
 
    export AIRFLOW__AWS_ECS_EXECUTOR__CLUSTER=<ecs-cluster-name>
 

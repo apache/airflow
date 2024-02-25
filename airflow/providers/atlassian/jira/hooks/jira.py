@@ -39,8 +39,8 @@ class JiraHook(BaseHook):
     conn_name_attr = "jira_conn_id"
     hook_name = "JIRA"
 
-    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Any | None = None, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, jira_conn_id: str = default_conn_name, proxies: Any | None = None) -> None:
+        super().__init__()
         self.jira_conn_id = jira_conn_id
         self.proxies = proxies
         self.client: Jira | None = None
@@ -85,7 +85,7 @@ class JiraHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to Atlassian Jira Connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
 
@@ -95,7 +95,7 @@ class JiraHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Atlassian Jira Connection."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

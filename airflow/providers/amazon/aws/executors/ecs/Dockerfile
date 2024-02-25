@@ -37,7 +37,7 @@ COPY <<"EOF" /install_dags_entrypoint.sh
 #!/bin/bash
 
 echo "Downloading DAGs from S3 bucket"
-aws s3 sync "$S3_URL" "$CONTAINER_DAG_PATH"
+aws s3 sync "$S3_URI" "$CONTAINER_DAG_PATH"
 
 /home/airflow/entrypoint.sh "$@"
 EOF
@@ -98,8 +98,8 @@ ENV CONTAINER_DAG_PATH=$container_dag_path
 
 
 # Use these arguments to load DAGs onto the container from S3
-ARG s3_url
-ENV S3_URL=$s3_url
+ARG s3_uri
+ENV S3_URI=$s3_uri
 # If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/home/airflow/entrypoint.sh"]
 

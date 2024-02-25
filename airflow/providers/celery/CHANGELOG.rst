@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'task_acks_late' configuration to Celery Executor (#37066)``
+
+Misc
+~~~~
+
+* ``improve info for prevent celery command autoscale misconfig (#36576)``
+
 3.5.2
 .....
 
@@ -40,6 +53,7 @@ Bug Fixes
    * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 3.5.1
 .....

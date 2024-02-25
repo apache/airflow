@@ -42,7 +42,6 @@ services:
       - "37778-37786:7778"
 
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - ../dockerfiles/krb5-kdc-server/krb5.conf:/etc/krb5.conf:ro
       - trino-db-volume:/data/trino
       - kerberos-keytabs:/home/trino/kerberos-keytabs

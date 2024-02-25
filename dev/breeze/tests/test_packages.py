@@ -127,7 +127,6 @@ def test_get_suspended_provider_folders():
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
-        (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (
             ("apache.hdfs",),
             ("apache-airflow-providers-amazon",),

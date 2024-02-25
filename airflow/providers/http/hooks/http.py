@@ -68,9 +68,8 @@ class HttpHook(BaseHook):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__()
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
@@ -259,7 +258,8 @@ class HttpHook(BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        return self._retry_obj(self.run, *args, **kwargs)
+        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
+        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
@@ -298,9 +298,7 @@ class HttpAsyncHook(BaseHook):
         auth_type: Any = aiohttp.BasicAuth,
         retry_limit: int = 3,
         retry_delay: float = 1.0,
-        **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
