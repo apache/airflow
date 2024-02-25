@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.2.22",
+    "trove-classifiers==2024.2.23",
 ]
 build-backend = "hatchling.build"
 
@@ -1255,7 +1255,7 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 

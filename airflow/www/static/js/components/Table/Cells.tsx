@@ -39,7 +39,7 @@ import { getMetaValue } from "src/utils";
 import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
 
-interface CellProps {
+export interface CellProps {
   cell: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
