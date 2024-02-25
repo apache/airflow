@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from contextlib import contextmanager
 from multiprocessing import Process
 
@@ -44,7 +45,9 @@ from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
-logging.warning("Use celery command from providers package, Use celery provider > 3.5.2")
+warnings.warn(
+    "Use celery command from providers package, Use celery provider > 3.5.2", DeprecationWarning, stacklevel=2
+)
 
 
 @cli_utils.action_cli
