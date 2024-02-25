@@ -410,11 +410,10 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
 
     def _prepare_table_configuration(
             self, 
-            source_project_dataset_table
-        ):
-        # TODO: arg types & return type
+            source_project_dataset_table: str
+        ) -> dict[str, Any]:
         source_project, source_dataset, source_table = self.hook.split_tablename(
-            table_input=self.source_project_dataset_table,
+            table_input=source_project_dataset_table,
             default_project_id=self.hook.project_id,
             var_name="source_project_dataset_table",
         )
@@ -446,11 +445,10 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
 
     def _create_table_export_job(
             self, 
-            hook, 
-            source_project_dataset_table, 
-            logical_date
-        ):
-        # TODO: arg types & return type
+            hook: BigQueryHook,
+            source_project_dataset_table: str,
+            logical_date: str
+        ) -> list[str, str]:
         configuration = self._prepare_table_configuration(source_project_dataset_table)
         job_id = hook.generate_job_id(
             job_id=self.job_id,
@@ -496,6 +494,11 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
         dataset_tables = self.hook.get_client(self.hook.project_id).get_dataset_tables(self.source_project_dataset)
 
         for table in dataset_tables:
+            self.log.info(
+                "Executing table export of %s into: %s",
+                table,
+                self.destination_cloud_storage_uris,
+            )
             source_project_dataset_table = ".".join([self.project_id, self.source_project_dataset, table])
             configuration, job_id = self._create_table_export_job(hook, source_project_dataset_table, context["logical_date"])
 
