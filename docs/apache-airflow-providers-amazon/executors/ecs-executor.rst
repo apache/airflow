@@ -73,6 +73,9 @@ In the case of conflicts, the order of precedence from lowest to highest is:
 3. Load any values provided in the RUN_TASK_KWARGS option if one is
    provided.
 
+.. note::
+   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
+
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -88,7 +91,7 @@ Optional config options:
 
 -  ASSIGN_PUBLIC_IP - Whether to assign a public IP address to the
    containers launched by the ECS executor. Defaults to "False".
--  CONN_ID - The Airflow connection (i.e. credentials) used by the ECS
+-  AWS_CONN_ID - The Airflow connection (i.e. credentials) used by the ECS
    executor to make API calls to AWS ECS. Defaults to "aws_default".
 -  LAUNCH_TYPE - Launch type can either be 'FARGATE' OR 'EC2'. Defaults
    to "FARGATE".
@@ -112,6 +115,9 @@ Optional config options:
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
 provider package.
+
+.. note::
+   ``exec_config`` is an optional parameter that can be provided to operators. It is a dictionary type and in the context of the ECS Executor it represents a ``run_task_kwargs`` configuration which is then updated over-top of the ``run_task_kwargs`` specified in Airflow config above (if present). It is a recursive update which essentially applies Python update to each nested dictionary in the configuration. Loosely approximated as: ``run_task_kwargs.update(exec_config)``
 
 .. _dockerfile_for_ecs_executor:
 
@@ -205,13 +211,6 @@ Replace ``YOUR_ACCESS_KEY``, ``YOUR_SECRET_KEY``,
 ``YOUR_SESSION_TOKEN``, and ``YOUR_DEFAULT_REGION`` with valid AWS
 credentials.
 
-Alternatively, you can authenticate to AWS using the ``~/.aws`` folder.
-See instructions on how to generate this folder
-`here <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html>`__.
-Uncomment the line in the Dockerfile to copy the ``./.aws`` folder from
-your host machine to the container's ``/home/airflow/.aws`` directory.
-Keep in mind the Docker build context when copying the ``.aws`` folder
-to the container.
 
 Base Image
 ~~~~~~~~~~

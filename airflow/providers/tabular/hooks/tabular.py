@@ -46,7 +46,7 @@ class TabularHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Tabular connection."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {

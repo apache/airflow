@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -335,15 +336,17 @@ class EmrContainerSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
             if self.soft_fail:
                 raise AirflowSkipException(message)
             raise AirflowException(message)
-        else:
-            self.log.info("Job completed.")
+
+        self.log.info("Job completed.")
 
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):
@@ -526,7 +529,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event=None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
@@ -657,7 +662,9 @@ class EmrStepSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
@@ -665,4 +672,4 @@ class EmrStepSensor(EmrBaseSensor):
                 raise AirflowSkipException(message)
             raise AirflowException(message)
 
-        self.log.info("Job completed.")
+        self.log.info("Job %s completed.", self.job_flow_id)

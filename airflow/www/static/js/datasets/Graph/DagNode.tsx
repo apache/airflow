@@ -19,13 +19,14 @@
 
 import React from "react";
 import {
+  Button,
   Flex,
   Link,
   Popover,
   PopoverArrow,
-  PopoverBody,
   PopoverCloseButton,
   PopoverContent,
+  PopoverFooter,
   PopoverHeader,
   PopoverTrigger,
   Portal,
@@ -40,9 +41,13 @@ import { getMetaValue } from "src/utils";
 const DagNode = ({
   dagId,
   isHighlighted,
+  isSelected,
+  onSelect,
 }: {
   dagId: string;
   isHighlighted?: boolean;
+  isSelected?: boolean;
+  onSelect?: (dagId: string, type: string) => void;
 }) => {
   const { colors } = useTheme();
   const containerRef = useContainerRef();
@@ -52,9 +57,12 @@ const DagNode = ({
     <Popover>
       <PopoverTrigger>
         <Flex
-          borderWidth={2}
-          borderColor={isHighlighted ? colors.blue[400] : undefined}
+          borderColor={
+            isHighlighted || isSelected ? colors.blue[400] : undefined
+          }
           borderRadius={5}
+          borderWidth={isSelected ? 4 : 2}
+          fontWeight={isSelected ? "bold" : "normal"}
           p={2}
           height="100%"
           width="100%"
@@ -72,11 +80,26 @@ const DagNode = ({
           <PopoverArrow bg="gray.100" />
           <PopoverCloseButton />
           <PopoverHeader>{dagId}</PopoverHeader>
-          <PopoverBody>
-            <Link color="blue" href={gridUrl}>
+          <PopoverFooter as={Flex} justifyContent="space-between">
+            <Button
+              variant="outline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onSelect) onSelect(dagId, "dag");
+              }}
+            >
+              Filter by DAG
+            </Button>
+            <Button
+              as={Link}
+              href={gridUrl}
+              variant="outline"
+              colorScheme="blue"
+            >
               View DAG
-            </Link>
-          </PopoverBody>
+            </Button>
+          </PopoverFooter>
         </PopoverContent>
       </Portal>
     </Popover>

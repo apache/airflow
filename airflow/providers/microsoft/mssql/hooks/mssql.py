@@ -92,7 +92,7 @@ class MsSqlHook(DbApiHook):
         return engine.connect(**(connect_kwargs or {}))
 
     def get_conn(self) -> pymssql.connect:
-        """Returns a mssql connection object."""
+        """Return ``pymssql`` connection object."""
         conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
 
         conn = pymssql.connect(

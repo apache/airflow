@@ -25,10 +25,7 @@ import airflow.www.auth as auth
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import Connection, Pool, Variable
-from airflow.security import permissions
-from airflow.settings import json
 from airflow.www.auth import has_access
-from tests.test_utils.api_connexion_utils import create_user_scope
 
 mock_call = Mock()
 
@@ -239,66 +236,3 @@ class TestHasAccessDagEntities:
 
         mock_call.assert_not_called()
         assert result.headers["Location"] == "login_url"
-
-
-@pytest.mark.db_test
-class TestHasAccessDagDecorator:
-    @pytest.mark.parametrize(
-        "dag_id_args, dag_id_kwargs, dag_id_form, dag_id_json, fail",
-        [
-            ("a", None, None, None, False),
-            (None, "b", None, None, False),
-            (None, None, "c", None, False),
-            (None, None, None, "d", False),
-            ("a", "a", None, None, False),
-            ("a", "a", "a", None, False),
-            ("a", "a", "a", "a", False),
-            (None, "a", "a", "a", False),
-            (None, None, "a", "a", False),
-            ("a", None, None, "a", False),
-            ("a", None, "a", None, False),
-            ("a", None, "c", None, True),
-            (None, "b", "c", None, True),
-            (None, None, "c", "d", True),
-            ("a", "b", "c", "d", True),
-        ],
-    )
-    def test_dag_id_consistency(
-        self,
-        app,
-        dag_id_args: str | None,
-        dag_id_kwargs: str | None,
-        dag_id_form: str | None,
-        dag_id_json: str | None,
-        fail: bool,
-    ):
-        with app.test_request_context() as mock_context:
-            from airflow.www.auth import has_access_dag
-
-            mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
-            kwargs = {"dag_id": dag_id_kwargs} if dag_id_kwargs else {}
-            mock_context.request.form = {"dag_id": dag_id_form} if dag_id_form else {}
-            if dag_id_json:
-                mock_context.request._cached_data = json.dumps({"dag_id": dag_id_json})
-                mock_context.request._parsed_content_type = ["application/json"]
-
-            with create_user_scope(
-                app,
-                username="test-user",
-                role_name="limited-role",
-                permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
-            ) as user:
-                with patch(
-                    "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager.get_user"
-                ) as mock_get_user:
-                    mock_get_user.return_value = user
-
-                    @has_access_dag("GET")
-                    def test_func(**kwargs):
-                        return True
-
-                    result = test_func(**kwargs)
-                    if fail:
-                        assert result[1] == 403
-                    else:
-                        assert result is True

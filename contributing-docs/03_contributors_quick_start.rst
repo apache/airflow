@@ -30,7 +30,7 @@ you follow the guide.
 There are three ways you can run the Airflow dev env:
 
 1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
-   with `Breeze <dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
+   with `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
    management, yeah you guessed it - a breeze.
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)
@@ -164,7 +164,7 @@ like system, this command will install all necessary dependencies that should be
 .. code-block:: bash
 
   sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-  freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+  freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
   libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
@@ -718,7 +718,7 @@ Contribution guide
 
   .. |Types of contributions| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/contributing-docs/04_how_to_contribute.rst" target="_blank">
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/04_how_to_contribute.rst" target="_blank">
    Types of contributions</a>
 
   - |Roles of contributor|

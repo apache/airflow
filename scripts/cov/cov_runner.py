@@ -25,10 +25,11 @@ from coverage.exceptions import NoSource
 
 
 def run_tests(command_list, source, files_not_fully_covered):
-    covered = sorted(
-        {path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)}
-        - {path for path in files_not_fully_covered}
-    )
+    source_set = {path for item in source for path in glob.glob(item + "/**/*.py", recursive=True)}
+    not_covered = {path for path in files_not_fully_covered}
+    source_files = sorted(source_set)
+    covered = sorted(source_set - not_covered)
+
     cov = Coverage(
         config_file="pyproject.toml",
         source=source,
@@ -52,7 +53,8 @@ def run_tests(command_list, source, files_not_fully_covered):
         except NoSource:
             continue
 
-    cov.html_report()
+    cov.combine()
+    cov.html_report(morfs=source_files)
     if failed:
         print("There are some coverage errors. Please fix them")
     if len(files_not_fully_covered) > 0:

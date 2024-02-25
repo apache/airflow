@@ -19,18 +19,20 @@
 package-name: apache-airflow-providers-google
 name: Google
 description: |
-    Google services including:
+  Google services including:
 
-      - `Google Ads <https://ads.google.com/>`__
-      - `Google Cloud (GCP) <https://cloud.google.com/>`__
-      - `Google Firebase <https://firebase.google.com/>`__
-      - `Google LevelDB <https://github.com/google/leveldb/>`__
-      - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-      - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
+    - `Google Ads <https://ads.google.com/>`__
+    - `Google Cloud (GCP) <https://cloud.google.com/>`__
+    - `Google Firebase <https://firebase.google.com/>`__
+    - `Google LevelDB <https://github.com/google/leveldb/>`__
+    - `Google Marketing Platform <https://marketingplatform.google.com/>`__
+    - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1705912108
+source-date-epoch: 1707636385
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.15.0
   - 10.14.0
   - 10.13.1
   - 10.13.0
@@ -87,6 +89,12 @@ dependencies:
   - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
+  # When upgrading the major version of gcloud-aio-auth we want to make sure to
+  # 1. use at least version 5.2, which uses offset-aware datetime internally
+  # 2. override Token's new `refresh` method instead of `acquire_access_token`, which allows us to avoid
+  #    dealing with internals like `access_token_acquired_at`
+  # 3. continue to `subclass gcloud.aio.auth.token.Token` instead of `BaseToken`, since instances of
+  #    `_CredentialsToken` are instances of `Token` and used as such
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
@@ -675,7 +683,6 @@ operators:
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_batch
 
-
 sensors:
   - integration-name: Google BigQuery
     python-modules:
@@ -1202,6 +1209,7 @@ extra-links:
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink

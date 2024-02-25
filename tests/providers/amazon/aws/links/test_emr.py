@@ -16,11 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.links.emr import (
+    EmrClusterLink,
+    EmrLogsLink,
+    EmrServerlessCloudWatchLogsLink,
+    EmrServerlessDashboardLink,
+    EmrServerlessLogsLink,
+    EmrServerlessS3LogsLink,
+    get_log_uri,
+    get_serverless_dashboard_url,
+)
 from tests.providers.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
@@ -75,3 +86,151 @@ class TestEmrLogsLink(BaseAwsLinksTestCase):
     )
     def test_missing_log_url(self, log_url_extra: dict):
         self.assert_extra_link_url(expected_url="", **log_url_extra)
+
+
+@pytest.fixture
+def mocked_emr_serverless_hook():
+    with mock.patch("airflow.providers.amazon.aws.links.emr.EmrServerlessHook") as m:
+        yield m
+
+
+class TestEmrServerlessLogsLink(BaseAwsLinksTestCase):
+    link_class = EmrServerlessLogsLink
+
+    def test_extra_link(self, mocked_emr_serverless_hook):
+        mocked_client = mocked_emr_serverless_hook.return_value.conn
+        mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
+
+        self.assert_extra_link_url(
+            expected_url="https://example.com/logs/SPARK_DRIVER/stdout.gz?authToken=1234",
+            conn_id="aws-test",
+            application_id="app-id",
+            job_run_id="job-run-id",
+        )
+
+        mocked_emr_serverless_hook.assert_called_with(
+            aws_conn_id="aws-test", config={"retries": {"total_max_attempts": 1}}
+        )
+        mocked_client.get_dashboard_for_job_run.assert_called_with(
+            applicationId="app-id",
+            jobRunId="job-run-id",
+        )
+
+
+class TestEmrServerlessDashboardLink(BaseAwsLinksTestCase):
+    link_class = EmrServerlessDashboardLink
+
+    def test_extra_link(self, mocked_emr_serverless_hook):
+        mocked_client = mocked_emr_serverless_hook.return_value.conn
+        mocked_client.get_dashboard_for_job_run.return_value = {"url": "https://example.com/?authToken=1234"}
+
+        self.assert_extra_link_url(
+            expected_url="https://example.com/?authToken=1234",
+            conn_id="aws-test",
+            application_id="app-id",
+            job_run_id="job-run-id",
+        )
+
+        mocked_emr_serverless_hook.assert_called_with(
+            aws_conn_id="aws-test", config={"retries": {"total_max_attempts": 1}}
+        )
+        mocked_client.get_dashboard_for_job_run.assert_called_with(
+            applicationId="app-id",
+            jobRunId="job-run-id",
+        )
+
+
+@pytest.mark.parametrize(
+    "dashboard_info, expected_uri",
+    [
+        pytest.param(
+            {"url": "https://example.com/?authToken=first-unique-value"},
+            "https://example.com/?authToken=first-unique-value",
+            id="first-call",
+        ),
+        pytest.param(
+            {"url": "https://example.com/?authToken=second-unique-value"},
+            "https://example.com/?authToken=second-unique-value",
+            id="second-call",
+        ),
+    ],
+)
+def test_get_serverless_dashboard_url_with_client(mocked_emr_serverless_hook, dashboard_info, expected_uri):
+    mocked_client = mocked_emr_serverless_hook.return_value.conn
+    mocked_client.get_dashboard_for_job_run.return_value = dashboard_info
+
+    url = get_serverless_dashboard_url(
+        emr_serverless_client=mocked_client, application_id="anything", job_run_id="anything"
+    )
+    assert url and url.geturl() == expected_uri
+    mocked_emr_serverless_hook.assert_not_called()
+    mocked_client.get_dashboard_for_job_run.assert_called_with(
+        applicationId="anything",
+        jobRunId="anything",
+    )
+
+
+def test_get_serverless_dashboard_url_with_conn_id(mocked_emr_serverless_hook):
+    mocked_client = mocked_emr_serverless_hook.return_value.conn
+    mocked_client.get_dashboard_for_job_run.return_value = {
+        "url": "https://example.com/?authToken=some-unique-value"
+    }
+
+    url = get_serverless_dashboard_url(
+        aws_conn_id="aws-test", application_id="anything", job_run_id="anything"
+    )
+    assert url and url.geturl() == "https://example.com/?authToken=some-unique-value"
+    mocked_emr_serverless_hook.assert_called_with(
+        aws_conn_id="aws-test", config={"retries": {"total_max_attempts": 1}}
+    )
+    mocked_client.get_dashboard_for_job_run.assert_called_with(
+        applicationId="anything",
+        jobRunId="anything",
+    )
+
+
+def test_get_serverless_dashboard_url_parameters():
+    with pytest.raises(
+        AirflowException, match="Requires either an AWS connection ID or an EMR Serverless Client"
+    ):
+        get_serverless_dashboard_url(application_id="anything", job_run_id="anything")
+
+    with pytest.raises(
+        AirflowException, match="Requires either an AWS connection ID or an EMR Serverless Client"
+    ):
+        get_serverless_dashboard_url(
+            aws_conn_id="a", emr_serverless_client="b", application_id="anything", job_run_id="anything"
+        )
+
+
+class TestEmrServerlessS3LogsLink(BaseAwsLinksTestCase):
+    link_class = EmrServerlessS3LogsLink
+
+    def test_extra_link(self):
+        self.assert_extra_link_url(
+            expected_url=(
+                "https://console.aws.amazon.com/s3/buckets/bucket-name?region=us-west-1&prefix=logs/applications/app-id/jobs/job-run-id/"
+            ),
+            region_name="us-west-1",
+            aws_partition="aws",
+            log_uri="s3://bucket-name/logs/",
+            application_id="app-id",
+            job_run_id="job-run-id",
+        )
+
+
+class TestEmrServerlessCloudWatchLogsLink(BaseAwsLinksTestCase):
+    link_class = EmrServerlessCloudWatchLogsLink
+
+    def test_extra_link(self):
+        self.assert_extra_link_url(
+            expected_url=(
+                "https://console.aws.amazon.com/cloudwatch/home?region=us-west-1#logsV2:log-groups/log-group/%2Faws%2Femrs$3FlogStreamNameFilter$3Dsome-prefix"
+            ),
+            region_name="us-west-1",
+            aws_partition="aws",
+            awslogs_group="/aws/emrs",
+            stream_prefix="some-prefix",
+            application_id="app-id",
+            job_run_id="job-run-id",
+        )

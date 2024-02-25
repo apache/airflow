@@ -93,7 +93,7 @@ They can have extra *installed packages* installed in their Python environment. 
 install custom operators or sensors or extend Airflow functionality with custom plugins.
 
 While Airflow can be run in a single machine and with simple installation where only *scheduler* and
-*webserver* are deployed, Airflow is designed to be scalable and secure, and is able ot run in a distributed
+*webserver* are deployed, Airflow is designed to be scalable and secure, and is able to run in a distributed
 environment - where various components can run on different machines, with different security perimeters
 and can be scaled by running multiple instances of the components above.
 

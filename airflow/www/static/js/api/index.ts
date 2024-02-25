@@ -33,6 +33,7 @@ import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
 import useDatasets from "./useDatasets";
+import useDatasetsSummary from "./useDatasetsSummary";
 import useDataset from "./useDataset";
 import useDatasetDependencies from "./useDatasetDependencies";
 import useDatasetEvents from "./useDatasetEvents";
@@ -72,9 +73,10 @@ export {
   useDagRuns,
   useDags,
   useDataset,
+  useDatasets,
   useDatasetDependencies,
   useDatasetEvents,
-  useDatasets,
+  useDatasetsSummary,
   useExtraLinks,
   useGraphData,
   useGridData,
