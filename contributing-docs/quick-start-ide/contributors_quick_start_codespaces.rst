@@ -28,7 +28,7 @@ Setup and develop using GitHub Codespaces
    .. raw:: html
 
      <div align="center" style="padding-bottom:10px">
-       <img src="images/quick_start/airflow_fork.png"
+       <img src="../images/quick_start/airflow_fork.png"
             alt="Forking Apache Airflow project">
      </div>
 
