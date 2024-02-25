@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 import os
 import signal
@@ -28,7 +29,7 @@ from collections import deque
 from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, AsyncIterator, TypeVar
 
 from sqlalchemy import func, select
 
@@ -600,10 +601,17 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         self.log.info("trigger %s starting", name)
         try:
             self.set_individual_trigger_logging(trigger)
-            async for event in trigger.run():
-                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
+            result: TriggerEvent | AsyncIterator[TriggerEvent] = trigger.run()
+            if inspect.isasyncgen(result):
+                async for event in result:
+                    self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
+                    self.triggers[trigger_id]["events"] += 1
+                    self.events.append((trigger_id, event))
+                    break  # should we break here?
+            else:
+                self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], result)
                 self.triggers[trigger_id]["events"] += 1
-                self.events.append((trigger_id, event))
+                self.events.append((trigger_id, await result))
         except asyncio.CancelledError:
             if timeout := trigger.task_instance.trigger_timeout:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout

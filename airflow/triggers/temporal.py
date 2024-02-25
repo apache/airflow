@@ -47,7 +47,7 @@ class DateTimeTrigger(BaseTrigger):
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
-    async def run(self):
+    async def run(self) -> TriggerEvent:
         """
         Loop until the relevant time is met.
 
@@ -69,8 +69,8 @@ class DateTimeTrigger(BaseTrigger):
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
         # Send our single event and then we're done
-        self.log.info("yielding event with payload %r", self.moment)
-        yield TriggerEvent(self.moment)
+        self.log.info("returning event with payload %r", self.moment)
+        return TriggerEvent(self.moment)
 
 
 class TimeDeltaTrigger(DateTimeTrigger):

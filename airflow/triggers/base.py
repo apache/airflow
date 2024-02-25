@@ -56,7 +56,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement serialize()")
 
     @abc.abstractmethod
-    async def run(self) -> AsyncIterator[TriggerEvent]:
+    async def run(self) -> TriggerEvent | AsyncIterator[TriggerEvent]:
         """
         Run the trigger in an asynchronous context.
 
@@ -73,7 +73,6 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and then rely on cleanup() being called when they are no longer needed.
         """
         raise NotImplementedError("Triggers must implement run()")
-        yield  # To convince Mypy this is an async iterator.
 
     async def cleanup(self) -> None:
         """
