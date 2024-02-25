@@ -353,9 +353,16 @@ class BigQueryToGCSOperator(BaseOperator):
 
 
 class BigQueryDatasetToGCSOperator(BaseOperator):
-    # TODO: Docs
+    """
+    TODO: these doc string things, but first get the linter not hating me.
+
+    Moar writing because linters are weird
+
+    we should do even more writing whenever I get this operator done.
+    """
+
     template_fields: Sequence[str] = (
-        "source_project_dataset_table",
+        "source_project_dataset",
         "destination_cloud_storage_uris",
         "export_format",
         "labels",
@@ -408,10 +415,7 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
 
         self._job_id: str = ""
 
-    def _prepare_table_configuration(
-            self, 
-            source_project_dataset_table: str
-        ) -> dict[str, Any]:
+    def _prepare_table_configuration(self, source_project_dataset_table: str) -> dict[str, Any]:
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=source_project_dataset_table,
             default_project_id=self.hook.project_id,
@@ -444,11 +448,8 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
         return configuration
 
     def _create_table_export_job(
-            self, 
-            hook: BigQueryHook,
-            source_project_dataset_table: str,
-            logical_date: str
-        ) -> list[str, str]:
+        self, hook: BigQueryHook, source_project_dataset_table: str, logical_date: str
+    ) -> list[str, str]:
         configuration = self._prepare_table_configuration(source_project_dataset_table)
         job_id = hook.generate_job_id(
             job_id=self.job_id,
@@ -491,8 +492,13 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.hook = hook
-        dataset_tables = self.hook.get_client(self.hook.project_id).get_dataset_tables(self.source_project_dataset)
 
+        # Get all the table name for the given dataset
+        dataset_tables = self.hook.get_client(self.hook.project_id).get_dataset_tables(
+            self.source_project_dataset
+        )
+
+        # For each table in the list, trigger an export job to the specified GCS path
         for table in dataset_tables:
             self.log.info(
                 "Executing table export of %s into: %s",
@@ -500,7 +506,9 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
                 self.destination_cloud_storage_uris,
             )
             source_project_dataset_table = ".".join([self.project_id, self.source_project_dataset, table])
-            configuration, job_id = self._create_table_export_job(hook, source_project_dataset_table, context["logical_date"])
+            configuration, job_id = self._create_table_export_job(
+                hook, source_project_dataset_table, context["logical_date"]
+            )
 
             try:
                 self.log.info("Executing: %s", configuration)
@@ -515,7 +523,7 @@ class BigQueryDatasetToGCSOperator(BaseOperator):
                     job_id=job_id,
                 )
                 if job.state in self.reattach_states:
-                # We are reattaching to a job
+                    # We are reattaching to a job
                     job.result(timeout=self.result_timeout, retry=self.result_retry)
                     self._handle_job_error(job)
                 else:
