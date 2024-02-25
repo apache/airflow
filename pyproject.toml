@@ -613,7 +613,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
 apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
+  "pinotdb>=5.1.0",
 ]
 apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
