@@ -29,7 +29,7 @@ def minimal_app_for_auth_api():
         skip_all_except=[
             "init_appbuilder",
             "init_api_experimental_auth",
-            "init_api_auth_provider",
+            "init_api_auth_manager",
             "init_api_error_handlers",
         ]
     )
