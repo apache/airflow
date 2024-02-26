@@ -1337,6 +1337,7 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
 ]
 ignore = [
     "D203",
@@ -1391,13 +1392,14 @@ combine-as-imports = true
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
-# In addition ignore top level imports, e.g. pandas, numpy in tests
+# In addition, ignore top level imports, e.g. pandas, numpy (TID253) and use of assert (S101) in tests
 "dev/perf/*" = ["TID253"]
-"dev/breeze/tests/*" = ["TID253"]
-"tests/*" = ["D", "TID253"]
-"docker_tests/*" = ["D", "TID253"]
-"kubernetes_tests/*" = ["D", "TID253"]
-"helm_tests/*" = ["D", "TID253"]
+"dev/check_files.py" = ["S101"]
+"dev/breeze/tests/*" = ["TID253", "S101"]
+"tests/*" = ["D", "TID253", "S101"]
+"docker_tests/*" = ["D", "TID253", "S101"]
+"kubernetes_tests/*" = ["D", "TID253", "S101"]
+"helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level

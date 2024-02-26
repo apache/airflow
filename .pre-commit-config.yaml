@@ -1104,7 +1104,7 @@ repos:
           airflow/example_dags/.*
         args:
           - "--skip"
-          - "B301,B324,B403,B404,B603"
+          - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
       - id: pylint

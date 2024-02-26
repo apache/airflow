@@ -78,7 +78,9 @@ class BaseExtractor(ABC, LoggingMixin):
         return fully_qualified_class_name in self.disabled_operators
 
     def validate(self):
-        assert self.operator.task_type in self.get_operator_classnames()
+        if self.operator.task_type not in self.get_operator_classnames():
+            msg = f"Operator Type {self.operator.task_type} is not supported."
+            raise AssertionError(msg)
 
     @abstractmethod
     def _execute_extraction(self) -> OperatorLineage | None:
