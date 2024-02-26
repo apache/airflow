@@ -33,7 +33,7 @@ SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = conf.get(
 SMTP_DEFAULT_TEMPLATED_SUBJECT_PATH = conf.get(
     "smtp",
     "templated_email_subject_path",
-    fallback=(Path(__file__).parent / "templates" / "email_subject.jinja").as_posix(),
+    fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
 )
 
 

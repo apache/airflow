@@ -1,5 +1,0 @@
-{% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
-{% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
-{% endif %}
