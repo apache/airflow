@@ -202,7 +202,7 @@ During this process, two 2 process are created:
 | [11] **WorkerProcess** saves status information in **ResultBackend**.
 | [13] When **SchedulerProcess** asks **ResultBackend** again about the status, it will get information about the status of the task.
 
-.. _executor:CeleryExecutor:queue:
+.. _celery_executor:queue:
 
 Queues
 ------

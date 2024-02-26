@@ -140,6 +140,19 @@ executor/sequential.rst core-concepts/executor/sequential.rst
 upgrading-from-1-10/upgrade-check.rst howto/upgrading-from-1-10/upgrade-check.rst
 core-concepts/dag-run.rst authoring-and-scheduling/cron.rst
 
+# Moving provider executor docs to providers
+## The ``../`` indicates that it will move to the root of the docs directory, unlike the rest of
+## the entries here which move to docs/apache-airflow.
+## It's okay to include ``/stable/``, because there's no relationship between a version of
+## Airflow and the version of any provider package.
+### Kubernetes Executors
+core-concepts/executor/kubernetes.rst ../apache-airflow-providers-cncf-kubernetes/stable/kubernetes_executor.html
+core-concepts/executor/local_kubernetes.rst ../apache-airflow-providers-cncf-kubernetes/stable/local_kubernetes_executor.html
+
+### Celery Executors
+core-concepts/executor/celery_kubernetes.rst ../apache-airflow-providers-celery/stable/celery_kubernetes_executor.html
+core-concepts/executor/celery.rst ../apache-airflow-providers-celery/stable/celery_executor.html
+
 # Python API
 python-api-ref.rst public-airflow-interface.rst
 

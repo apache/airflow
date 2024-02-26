@@ -52,19 +52,14 @@ There are two types of executors - those that run tasks *locally* (inside the ``
 .. toctree::
     :maxdepth: 1
 
-    debug
     local
     sequential
 
 **Remote Executors**
-
-.. toctree::
-    :maxdepth: 1
-
-    celery
-    celery_kubernetes
-    kubernetes
-    local_kubernetes
+* :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
+* :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`
+* :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`
+* :doc:`KubernetesLocalExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>`
 
 
 .. note::
