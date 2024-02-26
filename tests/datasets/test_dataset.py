@@ -23,7 +23,7 @@ from collections import defaultdict
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.datasets import Dataset, DatasetAll, DatasetAny
+from airflow.datasets import BaseDatasetEventInput, Dataset, DatasetAll, DatasetAny
 from airflow.models.dataset import DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -87,6 +87,55 @@ def test_hash():
     uri = "s3://example_dataset"
     dataset = Dataset(uri=uri)
     hash(dataset)
+
+
+def test_dataset_logic_operations():
+    result_or = dataset1 | dataset2
+    assert isinstance(result_or, DatasetAny)
+    result_and = dataset1 & dataset2
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_dataset_iter_datasets():
+    assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+
+
+def test_dataset_evaluate():
+    assert dataset1.evaluate({"s3://bucket1/data1": True}) is True
+    assert dataset1.evaluate({"s3://bucket1/data1": False}) is False
+
+
+def test_dataset_any_operations():
+    result_or = (dataset1 | dataset2) | dataset3
+    assert isinstance(result_or, DatasetAny)
+    assert len(result_or.objects) == 3
+    result_and = (dataset1 | dataset2) & dataset3
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_dataset_all_operations():
+    result_or = (dataset1 & dataset2) | dataset3
+    assert isinstance(result_or, DatasetAny)
+    result_and = (dataset1 & dataset2) & dataset3
+    assert isinstance(result_and, DatasetAll)
+
+
+def test_datasetbooleancondition_evaluate_iter():
+    """
+    Tests _DatasetBooleanCondition's evaluate and iter_datasets methods through DatasetAny and DatasetAll.
+    Ensures DatasetAny evaluate returns True with any true condition, DatasetAll evaluate returns False if
+    any condition is false, and both classes correctly iterate over datasets without duplication.
+    """
+    any_condition = DatasetAny(dataset1, dataset2)
+    all_condition = DatasetAll(dataset1, dataset2)
+    assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
+    assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
+
+    # Testing iter_datasets indirectly through the subclasses
+    datasets_any = set(any_condition.iter_datasets())
+    datasets_all = set(all_condition.iter_datasets())
+    assert datasets_any == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
+    assert datasets_all == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
 
 
 @pytest.mark.parametrize(
@@ -269,3 +318,69 @@ def test_dag_with_complex_dataset_triggers(session, dag_maker):
     assert isinstance(
         serialized_dag_dict["dataset_triggers"], dict
     ), "Serialized 'dataset_triggers' should be a dict"
+
+
+def datasets_equal(d1: BaseDatasetEventInput, d2: BaseDatasetEventInput) -> bool:
+    if type(d1) != type(d2):
+        return False
+
+    if isinstance(d1, Dataset) and isinstance(d2, Dataset):
+        return d1.uri == d2.uri
+
+    elif isinstance(d1, (DatasetAny, DatasetAll)) and isinstance(d2, (DatasetAny, DatasetAll)):
+        if len(d1.objects) != len(d2.objects):
+            return False
+
+        # Compare each pair of objects
+        for obj1, obj2 in zip(d1.objects, d2.objects):
+            # If obj1 or obj2 is a Dataset, DatasetAny, or DatasetAll instance,
+            # recursively call datasets_equal
+            if not datasets_equal(obj1, obj2):
+                return False
+        return True
+
+    return False
+
+
+dataset1 = Dataset(uri="s3://bucket1/data1")
+dataset2 = Dataset(uri="s3://bucket2/data2")
+dataset3 = Dataset(uri="s3://bucket3/data3")
+dataset4 = Dataset(uri="s3://bucket4/data4")
+dataset5 = Dataset(uri="s3://bucket5/data5")
+
+test_cases = [
+    (lambda: dataset1, dataset1),
+    (lambda: dataset1 & dataset2, DatasetAll(dataset1, dataset2)),
+    (lambda: dataset1 | dataset2, DatasetAny(dataset1, dataset2)),
+    (lambda: dataset1 | (dataset2 & dataset3), DatasetAny(dataset1, DatasetAll(dataset2, dataset3))),
+    (lambda: dataset1 | dataset2 & dataset3, DatasetAny(dataset1, DatasetAll(dataset2, dataset3))),
+    (
+        lambda: ((dataset1 & dataset2) | dataset3) & (dataset4 | dataset5),
+        DatasetAll(DatasetAny(DatasetAll(dataset1, dataset2), dataset3), DatasetAny(dataset4, dataset5)),
+    ),
+    (lambda: dataset1 & dataset2 | dataset3, DatasetAny(DatasetAll(dataset1, dataset2), dataset3)),
+    (
+        lambda: (dataset1 | dataset2) & (dataset3 | dataset4),
+        DatasetAll(DatasetAny(dataset1, dataset2), DatasetAny(dataset3, dataset4)),
+    ),
+    (
+        lambda: (dataset1 & dataset2) | (dataset3 & (dataset4 | dataset5)),
+        DatasetAny(DatasetAll(dataset1, dataset2), DatasetAll(dataset3, DatasetAny(dataset4, dataset5))),
+    ),
+    (
+        lambda: (dataset1 & dataset2) & (dataset3 & dataset4),
+        DatasetAll(dataset1, dataset2, DatasetAll(dataset3, dataset4)),
+    ),
+    (lambda: dataset1 | dataset2 | dataset3, DatasetAny(dataset1, dataset2, dataset3)),
+    (lambda: dataset1 & dataset2 & dataset3, DatasetAll(dataset1, dataset2, dataset3)),
+    (
+        lambda: ((dataset1 & dataset2) | dataset3) & (dataset4 | dataset5),
+        DatasetAll(DatasetAny(DatasetAll(dataset1, dataset2), dataset3), DatasetAny(dataset4, dataset5)),
+    ),
+]
+
+
+@pytest.mark.parametrize("expression, expected", test_cases)
+def test_evaluate_datasets_expression(expression, expected):
+    expr = expression()
+    assert datasets_equal(expr, expected)
