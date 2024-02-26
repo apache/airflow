@@ -280,3 +280,72 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     ],
                     user=test_user,
                 )
+
+    def test_get_batch_is_authorized_single_result_successful(self, facade):
+        single_result = {
+            "request": {
+                "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                "action": {"actionType": "Airflow::Action", "actionId": "Connection.GET"},
+                "resource": {"entityType": "Airflow::Connection", "entityId": "*"},
+            },
+            "decision": "ALLOW",
+        }
+
+        with conf_vars(
+            {
+                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
+            }
+        ):
+            result = facade.get_batch_is_authorized_single_result(
+                batch_is_authorized_results=[
+                    {
+                        "request": {
+                            "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                            "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
+                            "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                        },
+                        "decision": "ALLOW",
+                    },
+                    single_result,
+                ],
+                request={
+                    "method": "GET",
+                    "entity_type": AvpEntities.CONNECTION,
+                },
+                user=test_user,
+            )
+
+        assert result == single_result
+
+    def test_get_batch_is_authorized_single_result_unsuccessful(self, facade):
+        with conf_vars(
+            {
+                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
+            }
+        ):
+            with pytest.raises(AirflowException, match="Could not find the authorization result."):
+                facade.get_batch_is_authorized_single_result(
+                    batch_is_authorized_results=[
+                        {
+                            "request": {
+                                "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                                "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
+                                "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                            },
+                            "decision": "ALLOW",
+                        },
+                        {
+                            "request": {
+                                "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                                "action": {"actionType": "Airflow::Action", "actionId": "Variable.POST"},
+                                "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                            },
+                            "decision": "ALLOW",
+                        },
+                    ],
+                    request={
+                        "method": "GET",
+                        "entity_type": AvpEntities.CONNECTION,
+                    },
+                    user=test_user,
+                )
