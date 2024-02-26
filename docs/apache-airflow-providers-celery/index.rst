@@ -34,6 +34,7 @@
     :hidden:
     :maxdepth: 1
     :caption: Executors
+
     CeleryExecutor details <celery_executor>
     CeleryKubernetesExecutor details <celery_kubernetes_executor>
 
