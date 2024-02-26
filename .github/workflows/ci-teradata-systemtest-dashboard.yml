@@ -20,7 +20,7 @@ name: airflow-teradata-system-test-dashboard
 on:
   push:
     branches:
-      - main
+      - teradata_main
   workflow_dispatch:
   schedule:
   - cron: "0 6 * * *"
