@@ -727,9 +727,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            if TYPE_CHECKING:
-                assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
