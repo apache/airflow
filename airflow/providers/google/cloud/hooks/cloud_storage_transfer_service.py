@@ -35,6 +35,8 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from packaging.version import Version
+
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
     StorageTransferServiceAsyncClient,
@@ -45,6 +47,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -508,14 +511,38 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         self.project_id = project_id
         self._client: StorageTransferServiceAsyncClient | None = None
 
-    def get_conn(self) -> StorageTransferServiceAsyncClient:
+    async def get_conn(self) -> StorageTransferServiceAsyncClient:
         """
         Return async connection to the Storage Transfer Service.
 
         :return: Google Storage Transfer asynchronous client.
         """
         if not self._client:
-            self._client = StorageTransferServiceAsyncClient()
+            try:
+                from airflow.providers.google import __version__
+
+                if Version(__version__) >= Version("10.15.0"):
+                    credentials = (await self.get_sync_hook()).get_credentials()
+                    self._client = StorageTransferServiceAsyncClient(
+                        credentials=credentials,
+                        client_info=CLIENT_INFO,
+                    )
+                else:
+                    self._client = StorageTransferServiceAsyncClient()
+                    warnings.warn(
+                        "Getting credentials from the environment has been deprecated. "
+                        "You should pass gcp_conn_id as parameter.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+            except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.15.0
+                self._client = StorageTransferServiceAsyncClient()
+                warnings.warn(
+                    "Getting credentials from the environment has been deprecated. "
+                    "You should pass gcp_conn_id as parameter.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
         return self._client
 
     async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
@@ -525,7 +552,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         :param job_names: (Required) List of names of the jobs to be fetched.
         :return: Object that yields Transfer jobs.
         """
-        client = self.get_conn()
+        client = await self.get_conn()
         jobs_list_request = ListTransferJobsRequest(
             filter=json.dumps({"project_id": self.project_id, "job_names": job_names})
         )
