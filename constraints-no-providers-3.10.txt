@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-26T19:37:52.908461
+# This constraints file was automatically generated on 2024-02-26T21:17:14.652402
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -42,7 +42,7 @@ alembic==1.13.1
 amqp==5.2.0
 annotated-types==0.6.0
 anyio==4.3.0
-apispec==6.4.0
+apispec==6.5.0
 argcomplete==3.2.2
 asgiref==3.7.2
 async-timeout==4.0.3
@@ -109,7 +109,7 @@ lxml==5.1.0
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.20.2
+marshmallow==3.21.0
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
 multidict==6.0.5
