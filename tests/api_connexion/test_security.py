@@ -44,7 +44,7 @@ class TestSession:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.connexion_app = configured_app
-        self.client = self.connexion_app.test_client()  # type:ignore
+        self.client = self.connexion_app.app.test_client()  # type:ignore
 
     def test_session_not_created_on_api_request(self):
         self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})

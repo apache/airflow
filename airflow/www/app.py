@@ -51,7 +51,7 @@ from airflow.www.extensions.init_security import (
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
-    init_api_auth_provider,
+    init_api_auth_manager,
     init_api_connexion,
     init_api_error_handlers,
     init_api_experimental,
@@ -78,7 +78,7 @@ def create_app(config=None, testing=False):
     def before_request():
         """Exempts the view function associated with '/api/v1' requests from CSRF protection."""
         if request.path.startswith("/api/v1"):  # TODO: make sure this path is correct
-            view_function = flask_app.view_functions.get(request.endpoint)
+            view_function = connexion_app.app.view_functions.get(request.endpoint)
             if view_function:
                 # Exempt the view function from CSRF protection
                 connexion_app.app.extensions["csrf"].exempt(view_function)
@@ -190,7 +190,7 @@ def create_app(config=None, testing=False):
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(connexion_app)
         init_api_experimental(flask_app)
-        init_api_auth_provider(connexion_app)
+        init_api_auth_manager(connexion_app)
         init_api_error_handlers(
             connexion_app
         )  # needs to be after all api inits to let them add their path first
