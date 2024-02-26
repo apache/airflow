@@ -327,7 +327,6 @@ repos:
               ^.*__init__\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
