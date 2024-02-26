@@ -35,7 +35,7 @@ PARAM_TYPES = {bool, float, int, str}
 def _map_param(value):
     if value in PARAM_TYPES:
         # In this branch, value is a Python type; calling it produces
-        # an instance of the type which is understood by the Oracle driver
+        # an instance of the type which is understood by the Teradata driver
         # in the out parameter mapping mechanism.
         value = value()
     return value
