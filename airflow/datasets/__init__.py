@@ -33,6 +33,12 @@ class BaseDatasetEventInput(Protocol):
     :meta private:
     """
 
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        return DatasetAny(self, other)
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        return DatasetAll(self, other)
+
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
@@ -50,7 +56,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     __version__: ClassVar[int] = 1
 
     @uri.validator
-    def _check_uri(self, attr, uri: str):
+    def _check_uri(self, attr, uri: str) -> None:
         if uri.isspace():
             raise ValueError(f"{attr.name} cannot be just whitespace")
         try:
@@ -64,7 +70,7 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __fspath__(self) -> str:
         return self.uri
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
         else:
@@ -106,8 +112,22 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
+        return DatasetAny(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAny({', '.join(map(str, self.objects))})"
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
+        return DatasetAll(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAll({', '.join(map(str, self.objects))})"
