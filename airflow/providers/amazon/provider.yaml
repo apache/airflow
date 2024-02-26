@@ -497,6 +497,10 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+dataset-uris:
+  - schemes: [s3]
+    handler: null
+
 filesystems:
   - airflow.providers.amazon.aws.fs.s3
 
