@@ -29,11 +29,11 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = '1fd565369930'
-down_revision = '88344c1d9134'
+revision = "1fd565369930"
+down_revision = "88344c1d9134"
 branch_labels = None
 depends_on = None
-airflow_version = '2.9.0'
+airflow_version = "2.9.0"
 
 
 def upgrade():
