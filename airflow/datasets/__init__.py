@@ -33,6 +33,12 @@ class BaseDatasetEventInput(Protocol):
     :meta private:
     """
 
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        return DatasetAny(self, other)
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        return DatasetAll(self, other)
+
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
@@ -73,12 +79,6 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __hash__(self):
         return hash(self.uri)
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        return DatasetAny(self, other)
-
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        return DatasetAll(self, other)
-
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
@@ -117,14 +117,8 @@ class DatasetAny(_DatasetBooleanCondition):
         super().__init__(*objects)
 
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
-            return DatasetAny(*self.objects, other)
-        return NotImplemented
-
-    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
-            return DatasetAll(self, other)
-        return NotImplemented
+        # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
+        return DatasetAny(*self.objects, other)
 
     def __repr__(self) -> str:
         return f"DatasetAny({', '.join(map(str, self.objects))})"
@@ -139,15 +133,9 @@ class DatasetAll(_DatasetBooleanCondition):
         """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
         super().__init__(*objects)
 
-    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
-        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
-            return DatasetAny(self, other)
-        return NotImplemented
-
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
-        if isinstance(other, (Dataset, DatasetAny, DatasetAll)):
-            return DatasetAll(*self.objects, other)
-        return NotImplemented
+        # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
+        return DatasetAll(*self.objects, other)
 
     def __repr__(self) -> str:
         return f"DatasetAll({', '.join(map(str, self.objects))})"
