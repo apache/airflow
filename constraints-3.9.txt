@@ -166,7 +166,7 @@ apache-airflow-providers-sendgrid==3.4.0
 apache-airflow-providers-sftp==4.8.1
 apache-airflow-providers-singularity==3.4.0
 apache-airflow-providers-slack==8.5.1
-apache-airflow-providers-smtp==1.6.0
+apache-airflow-providers-smtp==1.5.0
 apache-airflow-providers-snowflake==5.2.1
 apache-airflow-providers-sqlite==3.7.0
 apache-airflow-providers-ssh==3.10.0
