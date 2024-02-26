@@ -324,11 +324,11 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
             webserver_command.webserver(args)
 
             app_run.assert_called_with(
-                debug=True,
-                use_reloader=False,
+                log_level="debug",
                 port=8080,
                 host="0.0.0.0",
-                ssl_context=None,
+                ssl_certfile=None,
+                ssl_keyfile=None,
             )
 
     def test_cli_webserver_args(self):
@@ -352,7 +352,7 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                     "--workers",
                     "4",
                     "--worker-class",
-                    "sync",
+                    "uvicorn.workers.UvicornWorker",
                     "--timeout",
                     "120",
                     "--bind",
