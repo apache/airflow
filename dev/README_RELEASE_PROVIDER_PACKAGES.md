@@ -93,6 +93,18 @@ in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-document
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
 
+
+Note: Sometimes we are releasing a subset of providers and would not want to add the
+list of these providers to every breeze command we run, specifically:
+`prepare-provider-packages`, `build-docs` , `publish-docs`, and, `add-back-references`. In this
+case, we can instead export an environment variable: `PACKAGE_LIST`, and it will work for every breeze
+command involved in the release process. The value can also be passed as the `--package-list` argument.
+Follow the steps below to set the environment variable:
+
+```shell script
+ export PACKAGE_LIST=PACKAGE1,PACKAGE2
+```
+
 ```shell script
 branch="update-min-airflow-version"
 git checkout -b "${branch}"
@@ -413,6 +425,18 @@ breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management prepare-provider-packages
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze release-management prepare-provider-packages --package-list PACKAGE1,PACKAGE2
+```
+
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
 will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
 candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
@@ -493,6 +517,19 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs --clean-build
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze build-docs --package-list PACKAGE1,PACKAGE2
+```
+
 - Now you can preview the documentation.
 
 ```shell script
@@ -532,6 +569,21 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
+
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management publish-docs
+breeze release-management add-back-references all-providers
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze release-management publish-docs --package-list PACKAGE1,PACKAGE2
+breeze release-management add-back-references all-providers
+```
+
 
 Review the state of removed, suspended, new packages in
 [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):

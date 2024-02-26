@@ -14,18 +14,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import os
-from typing import Any, ClassVar
+from typing import Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 import attr
 
+__all__ = ["Dataset", "DatasetAll", "DatasetAny"]
+
+
+@runtime_checkable
+class BaseDatasetEventInput(Protocol):
+    """Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
+
+    :meta private:
+    """
+
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        return DatasetAny(self, other)
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        return DatasetAll(self, other)
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        raise NotImplementedError
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        raise NotImplementedError
+
 
 @attr.define()
-class Dataset(os.PathLike):
-    """A Dataset is used for marking data dependencies between workflows."""
+class Dataset(os.PathLike, BaseDatasetEventInput):
+    """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
     extra: dict[str, Any] | None = None
@@ -33,7 +56,7 @@ class Dataset(os.PathLike):
     __version__: ClassVar[int] = 1
 
     @uri.validator
-    def _check_uri(self, attr, uri: str):
+    def _check_uri(self, attr, uri: str) -> None:
         if uri.isspace():
             raise ValueError(f"{attr.name} cannot be just whitespace")
         try:
@@ -44,5 +67,67 @@ class Dataset(os.PathLike):
         if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")
 
-    def __fspath__(self):
+    def __fspath__(self) -> str:
         return self.uri
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, self.__class__):
+            return self.uri == other.uri
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash(self.uri)
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        yield self.uri, self
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return statuses.get(self.uri, False)
+
+
+class _DatasetBooleanCondition(BaseDatasetEventInput):
+    """Base class for dataset boolean logic."""
+
+    agg_func: Callable[[Iterable], bool]
+
+    def __init__(self, *objects: BaseDatasetEventInput) -> None:
+        self.objects = objects
+
+    def evaluate(self, statuses: dict[str, bool]) -> bool:
+        return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        seen = set()  # We want to keep the first instance.
+        for o in self.objects:
+            for k, v in o.iter_datasets():
+                if k in seen:
+                    continue
+                yield k, v
+                seen.add(k)
+
+
+class DatasetAny(_DatasetBooleanCondition):
+    """Use to combine datasets schedule references in an "and" relationship."""
+
+    agg_func = any
+
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
+        return DatasetAny(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAny({', '.join(map(str, self.objects))})"
+
+
+class DatasetAll(_DatasetBooleanCondition):
+    """Use to combine datasets schedule references in an "or" relationship."""
+
+    agg_func = all
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
+        return DatasetAll(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAll({', '.join(map(str, self.objects))})"

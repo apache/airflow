@@ -208,7 +208,7 @@ class DatasetDagRunQueue(Base):
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-
+    dataset = relationship("DatasetModel", viewonly=True)
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
         PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),

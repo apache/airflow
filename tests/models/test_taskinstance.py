@@ -45,6 +45,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -496,7 +497,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task_
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowTaskTerminated):
             ti.run()
         assert "on_failure_callback called" in caplog.text
 
@@ -519,7 +520,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowTaskTerminated):
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
@@ -2157,7 +2158,10 @@ class TestTaskInstance:
         assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
             dataset_id=event.dataset.id
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
-            ("dataset_and_time_based_timetable",),
+            ("conditional_dataset_and_time_based_timetable",),
+            ("consume_1_and_2_with_dataset_expressions",),
+            ("consume_1_or_2_with_dataset_expressions",),
+            ("consume_1_or_both_2_and_3_with_dataset_expressions",),
             ("dataset_consumes_1",),
             ("dataset_consumes_1_and_2",),
             ("dataset_consumes_1_never_scheduled",),
@@ -3189,6 +3193,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
             "executor_config": {"Some": {"extra": "information"}},

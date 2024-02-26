@@ -121,9 +121,12 @@ They configure connections and potentially execute code on workers during DAG ex
 required to prevent misuse of these privileges. They have full access
 to sensitive credentials stored in connections and can modify them.
 Access to sensitive information through connection configuration
-should be trusted not to be abused. They also have the ability to
-create a Webserver Denial of Service situation and should be trusted
-not to misuse this capability.
+should be trusted not to be abused. They also have the ability to configure connections wrongly
+that might create a Webserver Denial of Service situations and specify insecure connection options
+which might create situations where executing DAGs will lead to arbitrary Remote Code Execution
+for some providers - either community released or custom ones.
+
+Those users should be highly trusted not to misuse this capability.
 
 Audit log users
 ...............

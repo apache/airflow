@@ -793,9 +793,11 @@ class KubernetesPodOperator(BaseOperator):
             self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
+        # Skip cleaning the pod in the following scenarios.
+        # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
-        if self._killed:
+        # 2. remote pod is null (ex: pod creation failed)
+        if self._killed or not remote_pod:
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)

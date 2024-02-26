@@ -93,6 +93,7 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -146,6 +147,7 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }

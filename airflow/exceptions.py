@@ -79,8 +79,15 @@ class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
 
 
-class AirflowTaskTimeout(AirflowException):
+# Important to inherit BaseException instead of AirflowException->Exception, since this Exception is used
+# to explicitly interrupt ongoing task. Code that does normal error-handling should not treat
+# such interrupt as an error that can be handled normally. (Compare with KeyboardInterrupt)
+class AirflowTaskTimeout(BaseException):
     """Raise when the task execution times-out."""
+
+
+class AirflowTaskTerminated(BaseException):
+    """Raise when the task execution is terminated."""
 
 
 class AirflowWebServerTimeout(AirflowException):

@@ -507,47 +507,38 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mock_service_file", ("/tmp/service_file.json", None))
-    @mock.patch(GKE_STRING.format("Token"))
+    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
-    async def test_get_pod(
-        self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook, mock_service_file
-    ):
-        async_hook.service_file_as_context = mock.AsyncMock()
-        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook):
+        async_hook.get_token = mock.AsyncMock()
+        async_hook.get_token.return_value = mock_token
 
         self.make_mock_awaitable(read_namespace_pod_mock)
 
         await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
-        mock_token.assert_called_with(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"], service_file=mock_service_file
-        )
-        get_conn_mock.assert_called_once()
+
+        async_hook.get_token.assert_called_once()
+        get_conn_mock.assert_called_once_with(mock_token)
         read_namespace_pod_mock.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mock_service_file", ("/tmp/service_file.json", None))
-    @mock.patch(GKE_STRING.format("Token"))
+    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
-    async def test_delete_pod(
-        self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook, mock_service_file
-    ):
-        async_hook.service_file_as_context = mock.AsyncMock()
-        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook):
+        async_hook.get_token = mock.AsyncMock()
+        async_hook.get_token.return_value = mock_token
 
         self.make_mock_awaitable(delete_namespaced_pod)
 
         await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        mock_token.assert_called_with(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"], service_file=mock_service_file
-        )
-        get_conn_mock.assert_called_once()
+        async_hook.get_token.assert_called_once()
+        get_conn_mock.assert_called_once_with(mock_token)
         delete_namespaced_pod.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
@@ -555,24 +546,19 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("mock_service_file", ("/tmp/service_file.json", None))
-    @mock.patch(GKE_STRING.format("Token"))
+    @mock.patch(BASE_STRING.format("_CredentialsToken"))
     @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
-    async def test_read_logs(
-        self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, mock_service_file, caplog
-    ):
-        async_hook.service_file_as_context = mock.AsyncMock()
-        async_hook.service_file_as_context.return_value.__enter__.return_value = mock_service_file
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, caplog):
+        async_hook.get_token = mock.AsyncMock()
+        async_hook.get_token.return_value = mock_token
 
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        mock_token.assert_called_with(
-            scopes=["https://www.googleapis.com/auth/cloud-platform"], service_file=mock_service_file
-        )
-        get_conn_mock.assert_called_once()
+        async_hook.get_token.assert_called_once()
+        get_conn_mock.assert_called_once_with(mock_token)
         read_namespaced_pod_log.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,

@@ -42,7 +42,7 @@ via comments in your PR, asking on a devlist or via Slack. For your convenience,
 we have a dedicated ``#new-contributors`` Slack channel where you can ask any questions
 about making your first Pull Request (PR) contribution to the Airflow codebase - it's a safe space
 where it is expected that people asking questions do not know a lot Airflow (yet!).
-If you need help with Airflow see the Slack channel #user-troubleshooting.
+If you need help with Airflow see the Slack channel ``#user-troubleshooting``.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
