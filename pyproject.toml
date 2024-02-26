@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.31",
+    "trove-classifiers==2024.2.23",
 ]
 build-backend = "hatchling.build"
 
@@ -565,6 +565,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "openapi-schema-validator>=0.6.2",
+  "openapi-spec-validator>=0.7.1",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "apache-beam>=2.53.0;python_version != \"3.12\"",
@@ -613,7 +615,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
 apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
+  "pinotdb>=5.1.0",
 ]
 apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
@@ -1255,7 +1257,7 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 

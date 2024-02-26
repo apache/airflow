@@ -76,6 +76,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
@@ -749,6 +750,7 @@ def _get_template_context(
         "inlets": task.inlets,
         "logical_date": logical_date,
         "macros": macros,
+        "map_index_template": task.map_index_template,
         "next_ds": get_next_ds(),
         "next_ds_nodash": get_next_ds_nodash(),
         "next_execution_date": get_next_execution_date(),
@@ -1251,6 +1253,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index = Column(String(64))
 
     external_executor_id = Column(StringID())
 
@@ -2411,7 +2414,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, force_fail=True, session=session)
                 session.commit()
                 raise
-            except (AirflowTaskTimeout, AirflowException) as e:
+            except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 # for case when task is marked as success/failed externally
@@ -2496,7 +2499,7 @@ class TaskInstance(Base, LoggingMixin):
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
-            raise AirflowException("Task received SIGTERM signal")
+            raise AirflowTaskTerminated("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -2511,7 +2514,12 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context["params"]
 
             with set_current_context(context):
-                task_orig = self.render_templates(context=context)
+                dag = self.task.get_dag()
+                if dag is not None:
+                    jinja_env = dag.get_template_env()
+                else:
+                    jinja_env = None
+                task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
@@ -2546,9 +2554,15 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
+
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+
+            # DAG authors define map_index_template at the task level
+            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
+                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
+                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
@@ -2921,7 +2935,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Context | None = None) -> Operator:
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> Operator:
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
@@ -2936,7 +2952,7 @@ class TaskInstance(Base, LoggingMixin):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context)
+        original_task.render_template_fields(context, jinja_env)
 
         return original_task
 

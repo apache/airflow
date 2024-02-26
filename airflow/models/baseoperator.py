@@ -245,6 +245,7 @@ def partial(
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
+    map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -289,6 +290,7 @@ def partial(
         "dag": dag,
         "task_group": task_group,
         "task_id": task_id,
+        "map_index_template": map_index_template,
         "start_date": start_date,
         "end_date": end_date,
         "owner": owner,
@@ -781,6 +783,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
+        map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
@@ -933,6 +936,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.map_index_template: str | None = map_index_template
         self.multiple_outputs: bool = multiple_outputs
 
         self.doc_md = doc_md
@@ -1572,6 +1576,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_setup",
                     "is_teardown",
                     "on_failure_fail_dagrun",
+                    "map_index_template",
                 }
             )
             DagContext.pop_context_managed_dag()
