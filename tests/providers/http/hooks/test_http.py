@@ -648,3 +648,25 @@ class TestHttpAsyncHook:
             "max_redirects": 3,
         }
         assert actual == {"bearer": "test"}
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_connection(self):
+        conn = get_airflow_connection()
+        schema = conn.schema or "http"  # default to http
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                assert mocked_function.call_args.args[0] == schema + "://" + conn.host + "v1/test"
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_endpoint_param(self):
+        def get_empty_conn(conn_id: str = "http_default"):
+            return Connection(conn_id=conn_id, conn_type="http")
+
+        hook = HttpAsyncHook()
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn), mock.patch(
+            "aiohttp.ClientSession.post", new_callable=mock.AsyncMock
+        ) as mocked_function:
+            await hook.run("test.com:8080/v1/test")
+            assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"
