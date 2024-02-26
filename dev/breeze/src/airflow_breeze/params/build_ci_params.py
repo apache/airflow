@@ -41,6 +41,7 @@ class BuildCiParams(CommonBuildParams):
     eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
     skip_image_upgrade_check: bool = False
+    use_uv: bool = True
     warn_image_upgrade_needed: bool = False
 
     @property
@@ -65,6 +66,7 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._req_arg("AIRFLOW_USE_UV", self.use_uv)
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)

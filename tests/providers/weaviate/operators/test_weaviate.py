@@ -20,7 +20,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.weaviate.operators.weaviate import (
+pytest.importorskip("weaviate")
+
+from airflow.providers.weaviate.operators.weaviate import (  # noqa: E402
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
 )

@@ -175,7 +175,7 @@ jobs:
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
   # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
   push-early-buildx-cache-to-github-registry:
-    timeout-minutes: 50
+    timeout-minutes: 110
     name: "Push Early Image Cache"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
