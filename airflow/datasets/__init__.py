@@ -112,10 +112,6 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __init__(self, *objects: BaseDatasetEventInput) -> None:
-        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
-        super().__init__(*objects)
-
     def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
@@ -128,10 +124,6 @@ class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
-
-    def __init__(self, *objects: BaseDatasetEventInput):
-        """Initialize with one or more Dataset, DatasetAny, or DatasetAll instances."""
-        super().__init__(*objects)
 
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
