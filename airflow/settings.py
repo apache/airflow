@@ -33,7 +33,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -503,6 +503,15 @@ def import_local_settings():
             setattr(airflow_local_settings, "task_policy", airflow_local_settings.policy)
             names.remove("policy")
 
+        if "SMTP_DEFAULT_TEMPLATED_SUBJECT" in names or "SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH" in names:
+            warnings.warn(
+                "Configuring non-default `SMTP_DEFAULT_TEMPLATED_SUBJECT` and "
+                "`SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH` is deprecated. Please upgrade to "
+                "the new version of the SMTP provider and use provider configurations instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
         plugin_functions = policies.make_plugin_from_local_settings(
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
@@ -620,19 +629,6 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
-
-SMTP_DEFAULT_TEMPLATED_SUBJECT = """
-{% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
-{% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
-{% endif %}
-"""
-
-SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
-    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
-)
-
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.

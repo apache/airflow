@@ -87,3 +87,19 @@ config:
         version_added: 1.3.0
         example: "default"
         default: ~
+      default_templated_email_subject_path:
+        description: |
+          Allows overriding of the standard templated email subject line when the SmtpNotifier is used.
+          Must provide a path.
+        type: string
+        version_added: 2.9.0
+        example: "path/to/override/email_subject.html"
+        default: ~
+      default_templated_html_content_path:
+        description: |
+          Allows overriding of the standard templated email path when the SmtpNotifier is used. Must provide
+          a path.
+        type: string
+        version_added: 2.9.0
+        example: "path/to/override/email.html"
+        default: ~
