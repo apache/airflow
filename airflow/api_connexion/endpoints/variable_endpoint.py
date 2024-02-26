@@ -30,6 +30,8 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
 from airflow.models import Variable
+from airflow.security import permissions
+from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
@@ -38,9 +40,16 @@ if TYPE_CHECKING:
 
     from airflow.api_connexion.types import UpdateMask
 
+RESOURCE_EVENT_PREFIX = "variable"
+
 
 @security.requires_access_variable("DELETE")
-@action_logging
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_DELETE,
+    ),
+)
 def delete_variable(*, variable_key: str) -> Response:
     """Delete variable."""
     if Variable.delete(variable_key) == 0:
@@ -85,7 +94,12 @@ def get_variables(
 
 @security.requires_access_variable("PUT")
 @provide_session
-@action_logging
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_EDIT,
+    ),
+)
 def patch_variable(
     *,
     variable_key: str,
@@ -113,7 +127,12 @@ def patch_variable(
 
 
 @security.requires_access_variable("POST")
-@action_logging
+@action_logging(
+    event=action_event_from_permission(
+        prefix=RESOURCE_EVENT_PREFIX,
+        permission=permissions.ACTION_CAN_CREATE,
+    ),
+)
 def post_variables() -> Response:
     """Create a variable."""
     try:
