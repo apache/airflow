@@ -71,19 +71,19 @@ def aws_app():
 @pytest.mark.db_test
 class TestAwsAuthManagerAuthenticationViews:
     def test_login_redirect_to_identity_center(self, aws_app):
-        with aws_app.test_client() as client:
+        with aws_app.app.test_client() as client:
             response = client.get("/login")
             assert response.status_code == 302
             assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/assertion/")
 
     def test_logout_redirect_to_identity_center(self, aws_app):
-        with aws_app.test_client() as client:
+        with aws_app.app.test_client() as client:
             response = client.get("/logout")
             assert response.status_code == 302
             assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/logout/")
 
     def test_login_metadata_return_xml_file(self, aws_app):
-        with aws_app.test_client() as client:
+        with aws_app.app.test_client() as client:
             response = client.get("/login_metadata")
             assert response.status_code == 200
             assert response.headers["Content-Type"] == "text/xml"
@@ -119,7 +119,7 @@ class TestAwsAuthManagerAuthenticationViews:
                 }
                 mock_init_saml_auth.return_value = auth
                 connexion_app = application.create_app(testing=True)
-                with connexion_app.test_client() as client:
+                with connexion_app.app.test_client() as client:
                     response = client.get("/login_callback")
                     assert response.status_code == 302
                     assert response.location == url_for("Airflow.index")
@@ -152,11 +152,11 @@ class TestAwsAuthManagerAuthenticationViews:
                 auth.is_authenticated.return_value = False
                 mock_init_saml_auth.return_value = auth
                 connexion_app = application.create_app(testing=True)
-                with connexion_app.test_client() as client:
+                with connexion_app.app.test_client() as client:
                     with pytest.raises(AirflowException):
                         client.get("/login_callback")
 
     def test_logout_callback_raise_not_implemented_error(self, aws_app):
-        with aws_app.test_client() as client:
+        with aws_app.app.test_client() as client:
             with pytest.raises(NotImplementedError):
                 client.get("/logout_callback")

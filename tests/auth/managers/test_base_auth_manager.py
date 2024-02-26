@@ -126,7 +126,8 @@ class TestBaseAuthManager:
         assert auth_manager.get_cli_commands() == []
 
     def test_set_api_endpoints_return_none(self, auth_manager):
-        assert auth_manager.set_api_endpoints() is None
+        flask_app = Flask(__name__)
+        assert auth_manager.set_api_endpoints(flask_app) is None
 
     def test_get_user_name(self, auth_manager):
         user = Mock()
