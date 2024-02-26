@@ -64,8 +64,13 @@ with DAG(
         pretrained_model=MULTIMODAL_MODEL,
     )
     # [END how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
+<<<<<<< HEAD
 
     from tests.system.utils.watcher import watcher
+=======
+    
+    from tests.system.utils.watcher import watcher # noqa: E402
+>>>>>>> fe3770b7563a0743ec8712092d6ede887048dfda
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
