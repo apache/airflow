@@ -329,6 +329,7 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception as e:
                 log.warning(e)
+                raise e
 
         return wrapper
 
