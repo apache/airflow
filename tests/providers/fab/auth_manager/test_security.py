@@ -1174,7 +1174,7 @@ class TestHasAccessDagDecorator:
         dag_id_json: str | None,
         fail: bool,
     ):
-        with app.test_request_context() as mock_context:
+        with app.app.test_request_context() as mock_context:
             from airflow.www.auth import has_access_dag
 
             mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
@@ -1185,7 +1185,7 @@ class TestHasAccessDagDecorator:
                 mock_context.request._parsed_content_type = ["application/json"]
 
             with create_user_scope(
-                app,
+                app.app,
                 username="test-user",
                 role_name="limited-role",
                 permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],

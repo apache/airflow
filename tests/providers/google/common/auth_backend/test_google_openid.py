@@ -70,7 +70,7 @@ class TestGoogleOpenID:
             "email": "test@fab.org",
         }
 
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get(
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
@@ -88,7 +88,7 @@ class TestGoogleOpenID:
             "email": "test@fab.org",
         }
 
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools", headers={"Authorization": auth_header})
 
         assert 403 == response.status_code
@@ -102,7 +102,7 @@ class TestGoogleOpenID:
             "email": "test@fab.org",
         }
 
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get(
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
@@ -118,7 +118,7 @@ class TestGoogleOpenID:
             "email": "invalid@fab.org",
         }
 
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get(
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
@@ -128,7 +128,7 @@ class TestGoogleOpenID:
 
     @conf_vars({("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"})
     def test_missing_id_token(self):
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get("/api/experimental/pools")
 
         assert 403 == response.status_code
@@ -139,7 +139,7 @@ class TestGoogleOpenID:
     def test_invalid_id_token(self, mock_verify_token):
         mock_verify_token.side_effect = GoogleAuthError("Invalid token")
 
-        with self.connexion_app.test_client() as test_client:
+        with self.connexion_app.app.test_client() as test_client:
             response = test_client.get(
                 "/api/experimental/pools", headers={"Authorization": "bearer JWT_TOKEN"}
             )
