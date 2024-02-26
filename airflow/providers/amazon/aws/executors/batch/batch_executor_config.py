@@ -30,6 +30,7 @@ below for documentation on the parameters accepted by the Boto3 submit_job funct
 from __future__ import annotations
 
 import json
+from json import JSONDecodeError
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.batch.utils import (
@@ -75,4 +76,10 @@ def build_submit_kwargs() -> dict:
             " and value should be NULL or empty."
         )
     job_kwargs = camelize_dict_keys(job_kwargs)
+
+    try:
+        json.loads(json.dumps(job_kwargs))
+    except JSONDecodeError:
+        raise ValueError("AWS Batch Executor config values must be JSON serializable.")
+
     return job_kwargs

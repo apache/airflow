@@ -20,10 +20,11 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List
 
-if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
 
 CommandType = List[str]
 ExecutorConfigType = Dict[str, Any]
