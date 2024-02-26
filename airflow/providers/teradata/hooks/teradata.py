@@ -241,8 +241,6 @@ class TeradataHook(DbApiHook):
 
         def handler(cursor):
             records = cursor.fetchall()
-            if isinstance(records, list):
-                [self.log.info("%s", row) for row in records]
 
             if isinstance(records, list):
                 return [row for row in records]
