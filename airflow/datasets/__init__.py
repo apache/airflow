@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import urllib.parse
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
 
 import attr
@@ -58,7 +59,13 @@ def _sanitize_uri(uri: str) -> str:
         raise ValueError("Dataset scheme 'airflow' is reserved")
     _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
     if auth_exists:
-        raise ValueError("Dataset URI must not contain auth information")
+        # TODO: Collect this into a DagWarning.
+        warnings.warn(
+            "A dataset URI should not contain auth info (e.g. username or "
+            "password). It has been automatically dropped.",
+            UserWarning,
+            stacklevel=3,
+        )
     if parsed.query:
         normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
     else:

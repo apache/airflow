@@ -47,7 +47,6 @@ def clear_datasets():
         pytest.param("a" * 3001, id="too_long"),
         pytest.param("airflow://xcom/dag/task", id="reserved_scheme"),
         pytest.param("😊", id="non-ascii"),
-        pytest.param("ftp://user@localhost/foo.txt", id="has-auth"),
     ],
 )
 def test_invalid_uris(uri):
@@ -70,6 +69,18 @@ def test_uri_with_scheme(uri: str, normalized: str) -> None:
     EmptyOperator(task_id="task1", outlets=[dataset])
     assert dataset.uri == normalized
     assert os.fspath(dataset) == normalized
+
+
+def test_uri_with_auth() -> None:
+    with pytest.warns(UserWarning) as record:
+        dataset = Dataset("ftp://user@localhost/foo.txt")
+    assert len(record) == 1 and str(record[0].message) == (
+        "A dataset URI should not contain auth info (e.g. username or "
+        "password). It has been automatically dropped."
+    )
+    EmptyOperator(task_id="task1", outlets=[dataset])
+    assert dataset.uri == "ftp://localhost/foo.txt"
+    assert os.fspath(dataset) == "ftp://localhost/foo.txt"
 
 
 def test_uri_without_scheme():
