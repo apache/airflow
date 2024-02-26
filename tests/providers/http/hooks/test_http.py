@@ -657,7 +657,7 @@ class TestHttpAsyncHook:
             hook = HttpAsyncHook()
             with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                 await hook.run("v1/test")
-                assert mocked_function.call_args.args[0] == schema + "://" + conn.host + "v1/test"
+                assert mocked_function.call_args.args[0] == f"{schema}://{conn.host}v1/test"
 
     @pytest.mark.asyncio
     async def test_build_request_url_from_endpoint_param(self):
