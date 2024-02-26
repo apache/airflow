@@ -2188,14 +2188,16 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
+        mock_session.__aenter__.return_value = AsyncMock()
         expected_query_request = {
             "query": "SELECT partition_id "
-                     f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`"
-                     f" WHERE table_id={TABLE_ID}",
+            f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`"
+            f" WHERE table_id={TABLE_ID}",
             "useLegacySql": False,
         }
         await hook.create_job_for_partition_get(
-            dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=PROJECT_ID)
+            dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=PROJECT_ID
+        )
         mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
 
     @pytest.mark.asyncio
@@ -2205,13 +2207,12 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
+        mock_session.__aenter__.return_value = AsyncMock()
         expected_query_request = {
-            "query": "SELECT partition_id "
-                     f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`",
+            "query": "SELECT partition_id " f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`",
             "useLegacySql": False,
         }
-        await hook.create_job_for_partition_get(
-            dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        await hook.create_job_for_partition_get(dataset_id=DATASET_ID, project_id=PROJECT_ID)
         mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
 
     def test_interval_check_for_airflow_exception(self):
