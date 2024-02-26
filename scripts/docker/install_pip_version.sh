@@ -19,11 +19,10 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-
 common::get_colors
+common::get_packaging_tool
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
-common::show_pip_version_and_location
+common::show_packaging_tool_version_and_location
 
-common::install_pip_version
+common::install_packaging_tool

@@ -25,6 +25,24 @@ from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
+try:
+    from airflow.settings import SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH, SMTP_DEFAULT_TEMPLATED_SUBJECT
+except ImportError:
+    # This is a fallback for when the settings are not available - they were only added in 2.8.1,
+    # so we should be able to remove it when min airflow version for the SMTP provider is 2.9.0
+    # we do not raise deprecation warning here, because the user might be using 2.8.0 and the new provider
+    # deliberately, and we do not want to upgrade to newer version of Airflow so we should not raise the
+    # deprecation warning here. If the user will modify the settings in local_settings even for earlier
+    # versions of Airflow, they will be properly used as they will be imported above
+    SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = (Path(__file__).parent / "templates" / "email.html").as_posix()
+    SMTP_DEFAULT_TEMPLATED_SUBJECT = """
+{% if ti is defined %}
+DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
+{% elif slas is defined %}
+SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
+{% endif %}
+"""
+
 
 class SmtpNotifier(BaseNotifier):
     """
@@ -82,8 +100,6 @@ class SmtpNotifier(BaseNotifier):
         *,
         template: str | None = None,
     ):
-        from airflow.settings import SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH, SMTP_DEFAULT_TEMPLATED_SUBJECT
-
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
         self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
