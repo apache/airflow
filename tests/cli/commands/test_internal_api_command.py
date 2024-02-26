@@ -163,8 +163,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
             internal_api_command.internal_api(args)
 
             app_run.assert_called_with(
-                debug=True,
-                use_reloader=False,
+                log_level="debug",
                 port=9080,
                 host="0.0.0.0",
             )
@@ -192,7 +191,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     "--workers",
                     "4",
                     "--worker-class",
-                    "sync",
+                    "uvicorn.workers.UvicornWorker",
                     "--timeout",
                     "120",
                     "--bind",
