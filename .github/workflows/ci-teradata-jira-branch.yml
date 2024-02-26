@@ -1,0 +1,99 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: airflow-teradata-test-jira-branch-ci
+on:
+  push:
+    branches:
+      - IDE-*
+  workflow_dispatch:
+jobs:
+  teradata-tests:
+    name: "Run Teradata Provider Unit and System tests"
+    runs-on: "ubuntu-22.04"
+    strategy:
+      max-parallel: 1
+      matrix:
+        python-version: [ "3.11" ]
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout Teradata Airflow Source Code"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.JIRA_BRANCH }}
+          persist-credentials: false
+      - name: "Install Python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: "Python Version"
+        run: python --version
+      - name: "Install Required Packages"
+        run: pip install "pipx>=1.2.1"  pytest time-machine pytest-asyncio pytest-md-report cryptography pytest-html tailer pandas jinja2 boto3
+      - name: "Install Airflow and Teradata Airflow Provider"
+        run: |
+         INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[teradata]" --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.8.0/constraints-3.8.txt
+         airflow version
+      - name: "Run Teradata Airflow Provider Unit tests"
+        run: pytest tests/providers/teradata
+      - name: Download Test Report artifacts from Teradata S3
+        run: |
+          mkdir clearscapeartifacts
+          aws s3 cp s3://${{ vars.CREATE_SCRIPT_AWS_PATH }} clearscapeartifacts
+          aws s3 cp s3://${{ vars.DELETE_SCRIPT_AWS_PATH }} clearscapeartifacts
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+      - name: Define CSAE env name
+        id: define-environment-name
+        run: |
+          PYTHON_VERSION=$(echo -n "$PYTHON_VERSION" | tr -d '.') # remove dots from version
+          echo "env-name=airflow-ci-$PYTHON_VERSION-$(date +%s%N)" >> $GITHUB_OUTPUT
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+      - name: Create CSAE environment
+        id: create-csae-environment
+        shell: bash
+        run: |
+           chmod 777 ./clearscapeartifacts/createTestEnvironments.sh
+           ./clearscapeartifacts/createTestEnvironments.sh
+        env:
+          CSAE_TOKEN: ${{ secrets.CSAE_TOKEN }}
+          CSAE_ENV_PASSWORD: ${{ secrets.CSAE_ENV_PASSWORD }}
+          CSAE_ENV_NAME: ${{ steps.define-environment-name.outputs.env-name}}
+      - name: "Run Teradata Airflow Provider System tests"
+        run: |
+          export SYSTEM_TESTS_ENV_ID=teradatasystemtest
+          export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://${{ vars.CSAE_ENV_USERNAME }}:${{ secrets.CSAE_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_ENV_DATABASE }}'
+          export AIRFLOW_CONN_TERADATA_SSL_DEFAULT='teradata://${{ vars.CSAE_ENV_USERNAME }}:${{ secrets.CSAE_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_ENV_DATABASE }}?sslmode=allow'
+          export AIRFLOW_CONN_TERADATA_SP_CALL='teradata://${{ vars.CSAE_ENV_USERNAME }}:${{ secrets.CSAE_ENV_PASSWORD }}@${{ steps.create-csae-environment.outputs.teradata-server-name }}:/${{ vars.CSAE_ENV_DATABASE }}?tmode=TERA'
+          pytest --system=teradata tests/system/providers/teradata
+      - name: Delete CSAE environment
+        if: always()
+        run: |
+          chmod 777 ./clearscapeartifacts/deleteTestEnvironments.sh
+          ./clearscapeartifacts/deleteTestEnvironments.sh
+        env:
+          CSAE_TOKEN: '${{ secrets.CSAE_TOKEN }}'
+          CSAE_ENV_NAME: '${{ steps.define-environment-name.outputs.env-name}}'
+
+
+
