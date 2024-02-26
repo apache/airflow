@@ -159,8 +159,7 @@ class TeradataHook(DbApiHook):
             "host": conn.host or "localhost",
             "dbs_port": conn.port or "1025",
             "database": conn.schema or "",
-            "user": conn.login or "dbc",
-            "password": conn.password or "dbc",
+            "user": conn.login or "dbc"
         }
 
         if conn.extra_dejson.get("tmode", False):
