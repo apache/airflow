@@ -301,7 +301,7 @@ def init_api_experimental(app):
     app.extensions["csrf"].exempt(endpoints.api_experimental)
 
 
-def init_api_auth_provider(connexion_app: connexion.FlaskApp):
+def init_api_auth_manager(connexion_app: connexion.FlaskApp):
     """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
     auth_mgr.set_api_endpoints(connexion_app)

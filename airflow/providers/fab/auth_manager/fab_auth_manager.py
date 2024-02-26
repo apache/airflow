@@ -165,7 +165,6 @@ class FabAuthManager(BaseAuthManager):
             strict_validation=True,
             validate_responses=True,
         )
-        return None
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""
