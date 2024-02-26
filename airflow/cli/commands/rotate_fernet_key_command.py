@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from airflow.models import Connection, Variable
+from airflow.models import Connection, Trigger, Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
@@ -35,3 +35,5 @@ def rotate_fernet_key(args):
             conn.rotate_fernet_key()
         for var in session.scalars(select(Variable).where(Variable.is_encrypted)):
             var.rotate_fernet_key()
+        for trigger in session.scalars(select(Trigger)):
+            trigger.rotate_fernet_key()

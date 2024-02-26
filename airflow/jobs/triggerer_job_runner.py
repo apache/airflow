@@ -28,14 +28,14 @@ from collections import deque
 from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from sqlalchemy import func, select
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
-from airflow.models.trigger import ENCRYPTED_KWARGS_PREFIX, Trigger
+from airflow.models.trigger import Trigger
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
@@ -715,13 +715,20 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """Convert a Trigger row into a Trigger instance."""
         from airflow.models.crypto import get_fernet
 
-        decrypted_kwargs = {}
         fernet = get_fernet()
-        for k, v in trigger_row.kwargs.items():
-            if k.startswith(ENCRYPTED_KWARGS_PREFIX):
-                decrypted_kwargs[k[len(ENCRYPTED_KWARGS_PREFIX) :]] = fernet.decrypt(
-                    v.encode("utf-8")
-                ).decode("utf-8")
-            else:
-                decrypted_kwargs[k] = v
+
+        def _decrypt(_value: Any) -> Any:
+            if isinstance(_value, str):
+                return fernet.decrypt(_value.encode("utf-8")).decode("utf-8")
+            if isinstance(_value, dict):
+                return {k: _decrypt(v) for k, v in _value.items()}
+            if isinstance(_value, list):
+                return [_decrypt(v) for v in _value]
+            if isinstance(_value, tuple):
+                return tuple(_decrypt(v) for v in _value)
+            return _value
+
+        decrypted_kwargs = {}
+        for key, value in trigger_row.kwargs.items():
+            decrypted_kwargs[key] = _decrypt(value)
         return trigger_class(**decrypted_kwargs)

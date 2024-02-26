@@ -62,7 +62,6 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
-from airflow.serialization.serialized_objects import BaseSerialization
 
 pytestmark = pytest.mark.db_test
 
@@ -360,17 +359,10 @@ class TestTriggersSerialization:
         # generate the DB object from the trigger
         trigger_db: Trigger = Trigger.from_object(trigger)
 
-        # serialize/deserialize using the same method that is used when inserting in DB
-        json_params = BaseSerialization.serialize(trigger_db.kwargs)
-        retrieved_params = BaseSerialization.deserialize(json_params)
-
         # recreate a new trigger object from the data we would have in DB
         clazz = TriggerRunner().get_trigger_by_classpath(trigger_db.classpath)
         # noinspection PyArgumentList
-        instance = clazz(**retrieved_params)
+        instance = TriggerRunner().trigger_row_to_trigger_instance(trigger_db, clazz)
 
-        # recreate a DB column object from the new trigger so that we can easily compare attributes
-        trigger_db_2: Trigger = Trigger.from_object(instance)
-
-        assert trigger_db.classpath == trigger_db_2.classpath
-        assert trigger_db.kwargs == trigger_db_2.kwargs
+        # check that the two objects are the same
+        assert trigger.serialize() == instance.serialize()

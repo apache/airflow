@@ -347,17 +347,36 @@ class SensitiveKwargsTrigger(BaseTrigger):
     A trigger that has sensitive kwargs.
     """
 
-    def __init__(self, param1: str, param2: str):
+    def __init__(
+        self,
+        str_param: str,
+        int_param: int,
+        list_param: list[str | int],
+        dict_param: dict[str, str | int],
+        tuple_param: tuple[str, int],
+        bool_param: bool,
+        nested_dict_param: dict[str, dict[str, str | int]],
+    ):
         super().__init__()
-        self.param1 = param1
-        self.param2 = param2
+        self.str_param = str_param
+        self.int_param = int_param
+        self.list_param = list_param
+        self.dict_param = dict_param
+        self.tuple_param = tuple_param
+        self.bool_param = bool_param
+        self.nested_dict_param = nested_dict_param
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "tests.models.test_trigger.SensitiveKwargsTrigger",
             {
-                "param1": self.param1,
-                "encrypted__param2": self.param2,
+                "str_param": self.str_param,
+                "int_param": self.int_param,
+                "list_param": self.list_param,
+                "dict_param": self.dict_param,
+                "tuple_param": self.tuple_param,
+                "bool_param": self.bool_param,
+                "nested_dict_param": self.nested_dict_param,
             },
         )
 
@@ -370,15 +389,87 @@ def test_serialize_sensitive_kwargs():
     """
     Tests that sensitive kwargs are encrypted.
     """
-    trigger_instance = SensitiveKwargsTrigger(param1="value1", param2="value2")
+    trigger_instance = SensitiveKwargsTrigger(
+        str_param="value1",
+        int_param=1,
+        list_param=["value1", 2],
+        dict_param={"key1": "value1", "key2": 2},
+        tuple_param=("value1", 2),
+        bool_param=True,
+        nested_dict_param={"key1": {"key2": "value1", "key3": 2}},
+    )
     trigger_row: Trigger = Trigger.from_object(trigger_instance)
 
-    assert trigger_row.kwargs["param1"] == "value1"
-    assert "param2" not in trigger_row.kwargs
-    assert trigger_row.kwargs["encrypted__param2"] != "value2"
+    assert trigger_row.kwargs["str_param"] != "value1"
+    assert trigger_row.kwargs["int_param"] == 1
+    assert trigger_row.kwargs["list_param"][0] != "value1"
+    assert trigger_row.kwargs["list_param"][1] == 2
+    assert trigger_row.kwargs["dict_param"]["key1"] != "value1"
+    assert trigger_row.kwargs["dict_param"]["key2"] == 2
+    assert trigger_row.kwargs["tuple_param"][0] != "value1"
+    assert trigger_row.kwargs["tuple_param"][1] == 2
+    assert trigger_row.kwargs["bool_param"] is True
+    assert trigger_row.kwargs["nested_dict_param"]["key1"]["key2"] != "value1"
+    assert trigger_row.kwargs["nested_dict_param"]["key1"]["key3"] == 2
 
     loaded_trigger: SensitiveKwargsTrigger = TriggerRunner().trigger_row_to_trigger_instance(
         trigger_row, SensitiveKwargsTrigger
     )
-    assert loaded_trigger.param1 == "value1"
-    assert loaded_trigger.param2 == "value2"
+    assert loaded_trigger.str_param == "value1"
+    assert loaded_trigger.int_param == 1
+    assert loaded_trigger.list_param == ["value1", 2]
+    assert loaded_trigger.dict_param == {"key1": "value1", "key2": 2}
+    assert loaded_trigger.tuple_param == ("value1", 2)
+    assert loaded_trigger.bool_param is True
+    assert loaded_trigger.nested_dict_param == {"key1": {"key2": "value1", "key3": 2}}
+
+
+class TestTrigger(BaseTrigger):
+    def __init__(self, param1, param2):
+        super().__init__()
+        self.param1 = param1
+        self.param2 = param2
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "tests.models.test_trigger.TestTrigger",
+            {
+                "param1": self.param1,
+                "param2": self.param2,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        yield TriggerEvent({})
+
+
+@pytest.mark.db_test
+def test_trigger_with_encryption_rotate_fernet_key(session):
+    """Tests rotating encrypted trigger kwargs."""
+    key1 = Fernet.generate_key()
+    key2 = Fernet.generate_key()
+
+    with conf_vars({("core", "fernet_key"): key1.decode()}):
+        test_trigger = TestTrigger(param1="value1", param2="value2")
+        session.add(Trigger.from_object(test_trigger))
+        session.commit()
+        db_trigger = (
+            session.query(Trigger).filter(Trigger.classpath == "tests.models.test_trigger.TestTrigger").one()
+        )
+        assert db_trigger.kwargs["param1"] != "value1"
+        assert db_trigger.kwargs["param2"] != "value2"
+        assert (
+            TriggerRunner().trigger_row_to_trigger_instance(db_trigger, TestTrigger).serialize()
+            == test_trigger.serialize()
+        )
+
+    # Test decrypt of old value with new key
+    with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
+        # Test decrypt of new value with new key
+        db_trigger.rotate_fernet_key()
+        assert db_trigger.kwargs["param1"] != "value1"
+        assert db_trigger.kwargs["param2"] != "value2"
+        assert (
+            TriggerRunner().trigger_row_to_trigger_instance(db_trigger, TestTrigger).serialize()
+            == test_trigger.serialize()
+        )
