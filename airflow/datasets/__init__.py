@@ -114,6 +114,18 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
 
     __version__: ClassVar[int] = 1
 
+    @uri.validator
+    def _check_uri(self, attr, uri: str) -> None:
+        if uri.isspace():
+            raise ValueError(f"{attr.name} cannot be just whitespace")
+        try:
+            uri.encode("ascii")
+        except UnicodeEncodeError:
+            raise ValueError(f"{attr.name!r} must be ascii")
+        parsed = urlsplit(uri)
+        if parsed.scheme and parsed.scheme.lower() == "airflow":
+            raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")
+
     def __fspath__(self) -> str:
         return self.uri
 
