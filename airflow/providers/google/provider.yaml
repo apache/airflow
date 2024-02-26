@@ -751,6 +751,12 @@ sensors:
 filesystems:
   - airflow.providers.google.cloud.fs.gcs
 
+dataset-uris:
+  - schemes: [gcp]
+    handler: null
+  - schemes: [bigquery]
+    handler: airflow.providers.google.datasets.bigquery.sanitize_uri
+
 hooks:
   - integration-name: Google Ads
     python-modules:
