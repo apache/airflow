@@ -323,7 +323,7 @@ class TestSerDe:
         """
         Verify deserialization of old-style encoded Xcom values including nested ones
         """
-        uri = "s3://does_not_exist"
+        uri = "s3://does/not/exist"
         data = {
             "__type": "airflow.datasets.Dataset",
             "__source": None,

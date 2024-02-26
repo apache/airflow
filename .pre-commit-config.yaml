@@ -326,7 +326,6 @@ repos:
           (?x)^(
               ^.*__init__\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$
@@ -366,7 +365,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator>=0.6.0']
+        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile

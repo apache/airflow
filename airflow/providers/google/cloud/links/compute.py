@@ -48,7 +48,7 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         location_id: str,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(
@@ -73,7 +73,7 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
     def persist(
         context: Context,
         task_instance: BaseOperator,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(
@@ -98,7 +98,7 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         location_id: str,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(

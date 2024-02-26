@@ -263,7 +263,17 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
-    os.chdir(str(airflow_sources))
+    os.chdir(airflow_sources.as_posix())
+    airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
+    if airflow_sources.resolve() == airflow_home_dir.resolve():
+        get_console().print(
+            f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
+            f"is your also your AIRFLOW_HOME where airflow writes logs and database. \n"
+            f"This is a bad idea because Airflow might override and cleanup your checked out "
+            f"sources and .git repository.[/]\n"
+        )
+        get_console().print("\nPlease check out your Airflow code elsewhere.\n")
+        sys.exit(1)
     return airflow_sources
 
 
