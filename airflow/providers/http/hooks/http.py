@@ -40,8 +40,9 @@ if TYPE_CHECKING:
 
 def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     """Combine base url with endpoint."""
+    print(f"base_url: {base_url}, endpoint: {endpoint}")
     if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-        return f"{base_url}/{endpoint}"
+        return base_url + "/" + endpoint
     return (base_url or "") + (endpoint or "")
 
 
