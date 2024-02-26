@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-26T12:36:19.513791
+# This constraints file was automatically generated on 2024-02-26T16:56:37.048113
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -254,7 +254,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.50
+cohere==4.51
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -476,9 +476,9 @@ objsize==0.7.0
 openai==1.12.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.9.0
-openlineage-python==1.9.0
-openlineage_sql==1.9.0
+openlineage-integration-common==1.9.1
+openlineage-python==1.9.1
+openlineage_sql==1.9.1
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.23.0
@@ -587,7 +587,7 @@ pywinrm==0.4.3
 pyzmq==25.1.2
 qdrant-client==1.7.3
 reactivex==4.0.4
-readme-renderer==42.0
+readme_renderer==43.0
 redis==4.6.0
 redshift-connector==2.1.0
 referencing==0.33.0

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-02-26T12:29:56.694483
+# This constraints file was automatically generated on 2024-02-26T16:50:27.111926
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -120,8 +120,8 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.2.0
 blinker==1.7.0
-boto3==1.33.13
-botocore==1.33.13
+boto3==1.34.34
+botocore==1.34.34
 cachelib==0.9.0
 cachetools==5.3.2
 cassandra-driver==3.29.0
@@ -497,7 +497,7 @@ rpds-py==0.18.0
 rsa==4.9
 ruff==0.2.1
 s3fs==2023.12.2
-s3transfer==0.8.2
+s3transfer==0.10.0
 sarif-om==1.0.4
 scramp==1.4.4
 scrapbook==0.5.0
