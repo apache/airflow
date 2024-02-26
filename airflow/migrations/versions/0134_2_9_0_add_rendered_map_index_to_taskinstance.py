@@ -41,10 +41,7 @@ def upgrade():
     conn = op.get_bind()
 
     with op.batch_alter_table("task_instance") as batch_op:
-        if conn.dialect.name == "mysql":
-            batch_op.add_column(sa.Column("rendered_map_index", sa.Text(length=64), nullable=True))
-        else:
-            batch_op.add_column(sa.Column("rendered_map_index", sa.String(length=64), nullable=True))
+        batch_op.add_column(sa.Column("rendered_map_index", sa.String(length=64), nullable=True))
 
 
 def downgrade():
