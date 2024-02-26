@@ -25,23 +25,12 @@ from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
-SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = conf.get(
-    "smtp",
-    "templated_html_content_path",
-    fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
-)
-SMTP_DEFAULT_TEMPLATED_SUBJECT_PATH = conf.get(
-    "smtp",
-    "templated_email_subject_path",
-    fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
-)
-
 
 class SmtpNotifier(BaseNotifier):
     """
     SMTP Notifier.
 
-    Accepts keyword arguments. The only required argument is `to`. Examples:
+    Accepts keyword arguments. The only required arguments are `from_email` and `to`. Examples:
 
     .. code-block:: python
 
@@ -100,9 +89,6 @@ class SmtpNotifier(BaseNotifier):
         self.smtp_conn_id = smtp_conn_id
         self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
         self.to = to
-        self.subject = (
-            subject or Path(SMTP_DEFAULT_TEMPLATED_SUBJECT_PATH).read_text().replace("\n", "").strip()
-        )
         self.files = files
         self.cc = cc
         self.bcc = bcc
@@ -110,6 +96,14 @@ class SmtpNotifier(BaseNotifier):
         self.mime_charset = mime_charset
         self.custom_headers = custom_headers
 
+        smtp_default_templated_subject_path = conf.get(
+            "smtp",
+            "templated_email_subject_path",
+            fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
+        )
+        self.subject = (
+            subject or Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
+        )
         # If html_content is passed, prioritize it. Otherwise, if template is passed, use
         # it to populate html_content. Else, fall back to defaults defined in settings
         if html_content is not None:
@@ -117,7 +111,12 @@ class SmtpNotifier(BaseNotifier):
         elif template is not None:
             self.html_content = Path(template).read_text()
         else:
-            self.html_content = Path(SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH).read_text()
+            smtp_default_templated_html_content_path = conf.get(
+                "smtp",
+                "templated_html_content_path",
+                fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
+            )
+            self.html_content = Path(smtp_default_templated_html_content_path).read_text()
 
     @cached_property
     def hook(self) -> SmtpHook:
