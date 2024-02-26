@@ -4,4 +4,5 @@ common.sql
 ftp
 http
 imap
+smtp
 sqlite
