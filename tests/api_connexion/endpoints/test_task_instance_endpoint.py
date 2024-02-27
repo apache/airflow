@@ -22,6 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import contains_eager
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -2343,7 +2344,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
 
     @provide_session
     def test_should_respond_200(self, session):
-        tis = self.create_task_instances(session)
+        self.create_task_instances(session)
         new_note_value = "My super cool TaskInstance note."
         response = self.client.patch(
             "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
@@ -2381,7 +2382,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
         }
-        ti = tis[0]
+        ti = session.scalars(select(TaskInstance).where(TaskInstance.task_id == "print_the_context")).one()
         assert ti.task_instance_note.user_id is not None
         _check_last_log(
             session, dag_id="example_python_operator", event="api.set_task_instance_note", execution_date=None
