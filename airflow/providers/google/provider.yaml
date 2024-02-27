@@ -138,7 +138,11 @@ dependencies:
   - json-merge-patch>=0.2
   - looker-sdk>=22.2.0
   - pandas-gbq
-  - pandas>=1.2.5
+  # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+  # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+  # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+  # In addition FAB also limit sqlalchemy to < 2.0
+  - pandas>=1.2.5,<2.2
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
