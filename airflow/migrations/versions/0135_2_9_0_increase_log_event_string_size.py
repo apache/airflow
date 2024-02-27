@@ -38,9 +38,18 @@ airflow_version = '2.9.0'
 
 def upgrade():
     """Apply increase Log event string size"""
-    pass
+    with op.batch_alter_table("log") as batch_op:
+        batch_op.alter_column("event", type_=sa.String(60))
 
 
 def downgrade():
     """Unapply increase Log event string size"""
-    pass
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        with op.batch_alter_table("log") as batch_op:
+            batch_op.drop_index("idx_log_event")
+            batch_op.alter_column("event", type_=sa.String(30), nullable=False)
+            batch_op.create_index("idx_log_event", ["event"])
+    else:
+        with op.batch_alter_table("log") as batch_op:
+            batch_op.alter_column("event", type_=sa.String(30), nullable=False)
