@@ -61,6 +61,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_airflow_version,
+    option_use_uv,
     option_verbose,
     option_version_suffix_for_pypi,
 )
@@ -980,11 +981,13 @@ def run_generate_constraints_in_parallel(
 @option_airflow_constraints_mode_ci
 @option_chicken_egg_providers
 @option_github_repository
+@option_use_uv
 @option_verbose
 @option_dry_run
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    chicken_egg_providers: str,
     debug_resources: bool,
     github_repository: str,
     image_tag: str | None,
@@ -993,7 +996,7 @@ def generate_constraints(
     python_versions: str,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    chicken_egg_providers: str,
+    use_uv: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -1035,6 +1038,7 @@ def generate_constraints(
                 github_repository=github_repository,
                 image_tag=image_tag,
                 python=python,
+                use_uv=use_uv,
             )
             for python in python_version_list
         ]
@@ -1054,6 +1058,7 @@ def generate_constraints(
             github_repository=github_repository,
             image_tag=image_tag,
             python=python,
+            use_uv=use_uv,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
