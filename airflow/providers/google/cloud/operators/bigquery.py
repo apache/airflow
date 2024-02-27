@@ -2779,7 +2779,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                 self.configuration["labels"]["airflow-dag"] = self.dag_id
                 self.configuration["labels"]["airflow-task"] = self.task_id
         else:
-            self.configuration["labels"] = { "airflow-dag": self.dag_id, "airflow-task": self.task_id }
+            self.configuration["labels"] = {"airflow-dag": self.dag_id, "airflow-task": self.task_id}
 
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(

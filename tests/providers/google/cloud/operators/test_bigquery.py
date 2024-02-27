@@ -1102,7 +1102,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
-        assert configuration["labels"] == { "airflow-dag": "adhoc_airflow", "airflow-task": "insert_query_job" }
+        assert configuration["labels"] == {"airflow-dag": "adhoc_airflow", "airflow-task": "insert_query_job"}
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1144,7 +1144,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
-        assert configuration["labels"] == { "airflow-dag": "adhoc_airflow", "airflow-task": "copy_query_job" }
+        assert configuration["labels"] == {"airflow-dag": "adhoc_airflow", "airflow-task": "copy_query_job"}
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1766,9 +1766,7 @@ class TestBigQueryInsertJobOperator:
                 "query": "SELECT * FROM any",
                 "useLegacySql": False,
             },
-            "labels": {
-                "foo": "bar"
-            }
+            "labels": {"foo": "bar"},
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
         mock_hook.return_value.generate_job_id.return_value = real_job_id
@@ -1780,11 +1778,11 @@ class TestBigQueryInsertJobOperator:
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
-        result = op.execute(context=MagicMock())
+        op.execute(context=MagicMock())
         assert configuration["labels"] == {
             "foo": "bar",
             "airflow-dag": "adhoc_airflow",
-            "airflow-task": "insert_query_job"
+            "airflow-task": "insert_query_job",
         }
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1798,7 +1796,7 @@ class TestBigQueryInsertJobOperator:
                 "query": "SELECT * FROM any",
                 "useLegacySql": False,
             },
-            "labels": None
+            "labels": None,
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
         mock_hook.return_value.generate_job_id.return_value = real_job_id
@@ -1810,8 +1808,8 @@ class TestBigQueryInsertJobOperator:
             job_id=job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
-        result = op.execute(context=MagicMock())
-        assert configuration["labels"] == None
+        op.execute(context=MagicMock())
+        assert configuration["labels"] is None
 
 
 class TestBigQueryIntervalCheckOperator:
