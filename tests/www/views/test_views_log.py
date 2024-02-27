@@ -468,6 +468,30 @@ def test_get_logs_with_json_response_format(log_admin_client, create_expected_lo
     assert "Log for testing." in response.json["message"][0][1]
 
 
+def test_get_logs_invalid_execution_data_format(log_admin_client):
+    url_template = (
+        "get_logs_with_metadata?dag_id={}&"
+        "task_id={}&execution_date={}&"
+        "try_number={}&metadata={}&format=file"
+    )
+    try_number = 1
+    url = url_template.format(
+        DAG_ID,
+        TASK_ID,
+        urllib.parse.quote_plus("Tuesday February 27, 2024"),
+        try_number,
+        "{}",
+    )
+    response = log_admin_client.get(url)
+    assert response.status_code == 400
+    assert response.json == {
+        "error": (
+            "Given execution date 'Tuesday February 27, 2024' could not be identified as a date. "
+            "Example date format: 2015-11-16T14:34:15+00:00"
+        )
+    }
+
+
 @unittest.mock.patch("airflow.www.views.TaskLogReader")
 def test_get_logs_for_handler_without_read_method(mock_reader, log_admin_client):
     type(mock_reader.return_value).supports_read = unittest.mock.PropertyMock(return_value=False)
