@@ -68,6 +68,7 @@ BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={jo
 LABEL_REGEX = re.compile(r"^[a-z][\w-]+$")
 LABEL_SIZE_LIMIT = 64
 
+
 class BigQueryUIColors(enum.Enum):
     """Hex colors for BigQuery operators."""
 

@@ -1834,7 +1834,7 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             },
         }
-        with dag_maker("adhoc_airflow_except_this_task_id_is_really_really_really_really_long") as dag:
+        with dag_maker("adhoc_airflow_except_this_task_id_is_really_really_really_really_long"):
             op = BigQueryInsertJobOperator(
                 task_id="insert_query_job",
                 configuration=configuration,
@@ -1851,7 +1851,7 @@ class TestBigQueryInsertJobOperator:
                 "useLegacySql": False,
             },
         }
-        with dag_maker("YELLING_DAG_NAME") as dag:
+        with dag_maker("YELLING_DAG_NAME"):
             op = BigQueryInsertJobOperator(
                 task_id="YELLING_TASK_ID",
                 configuration=configuration,
