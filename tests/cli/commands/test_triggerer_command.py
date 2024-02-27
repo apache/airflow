@@ -23,8 +23,6 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
-from airflow.configuration import conf
-
 
 pytestmark = pytest.mark.db_test
 
