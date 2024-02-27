@@ -56,6 +56,7 @@ There are two types of executors - those that run tasks *locally* (inside the ``
     sequential
 
 **Remote Executors**
+
 * :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
 * :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`
 * :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`
