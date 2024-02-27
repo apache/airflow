@@ -25,7 +25,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import Connection
-from airflow.providers.google.cloud.sensors.dataprocgdc import DataprocGDCKrmSensor
+from airflow.providers.google.gdc.sensors.dataprocgdc import DataprocGDCKrmSensor
 from airflow.utils import db, timezone
 
 

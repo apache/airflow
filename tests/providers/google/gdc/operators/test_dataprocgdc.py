@@ -24,7 +24,7 @@ import pytest
 from dateutil import tz
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.operators.dataprocgdc import (
+from airflow.providers.google.gdc.operators.dataprocgdc import (
     DataprocGdcCreateAppEnvironmentKrmOperator,
     DataprocGDCSubmitSparkJobKrmOperator,
 )

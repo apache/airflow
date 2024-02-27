@@ -25,11 +25,11 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.google.cloud.operators.dataprocgdc import (
+from airflow.providers.google.gdc.operators.dataprocgdc import (
     DataprocGdcCreateAppEnvironmentKrmOperator,
     DataprocGDCSubmitSparkJobKrmOperator,
 )
-from airflow.providers.google.cloud.sensors.dataprocgdc import DataprocGDCKrmSensor
+from airflow.providers.google.gdc.sensors.dataprocgdc import DataprocGDCKrmSensor
 
 DAG_ID = "example_dag_dpgdc-krm"
 
