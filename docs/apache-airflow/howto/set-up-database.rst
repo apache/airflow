@@ -198,12 +198,6 @@ in the Postgres documentation to learn more.
 
    Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
-We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
-
-.. code-block:: text
-
-   postgresql+psycopg2://<user>:<password>@<host>/<db>
-
 Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
 
 If you created a new Postgres account for Airflow:
