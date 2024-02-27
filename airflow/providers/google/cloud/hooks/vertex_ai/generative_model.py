@@ -22,8 +22,8 @@ from __future__ import annotations
 from typing import Sequence
 
 import vertexai
+from vertexai.generative_models import GenerativeModel
 from vertexai.language_models import TextGenerationModel
-from vertexai.preview.generative_models import ChatSession, GenerativeModel
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
@@ -82,6 +82,8 @@ class GenerativeModelHook(GoogleBaseHook):
             of their probabilities equals the top_p value. Defaults to 0.8.
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
@@ -105,7 +107,6 @@ class GenerativeModelHook(GoogleBaseHook):
         self,
         prompt: str,
         location: str,
-        chat: ChatSession | None = None,
         pretrained_model: str = "gemini-pro",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
@@ -118,16 +119,12 @@ class GenerativeModelHook(GoogleBaseHook):
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
-        :param chat: ChatSession object that holds history of prompts and outputs.
-            Used to interact with responses. Defaults to None, which indicates a
-            one-off prompt and response.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         model = self.get_generative_model(pretrained_model)
 
-        if chat is None:  # signals one-off chat request
-            chat = model.start_chat()
-
-        response = chat.send_message(prompt)
+        response = model.generate_content(prompt)
         return response.text

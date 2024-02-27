@@ -82,7 +82,6 @@ class TestVertexAIPromptMultimodalModelOperator:
     def test_execute(self, mock_hook):
         prompt = "In 10 words or less, what is Apache Airflow?"
         pretrained_model = "gemini-pro"
-        chat = None
 
         op = PromptMultimodalModelOperator(
             task_id=TASK_ID,
@@ -90,7 +89,6 @@ class TestVertexAIPromptMultimodalModelOperator:
             location=GCP_LOCATION,
             prompt=prompt,
             pretrained_model=pretrained_model,
-            chat=chat,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -104,5 +102,4 @@ class TestVertexAIPromptMultimodalModelOperator:
             location=GCP_LOCATION,
             prompt=prompt,
             pretrained_model=pretrained_model,
-            chat=chat,
         )

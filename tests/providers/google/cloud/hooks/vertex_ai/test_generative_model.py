@@ -38,7 +38,6 @@ TEST_TOP_P = 0.8
 TEST_TOP_K = 40
 
 TEST_MULTIMODAL_PRETRAINED_MODEL = "gemini-pro"
-TEST_CHAT = None
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
@@ -83,7 +82,6 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             location=GCP_LOCATION,
             prompt=TEST_PROMPT,
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
-            chat=TEST_CHAT,
         )
         mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
-        mock_model.return_value.start_chat.assert_called_once_with()
+        mock_model.return_value.generate_content.assert_called_once_with(TEST_PROMPT)

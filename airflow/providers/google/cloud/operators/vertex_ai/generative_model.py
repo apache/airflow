@@ -25,8 +25,6 @@ from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import Gene
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
-    from vertexai.preview.generative_models import ChatSession
-
     from airflow.utils.context import Context
 
 
@@ -127,9 +125,6 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         supporting prompts with text-only input, including natural language
         tasks, multi-turn text and code chat, and code generation. It can
         output text and code.
-    :param chat: ChatSession object that holds history of prompts and outputs.
-        Used to interact with responses. Defaults to None, which indicates a
-        one-off prompt and response.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -148,7 +143,6 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         location: str,
         prompt: str,
         pretrained_model: str = "gemini-pro",
-        chat: ChatSession | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -157,7 +151,6 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.prompt = prompt
-        self.chat = chat
         self.pretrained_model = pretrained_model
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -171,7 +164,6 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             prompt=self.prompt,
-            chat=self.chat,
             pretrained_model=self.pretrained_model,
         )
 
