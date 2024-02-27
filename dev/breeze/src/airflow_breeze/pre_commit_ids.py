@@ -127,6 +127,7 @@ PRE_COMMIT_LIST = [
     "update-in-the-wild-to-be-sorted",
     "update-inlined-dockerfile-scripts",
     "update-installed-providers-to-be-sorted",
+    "update-installers",
     "update-local-yml-file",
     "update-migration-references",
     "update-providers-dependencies",
