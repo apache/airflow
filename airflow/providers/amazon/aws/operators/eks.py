@@ -246,7 +246,9 @@ class EksCreateClusterOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -494,7 +496,9 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -616,7 +620,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.pod_execution_role_arn = pod_execution_role_arn
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -715,7 +721,9 @@ class EksDeleteClusterOperator(BaseOperator):
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.deferrable = deferrable

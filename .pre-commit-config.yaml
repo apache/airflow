@@ -327,7 +327,6 @@ repos:
               ^.*__init__\.py$|
               ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
               ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
           )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
@@ -754,7 +753,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^dev/.*_installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted

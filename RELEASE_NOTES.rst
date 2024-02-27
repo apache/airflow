@@ -21,6 +21,136 @@
 
 .. towncrier release notes start
 
+Airflow 2.8.2 (2024-02-26)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The ``allowed_deserialization_classes`` flag now follows a glob pattern (#36147).
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+For example if one wants to add the class ``airflow.tests.custom_class`` to the
+``allowed_deserialization_classes`` list, it can be done by writing the full class
+name (``airflow.tests.custom_class``) or a pattern such as the ones used in glob
+search (e.g., ``airflow.*``, ``airflow.tests.*``).
+
+If you currently use a custom regexp path make sure to rewrite it as a glob pattern.
+
+Alternatively, if you still wish to match it as a regexp pattern, add it under the new
+list ``allowed_deserialization_classes_regexp`` instead.
+
+The audit_logs permissions have been updated for heightened security (#37501).
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+This was done under the policy that we do not want users like Viewer, Ops,
+and other users apart from Admin to have access to audit_logs. The intention behind
+this change is to restrict users with less permissions from viewing user details
+like First Name, Email etc. from the audit_logs when they are not permitted to.
+
+The impact of this change is that the existing users with non admin rights won't be able
+to view or access the audit_logs, both from the Browse tab or from the DAG run.
+
+``AirflowTimeoutError`` is no longer ``except`` by default through ``Exception`` (#35653).
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The ``AirflowTimeoutError`` is now inheriting ``BaseException`` instead of
+``AirflowException``->``Exception``.
+See https://docs.python.org/3/library/exceptions.html#exception-hierarchy
+
+This prevents code catching ``Exception`` from accidentally
+catching ``AirflowTimeoutError`` and continuing to run.
+``AirflowTimeoutError`` is an explicit intent to cancel the task, and should not
+be caught in attempts to handle the error and return some default value.
+
+Catching ``AirflowTimeoutError`` is still possible by explicitly ``except``ing
+``AirflowTimeoutError`` or ``BaseException``.
+This is discouraged, as it may allow the code to continue running even after
+such cancellation requests.
+Code that previously depended on performing strict cleanup in every situation
+after catching ``Exception`` is advised to use ``finally`` blocks or
+context managers. To perform only the cleanup and then automatically
+re-raise the exception.
+See similar considerations about catching ``KeyboardInterrupt`` in
+https://docs.python.org/3/library/exceptions.html#KeyboardInterrupt
+
+
+Bug Fixes
+"""""""""
+- Sort dag processing stats by last_runtime (#37302)
+- Allow pre-population of trigger form values via URL parameters (#37497)
+- Base date for fetching dag grid view must include selected run_id (#34887)
+- Check permissions for ImportError (#37468)
+- Move ``IMPORT_ERROR`` from DAG related permissions to view related permissions (#37292)
+- Change ``AirflowTaskTimeout`` to inherit ``BaseException`` (#35653)
+- Revert "Fix future DagRun rarely triggered by race conditions when max_active_runs reached its upper limit. (#31414)" (#37596)
+- Change margin to padding so first task can be selected (#37527)
+- Fix Airflow serialization for ``namedtuple`` (#37168)
+- Fix bug with clicking url-unsafe tags (#37395)
+- Set deterministic and new getter for ``Treeview`` function (#37162)
+- Fix permissions of parent folders for log file handler (#37310)
+- Fix permission check on DAGs when ``access_entity`` is specified (#37290)
+- Fix the value of ``dateTimeAttrFormat`` constant (#37285)
+- Resolve handler close race condition at triggerer shutdown (#37206)
+- Fixing status icon alignment for various views (#36804)
+- Remove superfluous ``@Sentry.enrich_errors``  (#37002)
+- Use execution_date= param as a backup to base date for grid view (#37018)
+- Handle SystemExit raised in the task. (#36986)
+- Revoking audit_log permission from all users except admin (#37501)
+- Fix broken regex for allowed_deserialization_classes (#36147)
+- Fix the bug that affected the DAG end date. (#36144)
+- Adjust node width based on task name length (#37254)
+- fix: PythonVirtualenvOperator crashes if any python_callable function is defined in the same source as DAG (#37165)
+- Fix collapsed grid width, line up selected bar with gantt (#37205)
+- Adjust graph node layout (#37207)
+- Revert the sequence of initializing configuration defaults (#37155)
+- Displaying "actual" try number in TaskInstance view (#34635)
+- Bugfix Triggering DAG with parameters is mandatory when show_trigger_form_if_no_params is enabled (#37063)
+- Secret masker ignores passwords with special chars (#36692)
+- Fix DagRuns with UPSTREAM_FAILED tasks get stuck in the backfill. (#36954)
+- Disable ``dryrun`` auto-fetch (#36941)
+- Fix copy button on a DAG run's config (#36855)
+- Fix bug introduced by replacing spaces by + in run_id (#36877)
+- Fix webserver always redirecting to home page if user was not logged in (#36833)
+- REST API set description on POST to ``/variables`` endpoint (#36820)
+- Sanitize the conn_id to disallow potential script execution (#32867)
+- Fix task id copy button copying wrong id (#34904)
+- Fix security manager inheritance in fab provider (#36538)
+- Avoid ``pendulum.from_timestamp`` usage (#37160)
+
+Miscellaneous
+"""""""""""""
+- Install latest docker ``CLI`` instead of specific one (#37651)
+- Bump ``undici`` from ``5.26.3`` to ``5.28.3`` in ``/airflow/www`` (#37493)
+- Add Python ``3.12`` exclusions in ``providers/pyproject.toml`` (#37404)
+- Remove ``markdown`` from core dependencies (#37396)
+- Remove unused ``pageSize`` method. (#37319)
+- Add more-itertools as dependency of common-sql (#37359)
+- Replace other ``Python 3.11`` and ``3.12`` deprecations (#37478)
+- Include ``airflow_pre_installed_providers.txt`` into ``sdist`` distribution (#37388)
+- Turn Pydantic into an optional dependency (#37320)
+- Limit ``universal-pathlib to < 0.2.0`` (#37311)
+- Allow running airflow against sqlite in-memory DB for tests (#37144)
+- Add description to ``queue_when`` (#36997)
+- Updated ``config.yml`` for environment variable ``sql_alchemy_connect_args``  (#36526)
+- Bump min version of ``Alembic to 1.13.1`` (#36928)
+- Limit ``flask-session`` to ``<0.6`` (#36895)
+
+Doc Only Changes
+""""""""""""""""
+- Fix upgrade docs to reflect true ``CLI`` flags available (#37231)
+- Fix a bug in fundamentals doc (#37440)
+- Add redirect for deprecated page (#37384)
+- Fix the ``otel`` config descriptions (#37229)
+- Update ``Objectstore`` tutorial with ``prereqs`` section (#36983)
+- Add more precise description on avoiding generic ``package/module`` names (#36927)
+- Add airflow version substitution into Docker Compose Howto (#37177)
+- Add clarification about DAG author capabilities to security model (#37141)
+- Move docs for cron basics to Authoring and Scheduling section (#37049)
+- Link to release notes in the upgrade docs (#36923)
+- Prevent templated field logic checks in ``__init__`` of operators automatically (#33786)
+
+
 Airflow 2.8.1 (2024-01-19)
 --------------------------
 

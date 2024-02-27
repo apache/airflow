@@ -123,7 +123,6 @@ if not settings.LAZY_LOAD_PLUGINS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.exceptions import AirflowException
     from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
     from airflow.models.xcom_arg import XComArg

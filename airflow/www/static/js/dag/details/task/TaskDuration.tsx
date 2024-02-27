@@ -178,7 +178,7 @@ const TaskDuration = () => {
     ],
     // @ts-ignore
     dataset: {
-      dimensions: [orderingLabel, "queuedDurationUnit", "runDurationUnit"],
+      dimensions: ["runId", "queuedDurationUnit", "runDurationUnit"],
       source: durations,
     },
     tooltip: {
@@ -192,9 +192,12 @@ const TaskDuration = () => {
       type: "category",
       show: true,
       axisLabel: {
-        formatter: (value: string) =>
+        formatter: (runId: string) => {
+          const dagRun = dagRuns.find((dr) => dr.runId === runId);
+          if (!dagRun || !dagRun[orderingLabel]) return runId;
           // @ts-ignore
-          value ? moment(value).format(defaultFormat) : "",
+          return moment(dagRun[orderingLabel]).format(defaultFormat);
+        },
       },
       name: startCase(orderingLabel),
       nameLocation: "end",
