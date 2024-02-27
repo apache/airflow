@@ -1123,6 +1123,7 @@ repos:
           # Use pylint only for the specific check, which are not available into the ruff
           - "--disable=all"
           # W0133: "Exception statement has no effect"
+          # see: https://github.com/astral-sh/ruff/issues/10145
           - "--enable=W0133"
       - id: check-fab-migrations
         language: pygrep
