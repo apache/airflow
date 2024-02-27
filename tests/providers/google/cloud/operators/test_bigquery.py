@@ -1102,6 +1102,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
+        assert configuration["labels"] == { "airflow-dag": "adhoc_airflow", "airflow-task": "insert_query_job" }
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1143,6 +1144,7 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         result = op.execute(context=MagicMock())
+        assert configuration["labels"] == { "airflow-dag": "adhoc_airflow", "airflow-task": "copy_query_job" }
 
         mock_hook.return_value.insert_job.assert_called_once_with(
             configuration=configuration,
@@ -1752,6 +1754,64 @@ class TestBigQueryInsertJobOperator:
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_adds_to_existing_labels(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": {
+                "foo": "bar"
+            }
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = op.execute(context=MagicMock())
+        assert configuration["labels"] == {
+            "foo": "bar",
+            "airflow-dag": "adhoc_airflow",
+            "airflow-task": "insert_query_job"
+        }
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_respects_explicit_no_labels(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+            "labels": None
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = op.execute(context=MagicMock())
+        assert configuration["labels"] == None
 
 
 class TestBigQueryIntervalCheckOperator:
