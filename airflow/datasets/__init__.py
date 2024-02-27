@@ -24,6 +24,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, P
 
 import attr
 
+from airflow.exceptions import DagUserCodeWarning
+
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
@@ -63,7 +65,7 @@ def _sanitize_uri(uri: str) -> str:
         warnings.warn(
             "A dataset URI should not contain auth info (e.g. username or "
             "password). It has been automatically dropped.",
-            UserWarning,
+            DagUserCodeWarning,
             stacklevel=3,
         )
     if parsed.query:

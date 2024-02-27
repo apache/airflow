@@ -44,8 +44,8 @@ class TestDagWarning:
         session.commit()
 
         dag_warnings = [
-            DagWarning("dag_1", "non-existent pool", "non-existent pool"),
-            DagWarning("dag_2", "non-existent pool", "non-existent pool"),
+            DagWarning(dag_id="dag_1", warning_type="non-existent pool", message="non-existent pool"),
+            DagWarning(dag_id="dag_2", warning_type="non-existent pool", message="non-existent pool"),
         ]
         session.add_all(dag_warnings)
         session.commit()

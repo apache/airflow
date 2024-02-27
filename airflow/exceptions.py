@@ -424,6 +424,13 @@ class AirflowProviderDeprecationWarning(DeprecationWarning):
     "Indicates the provider version that started raising this deprecation warning"
 
 
+class DagUserCodeWarning(UserWarning):
+    """Issued for user code in DAG file that should be warned about.
+
+    This will be collected by the DAG processor converted into a DagWarning entry.
+    """
+
+
 class DeserializingResultError(ValueError):
     """Raised when an error is encountered while a pickling library deserializes a pickle file."""
 

@@ -41,6 +41,7 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
+    DagUserCodeWarning,
     RemovedInAirflow3Warning,
 )
 from airflow.stats import Stats
@@ -134,6 +135,7 @@ class DagBag(LoggingMixin):
         # the file's last modified timestamp when we last read it
         self.file_last_changed: dict[str, datetime] = {}
         self.import_errors: dict[str, str] = {}
+        self.user_code_warnings: list[warnings.WarningMessage] = []
         self.has_logged = False
         self.read_dags_from_db = read_dags_from_db
         # Only used by read_dags_from_db=True
@@ -343,7 +345,10 @@ class DagBag(LoggingMixin):
                 spec = importlib.util.spec_from_loader(mod_name, loader)
                 new_module = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = new_module
-                loader.exec_module(new_module)
+                with warnings.catch_warnings(record=True) as code_warnings:
+                    warnings.simplefilter("default", category=DagUserCodeWarning)
+                    loader.exec_module(new_module)
+                self.user_code_warnings.extend(code_warnings)
                 return [new_module]
             except Exception as e:
                 DagContext.autoregistered_dags.clear()
@@ -405,13 +410,16 @@ class DagBag(LoggingMixin):
                     del sys.modules[mod_name]
 
                 DagContext.current_autoregister_module_name = mod_name
+                fileloc = os.path.join(filepath, zip_info.filename)
                 try:
                     sys.path.insert(0, filepath)
-                    current_module = importlib.import_module(mod_name)
+                    with warnings.catch_warnings(record=True) as code_warnings:
+                        warnings.simplefilter("default", category=DagUserCodeWarning)
+                        current_module = importlib.import_module(mod_name)
+                    self.user_code_warnings.extend(code_warnings)
                     mods.append(current_module)
                 except Exception as e:
                     DagContext.autoregistered_dags.clear()
-                    fileloc = os.path.join(filepath, zip_info.filename)
                     self.log.exception("Failed to import: %s", fileloc)
                     if self.dagbag_import_error_tracebacks:
                         self.import_errors[fileloc] = traceback.format_exc(
@@ -439,8 +447,11 @@ class DagBag(LoggingMixin):
         for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
             try:
-                dag.validate()
-                self.bag_dag(dag=dag, root_dag=dag)
+                with warnings.catch_warnings(record=True) as code_warnings:
+                    warnings.simplefilter("default", category=DagUserCodeWarning)
+                    dag.validate()
+                    self.bag_dag(dag=dag, root_dag=dag)
+                self.user_code_warnings.extend(code_warnings)
             except AirflowClusterPolicySkipDag:
                 pass
             except Exception as e:
