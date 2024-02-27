@@ -19,7 +19,7 @@ KubernetesExecutor.
 
 .. seealso::
     For more information on how the KubernetesExecutor works, take a look at the guide:
-    :ref:`executor:KubernetesExecutor`
+    :doc:`/kubernetes_executor`
 """
 from __future__ import annotations
 

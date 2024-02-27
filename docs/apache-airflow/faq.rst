@@ -104,7 +104,7 @@ Operators or tasks also have configurations that improves efficiency and schedul
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
-- ``queue``: See :ref:`executor:CeleryExecutor:queue` for CeleryExecutor deployments only.
+- ``queue``: See :ref:`apache-airflow-providers-celery:celery_executor:queue` for CeleryExecutor deployments only.
 
 
 How to reduce DAG scheduling latency / task delay?

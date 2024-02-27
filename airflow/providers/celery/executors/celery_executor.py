@@ -19,7 +19,7 @@
 
 .. seealso::
     For more information on how the CeleryExecutor works, take a look at the guide:
-    :ref:`executor:CeleryExecutor`
+    :doc:`/celery_executor`
 """
 from __future__ import annotations
 
