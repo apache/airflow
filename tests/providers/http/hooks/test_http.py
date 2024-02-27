@@ -497,6 +497,18 @@ class TestHttpHook:
             tcp_keep_alive_send.assert_not_called()
             http_send.assert_called()
 
+    @pytest.mark.parametrize(
+        "base_url, endpoint, expected_url",
+        [
+            pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
+            pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
+        ],
+    )
+    def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
+        hook = HttpHook()
+        hook.base_url = base_url
+        assert hook.url_from_endpoint(endpoint) == expected_url
+
 
 class TestHttpAsyncHook:
     @pytest.mark.asyncio
