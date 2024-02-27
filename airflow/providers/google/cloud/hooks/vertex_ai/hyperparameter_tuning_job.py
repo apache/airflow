@@ -25,9 +25,9 @@ This module contains a Google Cloud Vertex AI hook.
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache
 from typing import TYPE_CHECKING, Sequence
 
+import methodtools
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import CustomJob, HyperparameterTuningJob, gapic, hyperparameter_tuning
@@ -446,7 +446,7 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseHook):
             **kwargs,
         )
 
-    @lru_cache
+    @methodtools.lru_cache(maxsize=None)
     def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
         """
         Retrieve Vertex AI async client.

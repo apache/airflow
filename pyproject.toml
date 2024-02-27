@@ -764,6 +764,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "httpx",
   "json-merge-patch>=0.2",
   "looker-sdk>=22.2.0",
+  "methodtools>=0.4.7",
   "pandas-gbq",
   "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
@@ -1326,6 +1327,7 @@ extend-select = [
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "PT001",
     "PT003",
     "PT009",

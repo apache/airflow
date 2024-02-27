@@ -32,6 +32,7 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
+import methodtools
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
@@ -316,7 +317,7 @@ class GoogleBaseHook(BaseHook):
         credentials.refresh(auth_req)
         return credentials.token
 
-    @functools.lru_cache(maxsize=None)
+    @methodtools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
         """
         Return the email address associated with the currently logged in account.
