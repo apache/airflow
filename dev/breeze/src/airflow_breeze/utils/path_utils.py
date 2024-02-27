@@ -318,7 +318,7 @@ DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
-AIRFLOW_HOME_DIR = os.environ.get("AIRFLOW_HOME", Path.home() / "airflow")
+AIRFLOW_HOME_DIR = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
 
 
 def create_volume_if_missing(volume_name: str):
