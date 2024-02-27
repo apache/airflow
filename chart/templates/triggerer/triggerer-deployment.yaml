@@ -238,6 +238,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- end }}
           volumeMounts:
             - name: logs

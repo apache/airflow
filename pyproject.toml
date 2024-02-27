@@ -22,7 +22,7 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.41",
+    "GitPython==3.1.42",
     "editables==0.5",
     "gitdb==4.0.11",
     "hatchling==1.21.1",
@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.31",
+    "trove-classifiers==2024.2.23",
 ]
 build-backend = "hatchling.build"
 
@@ -214,7 +214,11 @@ otel = [
     "opentelemetry-exporter-prometheus",
 ]
 pandas = [
-    "pandas>=1.2.5",
+    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+    # In addition FAB also limit sqlalchemy to < 2.0
+    "pandas>=1.2.5,<2.2",
 ]
 password = [
     "bcrypt>=2.0.0",
@@ -565,6 +569,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "openapi-schema-validator>=0.6.2",
+  "openapi-spec-validator>=0.7.1",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "apache-beam>=2.53.0;python_version != \"3.12\"",
@@ -591,7 +597,7 @@ apache-hdfs = [ # source: airflow/providers/apache/hdfs/provider.yaml
 apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyhive[hive_pure_sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
@@ -613,7 +619,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
 apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
+  "pinotdb>=5.1.0",
 ]
 apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
@@ -679,7 +685,7 @@ discord = [ # source: airflow/providers/discord/provider.yaml
   "apache-airflow[http]",
 ]
 docker = [ # source: airflow/providers/docker/provider.yaml
-  "docker>=5.0.3",
+  "docker>=6",
   "python-dotenv>=0.21.0",
 ]
 elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
@@ -688,7 +694,7 @@ elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
 ]
 exasol = [ # source: airflow/providers/exasol/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
@@ -759,7 +765,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "json-merge-patch>=0.2",
   "looker-sdk>=22.2.0",
   "pandas-gbq",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
@@ -884,7 +890,7 @@ postgres = [ # source: airflow/providers/postgres/provider.yaml
 ]
 presto = [ # source: airflow/providers/presto/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "presto-python-client>=0.8.4",
 ]
 qdrant = [ # source: airflow/providers/qdrant/provider.yaml
@@ -894,7 +900,7 @@ redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "simple-salesforce>=1.0.0",
 ]
 samba = [ # source: airflow/providers/samba/provider.yaml
@@ -948,7 +954,7 @@ teradata = [ # source: airflow/providers/teradata/provider.yaml
 ]
 trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "trino>=0.318.0",
 ]
 vertica = [ # source: airflow/providers/vertica/provider.yaml
@@ -956,7 +962,7 @@ vertica = [ # source: airflow/providers/vertica/provider.yaml
   "vertica-python>=0.5.1",
 ]
 weaviate = [ # source: airflow/providers/weaviate/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
@@ -1255,7 +1261,7 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1340,6 +1346,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
+"airflow/__init__.py" = ["F401"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1384,7 +1391,6 @@ combine-as-imports = true
 # All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
 "airflow/callbacks/callback_requests.py" = ["D105"]
 "airflow/cli/commands/task_command.py" = ["D105"]
-"airflow/configuration.py" = ["D105"]
 "airflow/datasets/__init__.py" = ["D105"]
 "airflow/decorators/base.py" = ["D105"]
 "airflow/decorators/setup_teardown.py" = ["D105"]
@@ -1421,9 +1427,6 @@ combine-as-imports = true
 "airflow/providers_manager.py" = ["D105"]
 "airflow/sensors/base.py" = ["D105"]
 "airflow/sensors/external_task.py" = ["D105"]
-"airflow/ti_deps/deps/base_ti_dep.py" = ["D105"]
-"airflow/ti_deps/deps/task_not_running_dep.py" = ["D105"]
-"airflow/ti_deps/deps/valid_state_dep.py" = ["D105"]
 "airflow/timetables/events.py" = ["D105"]
 "airflow/triggers/base.py" = ["D105"]
 "airflow/utils/context.py" = ["D105"]
@@ -1465,14 +1468,35 @@ combine-as-imports = true
 banned-module-level-imports = ["numpy", "pandas"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+# Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
+"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
+"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
+"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
+"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
+"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
+"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
+# Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+# Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
+# Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
+"locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
 "datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
 "datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
+# Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
+"typing.Hashable".msg = "Use collections.abc.Hashable"
+"typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
+# Flask deprecations, worthwhile to keep it until we migrate to Flask 3.0+
+"flask._app_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask._request_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]

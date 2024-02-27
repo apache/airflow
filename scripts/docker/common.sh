@@ -18,6 +18,10 @@
 # shellcheck shell=bash
 set -euo pipefail
 
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+: "${AIRFLOW_UV_VERSION:?Should be set}"
+: "${AIRFLOW_USE_UV:?Should be set}"
+
 function common::get_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -31,6 +35,40 @@ function common::get_colors() {
     export COLOR_YELLOW
 }
 
+function common::get_packaging_tool() {
+    ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
+    ## `scripts/in_container/_in_container_utils.sh`
+    if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL="uv"
+        export PACKAGING_TOOL_CMD="uv pip"
+        export EXTRA_INSTALL_FLAGS=""
+        export EXTRA_UNINSTALL_FLAGS=""
+        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
+        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        # We need to lie about VIRTUAL_ENV to make uv works
+        # Until https://github.com/astral-sh/uv/issues/1396 is fixed
+        # In case we are running user installation, we need to set VIRTUAL_ENV to user's home + .local
+        if [[ ${PIP_USER=} == "true" ]]; then
+            VIRTUAL_ENV="${HOME}/.local"
+        else
+            VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
+        fi
+        export VIRTUAL_ENV
+    else
+        echo
+        echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL="pip"
+        export PACKAGING_TOOL_CMD="pip"
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        export EXTRA_UNINSTALL_FLAGS="--yes"
+        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
+        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+    fi
+}
 
 function common::get_airflow_version_specification() {
     if [[ -z ${AIRFLOW_VERSION_SPECIFICATION=}
@@ -66,20 +104,41 @@ function common::get_constraints_location() {
     fi
 }
 
-function common::show_pip_version_and_location() {
+function common::show_packaging_tool_version_and_location() {
    echo "PATH=${PATH}"
-   echo "pip on path: $(which pip)"
-   echo "Using pip: $(pip --version)"
+   if [[ ${PACKAGING_TOOL} == "pip" ]]; then
+       echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
+       echo "pip on path: $(which pip)"
+       echo "Using pip: $(pip --version)"
+   else
+       echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
+       echo "uv on path: $(which uv)"
+       echo "Using uv: $(uv --version)"
+   fi
 }
 
-function common::install_pip_version() {
+function common::install_packaging_tool() {
     echo
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
+        # shellcheck disable=SC2086
+        pip install --root-user-action ignore --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        # shellcheck disable=SC2086
+        pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+    if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing uv version ${AIRFLOW_UV_VERSION}${COLOR_RESET}"
+        echo
+        if [[ ${AIRFLOW_UV_VERSION} =~ .*https.* ]]; then
+            # shellcheck disable=SC2086
+            pip install --root-user-action ignore --disable-pip-version-check "uv @ ${AIRFLOW_UV_VERSION}"
+        else
+            # shellcheck disable=SC2086
+            pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
+        fi
     fi
     mkdir -p "${HOME}/.local/bin"
 }

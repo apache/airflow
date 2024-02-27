@@ -86,7 +86,7 @@ if platform.system() == "Darwin":
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
     "tests/dags/subdir1/test_ignore_this.py",
-    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags/test_invalid_dup_task.py",
     "tests/dags_corrupted/test_impersonation_custom.py",
     "tests/test_utils/perf/dags/elastic_dag.py",
 ]
@@ -509,8 +509,9 @@ def skip_if_wrong_backend(marker, item):
     if not environment_variable_value or environment_variable_value not in valid_backend_names:
         pytest.skip(
             f"The test requires one of {valid_backend_names} backend started and "
-            f"{environment_variable_name} environment variable to be set to 'true' (it is "
-            f"'{environment_variable_value}'). It can be set by specifying backend at breeze startup: {item}"
+            f"{environment_variable_name} environment variable to be set to either of {valid_backend_names}"
+            f" (it is currently set to {environment_variable_value}'). "
+            f"It can be set by specifying backend at breeze startup: {item}"
         )
 
 
@@ -1242,7 +1243,7 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
     if captured_warnings:
         print("\n ======================== Warning summary =============================\n")
         print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
-        print(f"   After removing duplicates, {len(captured_warnings.values())}  of them remained.")
+        print(f"   After removing duplicates, {len(captured_warnings.values())} of them remained.")
         print(f"   They are stored in {warning_output_path} file.")
         print("\n ======================================================================\n")
         warnings_as_json = []

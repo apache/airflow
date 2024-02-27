@@ -23,14 +23,17 @@ import random
 import re
 import shutil
 import sys
+import tempfile
 import textwrap
 import time
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
+from functools import partial
+from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple
 
 import click
 from rich.progress import Progress
@@ -58,6 +61,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_airflow_version,
+    option_use_uv,
     option_verbose,
     option_version_suffix_for_pypi,
 )
@@ -143,7 +147,7 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import check_python_3_9_or_above, get_python_version_list
+from airflow_breeze.utils.python_versions import check_python_version, get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
@@ -213,6 +217,8 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.0"
+AIRFLOW_UV_VERSION = "0.1.10"
+AIRFLOW_USE_UV = False
 WHEEL_VERSION = "0.36.2"
 GITPYTHON_VERSION = "3.1.40"
 RICH_VERSION = "13.7.0"
@@ -237,6 +243,9 @@ airflow/www/node_modules
 
 # Exclude link to docs
 airflow/www/static/docs
+
+# Exclude out directory
+out/
 
 # Exclude python generated files
 **/__pycache__/
@@ -288,6 +297,55 @@ AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile
 AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
 
 
+class DistributionPackageInfo(NamedTuple):
+    filepath: Path
+    package: str
+    version: Version
+    dist_type: Literal["sdist", "wheel"]
+
+    @classmethod
+    def from_sdist(cls, filepath: Path) -> DistributionPackageInfo:
+        from packaging.utils import parse_sdist_filename
+
+        package, version = parse_sdist_filename(filepath.name)
+        return cls(
+            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="sdist"
+        )
+
+    @classmethod
+    def from_wheel(cls, filepath: Path) -> DistributionPackageInfo:
+        from packaging.utils import parse_wheel_filename
+
+        package, version, *_ = parse_wheel_filename(filepath.name)
+        return cls(
+            filepath=filepath.resolve().absolute(), package=package, version=version, dist_type="wheel"
+        )
+
+    @classmethod
+    def dist_packages(
+        cls, *, package_format: str, dist_directory: Path, build_type: Literal["airflow", "providers"]
+    ) -> tuple[DistributionPackageInfo, ...]:
+        if build_type == "airflow":
+            default_glob_pattern = "apache[_-]airflow-[0-9]"
+        else:
+            default_glob_pattern = "apache[_-]airflow[_-]providers"
+        dists_info = []
+        if package_format in ["sdist", "both"]:
+            for file in dist_directory.glob(f"{default_glob_pattern}*tar.gz"):
+                if not file.is_file() or "-source.tar.gz" in file.name:
+                    continue
+                dists_info.append(cls.from_sdist(filepath=file))
+        if package_format in ["wheel", "both"]:
+            for file in dist_directory.glob(f"{default_glob_pattern}*whl"):
+                if not file.is_file():
+                    continue
+                dists_info.append(cls.from_wheel(filepath=file))
+        return tuple(sorted(dists_info, key=lambda di: (di.package, di.dist_type)))
+
+    def __str__(self):
+        return f"{self.package} ({self.version}): {self.dist_type} - {self.filepath.name}"
+
+
 def _build_local_build_image():
     # This is security feature.
     #
@@ -301,7 +359,6 @@ def _build_local_build_image():
     run_command(
         [
             "docker",
-            "buildx",
             "build",
             ".",
             "-f",
@@ -374,6 +431,93 @@ def _build_airflow_packages_with_hatch(
     )
 
 
+def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...]):
+    venv_created = False
+    success_build = True
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        for di in dists_info:
+            if di.dist_type != "sdist":
+                continue
+
+            if not venv_created:
+                venv_path = (Path(tmp_dir_name) / ".venv").resolve().absolute()
+                venv_command_result = run_command(
+                    [sys.executable, "-m", "venv", venv_path.as_posix()],
+                    check=False,
+                    capture_output=True,
+                )
+                if venv_command_result.returncode != 0:
+                    get_console().print(
+                        f"[error]Error when initializing virtualenv in {venv_path.as_posix()}:[/]\n"
+                        f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
+                    )
+                python_path = venv_path / "bin" / "python"
+                if not python_path.exists():
+                    get_console().print(
+                        f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
+                    )
+                    sys.exit(1)
+                pip_command = (python_path.as_posix(), "-m", "pip")
+                result = run_command(
+                    [*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    get_console().print(
+                        f"[error]Error when installing pip in {venv_path.as_posix()}[/]\n"
+                        f"{result.stdout}\n{result.stderr}"
+                    )
+                    sys.exit(1)
+                venv_created = True
+
+            returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
+            if returncode != 0:
+                success_build = False
+
+    if not success_build:
+        get_console().print(
+            "\n[errors]Errors detected during build wheel distribution(s) from sdist. Exiting!\n"
+        )
+        sys.exit(1)
+
+
+def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple[str, ...], cwd: str) -> int:
+    get_console().print(
+        f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+    )
+    result_pip_wheel = run_command(
+        [
+            *pip_command,
+            "wheel",
+            "--wheel-dir",
+            cwd,
+            "--no-deps",
+            "--no-cache",
+            "--no-binary",
+            dist_info.package,
+            dist_info.filepath.as_posix(),
+        ],
+        check=False,
+        # We should run `pip wheel` outside of Project directory for avoid the case
+        # when some files presented into the project directory, but not included in sdist.
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+    )
+    if (returncode := result_pip_wheel.returncode) == 0:
+        get_console().print(
+            f"[success]Successfully build wheel from sdist distribution for package {dist_info.package!r}.[/]"
+        )
+    else:
+        get_console().print(
+            f"[error]Unable to build wheel from sdist distribution for package {dist_info.package!r}.[/]\n"
+            f"{result_pip_wheel.stdout}\n{result_pip_wheel.stderr}"
+        )
+    return returncode
+
+
 @release_management.command(
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
@@ -388,7 +532,7 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_3_9_or_above()
+    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -399,16 +543,23 @@ def prepare_airflow_packages(
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
+        get_console().print("[info]Checking if sdist packages can be built into wheels[/]")
+        packages = DistributionPackageInfo.dist_packages(
+            package_format=package_format, dist_directory=DIST_DIR, build_type="airflow"
+        )
+        get_console().print()
+        _check_sdist_to_wheel_dists(packages)
+        get_console().print("\n[info]Packages available in dist:[/]\n")
+        for dist_info in packages:
+            get_console().print(str(dist_info))
+        get_console().print()
     else:
         _build_airflow_packages_with_docker(
             package_format=package_format,
             source_date_epoch=source_date_epoch,
             version_suffix_for_pypi=version_suffix_for_pypi,
         )
-    get_console().print("[success]Successfully prepared Airflow packages:")
-    for file in sorted(DIST_DIR.glob("apache_airflow*")):
-        get_console().print(file.name)
-    get_console().print()
+    get_console().print("[success]Successfully prepared Airflow packages")
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -615,6 +766,14 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     help="Clean dist directory before building packages. Useful when you want to build multiple packages "
     " in a clean environment",
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @option_dry_run
 @option_github_repository
 @option_include_not_ready_providers
@@ -623,6 +782,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
 @option_verbose
 def prepare_provider_packages(
     clean_dist: bool,
+    package_list: str,
     github_repository: str,
     include_not_ready_providers: bool,
     include_removed_providers: bool,
@@ -633,10 +793,22 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
-    check_python_3_9_or_above()
+    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
+    packages_list_as_tuple: tuple[str, ...] = ()
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override provider_packages with values from PACKAGE_LIST
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if provider_packages and packages_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {packages_list_as_tuple}"
+        )
+    provider_packages = packages_list_as_tuple or provider_packages
+
     packages_list = get_packages_list_to_act_on(
         package_list_file=package_list_file,
         provider_packages=provider_packages,
@@ -710,9 +882,14 @@ def prepare_provider_packages(
         get_console().print("\n[warning]No packages prepared!\n")
         sys.exit(0)
     get_console().print("\n[success]Successfully built packages!\n\n")
+    packages = DistributionPackageInfo.dist_packages(
+        package_format=package_format, dist_directory=DIST_DIR, build_type="providers"
+    )
+    get_console().print()
+    _check_sdist_to_wheel_dists(packages)
     get_console().print("\n[info]Packages available in dist:\n")
-    for file in sorted(DIST_DIR.glob("apache*")):
-        get_console().print(file.name)
+    for dist_info in packages:
+        get_console().print(str(dist_info))
     get_console().print()
 
 
@@ -804,11 +981,13 @@ def run_generate_constraints_in_parallel(
 @option_airflow_constraints_mode_ci
 @option_chicken_egg_providers
 @option_github_repository
+@option_use_uv
 @option_verbose
 @option_dry_run
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    chicken_egg_providers: str,
     debug_resources: bool,
     github_repository: str,
     image_tag: str | None,
@@ -817,7 +996,7 @@ def generate_constraints(
     python_versions: str,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    chicken_egg_providers: str,
+    use_uv: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -859,6 +1038,7 @@ def generate_constraints(
                 github_repository=github_repository,
                 image_tag=image_tag,
                 python=python,
+                use_uv=use_uv,
             )
             for python in python_version_list
         ]
@@ -878,6 +1058,7 @@ def generate_constraints(
             github_repository=github_repository,
             image_tag=image_tag,
             python=python,
+            use_uv=use_uv,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
@@ -1244,14 +1425,19 @@ def run_publish_docs_in_parallel(
                 else:
                     skipped_entries.append(message)
 
-    get_console().print("[blue]Summary:\n")
-    get_console().print("[success]Packages published:")
-    for entry in success_entries:
-        get_console().print(f"[success]{entry}")
-    get_console().rule()
-    get_console().print("\n[warning]Packages skipped:")
-    for entry in skipped_entries:
-        get_console().print(f"[warning]{entry}")
+    get_console().print("[blue]Summary:")
+    need_rule = False
+    if len(success_entries):
+        get_console().print("[success]Packages published:")
+        for entry in success_entries:
+            get_console().print(f"[success]{entry}")
+        need_rule = True
+    if need_rule:
+        get_console().rule()
+    if len(skipped_entries):
+        get_console().print("\n[warning]Packages skipped:")
+        for entry in skipped_entries:
+            get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
@@ -1274,6 +1460,14 @@ def run_publish_docs_in_parallel(
     type=str,
     multiple=True,
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @option_parallelism
 @option_run_in_parallel
 @option_skip_cleanup
@@ -1287,6 +1481,7 @@ def publish_docs(
     include_removed_providers: bool,
     override_versioned: bool,
     package_filter: tuple[str, ...],
+    package_list: str,
     parallelism: int,
     run_in_parallel: bool,
     skip_cleanup: bool,
@@ -1297,6 +1492,17 @@ def publish_docs(
             "\n[error]location pointed by airflow_site_dir is not valid. "
             "Provide the path of cloned airflow-site repo\n"
         )
+    packages_list_as_tuple: tuple[str, ...] = ()
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override doc_packages with values from PACKAGE_LIST
+        packages_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and packages_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {packages_list_as_tuple}"
+        )
+    doc_packages = packages_list_as_tuple or doc_packages
 
     current_packages = find_matching_long_package_names(
         short_packages=expand_all_provider_packages(
@@ -1331,14 +1537,19 @@ def publish_docs(
                 success_entries.append(message)
             else:
                 skipped_entries.append(message)
-        get_console().print("[blue]Summary:\n")
-        get_console().print("[success]Packages published:")
-        for entry in success_entries:
-            get_console().print(f"[success]{entry}")
-        get_console().rule()
-        get_console().print("\n[warning]Packages skipped:")
-        for entry in skipped_entries:
-            get_console().print(f"[warning]{entry}")
+        get_console().print("[blue]Summary:")
+        need_rule = False
+        if len(success_entries):
+            get_console().print("[success]Packages published:")
+            for entry in success_entries:
+                get_console().print(f"[success]{entry}")
+            need_rule = True
+        if need_rule:
+            get_console().rule()
+        if len(skipped_entries):
+            get_console().print("\n[warning]Packages skipped:")
+            for entry in skipped_entries:
+                get_console().print(f"[warning]{entry}")
 
 
 @release_management.command(
@@ -1848,13 +2059,15 @@ def generate_issue_content_providers(
         print(url_to_create_the_issue)
 
 
-def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> None:
+def get_all_constraint_files(
+    refresh_constraints: bool, python_version: str
+) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
         shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
+    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
     if not CONSTRAINTS_CACHE_DIR.exists():
         with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
             CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            all_airflow_versions = get_active_airflow_versions(confirm=False)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
                     airflow_version=airflow_version,
@@ -1867,6 +2080,7 @@ def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> 
                         "[warning]Could not download constraints for "
                         f"Airflow {airflow_version} and Python {python_version}[/]"
                     )
+    return all_airflow_versions, airflow_release_dates
 
 
 MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
@@ -1897,16 +2111,29 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:
         python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-    get_all_constraint_files(refresh_constraints=refresh_constraints, python_version=python)
+    all_airflow_releases, airflow_release_dates = get_all_constraint_files(
+        refresh_constraints=refresh_constraints, python_version=python
+    )
     constraints = load_constraints(python_version=python)
-    for package_id in sorted(DEPENDENCIES.keys()):
-        with ci_group(f"Generating metadata for {package_id}"):
-            metadata = generate_providers_metadata_for_package(package_id, constraints)
-            if metadata:
-                metadata_dict[package_id] = metadata
+
+    partial_generate_providers_metadata = partial(
+        generate_providers_metadata_for_package,
+        constraints=constraints,
+        all_airflow_releases=all_airflow_releases,
+        airflow_release_dates=airflow_release_dates,
+    )
+    package_ids = DEPENDENCIES.keys()
+    with Pool() as pool:
+        results = pool.map(
+            partial_generate_providers_metadata,
+            package_ids,
+        )
+    for package_id, result in zip(package_ids, results):
+        if result:
+            metadata_dict[package_id] = result
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4))
+    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
@@ -2478,7 +2705,7 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_3_9_or_above()
+    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -2620,7 +2847,7 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_3_9_or_above()
+    check_python_version()
 
     import yaml
 

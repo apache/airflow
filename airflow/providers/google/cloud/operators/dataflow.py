@@ -784,10 +784,10 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         pipeline code, step two will not start until the process stops. When this process stops,
         steps two will run, but it will only execute one iteration as the job will be in a terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finished=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finished=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

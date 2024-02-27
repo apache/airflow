@@ -46,7 +46,6 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
-from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture
 from airflow_breeze.utils.kubernetes_utils import (
     CHART_PATH,
     K8S_CLUSTERS_PATH,
@@ -165,6 +164,13 @@ option_upgrade = click.option(
     help="Upgrade Helm Chart rather than installing it.",
     is_flag=True,
     envvar="UPGRADE",
+)
+option_use_docker = click.option(
+    "--use-docker",
+    help="Use Docker to start k8s executor (otherwise k9s from PATH is used and only"
+    " run with docker if not found on PATH).",
+    is_flag=True,
+    envvar="USE_DOCKER",
 )
 option_use_standard_naming = click.option(
     "--use-standard-naming",
@@ -1207,10 +1213,11 @@ def deploy_airflow(
 )
 @option_python
 @option_kubernetes_version
+@option_use_docker
 @option_verbose
 @option_dry_run
 @click.argument("k9s_args", nargs=-1, type=click.UNPROCESSED)
-def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
+def k9s(python: str, kubernetes_version: str, use_docker: bool, k9s_args: tuple[str, ...]):
     result = create_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
         sys.exit(result.returncode)
@@ -1224,10 +1231,24 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
     if not k9s_editor:
         env["K9S_EDITOR"] = env["EDITOR"]
     kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
-    # Until https://github.com/kubernetes-sigs/kind/pull/3511 is merged and released, running AMD images
-    # on ARM is broken with kind cluster running, so we need to run k9s directly on the host
-    arch, _ = get_host_architecture()
-    if arch != Architecture.ARM:
+    found_k9s = shutil.which("k9s")
+    if not use_docker and found_k9s:
+        get_console().print(
+            "[info]Running k9s tool found in PATH at $(found_k9s). Use --use-docker to run using docker."
+        )
+        result = run_command(
+            [
+                "k9s",
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                *k9s_args,
+            ],
+            env=env,
+            check=False,
+        )
+        sys.exit(result.returncode)
+    else:
+        get_console().print("[info]Running k9s tool using docker.")
         result = run_command(
             [
                 "docker",
@@ -1251,26 +1272,19 @@ def k9s(python: str, kubernetes_version: str, k9s_args: tuple[str, ...]):
             check=False,
         )
         if result.returncode != 0:
-            sys.exit(result.returncode)
-    else:
-        if shutil.which("k9s") is None:
             get_console().print(
-                "[error]k9s is not installed. Please install it first "
-                "(for example with `brew install k9s`)."
+                "\n[warning]If you see `exec /bin/k9s: exec format error` it might be because"
+                " of known kind bug (https://github.com/kubernetes-sigs/kind/issues/3510).\n"
             )
-            sys.exit(1)
-        result = run_command(
-            [
-                "k9s",
-                "--namespace",
-                HELM_AIRFLOW_NAMESPACE,
-                *k9s_args,
-            ],
-            env=env,
-            check=False,
-        )
-        if result.returncode != 0:
-            sys.exit(result.returncode)
+            get_console().print(
+                "\n[info]In such case you might want to pull latest `kindest` images. "
+                "For example if you run kubernetes version v1.25.16 you might need to run:\n"
+                "[special]* run `breeze k8s delete-cluster` (note k8s version printed after "
+                "Python version)\n"
+                "* run `docker pull kindest/node:v1.25.16`\n"
+                "* restart docker engine\n\n"
+            )
+        sys.exit(result.returncode)
 
 
 def _logs(python: str, kubernetes_version: str):

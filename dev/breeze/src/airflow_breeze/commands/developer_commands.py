@@ -609,8 +609,17 @@ def start_airflow(
     type=str,
     multiple=True,
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
+@option_answer
 @argument_doc_packages
 def build_docs(
     builder: str,
@@ -621,6 +630,7 @@ def build_docs(
     include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
+    package_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -640,6 +650,17 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
+    docs_list_as_tuple: tuple[str, ...] = ()
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override doc_packages with values from PACKAGE_LIST
+        docs_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and docs_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {docs_list_as_tuple}"
+        )
+    doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,

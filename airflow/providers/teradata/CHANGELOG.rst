@@ -25,7 +25,15 @@
 Changelog
 ---------
 
-1.0.0
+2.0.0
 .....
 
 ``Initial version of the provider. (#36953)``
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Previous versions of this package were owned by ``Felipe Lolas`` under
+https://github.com/flolas/apache-airflow-providers-teradata
+These versions were not maintained by Apache-Airflow
+If you are migrating from older version, it's recommended to read the docs and refactor your code

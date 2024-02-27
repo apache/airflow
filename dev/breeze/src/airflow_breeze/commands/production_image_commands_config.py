@@ -53,10 +53,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Advanced build options (for power users)",
             "options": [
+                "--additional-pip-install-flags",
+                "--commit-sha",
                 "--debian-version",
                 "--python-image",
-                "--commit-sha",
-                "--additional-pip-install-flags",
             ],
         },
         {

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import NamedTuple
 
 from marshmallow import Schema, fields
@@ -146,5 +147,47 @@ class DatasetEventCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class CreateDatasetEventSchema(Schema):
+    """Create Dataset Event Schema."""
+
+    dataset_uri = fields.String()
+    extra = JsonObjectField()
+
+
 dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = DatasetEventCollectionSchema()
+create_dataset_event_schema = CreateDatasetEventSchema()
+
+
+class QueuedEvent(NamedTuple):
+    """QueuedEvent."""
+
+    uri: str
+    dag_id: str
+    created_at: datetime
+
+
+class QueuedEventSchema(Schema):
+    """QueuedEvent schema."""
+
+    uri = fields.String()
+    dag_id = fields.String()
+    created_at = fields.DateTime()
+
+
+class QueuedEventCollection(NamedTuple):
+    """List of QueuedEvent with meta."""
+
+    queued_events: list[QueuedEvent]
+    total_entries: int
+
+
+class QueuedEventCollectionSchema(Schema):
+    """QueuedEvent Collection Schema."""
+
+    queued_events = fields.List(fields.Nested(QueuedEventSchema))
+    total_entries = fields.Int()
+
+
+queued_event_schema = QueuedEventSchema()
+queued_event_collection_schema = QueuedEventCollectionSchema()

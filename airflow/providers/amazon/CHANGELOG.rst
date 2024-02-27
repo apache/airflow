@@ -35,6 +35,9 @@ Features
 * ``ECS Executor - Add backoff on failed task retry (#37109)``
 * ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
 * ``Adding Amazon Neptune Hook and Operators (#37000)``
+* ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+* ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+* ``Add extra operator links for EMR Serverless (#34225)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -51,6 +54,8 @@ Misc
 * ``S3ToRedshiftOperator templating aws_conn_id (#37195)``
 * ``Updates to ECS Docs (#37125)``
 * ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+* ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -58,6 +63,8 @@ Misc
    * ``Upgrade mypy to 1.8.0 (#36428)``
    * ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
    * ``Limit moto to version below 5.0.0 (#37054)``
+   * ``docs: Add doc page with providers deprecations (#37075)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 
 8.17.0
 ......

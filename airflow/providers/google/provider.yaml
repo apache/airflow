@@ -19,14 +19,14 @@
 package-name: apache-airflow-providers-google
 name: Google
 description: |
-    Google services including:
+  Google services including:
 
-      - `Google Ads <https://ads.google.com/>`__
-      - `Google Cloud (GCP) <https://cloud.google.com/>`__
-      - `Google Firebase <https://firebase.google.com/>`__
-      - `Google LevelDB <https://github.com/google/leveldb/>`__
-      - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-      - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
+    - `Google Ads <https://ads.google.com/>`__
+    - `Google Cloud (GCP) <https://cloud.google.com/>`__
+    - `Google Firebase <https://firebase.google.com/>`__
+    - `Google LevelDB <https://github.com/google/leveldb/>`__
+    - `Google Marketing Platform <https://marketingplatform.google.com/>`__
+    - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
 source-date-epoch: 1707636385
@@ -89,6 +89,12 @@ dependencies:
   - apache-airflow>=2.6.0
   - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
+  # When upgrading the major version of gcloud-aio-auth we want to make sure to
+  # 1. use at least version 5.2, which uses offset-aware datetime internally
+  # 2. override Token's new `refresh` method instead of `acquire_access_token`, which allows us to avoid
+  #    dealing with internals like `access_token_acquired_at`
+  # 3. continue to `subclass gcloud.aio.auth.token.Token` instead of `BaseToken`, since instances of
+  #    `_CredentialsToken` are instances of `Token` and used as such
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
@@ -141,7 +147,11 @@ dependencies:
   - json-merge-patch>=0.2
   - looker-sdk>=22.2.0
   - pandas-gbq
-  - pandas>=1.2.5
+  # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+  # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+  # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+  # In addition FAB also limit sqlalchemy to < 2.0
+  - pandas>=1.2.5,<2.2
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
@@ -677,7 +687,6 @@ operators:
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_batch
 
-
 sensors:
   - integration-name: Google BigQuery
     python-modules:
@@ -745,6 +754,12 @@ sensors:
 
 filesystems:
   - airflow.providers.google.cloud.fs.gcs
+
+dataset-uris:
+  - schemes: [gcp]
+    handler: null
+  - schemes: [bigquery]
+    handler: airflow.providers.google.datasets.bigquery.sanitize_uri
 
 hooks:
   - integration-name: Google Ads

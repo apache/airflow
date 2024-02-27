@@ -251,7 +251,7 @@
                         <label for="run_id" control-label="">Run id:</label>
                       </td>
                       <td>
-                        <input type="text" class="form-control" placeholder="Run id, optional - will be generated if not provided" name="run_id" id="run_id">
+                        <input type="text" class="form-control" placeholder="Run id, optional - will be generated if not provided" name="run_id" id="run_id"{% if run_id %}value="{{ run_id }}"{% endif %}>
                       </td>
                     </tr>
                     <tr>
@@ -277,7 +277,7 @@
     <div class="form-group row">
       <div class="col-md-2">
         <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id"{% if run_id %}value="{{ run_id }}"{% endif %}>
       </div>
     </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
