@@ -1811,6 +1811,82 @@ class TestBigQueryInsertJobOperator:
         op.execute(context=MagicMock())
         assert configuration["labels"] is None
 
+    def test_task_label_too_big(self):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job_except_this_task_id_is_really_really_really_really_long",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+    def test_dag_label_too_big(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("adhoc_airflow_except_this_task_id_is_really_really_really_really_long") as dag:
+            op = BigQueryInsertJobOperator(
+                task_id="insert_query_job",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+    def test_labels_lowercase(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        with dag_maker("YELLING_DAG_NAME") as dag:
+            op = BigQueryInsertJobOperator(
+                task_id="YELLING_TASK_ID",
+                configuration=configuration,
+                location=TEST_DATASET_LOCATION,
+                project_id=TEST_GCP_PROJECT_ID,
+            )
+        op._add_job_labels()
+        assert configuration["labels"]["airflow-dag"] == "yelling_dag_name"
+        assert configuration["labels"]["airflow-task"] == "yelling_task_id"
+
+    def test_labels_invalid_names(self, dag_maker):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="task.with.dots.is.allowed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
+        op = BigQueryInsertJobOperator(
+            task_id="123_task",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        op._add_job_labels()
+        assert "labels" not in configuration
+
 
 class TestBigQueryIntervalCheckOperator:
     def test_bigquery_interval_check_operator_execute_complete(self):
