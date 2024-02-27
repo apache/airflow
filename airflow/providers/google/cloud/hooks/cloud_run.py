@@ -67,7 +67,7 @@ class CloudRunHook(GoogleBaseHook):
 
     def get_conn(self):
         """
-        Retrieves connection to Cloud Run.
+        Retrieve connection to Cloud Run.
 
         :return: Cloud Run Jobs client object.
         """

@@ -48,7 +48,7 @@ In general, your contribution includes the following stages:
 
 4. Make the change and create a `Pull Request (PR) from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
 
-5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
+5. Ping @ #contributors slack, comment @people. Be annoying. Be considerate.
 
 Step 1: Fork the Apache Airflow Repo
 ------------------------------------

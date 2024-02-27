@@ -159,7 +159,7 @@ class AzureDataFactoryHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -175,7 +175,7 @@ class AzureDataFactoryHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -817,7 +817,7 @@ class AzureDataFactoryHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a pipeline run to match an expected status.
+        Wait for a pipeline run to match an expected status.
 
         :param run_id: The pipeline run identifier.
         :param expected_statuses: The desired status(es) to check against a pipeline run's current status.

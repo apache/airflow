@@ -79,7 +79,7 @@ class AirbyteHook(HttpHook):
 
     async def get_job_details(self, job_id: int) -> Any:
         """
-        Uses Http async call to retrieve metadata for a specific job of an Airbyte Sync.
+        Use Http async call to retrieve metadata for a specific job of an Airbyte Sync.
 
         :param job_id: The ID of an Airbyte Sync Job.
         """
@@ -97,7 +97,7 @@ class AirbyteHook(HttpHook):
 
     async def get_job_status(self, job_id: int) -> str:
         """
-        Retrieves the status for a specific job of an Airbyte Sync.
+        Retrieve the status for a specific job of an Airbyte Sync.
 
         :param job_id: The ID of an Airbyte Sync Job.
         """

@@ -41,14 +41,6 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
     Python API <_api/airflow/providers/pinecone/index>
@@ -62,43 +54,7 @@
 
     System Tests <_api/tests/system/providers/pinecone/index>
 
-Package apache-airflow-providers-pinecone
------------------------------------------
-
-`Pinecone <https://docs.pinecone.io/>`__
-
-
-Release: 1.0.0
-
-Provider package
-----------------
-
-This is a provider package for ``pinecone`` APIs. All classes for this provider package
-are in ``airflow.providers.pinecone`` python module.
-
-Installation
-------------
-
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-pinecone``
-
-
-
-Requirements
-------------
-
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
-
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``    ``>=2.5.0``
-``pinecone-client``  ``>=2.2.4``
-===================  ==================
-
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
 
 .. toctree::
     :hidden:
@@ -106,7 +62,6 @@ PIP package          Version required
     :caption: Commits
 
     Detailed list of commits <commits>
-
 
 Package apache-airflow-providers-pinecone
 ------------------------------------------------------

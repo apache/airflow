@@ -36,6 +36,8 @@ from tests.test_utils.config import conf_vars
 if TYPE_CHECKING:
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
 
 @pytest.fixture(autouse=True)
 def reset_init_api_config():

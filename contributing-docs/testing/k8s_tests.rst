@@ -77,7 +77,7 @@ Managing Kubernetes Cluster
 For your testing, you manage Kind cluster with ``k8s`` breeze command group. Those commands allow to
 created:
 
-.. image:: ../dev/breeze/doc/images/output_k8s.svg
+.. image:: ../../dev/breeze/doc/images/output_k8s.svg
   :width: 100%
   :alt: Breeze k8s
 

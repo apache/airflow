@@ -27,6 +27,7 @@ dependencies:
 
 state: ready
 source-date-epoch: 1703288168
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 3.4.0
   - 3.3.0

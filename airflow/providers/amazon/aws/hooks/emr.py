@@ -383,6 +383,7 @@ class EmrContainerHook(AwsBaseHook):
         configuration_overrides: dict | None = None,
         client_request_token: str | None = None,
         tags: dict | None = None,
+        retry_max_attempts: int | None = None,
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
@@ -402,6 +403,7 @@ class EmrContainerHook(AwsBaseHook):
         :param client_request_token: The client idempotency token of the job run request.
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
         :param tags: The tags assigned to job runs.
+        :param retry_max_attempts: The maximum number of attempts on the job's driver.
         :return: The ID of the job run request.
         """
         params = {
@@ -415,6 +417,10 @@ class EmrContainerHook(AwsBaseHook):
         }
         if client_request_token:
             params["clientToken"] = client_request_token
+        if retry_max_attempts:
+            params["retryPolicyConfiguration"] = {
+                "maxAttempts": retry_max_attempts,
+            }
 
         response = self.conn.start_job_run(**params)
 

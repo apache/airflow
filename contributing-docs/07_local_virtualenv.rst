@@ -42,7 +42,7 @@ Homebrew for macOS to install required software packages:
 * libxml
 * helm (only for helm chart tests)
 
-Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
+Refer to the `Dockerfile.ci <../Dockerfile.ci>`__ for a comprehensive list
 of required packages.
 
 .. note::
@@ -317,7 +317,7 @@ Running ``pipinstall -e .`` will install Airflow in editable mode, but all provi
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable
-mode with provider id as extra. You can see the list of provider's extras in the
+mode with ``provider id`` as extra (with ``-`` instead of ``.``) . You can see the list of provider's extras in the
 `extras reference <./docs/apache-airflow/extra-packages-ref.rst>`_.
 
 For example, if you want to develop Google provider, you can install it with:
@@ -367,7 +367,15 @@ all basic devel requirements and requirements of google provider as last success
 .. code:: bash
 
     pip install -e ".[devel,google]"" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+
+Make sure to use latest main for such installation, those constraints are "development constraints" and they
+are refreshed several times a day to make sure they are up to date with the latest changes in the main branch.
+
+Note that this might not always work as expected, because the constraints are not always updated
+immediately after the dependencies are updated, sometimes there is a very recent change (few hours, rarely more
+than a day) which still runs in ``canary`` build and constraints will not be updated until the canary build
+succeeds. Usually what works in this case is running your install command without constraints.
 
 You can upgrade just airflow, without paying attention to provider's dependencies by using
 the 'constraints-no-providers' constraint files. This allows you to keep installed provider dependencies

@@ -52,7 +52,7 @@ class PagerdutyHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {
@@ -62,7 +62,7 @@ class PagerdutyHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField
@@ -98,7 +98,7 @@ class PagerdutyHook(BaseHook):
 
     def get_session(self) -> pdpyras.APISession:
         """
-        Returns `pdpyras.APISession` for use with sending or receiving data through the PagerDuty REST API.
+        Return `pdpyras.APISession` for use with sending or receiving data through the PagerDuty REST API.
 
         The `pdpyras` library supplies a class `pdpyras.APISession` extending `requests.Session` from the
         Requests HTTP library.

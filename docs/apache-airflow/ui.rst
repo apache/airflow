@@ -26,6 +26,7 @@ can find in the Airflow UI.
 
 DAGs View
 .........
+
 List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
@@ -50,6 +51,7 @@ For example:
 
 Datasets View
 .............
+
 A combined listing of the current datasets and a graph illustrating how they are produced and consumed by DAGs.
 
 Clicking on any dataset in either the list or the graph will highlight it and its relationships, and filter the list to show the recent history of task instances that have updated that dataset and whether it has triggered further DAG runs.
@@ -63,6 +65,7 @@ Clicking on any dataset in either the list or the graph will highlight it and it
 
 Grid View
 .........
+
 A bar chart and grid representation of the DAG that spans across time.
 The top row is a chart of DAG Runs by duration,
 and below, task instances. If a pipeline is late,
@@ -102,6 +105,7 @@ Mapped Tasks are indicated by square brackets and will show a table of each mapp
 
 Graph View
 ..........
+
 The graph view is perhaps the most comprehensive. Visualize your DAG's
 dependencies and their current status for a specific run.
 
@@ -113,6 +117,7 @@ dependencies and their current status for a specific run.
 
 Calendar View
 .............
+
 The calendar view gives you an overview of your entire DAG's history over months, or even years.
 Letting you quickly see trends of the overall success/failure rate of runs over time.
 
@@ -124,6 +129,7 @@ Letting you quickly see trends of the overall success/failure rate of runs over 
 
 Variable View
 .............
+
 The variable view allows you to list, create, edit or delete the key-value pair
 of a variable used during jobs. Value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
@@ -137,6 +143,7 @@ by default, but can be configured to show in cleartext. See :ref:`security:mask-
 
 Gantt Chart
 ...........
+
 The Gantt chart lets you analyse task duration and overlap. You can quickly
 identify bottlenecks and where the bulk of the time is spent for specific
 DAG runs.
@@ -151,6 +158,7 @@ DAG runs.
 
 Task Duration
 .............
+
 The duration of your different tasks over the past N runs. This view lets
 you find outliers and quickly understand where the time is spent in your
 DAG over many runs.
@@ -178,6 +186,7 @@ The landing time for a task instance is the delta between the dag run's data int
 
 Code View
 .........
+
 Transparency is everything. While the code for your pipeline is in source
 control, this is a quick way to get to the code that generates the DAG and
 provide yet more context.
@@ -185,3 +194,13 @@ provide yet more context.
 ------------
 
 .. image:: img/code.png
+
+Trigger Form
+............
+
+If you trigger a manual DAG run with the arrow-button, a form is displayed.
+The form display is based on the DAG Parameters as described in :doc:`core-concepts/params`.
+
+------------
+
+.. image:: img/trigger-dag-tutorial-form.png

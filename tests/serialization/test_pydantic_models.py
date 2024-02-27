@@ -44,6 +44,8 @@ from tests.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_task_instance(session, create_task_instance):

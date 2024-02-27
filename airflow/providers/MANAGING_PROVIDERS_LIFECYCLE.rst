@@ -129,7 +129,7 @@ Add chicken-egg-provider to constraint generation
 This is controlled by ``chicken_egg_providers`` property in Selective Checks - and our CI will automatically
 build and use those chicken-egg providers during the CI process if pre-release version of Airflow is built.
 
-The short provider id (``common.io`` for example) for such a provider should be added
+The short ``provider id`` (``common.io`` for example) for such a provider should be added
 to ``CHICKEN_EGG_PROVIDERS`` list in ``src/airflow_breeze/utils/selective_checks.py``:
 
 This list will be kept here until the official version of Airflow the chicken-egg-providers depend on
@@ -320,8 +320,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    breeze build-docs --package-filter apache-airflow
+    breeze build-docs <provider id>
+    breeze build-docs apache-airflow
 
 Additional changes needed for cross-dependent providers
 =======================================================

@@ -74,7 +74,7 @@ class AutoMLHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> PipelineServiceClient:
-        """Returns PipelineServiceClient."""
+        """Return PipelineServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -88,7 +88,7 @@ class AutoMLHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> JobServiceClient:
-        """Returns JobServiceClient."""
+        """Return JobServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -113,7 +113,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTabularTrainingJob:
-        """Returns AutoMLTabularTrainingJob object."""
+        """Return AutoMLTabularTrainingJob object."""
         return AutoMLTabularTrainingJob(
             display_name=display_name,
             optimization_prediction_type=optimization_prediction_type,
@@ -142,7 +142,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLForecastingTrainingJob:
-        """Returns AutoMLForecastingTrainingJob object."""
+        """Return AutoMLForecastingTrainingJob object."""
         return AutoMLForecastingTrainingJob(
             display_name=display_name,
             optimization_objective=optimization_objective,
@@ -169,7 +169,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLImageTrainingJob:
-        """Returns AutoMLImageTrainingJob object."""
+        """Return AutoMLImageTrainingJob object."""
         return AutoMLImageTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -196,7 +196,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTextTrainingJob:
-        """Returns AutoMLTextTrainingJob object."""
+        """Return AutoMLTextTrainingJob object."""
         return AutoMLTextTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -221,7 +221,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLVideoTrainingJob:
-        """Returns AutoMLVideoTrainingJob object."""
+        """Return AutoMLVideoTrainingJob object."""
         return AutoMLVideoTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -236,16 +236,16 @@ class AutoMLHook(GoogleBaseHook):
 
     @staticmethod
     def extract_model_id(obj: dict) -> str:
-        """Returns unique id of the Model."""
+        """Return unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
     @staticmethod
     def extract_training_id(resource_name: str) -> str:
-        """Returns unique id of the Training pipeline."""
+        """Return unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -1301,7 +1301,7 @@ class AutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a TrainingPipeline.
+        Delete a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1334,7 +1334,7 @@ class AutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
-        Gets a TrainingPipeline.
+        Get a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1370,7 +1370,7 @@ class AutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
-        Lists TrainingPipelines in a Location.
+        List TrainingPipelines in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

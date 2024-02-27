@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update DatabricksSqlOperator to work with namedtuple (#37025)``
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
 6.1.0
 .....
 

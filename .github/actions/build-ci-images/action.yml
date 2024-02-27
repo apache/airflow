@@ -18,6 +18,10 @@
 ---
 name: 'Build CI images'
 description: 'Build CI images'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    required: true
 runs:
   using: "composite"
   steps:
@@ -29,18 +33,20 @@ runs:
         pip install rich>=12.4.4 pyyaml
         python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
       if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
-    - name: "Build & Push AMD64 CI images ${{ env.IMAGE_TAG }} ${{ env.PYTHON_VERSIONS }}"
-      shell: bash
-      run: breeze ci-image build --push --tag-as-latest --run-in-parallel --upgrade-on-failure
-    - name: "Source constraints"
+    - name: "Build & Push AMD64 CI images ${{ env.IMAGE_TAG }} ${{ inputs.python-version }}"
       shell: bash
       run: >
-        breeze release-management generate-constraints --run-in-parallel
+        breeze ci-image build --push --tag-as-latest --upgrade-on-failure
+        --python "${{ inputs.python-version }}"
+    - name: "Source constraints: ${{ inputs.python-version }}"
+      shell: bash
+      run: >
+        breeze release-management generate-constraints --python "${{ inputs.python-version }}"
         --airflow-constraints-mode constraints-source-providers
     - name: "Upload constraint artifacts"
       uses: actions/upload-artifact@v4
       with:
-        name: source-constraints
-        path: ./files/constraints-*/constraints-*.txt
+        name: source-constraints-${{ inputs.python-version }}
+        path: ./files/constraints-*/constraints-source-providers-*.txt
         retention-days: 7
         if-no-files-found: error

@@ -257,9 +257,9 @@ labelPRBasedOnFilePath:
     - tests/providers/grpc/**/*
 
   provider:hashicorp:
-    - airflow/providers/grpc/**/*
-    - docs/apache-airflow-providers-grpc/**/*
-    - tests/providers/grpc/**/*
+    - airflow/providers/hashicorp/**/*
+    - docs/apache-airflow-providers-hashicorp/**/*
+    - tests/providers/hashicorp/**/*
 
   provider:http:
     - airflow/providers/http/**/*
@@ -491,6 +491,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-telegram/**/*
     - tests/providers/telegram/**/*
     - tests/system/providers/telegram/**/*
+
+  provider:teradata:
+    - airflow/providers/teradata/**/*
+    - docs/apache-airflow-providers-teradata/**/*
+    - tests/providers/teradata/**/*
+    - tests/system/providers/teradata/**/*
 
   provider:trino:
     - airflow/providers/trino/**/*

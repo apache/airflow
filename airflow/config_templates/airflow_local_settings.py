@@ -56,6 +56,10 @@ DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     "logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION"
 )
 
+DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
+    "logging", "DAG_PROCESSOR_MANAGER_LOG_STDOUT"
+)
+
 # FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
 # All of these handlers inherited from FileTaskHandler and providing any value rather than None
 # would raise deprecation warning.
@@ -170,6 +174,19 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
         }
     },
 }
+
+if DAG_PROCESSOR_MANAGER_LOG_STDOUT == "True":
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"].update(
+        {
+            "console": {
+                "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
+                "formatter": "airflow",
+                "stream": "sys.stdout",
+                "filters": ["mask_secrets"],
+            }
+        }
+    )
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"]["handlers"].append("console")
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times

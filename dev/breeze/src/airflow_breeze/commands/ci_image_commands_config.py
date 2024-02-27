@@ -59,6 +59,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--debian-version",
                 "--install-mysql-client-type",
                 "--python-image",
+                "--use-uv",
             ],
         },
         {

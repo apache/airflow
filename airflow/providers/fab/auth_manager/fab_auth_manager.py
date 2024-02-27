@@ -84,6 +84,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
@@ -156,9 +157,7 @@ class FabAuthManager(BaseAuthManager):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={
-                "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            },
+            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},

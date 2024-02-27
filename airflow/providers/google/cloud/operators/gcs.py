@@ -331,7 +331,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
     def get_openlineage_facets_on_complete(self, task_instance):
-        """Implementing on_complete as execute() resolves object names."""
+        """Implement on_complete as execute() resolves object names."""
         from openlineage.client.facet import (
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
@@ -904,7 +904,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             return self._destination_object_names
 
     def get_openlineage_facets_on_complete(self, task_instance):
-        """Implementing on_complete as execute() resolves object names."""
+        """Implement on_complete as execute() resolves object names."""
         from openlineage.client.run import Dataset
 
         from airflow.providers.openlineage.extractors import OperatorLineage

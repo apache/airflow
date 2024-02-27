@@ -81,7 +81,7 @@ class SalesforceBulkOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Makes an HTTP request to Salesforce Bulk API.
+        Make an HTTP request to Salesforce Bulk API.
 
         :param context: The task context during execution.
         :return: API response if do_xcom_push is True

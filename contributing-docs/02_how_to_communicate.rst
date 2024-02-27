@@ -60,9 +60,9 @@ Slack details
 -------------
 
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
-   * ad-hoc questions related to development and asking for review (#development channel)
-   * asking for help with first contribution PRs (#development-first-pr-support channel)
-   * troubleshooting (#troubleshooting channel)
+   * ad-hoc questions related to development and asking for review (#contributors channel)
+   * asking for help with first contribution PRs (#new-contributors channel)
+   * troubleshooting (#user-troubleshooting channel)
    * using Breeze (#airflow-breeze channel)
    * improving and maintaining documentation (#documentation channel)
    * group talks (including SIG - special interest groups) (#sig-* channels)
@@ -132,7 +132,7 @@ Here are a few rules that are important to keep in mind when you enter our commu
 
 * Do not be afraid to ask questions
 * The communication is asynchronous - do not expect immediate answers, ping others on slack
-  (#development channel) if blocked
+  (#contributors channel) if blocked
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the maintainers to be a mentor for you, maintainers can guide you within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_

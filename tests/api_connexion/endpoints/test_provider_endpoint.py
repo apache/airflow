@@ -69,7 +69,7 @@ def configured_app(minimal_app_for_api):
 
 class TestBaseProviderEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self, configured_app) -> None:
+    def setup_attrs(self, configured_app, cleanup_providers_manager) -> None:
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
 

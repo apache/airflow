@@ -73,7 +73,7 @@ class CloudTextToSpeechHook(GoogleBaseHook):
 
     def get_conn(self) -> TextToSpeechClient:
         """
-        Retrieves connection to Cloud Text to Speech.
+        Retrieve connection to Cloud Text to Speech.
 
         :return: Google Cloud Text to Speech client object.
         """

@@ -320,6 +320,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.workers.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW_HOME
+              value: "{{ .Values.airflowHome }}"
           {{- end }}
           resources: {{- toYaml .Values.workers.logGroomerSidecar.resources | nindent 12 }}
           volumeMounts:

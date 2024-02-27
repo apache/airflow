@@ -50,7 +50,7 @@ class DataformHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_dataform_client(self) -> DataformClient:
-        """Retrieves client library object that allow access to Cloud Dataform service."""
+        """Retrieve client library object that allow access to Cloud Dataform service."""
         return DataformClient(credentials=self.get_credentials())
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -64,7 +64,7 @@ class DataformHook(GoogleBaseHook):
         timeout: int | None = None,
     ) -> None:
         """
-        Helper method which polls a job to check if it finishes.
+        Poll a job to check if it finishes.
 
         :param workflow_invocation_id: Id of the Workflow Invocation
         :param repository_id: Id of the Dataform repository
@@ -117,7 +117,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CompilationResult:
         """
-        Creates a new CompilationResult in a given project and location.
+        Create a new CompilationResult in a given project and location.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -151,7 +151,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CompilationResult:
         """
-        Fetches a single CompilationResult.
+        Fetch a single CompilationResult.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -182,7 +182,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowInvocation:
         """
-        Creates a new WorkflowInvocation in a given Repository.
+        Create a new WorkflowInvocation in a given Repository.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -213,7 +213,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowInvocation:
         """
-        Fetches a single WorkflowInvocation.
+        Fetch a single WorkflowInvocation.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -249,7 +249,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> QueryWorkflowInvocationActionsPager:
         """
-        Fetches WorkflowInvocation actions.
+        Fetch WorkflowInvocation actions.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -286,7 +286,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Requests cancellation of a running WorkflowInvocation.
+        Request cancellation of a running WorkflowInvocation.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -336,7 +336,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Repository:
         """
-        Creates repository.
+        Create repository.
 
         :param project_id: Required. The ID of the Google Cloud project where repository should be.
         :param region: Required. The ID of the Google Cloud region where repository should be.
@@ -374,7 +374,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes repository.
+        Delete repository.
 
         :param project_id: Required. The ID of the Google Cloud project where repository located.
         :param region: Required. The ID of the Google Cloud region where repository located.
@@ -411,7 +411,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Workspace:
         """
-        Creates workspace.
+        Create workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace should be.
         :param region: Required. The ID of the Google Cloud region where workspace should be.
@@ -448,7 +448,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Deletes workspace.
+        Delete workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.
@@ -489,7 +489,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WriteFileResponse:
         """
-        Writes a new file to the specified workspace.
+        Write a new file to the specified workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.
@@ -535,7 +535,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
-        Makes new directory in specified workspace.
+        Make new directory in specified workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.
@@ -580,7 +580,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Removes directory in specified workspace.
+        Remove directory in specified workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.
@@ -623,7 +623,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Removes file in specified workspace.
+        Remove file in specified workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.

@@ -78,7 +78,7 @@ When writing a deferrable operators these are the main points to consider:
             self, deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False), **kwargs
         ) -> None:
             super().__init__(**kwargs)
-            self.deferrable = deferable
+            self.deferrable = deferrable
 
         def execute(self, context: Context) -> None:
             if self.deferrable:

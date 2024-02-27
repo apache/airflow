@@ -1,37 +1,37 @@
 {
     "Airflow": {
         "actions": {
-            "Connection::DELETE": {
+            "Connection.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Connection"]
                 }
             },
-            "Connection::GET": {
+            "Connection.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Connection"]
                 }
             },
-            "Connection::POST": {
+            "Connection.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Connection"]
                 }
             },
-            "Connection::PUT": {
+            "Connection.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Connection"]
                 }
             },
-            "Configuration::GET": {
+            "Configuration.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Configuration"]
                 }
             },
-            "Dag::DELETE": {
+            "Dag.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Dag"],
@@ -46,7 +46,7 @@
                     }
                 }
             },
-            "Dag::GET": {
+            "Dag.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Dag"],
@@ -61,7 +61,7 @@
                     }
                 }
             },
-            "Dag::POST": {
+            "Dag.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Dag"],
@@ -76,7 +76,7 @@
                     }
                 }
             },
-            "Dag::PUT": {
+            "Dag.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Dag"],
@@ -91,61 +91,61 @@
                     }
                 }
             },
-            "Dataset::GET": {
+            "Dataset.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Dataset"]
                 }
             },
-            "Pool::DELETE": {
+            "Pool.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Pool"]
                 }
             },
-            "Pool::GET": {
+            "Pool.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Pool"]
                 }
             },
-            "Pool::POST": {
+            "Pool.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Pool"]
                 }
             },
-            "Pool::PUT": {
+            "Pool.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Pool"]
                 }
             },
-            "Variable::DELETE": {
+            "Variable.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Variable"]
                 }
             },
-            "Variable::GET": {
+            "Variable.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Variable"]
                 }
             },
-            "Variable::POST": {
+            "Variable.POST": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Variable"]
                 }
             },
-            "Variable::PUT": {
+            "Variable.PUT": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["Variable"]
                 }
             },
-            "View::GET": {
+            "View.GET": {
                 "appliesTo": {
                     "principalTypes": ["User"],
                     "resourceTypes": ["View"]

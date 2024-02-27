@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType, process_response
 
@@ -155,7 +156,9 @@ class SqsSensor(AwsBaseSensor[SqsHook]):
             super().execute(context=context)
 
     def execute_complete(self, context: Context, event: dict | None = None) -> None:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Trigger error: event is {event}"
             if self.soft_fail:

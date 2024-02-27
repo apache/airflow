@@ -39,7 +39,7 @@ import { getMetaValue } from "src/utils";
 import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
 
-interface CellProps {
+export interface CellProps {
   cell: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
@@ -150,6 +150,9 @@ export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
   const gridUrl = getMetaValue("grid_url");
   const dagId = getMetaValue("dag_id");
+  if (!value || !sourceRunId || !sourceDagId || !gridUrl) {
+    return null;
+  }
   const stringToReplace = dagId || "__DAG_ID__";
   const url = `${gridUrl?.replace(
     stringToReplace,

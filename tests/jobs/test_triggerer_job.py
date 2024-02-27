@@ -266,7 +266,7 @@ def test_trigger_lifecycle(session):
 class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_canceled(self, session) -> None:
+    async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -278,7 +278,7 @@ class TestTriggerRunner:
 
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_timeout(self, session, caplog) -> None:
+    async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()

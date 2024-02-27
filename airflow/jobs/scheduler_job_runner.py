@@ -33,7 +33,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload, lazyload, load_only, make_transient, selectinload
+from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -1418,21 +1418,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
-        query = (
-            select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
-        )
-        dag_model = session.scalars(
-            with_row_locks(query, of=DagModel, session=session, skip_locked=True)
-        ).one_or_none()
+        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
 
-        if not dag:
+        if not dag or not dag_model:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
-            return callback
-        if not dag_model:
-            self.log.info(
-                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
-            )
             return callback
 
         if (

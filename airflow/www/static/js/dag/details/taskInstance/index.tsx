@@ -22,19 +22,21 @@ import { Box } from "@chakra-ui/react";
 
 import { useGridData, useTaskInstance } from "src/api";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
-import type { DagRun, TaskInstance as TaskInstanceType } from "src/types";
+import type { DagRun, TaskInstance as GridTaskInstance } from "src/types";
 import NotesAccordion from "src/dag/details/NotesAccordion";
 
 import TaskNav from "./Nav";
 import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
+import DatasetUpdateEvents from "./DatasetUpdateEvents";
+import TriggererInfo from "./TriggererInfo";
 
 const dagId = getMetaValue("dag_id")!;
 
 interface Props {
   taskId: string;
   runId: DagRun["runId"];
-  mapIndex: TaskInstanceType["mapIndex"];
+  mapIndex: GridTaskInstance["mapIndex"];
 }
 
 const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
@@ -56,19 +58,16 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
 
-  const { data: mappedTaskInstance } = useTaskInstance({
+  const { data: taskInstance } = useTaskInstance({
     dagId,
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: isMapIndexDefined,
+    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
   });
+  const gridInstance = group?.instances.find((ti) => ti.runId === runId);
 
-  const instance = isMapIndexDefined
-    ? mappedTaskInstance
-    : group?.instances.find((ti) => ti.runId === runId);
-
-  if (!group || !run || !instance) return null;
+  if (!group || !run || !gridInstance) return null;
 
   const { executionDate } = run;
 
@@ -94,31 +93,30 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
           dagId={dagId}
           runId={runId}
           taskId={taskId}
-          mapIndex={instance.mapIndex}
-          initialValue={instance.note}
-          key={dagId + runId + taskId + instance.mapIndex}
+          mapIndex={gridInstance.mapIndex}
+          initialValue={gridInstance.note}
+          key={dagId + runId + taskId + gridInstance.mapIndex}
         />
       )}
-      {isMapped && group.extraLinks && isMapIndexDefined && (
+      {!!group.extraLinks?.length && !isGroupOrMappedTaskSummary && (
         <ExtraLinks
           taskId={taskId}
           dagId={dagId}
-          mapIndex={mapIndex}
+          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
           executionDate={executionDate}
           extraLinks={group?.extraLinks}
-          tryNumber={instance.tryNumber}
+          tryNumber={taskInstance?.tryNumber || gridInstance.tryNumber}
         />
       )}
-      {!isMapped && group.extraLinks && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-          tryNumber={instance.tryNumber}
-        />
+      {group.hasOutletDatasets && (
+        <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
-      <Details instance={instance} group={group} dagId={dagId} />
+      <TriggererInfo taskInstance={taskInstance} />
+      <Details
+        gridInstance={gridInstance}
+        taskInstance={taskInstance}
+        group={group}
+      />
     </Box>
   );
 };

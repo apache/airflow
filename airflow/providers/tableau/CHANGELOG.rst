@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
 4.4.1
 .....
 

@@ -892,6 +892,10 @@ class TestCredentialsToken:
         token = hook._CredentialsToken(mock_credentials, project=PROJECT_ID, scopes=SCOPES)
         assert await token.get() == "ACCESS_TOKEN"
         mock_credentials.refresh.assert_called_once()
+        # ensure token caching works on subsequent calls of `get`
+        mock_credentials.reset_mock()
+        assert await token.get() == "ACCESS_TOKEN"
+        mock_credentials.refresh.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE_NAME}.get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))

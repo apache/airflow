@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
+    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
@@ -149,6 +150,7 @@ class ShellParams:
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
+    install_airflow_with_constraints: bool = False
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
     issue_id: str = ""
@@ -168,6 +170,7 @@ class ShellParams:
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
     providers_skip_constraints: bool = False
+    pydantic: str = ALLOWED_PYDANTIC_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
@@ -490,6 +493,7 @@ class ShellParams:
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
         _set_var(_env, "INIT_SCRIPT_FILE", None, "init.sh")
+        _set_var(_env, "INSTALL_AIRFLOW_WITH_CONSTRAINTS", self.install_airflow_with_constraints)
         _set_var(_env, "INSTALL_AIRFLOW_VERSION", self.install_airflow_version)
         _set_var(_env, "INSTALL_SELECTED_PROVIDERS", self.install_selected_providers)
         _set_var(_env, "ISSUE_ID", self.issue_id)
@@ -524,6 +528,7 @@ class ShellParams:
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "PYDANTIC", self.pydantic)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
         _set_var(_env, "USE_XDIST", self.use_xdist)

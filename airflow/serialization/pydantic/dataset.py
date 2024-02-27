@@ -17,7 +17,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, ConfigDict
+from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 class DagScheduleDatasetReferencePydantic(BaseModelPydantic):

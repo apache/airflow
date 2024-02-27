@@ -26,6 +26,7 @@ from openlineage.client.facet import (
     BaseFacet,
     DocumentationJobFacet,
     ErrorMessageRunFacet,
+    JobTypeJobFacet,
     NominalTimeRunFacet,
     OwnershipJobFacet,
     OwnershipJobFacetOwners,
@@ -55,6 +56,12 @@ _DAG_NAMESPACE = conf.get(
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 set_producer(_PRODUCER)
+
+# https://openlineage.io/docs/spec/facets/job-facets/job-type
+# They must be set after the `set_producer(_PRODUCER)`
+# otherwise the `JobTypeJobFacet._producer` will be set with the default value
+_JOB_TYPE_DAG = JobTypeJobFacet(jobType="DAG", integration="AIRFLOW", processingType="BATCH")
+_JOB_TYPE_TASK = JobTypeJobFacet(jobType="TASK", integration="AIRFLOW", processingType="BATCH")
 
 
 class OpenLineageAdapter(LoggingMixin):
@@ -181,6 +188,7 @@ class OpenLineageAdapter(LoggingMixin):
             ),
             job=self._build_job(
                 job_name=job_name,
+                job_type=_JOB_TYPE_TASK,
                 job_description=job_description,
                 code_location=code_location,
                 owners=owners,
@@ -222,7 +230,7 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=task.run_facets,
             ),
-            job=self._build_job(job_name, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -259,7 +267,7 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=task.run_facets,
             ),
-            job=self._build_job(job_name, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
@@ -276,7 +284,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.START,
             eventTime=dag_run.start_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=self._build_run(
                 run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 job_name=dag_run.dag_id,
@@ -293,7 +301,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id)),
             inputs=[],
             outputs=[],
@@ -305,7 +313,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(
                 runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
@@ -350,6 +358,7 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_job(
         job_name: str,
+        job_type: JobTypeJobFacet,
         job_description: str | None = None,
         code_location: str | None = None,
         owners: list[str] | None = None,
@@ -371,5 +380,7 @@ class OpenLineageAdapter(LoggingMixin):
             )
         if job_facets:
             facets = {**facets, **job_facets}
+
+        facets.update({"jobType": job_type})
 
         return Job(_DAG_NAMESPACE, job_name, facets)

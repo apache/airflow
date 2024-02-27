@@ -2533,7 +2533,6 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
         (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
         (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
-        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
         (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
         (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown
     ],

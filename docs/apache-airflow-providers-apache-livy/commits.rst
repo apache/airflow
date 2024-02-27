@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.2
+.....
+
+Latest change: 2024-01-31
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`0c4210af62 <https://github.com/apache/airflow/commit/0c4210af62d2e514f37c5c973163c0748716ccff>`_  2024-01-31   ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+=================================================================================================  ===========  ================================================================================
+
 3.7.1
 .....
 
-Latest change: 2023-12-30
+Latest change: 2024-01-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 `eac3d95584 <https://github.com/apache/airflow/commit/eac3d95584e7826044d8550b806093aa9eb4a521>`_  2023-12-29   ``remove unnecessary templated filed (#36490)``
 `9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``

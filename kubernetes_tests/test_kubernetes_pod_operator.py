@@ -206,6 +206,21 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
+    def test_skip_cleanup(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="unknown",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        context = create_context(k)
+        with pytest.raises(ApiException):
+            k.execute(context)
+
     def test_delete_operator_pod(self, mock_get_connection):
         k = KubernetesPodOperator(
             namespace="default",
@@ -1158,7 +1173,7 @@ class TestKubernetesPodOperatorSystem:
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
-            with pytest.raises(AirflowException):
+            with pytest.raises(Exception):
                 k.execute(context)
             create_mock.assert_called_once()
 

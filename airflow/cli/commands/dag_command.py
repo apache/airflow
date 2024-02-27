@@ -42,6 +42,7 @@ from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -564,7 +565,8 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
     execution_date = args.execution_date or timezone.utcnow()
-    dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
+    with _airflow_parsing_context_manager(dag_id=args.dag_id):
+        dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(execution_date=execution_date, run_conf=run_conf, session=session)
     show_dagrun = args.show_dagrun
     imgcat = args.imgcat_dagrun

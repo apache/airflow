@@ -20,7 +20,8 @@ from __future__ import annotations
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Sized, Union
+from collections.abc import Sized
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
 
 import attr
 

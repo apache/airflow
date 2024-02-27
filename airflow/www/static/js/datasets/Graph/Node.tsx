@@ -32,7 +32,7 @@ export interface CustomNodeProps {
   width?: number;
   isSelected?: boolean;
   isHighlighted?: boolean;
-  onSelect: (datasetUri: string) => void;
+  onSelect: (datasetUri: string, type: string) => void;
   isOpen?: boolean;
   isActive?: boolean;
 }
@@ -45,7 +45,12 @@ const BaseNode = ({
   return (
     <Box bg="white">
       {type === "dag" && (
-        <DagNode dagId={label} isHighlighted={isHighlighted} />
+        <DagNode
+          dagId={label}
+          isHighlighted={isHighlighted}
+          isSelected={isSelected}
+          onSelect={onSelect}
+        />
       )}
       {type !== "dag" && (
         <Flex
@@ -57,7 +62,7 @@ const BaseNode = ({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (type === "dataset") onSelect(label);
+            onSelect(label, "dataset");
           }}
           cursor="pointer"
           fontSize={16}

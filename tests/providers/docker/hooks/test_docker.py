@@ -19,14 +19,25 @@ from __future__ import annotations
 
 import logging
 import ssl
+import sys
+import warnings
 from unittest import mock
 
 import pytest
 from docker import TLSConfig
 from docker.errors import APIError
+from packaging.version import Version
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
+
+if sys.version_info >= (3, 9):
+    from importlib.metadata import version
+else:
+    from importlib_metadata import version
+
+
+DOCKER_PY_7_PLUS = Version(Version(version("docker")).base_version) >= Version("7")
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_BASE_URL = "unix://var/run/docker.sock"
@@ -251,8 +262,8 @@ def test_construct_tls_config_missing_certs_args(tls_params: dict):
 @pytest.mark.parametrize(
     "ssl_version",
     [
-        pytest.param(ssl.PROTOCOL_TLSv1, id="TLSv1"),
-        pytest.param(ssl.PROTOCOL_TLSv1_2, id="TLSv1_2"),
+        # Other version-based constraints in `ssl` module marked as deprecated since Python 3.6.
+        pytest.param(ssl.PROTOCOL_TLS_CLIENT, id="auto-negotiate"),
         None,
     ],
 )
@@ -265,8 +276,23 @@ def test_construct_tls_config(assert_hostname, ssl_version):
     if ssl_version is not None:
         tls_params["ssl_version"] = ssl_version
 
-    with mock.patch.object(TLSConfig, "__init__", return_value=None) as mock_tls_config:
-        DockerHook.construct_tls_config(**tls_params)
-        mock_tls_config.assert_called_once_with(
-            **expected_call_args, assert_hostname=assert_hostname, ssl_version=ssl_version
-        )
+    if DOCKER_PY_7_PLUS and (assert_hostname is not None or ssl_version is not None):
+        ctx = pytest.warns(UserWarning, match="removed in `docker\.TLSConfig` constructor arguments")
+        no_warns = False
+    else:
+        ctx = warnings.catch_warnings()
+        no_warns = True
+
+    # Please note that spec should be set; otherwise we could miss removal into the constructor arguments.
+    with mock.patch.object(TLSConfig, "__init__", return_value=None, spec=TLSConfig) as mock_tls_config:
+        with ctx:
+            if no_warns:
+                warnings.simplefilter("error")
+            DockerHook.construct_tls_config(**tls_params)
+
+        if DOCKER_PY_7_PLUS:
+            mock_tls_config.assert_called_once_with(**expected_call_args)
+        else:
+            mock_tls_config.assert_called_once_with(
+                **expected_call_args, assert_hostname=assert_hostname, ssl_version=ssl_version
+            )

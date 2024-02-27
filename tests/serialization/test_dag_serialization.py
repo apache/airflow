@@ -25,9 +25,11 @@ import json
 import multiprocessing
 import os
 import pickle
+import re
 from datetime import datetime, timedelta
 from glob import glob
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -60,6 +62,7 @@ from airflow.sensors.bash import BashSensor
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
+    BaseSerialization,
     DagDependency,
     DependencyDetector,
     SerializedBaseOperator,
@@ -212,7 +215,6 @@ serialized_simple_dag_ground_truth = {
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
-        "dataset_triggers": [],
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -551,11 +553,17 @@ class TestStringifiedDAGs:
             "params",
             "_processor_dags_folder",
         }
+        compare_serialization_list = {
+            "dataset_triggers",
+        }
         fields_to_check = dag.get_serialized_fields() - exclusion_list
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(
-                dag, field
-            ), f"{dag.dag_id}.{field} does not match"
+            actual = getattr(serialized_dag, field)
+            expected = getattr(dag, field)
+            if field in compare_serialization_list:
+                actual = BaseSerialization.serialize(actual)
+                expected = BaseSerialization.serialize(expected)
+            assert actual == expected, f"{dag.dag_id}.{field} does not match"
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
         assert dag._processor_dags_folder is None
@@ -613,6 +621,7 @@ class TestStringifiedDAGs:
             assert isinstance(serialized_task, MappedOperator)
             fields_to_check = {f.name for f in attr.fields(MappedOperator)}
             fields_to_check -= {
+                "map_index_template",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",
@@ -1230,6 +1239,7 @@ class TestStringifiedDAGs:
             "executor_config": {},
             "ignore_first_depends_on_past": True,
             "inlets": [],
+            "map_index_template": None,
             "max_active_tis_per_dag": None,
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
@@ -1256,6 +1266,7 @@ class TestStringifiedDAGs:
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
             "weight_rule": "downstream",
+            "multiple_outputs": False,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -2063,7 +2074,15 @@ class TestStringifiedDAGs:
             task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
             assert task.email == "foo@test.com,bar@test.com"
 
-        with pytest.raises(AirflowException, match="Cannot template BaseOperator field: 'execution_timeout'"):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                dedent(
+                    """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                )
+            ),
+        ):
             SerializedDAG.to_dict(dag)
 
 

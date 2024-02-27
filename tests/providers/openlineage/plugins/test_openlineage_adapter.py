@@ -28,6 +28,7 @@ from openlineage.client.facet import (
     DocumentationJobFacet,
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
+    JobTypeJobFacet,
     NominalTimeRunFacet,
     OwnershipJobFacet,
     OwnershipJobFacetOwners,
@@ -163,7 +164,12 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                 job=Job(
                     namespace=_DAG_NAMESPACE,
                     name="job",
-                    facets={"documentation": DocumentationJobFacet(description="description")},
+                    facets={
+                        "documentation": DocumentationJobFacet(description="description"),
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        ),
+                    },
                 ),
                 producer=_PRODUCER,
                 inputs=[],
@@ -244,6 +250,9 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                             ]
                         ),
                         "sql": SqlJobFacet(query="SELECT 1;"),
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        ),
                     },
                 ),
                 producer=_PRODUCER,
@@ -284,7 +293,15 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
                 eventType=RunState.COMPLETE,
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
-                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={}),
+                job=Job(
+                    namespace=_DAG_NAMESPACE,
+                    name="job",
+                    facets={
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        )
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -338,7 +355,16 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
                 ),
-                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
+                job=Job(
+                    namespace="default",
+                    name="job",
+                    facets={
+                        "sql": SqlJobFacet(query="SELECT 1;"),
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        ),
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[
                     Dataset(namespace="bigquery", name="a.b.c"),
@@ -377,7 +403,15 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
                 eventType=RunState.FAIL,
                 eventTime=event_time,
                 run=Run(runId=run_id, facets={}),
-                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={}),
+                job=Job(
+                    namespace=_DAG_NAMESPACE,
+                    name="job",
+                    facets={
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        )
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -431,7 +465,16 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
                         "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
                     },
                 ),
-                job=Job(namespace=_DAG_NAMESPACE, name="job", facets={"sql": SqlJobFacet(query="SELECT 1;")}),
+                job=Job(
+                    namespace="default",
+                    name="job",
+                    facets={
+                        "sql": SqlJobFacet(query="SELECT 1;"),
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                        ),
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[
                     Dataset(namespace="bigquery", name="a.b.c"),
@@ -485,7 +528,15 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, uuid):
                         )
                     },
                 ),
-                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
+                job=Job(
+                    namespace=_DAG_NAMESPACE,
+                    name="dag_id",
+                    facets={
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                        )
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -527,7 +578,15 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, uuid):
                 eventType=RunState.COMPLETE,
                 eventTime=event_time.isoformat(),
                 run=Run(runId=random_uuid, facets={}),
-                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
+                job=Job(
+                    namespace=_DAG_NAMESPACE,
+                    name="dag_id",
+                    facets={
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                        )
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],
@@ -576,7 +635,15 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, uuid):
                         )
                     },
                 ),
-                job=Job(namespace=_DAG_NAMESPACE, name="dag_id", facets={}),
+                job=Job(
+                    namespace=_DAG_NAMESPACE,
+                    name="dag_id",
+                    facets={
+                        "jobType": JobTypeJobFacet(
+                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                        )
+                    },
+                ),
                 producer=_PRODUCER,
                 inputs=[],
                 outputs=[],

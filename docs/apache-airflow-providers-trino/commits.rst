@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.6.2
+.....
+
+Latest change: 2024-01-30
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+=================================================================================================  ===========  ==================================================================================
+
 5.6.1
 .....
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `ecb2c9f24d <https://github.com/apache/airflow/commit/ecb2c9f24d1364642604c14f0deb681ab4894135>`_  2024-01-09   ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
 `f7b663d9af <https://github.com/apache/airflow/commit/f7b663d9aff472d0a419e16c262fbae2a8a69ce1>`_  2024-01-07   ``Run mypy checks for full packages in CI (#36638)``

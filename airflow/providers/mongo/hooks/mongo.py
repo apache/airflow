@@ -131,7 +131,7 @@ class MongoHook(BaseHook):
             self.client = None
 
     def get_conn(self) -> MongoClient:
-        """Fetches PyMongo Client."""
+        """Fetch PyMongo Client."""
         if self.client is not None:
             return self.client
 
@@ -167,7 +167,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, mongo_db: str | None = None
     ) -> pymongo.collection.Collection:
         """
-        Fetches a mongo collection object for querying.
+        Fetch a mongo collection object for querying.
 
         Uses connection schema as DB unless specified.
         """
@@ -180,7 +180,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
     ) -> pymongo.command_cursor.CommandCursor:
         """
-        Runs an aggregation pipeline and returns the results.
+        Run an aggregation pipeline and returns the results.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
         https://pymongo.readthedocs.io/en/stable/examples/aggregation.html
@@ -223,7 +223,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.cursor.Cursor | Any | None:
         """
-        Runs a mongo find query and returns the results.
+        Run a mongo find query and returns the results.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find
         """
@@ -238,7 +238,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.InsertOneResult:
         """
-        Inserts a single document into a mongo collection.
+        Insert a single document into a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
         """
@@ -250,7 +250,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, docs: Iterable[dict], mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.InsertManyResult:
         """
-        Inserts many docs into a mongo collection.
+        Insert many docs into a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
         """
@@ -267,7 +267,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Updates a single document in a mongo collection.
+        Update a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one
 
@@ -291,7 +291,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Updates one or more documents in a mongo collection.
+        Update one or more documents in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many
 
@@ -314,7 +314,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Replaces a single document in a mongo collection.
+        Replace a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
 
@@ -347,7 +347,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.BulkWriteResult:
         """
-        Replaces many documents in a mongo collection.
+        Replace many documents in a mongo collection.
 
         Uses bulk_write with multiple ReplaceOne operations
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
@@ -384,7 +384,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.DeleteResult:
         """
-        Deletes a single document in a mongo collection.
+        Delete a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
 
@@ -401,7 +401,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.DeleteResult:
         """
-        Deletes one or more documents in a mongo collection.
+        Delete one or more documents in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
 
@@ -423,7 +423,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> list[Any]:
         """
-        Returns a list of distinct values for the given key across a collection.
+        Return a list of distinct values for the given key across a collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.distinct
 

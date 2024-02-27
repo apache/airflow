@@ -29,7 +29,7 @@ Connect your project to Gitpod
    .. raw:: html
 
      <div align="center" style="padding-bottom:10px">
-       <img src="images/quick_start/airflow_fork.png"
+       <img src="images/airflow_fork.png"
             alt="Forking Apache Airflow project">
      </div>
 
@@ -38,7 +38,7 @@ Connect your project to Gitpod
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/airflow_clone.png"
+        <img src="images/airflow_clone.png"
              alt="Cloning github fork of Apache airflow">
       </div>
 
@@ -47,7 +47,7 @@ Connect your project to Gitpod
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/airflow_gitpod_url.png"
+        <img src="images/airflow_gitpod_url.png"
              alt="Open personal airflow clone with Gitpod">
       </div>
 

@@ -435,6 +435,7 @@ class GCSToBigQueryOperator(BaseOperator):
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
                         project_id=self.project_id or self.hook.project_id,
+                        location=self.location or self.hook.location,
                         impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
@@ -446,8 +447,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     return self._find_max_value_in_column()
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """
-        Callback for when the trigger fires - returns immediately.
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -697,7 +697,7 @@ class GCSToBigQueryOperator(BaseOperator):
         backward_compatibility_configs: dict | None = None,
     ) -> dict:
         """
-        Validates the given src_fmt_configs against a valid configuration for the source format.
+        Validate the given src_fmt_configs against a valid configuration for the source format.
 
         Adds the backward compatibility config to the src_fmt_configs.
 
@@ -738,7 +738,7 @@ class GCSToBigQueryOperator(BaseOperator):
             self.log.info("Skipping to cancel job: %s.%s", self.location, self.job_id)
 
     def get_openlineage_facets_on_complete(self, task_instance):
-        """Implementing on_complete as we will include final BQ job id."""
+        """Implement on_complete as we will include final BQ job id."""
         from pathlib import Path
 
         from openlineage.client.facet import (

@@ -24,7 +24,6 @@ from cov_runner import run_tests
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 source_files = [
-    "airflow/core",
     "airflow/executors",
     "airflow/jobs",
     "airflow/models",
@@ -163,6 +162,7 @@ core_files = [
     "tests/ti_deps",
     "tests/utils",
 ]
+
 
 if __name__ == "__main__":
     args = ["-qq"] + core_files

@@ -22,8 +22,10 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1705912304
+source-date-epoch: 1707636545
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.2
   - 5.6.1
   - 5.6.0
   - 5.5.0
@@ -73,6 +75,10 @@ operators:
   - integration-name: Trino
     python-modules:
       - airflow.providers.trino.operators.trino
+
+dataset-uris:
+  - schemes: [trino]
+    handler: airflow.providers.trino.datasets.trino.sanitize_uri
 
 hooks:
   - integration-name: Trino

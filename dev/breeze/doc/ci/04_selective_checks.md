@@ -272,11 +272,12 @@ am overview of possible labels and their meaning:
 
 | Label                         | Affected outputs              | Meaning                                                                                               |
 |-------------------------------|-------------------------------|-------------------------------------------------------------------------------------------------------|
-| full tests needed             | full-tests-needed             | Run complete set of tests, including all Python all DB versions, and all test types.                  |
+| canary                        | is-canary-run                 | If set, the PR run from apache/airflow repo behaves as `canary` run (can only be run by maintainer).  |
 | debug ci resources            | debug-ci-resources            | If set, then debugging resources is enabled during parallel tests and you can see them in the output. |
-| use public runners            | runs-on                       | Force using public runners even for Committer runs.                                                   |
+| full tests needed             | full-tests-needed             | Run complete set of tests, including all Python all DB versions, and all test types.                  |
 | non committer build           | is-committer-build            | If set then even for non-committer builds, the scripts used for images are used from target branch.   |
 | upgrade to newer dependencies | upgrade-to-newer-dependencies | If set then dependencies in the CI image build are upgraded to the newer ones.                        |
+| use public runners            | runs-on                       | Force using public runners even for Committer runs.                                                   |
 
 
 -----

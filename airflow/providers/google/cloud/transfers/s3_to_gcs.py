@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -276,7 +276,7 @@ class S3ToGCSOperator(S3ListOperator):
         )
 
     def submit_transfer_jobs(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> list[str]:
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         one_time_schedule = {"day": now.day, "month": now.month, "year": now.year}
 
         gcs_bucket, gcs_prefix = _parse_gcs_url(self.dest_gcs)
@@ -331,8 +331,7 @@ class S3ToGCSOperator(S3ListOperator):
         return job_names
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

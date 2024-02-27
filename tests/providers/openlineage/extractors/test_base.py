@@ -285,3 +285,17 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     assert (
         ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False) == OperatorLineage()
     )
+
+
+@mock.patch.dict(
+    os.environ,
+    {
+        "AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "tests.providers.openlineage.extractors.test_base.ExampleOperator"
+    },
+)
+def test_default_extraction_disabled_operator():
+    extractor = DefaultExtractor(ExampleOperator(task_id="test"))
+    metadata = extractor.extract()
+    assert metadata is None
+    metadata = extractor.extract_on_complete(None)
+    assert metadata is None

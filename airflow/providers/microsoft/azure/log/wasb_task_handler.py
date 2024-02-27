@@ -66,7 +66,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     @cached_property
     def hook(self):
-        """Returns WasbHook."""
+        """Return WasbHook."""
         remote_conn_id = conf.get("logging", "REMOTE_LOG_CONN_ID")
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -221,7 +221,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook was created.
+        Write the log to the remote_log_location. Fails silently if no hook was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

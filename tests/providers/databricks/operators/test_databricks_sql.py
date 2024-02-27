@@ -221,15 +221,6 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         pytest.param(
             True,
             True,
-            "select * from dummy2; select * from dummy",
-            [[("id2",), ("value2",)], [("id",), ("value",)]],
-            [SerializableRow(1, "value1"), SerializableRow(2, "value2")],
-            True,
-            id="Scalar: return_last True and split_statement is True",
-        ),
-        pytest.param(
-            True,
-            True,
             ["select * from dummy2", "select * from dummy"],
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [[SerializableRow(1, "value1"), SerializableRow(2, "value2")]],

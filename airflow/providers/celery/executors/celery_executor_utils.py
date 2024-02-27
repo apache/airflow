@@ -41,7 +41,7 @@ from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
@@ -198,7 +198,7 @@ class ExceptionWithTraceback:
     :param exception_traceback: The stacktrace to wrap
     """
 
-    def __init__(self, exception: Exception, exception_traceback: str):
+    def __init__(self, exception: BaseException, exception_traceback: str):
         self.exception = exception
         self.traceback = exception_traceback
 
@@ -211,7 +211,7 @@ def send_task_to_executor(
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
             result = task_to_run.apply_async(args=[command], queue=queue)
-    except Exception as e:
+    except (Exception, AirflowTaskTimeout) as e:
         exception_traceback = f"Celery Task ID: {key}\n{traceback.format_exc()}"
         result = ExceptionWithTraceback(e, exception_traceback)
 

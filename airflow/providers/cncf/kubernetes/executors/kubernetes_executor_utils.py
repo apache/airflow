@@ -136,7 +136,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
         except ApiException as e:
-            if e.status == 410:  # Resource version is too old
+            if str(e.status) == "410":  # Resource version is too old
                 if self.namespace == ALL_NAMESPACES:
                     pods = kube_client.list_pod_for_all_namespaces(watch=False)
                 else:
@@ -425,7 +425,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):

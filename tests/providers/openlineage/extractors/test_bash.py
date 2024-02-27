@@ -117,3 +117,16 @@ def test_extract_dag_bash_command_env_does_not_disable_on_random_string():
 def test_extract_dag_bash_command_conf_does_not_disable_on_random_string():
     extractor = BashExtractor(bash_task)
     assert extractor.extract().job_facets["sourceCode"] == SourceCodeJobFacet("bash", "ls -halt && exit 0")
+
+
+@patch.dict(
+    os.environ,
+    {"AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "airflow.operators.bash.BashOperator"},
+)
+def test_bash_extraction_disabled_operator():
+    operator = BashOperator(task_id="taskid", bash_command="echo 1;")
+    extractor = BashExtractor(operator)
+    metadata = extractor.extract()
+    assert metadata is None
+    metadata = extractor.extract_on_complete(None)
+    assert metadata is None

@@ -280,20 +280,6 @@ class TestKubernetesExecutor:
                 id="400 BadRequest (task_publish_max_retries=1)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
-                0,
-                False,
-                State.FAILED,
-                id="400 BadRequest",
-            ),
-            pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
-                1,
-                False,
-                State.FAILED,
-                id="400 BadRequest (task_publish_max_retries=1)",
-            ),
-            pytest.param(
                 HTTPResponse(body='{"message": "any message"}', status=403),
                 0,
                 False,
@@ -587,7 +573,7 @@ class TestKubernetesExecutor:
         try:
             assert executor.event_buffer == {}
             executor.execute_async(
-                key=("dag", "task", datetime.utcnow(), 1),
+                key=("dag", "task", timezone.utcnow(), 1),
                 queue=None,
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
                 executor_config=k8s.V1Pod(
@@ -1554,7 +1540,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_pending_deleted(self):
         self.events.append({"type": "DELETED", "object": self.pod})
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
@@ -1584,7 +1570,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
@@ -1618,7 +1604,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
         self.events.append({"type": "DELETED", "object": self.pod})
 
         self._run()

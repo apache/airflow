@@ -305,13 +305,13 @@ class ZipPathPreprocessor:
             )
 
     def should_upload_function(self) -> bool:
-        """Checks if function source should be uploaded."""
+        """Check if function source should be uploaded."""
         if self.upload_function is None:
             raise AirflowException("validate() method has to be invoked before should_upload_function")
         return self.upload_function
 
     def preprocess_body(self) -> None:
-        """Modifies sourceUploadUrl body field in special way when zip_path is not empty."""
+        """Modify sourceUploadUrl body field in special way when zip_path is not empty."""
         self._verify_archive_url_and_zip_path()
         self._verify_upload_url_and_zip_path()
         self._verify_upload_url_and_no_zip_path()

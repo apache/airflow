@@ -55,7 +55,7 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes ADFPipelineRunStatusSensorTrigger arguments and classpath."""
+        """Serialize ADFPipelineRunStatusSensorTrigger arguments and classpath."""
         return (
             "airflow.providers.microsoft.azure.triggers.data_factory.ADFPipelineRunStatusSensorTrigger",
             {
@@ -143,7 +143,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
         self.end_time = end_time
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes AzureDataFactoryTrigger arguments and classpath."""
+        """Serialize AzureDataFactoryTrigger arguments and classpath."""
         return (
             "airflow.providers.microsoft.azure.triggers.data_factory.AzureDataFactoryTrigger",
             {

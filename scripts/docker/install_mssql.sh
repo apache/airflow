@@ -24,7 +24,6 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
 
 

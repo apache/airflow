@@ -16,16 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import typing
 
 from jupyter_client import AsyncKernelManager
 from papermill.clientwrap import PapermillNotebookClient
 from papermill.engines import NBClientEngine
 from papermill.utils import merge_kwargs, remove_args
 from traitlets import Unicode
-
-if TYPE_CHECKING:
-    from pydantic import typing
 
 from airflow.hooks.base import BaseHook
 
@@ -90,7 +87,7 @@ class KernelHook(BaseHook):
 
 
 def register_remote_kernel_engine():
-    """Registers ``RemoteKernelEngine`` papermill engine."""
+    """Register ``RemoteKernelEngine`` papermill engine."""
     from papermill.engines import papermill_engines
 
     papermill_engines.register(REMOTE_KERNEL_ENGINE, RemoteKernelEngine)
@@ -145,7 +142,7 @@ class RemoteKernelEngine(NBClientEngine):
         execution_timeout=None,
         **kwargs,
     ):
-        """Performs the actual execution of the parameterized notebook locally."""
+        """Perform the actual execution of the parameterized notebook locally."""
         km = RemoteKernelManager()
         km.ip = kwargs["kernel_ip"]
         km.shell_port = kwargs["kernel_shell_port"]

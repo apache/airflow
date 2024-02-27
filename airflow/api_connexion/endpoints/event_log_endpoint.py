@@ -58,6 +58,8 @@ def get_event_logs(
     task_id: str | None = None,
     owner: str | None = None,
     event: str | None = None,
+    excluded_events: str | None = None,
+    included_events: str | None = None,
     before: str | None = None,
     after: str | None = None,
     limit: int,
@@ -88,6 +90,12 @@ def get_event_logs(
         query = query.where(Log.owner == owner)
     if event:
         query = query.where(Log.event == event)
+    if included_events:
+        included_events_list = included_events.split(",")
+        query = query.where(Log.event.in_(included_events_list))
+    if excluded_events:
+        excluded_events_list = excluded_events.split(",")
+        query = query.where(Log.event.notin_(excluded_events_list))
     if before:
         query = query.where(Log.dttm < timezone.parse(before))
     if after:

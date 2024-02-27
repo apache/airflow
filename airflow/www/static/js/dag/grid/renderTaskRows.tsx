@@ -161,20 +161,27 @@ const Row = (props: RowProps) => {
             lineHeight="18px"
             position="sticky"
             left={0}
+            cursor="pointer"
+            onClick={() => onSelect({ taskId: task.id })}
             borderBottom={0}
             width="100%"
             zIndex={1}
           >
             <TaskName
-              onToggle={memoizedToggle}
+              onClick={(e) => {
+                if (isGroup) {
+                  e.stopPropagation();
+                  memoizedToggle();
+                }
+              }}
               isGroup={isGroup}
               isMapped={task.isMapped && !isParentMapped}
               label={task.label || task.id || ""}
               id={task.id || ""}
               isOpen={isOpen}
-              ml={level * 4 + 4}
+              pl={level * 4 + 4}
               setupTeardownType={task.setupTeardownType}
-              mr={4}
+              pr={4}
               fontWeight={
                 isGroup || (task.isMapped && !isParentMapped)
                   ? "bold"

@@ -119,7 +119,7 @@ class PodLauncher(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def start_pod(self, pod: V1Pod, startup_timeout: int = 120):

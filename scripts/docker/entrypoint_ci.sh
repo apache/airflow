@@ -221,10 +221,54 @@ function check_boto_upgrade() {
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
-    pip install --root-user-action ignore --upgrade boto3 botocore
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
+    # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
     pip check
 }
+
+# Remove or reinstall pydantic if needed
+function check_pydantic() {
+    if [[ ${PYDANTIC=} == "none" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
+        echo
+        echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
+           pyiceberg qdrant-client cfn-lint weaviate-client
+        pip check
+    elif [[ ${PYDANTIC=} == "v1" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
+        echo
+        echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
+        echo
+        echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
+        echo
+        # shellcheck disable=SC2086
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
+        pip check
+    else
+        echo
+        echo "${COLOR_BLUE}Leaving default pydantic v2${COLOR_RESET}"
+        echo
+    fi
+}
+
 
 # Download minimum supported version of sqlalchemy to run tests with it
 function check_download_sqlalchemy() {
@@ -235,7 +279,8 @@ function check_download_sqlalchemy() {
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
-    pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "sqlalchemy==${min_sqlalchemy_version}"
     pip check
 }
 
@@ -248,7 +293,8 @@ function check_download_pendulum() {
     echo
     echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
-    pip install --root-user-action ignore "pendulum==${min_pendulum_version}"
+    # shellcheck disable=SC2086
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
     pip check
 }
 
@@ -281,6 +327,7 @@ function check_run_tests() {
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
+check_pydantic
 check_download_sqlalchemy
 check_download_pendulum
 check_run_tests "${@}"

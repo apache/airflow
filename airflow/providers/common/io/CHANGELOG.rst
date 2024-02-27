@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add object storage backend for xcom (#37058)``
+
 1.2.0
 .....
 

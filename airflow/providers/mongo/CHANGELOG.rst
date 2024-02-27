@@ -33,10 +33,22 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Introduced the allow_insecure flag in the extras field of for the MongoDB connection. This flag allows users to control
+Introduced the allow_insecure flag in the extras field for the MongoDB connection. This flag allows users to control
 whether insecure connections are permitted when using SSL encryption. By default, the allow_insecure flag is
 set to False. This means that when SSL encryption is enabled (ssl=True), insecure connections are not allowed unless
 explicitly specified by the user.
+
+* ``Adding certificate validation for ssl in mongo hook (#37214)``
+* ``Fixing the version for mongo provider (#37250)``
+
+Misc
+~~~~
+
+* ``Change 'MongoHook.conn_name_attr' to 'mongo_conn_id' (#37104)``
+* ``Change docs type in insert_many to list of dicts (#37230)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Typo fix in changelog for mongo provider (#37350)``
 
 3.6.0
 .....

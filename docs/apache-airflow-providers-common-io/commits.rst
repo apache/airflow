@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.0
+.....
+
+Latest change: 2024-02-03
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`573d650708 <https://github.com/apache/airflow/commit/573d650708334c5e4ea4f1d72d01b976edefc6cf>`_  2024-02-03   ``AIP-58: Add object storage backend for xcom (#37058)``
+=================================================================================================  ===========  ========================================================
+
 1.2.0
 .....
 
-Latest change: 2024-01-04
+Latest change: 2024-01-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `33996a49f1 <https://github.com/apache/airflow/commit/33996a49f15cff35b6c23f245768243167944db6>`_  2024-01-04   ``Add support for openlineage to AFS and common.io (#36410)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 `9b5d6bfe27 <https://github.com/apache/airflow/commit/9b5d6bfe273cf6af0972e28ff97f99ea325cd991>`_  2023-12-28   ``Add documentation for 3rd wave of providers in Deember (#36464)``

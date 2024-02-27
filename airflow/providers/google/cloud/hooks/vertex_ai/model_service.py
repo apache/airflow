@@ -51,7 +51,7 @@ class ModelServiceHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
-        """Returns ModelServiceClient."""
+        """Return ModelServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -63,11 +63,11 @@ class ModelServiceHook(GoogleBaseHook):
 
     @staticmethod
     def extract_model_id(obj: dict) -> str:
-        """Returns unique id of the model."""
+        """Return unique id of the model."""
         return obj["model"].rpartition("/")[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -85,7 +85,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a Model.
+        Delete a Model.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -119,7 +119,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Exports a trained, exportable Model to a location specified by the user.
+        Export a trained, exportable Model to a location specified by the user.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -158,7 +158,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListModelsPager:
         r"""
-        Lists Models in a Location.
+        List Models in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -213,7 +213,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Uploads a Model artifact into Vertex AI.
+        Upload a Model artifact into Vertex AI.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -247,7 +247,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListModelVersionsPager:
         """
-        Lists all versions of the existing Model.
+        List all versions of the existing Model.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -280,7 +280,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes version of the Model. The version could not be deleted if this version is default.
+        Delete version of the Model. The version could not be deleted if this version is default.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -313,7 +313,7 @@ class ModelServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Model:
         """
-        Retrieves Model of specific name and version. If version is not specified, the default is retrieved.
+        Retrieve Model of specific name and version. If version is not specified, the default is retrieved.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

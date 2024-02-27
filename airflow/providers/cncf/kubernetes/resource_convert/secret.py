@@ -21,7 +21,7 @@ from kubernetes.client import models as k8s
 
 def convert_secret(secret_name: str) -> k8s.V1EnvFromSource:
     """
-    Converts a str into an k8s object.
+    Convert a str into an k8s object.
 
     :param secret_name:
     :return:
@@ -31,7 +31,7 @@ def convert_secret(secret_name: str) -> k8s.V1EnvFromSource:
 
 def convert_image_pull_secrets(image_pull_secrets: str) -> list[k8s.V1LocalObjectReference]:
     """
-    Converts a image pull secret name into k8s local object reference.
+    Convert an image pull secret name into k8s local object reference.
 
     :param image_pull_secrets: comma separated string that contains secrets
     :return:

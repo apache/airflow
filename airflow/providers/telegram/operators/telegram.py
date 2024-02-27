@@ -72,7 +72,7 @@ class TelegramOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
-        """Calls the TelegramHook to post the provided Telegram message."""
+        """Call the TelegramHook to post the provided Telegram message."""
         if self.text:
             self.telegram_kwargs["text"] = self.text
 

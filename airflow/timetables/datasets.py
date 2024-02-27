@@ -17,28 +17,36 @@
 
 from __future__ import annotations
 
-import collections.abc
 import typing
 
-import attrs
-
-from airflow.datasets import Dataset
+from airflow.datasets import BaseDatasetEventInput, DatasetAll
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Collection
+
     import pendulum
 
+    from airflow.datasets import Dataset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
 class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
     """Combine time-based scheduling with event-based scheduling."""
 
-    def __init__(self, timetable: Timetable, datasets: collections.abc.Collection[Dataset]) -> None:
+    def __init__(
+        self,
+        *,
+        timetable: Timetable,
+        datasets: Collection[Dataset] | BaseDatasetEventInput,
+    ) -> None:
         self.timetable = timetable
-        self.datasets = datasets
+        if isinstance(datasets, BaseDatasetEventInput):
+            self.datasets = datasets
+        else:
+            self.datasets = DatasetAll(*datasets)
 
         self.description = f"Triggered by datasets or {timetable.description}"
         self.periodic = timetable.periodic
@@ -52,24 +60,23 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
         from airflow.serialization.serialized_objects import decode_timetable
 
         return cls(
-            timetable=decode_timetable(data["timetable"]), datasets=[Dataset(**d) for d in data["datasets"]]
+            timetable=decode_timetable(data["timetable"]),
+            # don't need the datasets after deserialization
+            # they are already stored on dataset_triggers attr on DAG
+            # and this is what scheduler looks at
+            datasets=[],
         )
 
     def serialize(self) -> dict[str, typing.Any]:
         from airflow.serialization.serialized_objects import encode_timetable
 
-        return {
-            "timetable": encode_timetable(self.timetable),
-            "datasets": [attrs.asdict(e) for e in self.datasets],
-        }
+        return {"timetable": encode_timetable(self.timetable)}
 
     def validate(self) -> None:
         if isinstance(self.timetable, DatasetTriggeredSchedule):
             raise AirflowTimetableInvalid("cannot nest dataset timetables")
-        if not isinstance(self.datasets, collections.abc.Collection) or not all(
-            isinstance(d, Dataset) for d in self.datasets
-        ):
-            raise AirflowTimetableInvalid("all elements in 'event' must be datasets")
+        if not isinstance(self.datasets, BaseDatasetEventInput):
+            raise AirflowTimetableInvalid("all elements in 'datasets' must be datasets")
 
     @property
     def summary(self) -> str:

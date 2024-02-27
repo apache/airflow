@@ -39,7 +39,10 @@ SECTION = "common.io"
 
 
 def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
-    """This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8."""
+    """Return whether or not this path is relative to the other path.
+
+    This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8.
+    """
     if hasattr(o, "is_relative_to"):
         return o.is_relative_to(other)
 
@@ -51,7 +54,7 @@ def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
 
 
 def _get_compression_suffix(compression: str) -> str:
-    """This returns the compression suffix for the given compression.
+    """Return the compression suffix for the given compression.
 
     :raises ValueError: if the compression is not supported
     """
@@ -73,7 +76,7 @@ class XComObjectStoreBackend(BaseXCom):
 
     @staticmethod
     def _get_key(data: str) -> str:
-        """This gets the key from the url and normalizes it to be relative to the configured path.
+        """Get the key from the url and normalizes it to be relative to the configured path.
 
         :raises ValueError: if the key is not relative to the configured path
         :raises TypeError: if the url is not a valid url or cannot be split

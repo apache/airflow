@@ -31,6 +31,11 @@ AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
+if os.environ.get("PYDANTIC", "v2") != "v2":
+    pytest.skip(
+        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
+    )
+
 
 def get_suspended_providers_folders() -> list[str]:
     """

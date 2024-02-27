@@ -24,6 +24,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -92,11 +93,12 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         self.log.info("instance state: %s", instance_state)
         return instance_state == self.target_state
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error: {event}"
             if self.soft_fail:
                 raise AirflowSkipException(message)
             raise AirflowException(message)
-        return

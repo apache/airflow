@@ -39,13 +39,8 @@ from airflow.providers_manager import (
 
 class TestProviderManager:
     @pytest.fixture(autouse=True)
-    def inject_fixtures(self, caplog):
+    def inject_fixtures(self, caplog, cleanup_providers_manager):
         self._caplog = caplog
-
-    @pytest.fixture(autouse=True, scope="function")
-    def clean(self):
-        """The tests depend on a clean state of a ProvidersManager."""
-        ProvidersManager().__init__()
 
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
@@ -93,8 +88,9 @@ class TestProviderManager:
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
 
     def test_warning_logs_generated(self):
+        providers_manager = ProvidersManager()
+        providers_manager._hooks_lazy_dict = LazyDictWithCache()
         with self._caplog.at_level(logging.WARNING):
-            providers_manager = ProvidersManager()
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
                 version="0.0.1",
                 data={
@@ -165,6 +161,7 @@ class TestProviderManager:
 
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
         providers_manager._provider_dict["apache-airflow-providers-apache-hive"] = ProviderInfo(
             version="0.0.1",
             data={

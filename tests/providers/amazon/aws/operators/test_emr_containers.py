@@ -71,7 +71,7 @@ class TestEmrContainerOperator:
         self.emr_container.execute(None)
 
         mock_submit_job.assert_called_once_with(
-            "test_emr_job", "arn:aws:somerole", "6.3.0-latest", {}, {}, GENERATED_UUID, {}
+            "test_emr_job", "arn:aws:somerole", "6.3.0-latest", {}, {}, GENERATED_UUID, {}, None
         )
         mock_check_query_status.assert_called_once_with("jobid_123456")
         assert self.emr_container.release_label == "6.3.0-latest"

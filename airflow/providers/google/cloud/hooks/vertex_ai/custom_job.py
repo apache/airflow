@@ -73,7 +73,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> PipelineServiceClient:
-        """Returns PipelineServiceClient."""
+        """Return PipelineServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -86,7 +86,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> JobServiceClient:
-        """Returns JobServiceClient."""
+        """Return JobServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -119,7 +119,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ) -> CustomContainerTrainingJob:
-        """Returns CustomContainerTrainingJob object."""
+        """Return CustomContainerTrainingJob object."""
         return CustomContainerTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -168,7 +168,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomPythonPackageTrainingJob object."""
+        """Return CustomPythonPackageTrainingJob object."""
         return CustomPythonPackageTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -218,7 +218,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomTrainingJob object."""
+        """Return CustomTrainingJob object."""
         return CustomTrainingJob(
             display_name=display_name,
             script_path=script_path,
@@ -246,21 +246,21 @@ class CustomJobHook(GoogleBaseHook):
 
     @staticmethod
     def extract_model_id(obj: dict) -> str:
-        """Returns unique id of the Model."""
+        """Return unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
     @staticmethod
     def extract_training_id(resource_name: str) -> str:
-        """Returns unique id of the Training pipeline."""
+        """Return unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
     @staticmethod
     def extract_custom_job_id(custom_job_name: str) -> str:
-        """Returns unique id of the Custom Job pipeline."""
+        """Return unique id of the Custom Job pipeline."""
         return custom_job_name.rpartition("/")[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -372,7 +372,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a PipelineJob.
+        Cancel a PipelineJob.
 
         Starts asynchronous cancellation on the PipelineJob. The server makes the best
         effort to cancel the pipeline, but success is not guaranteed. Clients can use
@@ -415,7 +415,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a TrainingPipeline.
+        Cancel a TrainingPipeline.
 
         Starts asynchronous cancellation on the TrainingPipeline. The server makes
         the best effort to cancel the pipeline, but success is not guaranteed. Clients can use
@@ -456,7 +456,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a CustomJob.
+        Cancel a CustomJob.
 
         Starts asynchronous cancellation on the CustomJob. The server makes the best effort
         to cancel the job, but success is not guaranteed. Clients can use
@@ -502,7 +502,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Creates a PipelineJob. A PipelineJob will run immediately when created.
+        Create a PipelineJob. A PipelineJob will run immediately when created.
 
         This method is deprecated, please use `PipelineJobHook.create_pipeline_job` method.
 
@@ -543,7 +543,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
-        Creates a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
+        Create a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -577,7 +577,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
-        Creates a CustomJob. A created CustomJob right away will be attempted to be run.
+        Create a CustomJob. A created CustomJob right away will be attempted to be run.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1767,7 +1767,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a PipelineJob.
+        Delete a PipelineJob.
 
         This method is deprecated, please use `PipelineJobHook.delete_pipeline_job` method.
 
@@ -1802,7 +1802,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a TrainingPipeline.
+        Delete a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1835,7 +1835,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a CustomJob.
+        Delete a CustomJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1872,7 +1872,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Gets a PipelineJob.
+        Get a PipelineJob.
 
         This method is deprecated, please use `PipelineJobHook.get_pipeline_job` method.
 
@@ -1907,7 +1907,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
-        Gets a TrainingPipeline.
+        Get a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1940,7 +1940,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
-        Gets a CustomJob.
+        Get a CustomJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1980,7 +1980,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListPipelineJobsPager:
         """
-        Lists PipelineJobs in a Location.
+        List PipelineJobs in a Location.
 
         This method is deprecated, please use `PipelineJobHook.list_pipeline_jobs` method.
 
@@ -2070,7 +2070,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
-        Lists TrainingPipelines in a Location.
+        List TrainingPipelines in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -2131,7 +2131,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListCustomJobsPager:
         """
-        Lists CustomJobs in a Location.
+        List CustomJobs in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

@@ -49,7 +49,7 @@ log = logging.getLogger(__name__)
 
 def _normalize_mlengine_job_id(job_id: str) -> str:
     """
-    Replaces invalid MLEngine job_id characters with '_'.
+    Replace invalid MLEngine job_id characters with '_'.
 
     This also adds a leading 'z' in case job_id starts with an invalid
     character.
@@ -1379,7 +1379,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
         """
-        Waits for the Job to reach a terminal state.
+        Wait for the Job to reach a terminal state.
 
         This method will periodically check the job state until the job reach
         a terminal state.
@@ -1402,7 +1402,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

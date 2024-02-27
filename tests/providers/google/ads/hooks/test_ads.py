@@ -21,23 +21,50 @@ from unittest.mock import PropertyMock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 
 API_VERSION = "api_version"
-ADS_CLIENT = {"key": "value"}
+ADS_CLIENT_SERVICE_ACCOUNT = {"impersonated_email": "value", "json_key_file_path": "value"}
 SECRET = "secret"
-EXTRAS = {
+EXTRAS_SERVICE_ACCOUNT = {
     "keyfile_dict": SECRET,
-    "google_ads_client": ADS_CLIENT,
+    "google_ads_client": ADS_CLIENT_SERVICE_ACCOUNT,
+}
+ADS_CLIENT_DEVELOPER_TOKEN = {
+    "refresh_token": "value",
+    "client_id": "value",
+    "client_secret": "value",
+    "use_proto_plus": "value",
+}
+EXTRAS_DEVELOPER_TOKEN = {
+    "google_ads_client": ADS_CLIENT_DEVELOPER_TOKEN,
 }
 
 
-@pytest.fixture()
-def mock_hook():
+@pytest.fixture(
+    params=[EXTRAS_DEVELOPER_TOKEN, EXTRAS_SERVICE_ACCOUNT], ids=["developer_token", "service_account"]
+)
+def mock_hook(request):
     with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
         hook = GoogleAdsHook(api_version=API_VERSION)
-        conn.return_value.extra_dejson = EXTRAS
+        conn.return_value.extra_dejson = request.param
         yield hook
+
+
+@pytest.fixture(
+    params=[
+        {"input": EXTRAS_DEVELOPER_TOKEN, "expected_result": "developer_token"},
+        {"input": EXTRAS_SERVICE_ACCOUNT, "expected_result": "service_account"},
+        {"input": {"google_ads_client": {}}, "expected_result": AirflowException},
+    ],
+    ids=["developer_token", "service_account", "empty"],
+)
+def mock_hook_for_authentication_method(request):
+    with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
+        hook = GoogleAdsHook(api_version=API_VERSION)
+        conn.return_value.extra_dejson = request.param["input"]
+        yield hook, request.param["expected_result"]
 
 
 class TestGoogleAdsHook:
@@ -87,3 +114,13 @@ class TestGoogleAdsHook:
         result = mock_hook.list_accessible_customers()
         service.list_accessible_customers.assert_called_once_with()
         assert accounts == result
+
+    def test_determine_authentication_method(self, mock_hook_for_authentication_method):
+        mock_hook, expected_method = mock_hook_for_authentication_method
+        mock_hook._get_config()
+        if isinstance(expected_method, type) and issubclass(expected_method, Exception):
+            with pytest.raises(expected_method):
+                mock_hook._determine_authentication_method()
+        else:
+            mock_hook._determine_authentication_method()
+            assert mock_hook.authentication_method == expected_method

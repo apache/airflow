@@ -57,6 +57,14 @@ maintainer.
   should push your branch as `main` branch in your local fork. This will
   run changed `build-images.yml` workflow as it will be in `main` branch
   of your fork
+- When you are a committer and you change build images workflow, together
+  with build scripts, your build might fail because your scripts are used
+  in `build-images.yml` workflow, but the workflow is run using the `main`
+  version. Setting `non committer build` label will make your PR run using
+  the main version of the scripts and the workflow
+- When you want to test how changes in your workflow affect `canary` run,
+  as maintainer, you should push your PR to `apache` repository not to your
+  fork and set `canary` label to the PR
 
 -----
 

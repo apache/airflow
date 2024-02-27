@@ -18,25 +18,18 @@
  */
 
 import axios, { AxiosResponse } from "axios";
-import type { API, TaskInstance } from "src/types";
+import type { API } from "src/types";
 import { useQuery } from "react-query";
 import { useAutoRefresh } from "src/context/autorefresh";
 
 import { getMetaValue } from "src/utils";
 import type { SetOptional } from "type-fest";
 
-/* GridData.TaskInstance and API.TaskInstance are not compatible at the moment.
- * Remove this function when changing the api response for grid_data_url to comply
- * with API.TaskInstance.
- */
-const convertTaskInstance = (ti: API.TaskInstance) =>
-  ({ ...ti, runId: ti.dagRunId } as TaskInstance);
-
 const taskInstanceApi = getMetaValue("task_instance_api");
 
 interface Props
   extends SetOptional<API.GetMappedTaskInstanceVariables, "mapIndex"> {
-  enabled: boolean;
+  enabled?: boolean;
 }
 
 const useTaskInstance = ({
@@ -61,15 +54,10 @@ const useTaskInstance = ({
 
   return useQuery(
     ["taskInstance", dagId, dagRunId, taskId, mapIndex],
-    () =>
-      axios.get<AxiosResponse, API.TaskInstance>(url, {
-        headers: { Accept: "text/plain" },
-      }),
+    () => axios.get<AxiosResponse, API.TaskInstance>(url),
     {
-      placeholderData: {},
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       enabled,
-      select: convertTaskInstance,
     }
   );
 };

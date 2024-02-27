@@ -379,3 +379,51 @@ class TestLivyOperator:
                 },
             )
         self.mock_context["ti"].xcom_push.assert_not_called()
+
+
+@pytest.mark.db_test
+def test_spark_params_templating(create_task_instance_of_operator):
+    ti = create_task_instance_of_operator(
+        LivyOperator,
+        # Templated fields
+        file="{{ 'literal-file' }}",
+        class_name="{{ 'literal-class-name' }}",
+        args="{{ 'literal-args' }}",
+        jars="{{ 'literal-jars' }}",
+        py_files="{{ 'literal-py-files' }}",
+        files="{{ 'literal-files' }}",
+        driver_memory="{{ 'literal-driver-memory' }}",
+        driver_cores="{{ 'literal-driver-cores' }}",
+        executor_memory="{{ 'literal-executor-memory' }}",
+        executor_cores="{{ 'literal-executor-cores' }}",
+        num_executors="{{ 'literal-num-executors' }}",
+        archives="{{ 'literal-archives' }}",
+        queue="{{ 'literal-queue' }}",
+        name="{{ 'literal-name' }}",
+        conf="{{ 'literal-conf' }}",
+        proxy_user="{{ 'literal-proxy-user' }}",
+        # Other parameters
+        dag_id="test_template_body_templating_dag",
+        task_id="test_template_body_templating_task",
+        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+    )
+    ti.render_templates()
+    task: LivyOperator = ti.task
+    assert task.spark_params == {
+        "archives": "literal-archives",
+        "args": "literal-args",
+        "class_name": "literal-class-name",
+        "conf": "literal-conf",
+        "driver_cores": "literal-driver-cores",
+        "driver_memory": "literal-driver-memory",
+        "executor_cores": "literal-executor-cores",
+        "executor_memory": "literal-executor-memory",
+        "file": "literal-file",
+        "files": "literal-files",
+        "jars": "literal-jars",
+        "name": "literal-name",
+        "num_executors": "literal-num-executors",
+        "proxy_user": "literal-proxy-user",
+        "py_files": "literal-py-files",
+        "queue": "literal-queue",
+    }

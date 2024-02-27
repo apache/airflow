@@ -171,6 +171,44 @@ As well as a single parameter it is possible to pass multiple parameters to expa
 
 This would result in the add task being called 6 times. Please note, however, that the order of expansion is not guaranteed.
 
+Named mapping
+-------------
+
+By default, mapped tasks are assigned an integer index. It is possible to override the integer index for each mapped task in the Airflow UI with a name based on the task's input. This is done by providing a Jinja template for the task with ``map_index_template``. This template is rendered after each expanded task is executed using the task context. This means you can reference attributes on the task like this:
+
+.. code-block:: python
+
+    from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+
+
+    # The two expanded task instances will be named "2024-01-01" and "2024-01-02".
+    SQLExecuteQueryOperator.partial(
+        ...,
+        sql="SELECT * FROM data WHERE date = %(date)s",
+        map_index_template="""{{ task.parameters['date'] }}""",
+    ).expand(
+        parameters=[{"date": "2024-01-01"}, {"date": "2024-01-02"}],
+    )
+
+In the above example, the expanded task instances will be named "2024-01-01" and "2024-01-02". The names show up in the Airflow UI instead of "0" and "1", respectively.
+
+Since the template is rendered after the main execution block, it is possible to also dynamically inject into the rendering context. This is useful when the logic to render a desirable name is difficult to express in the Jinja template syntax, particularly in a taskflow function. For example:
+
+.. code-block:: python
+
+    from airflow.operators.python import get_current_context
+
+
+    @task(map_index_template="{{ my_variable }}")
+    def my_task(my_value: str):
+        context = get_current_context()
+        context["my_variable"] = my_value * 3
+        ...  # Normal execution...
+
+
+    # The task instances will be named "aaa" and "bbb".
+    my_task.expand(my_value=["a", "b"])
+
 Mapping with non-TaskFlow operators
 ===================================
 

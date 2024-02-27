@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import urllib.parse
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -215,7 +216,9 @@ class GlueJobOperator(BaseOperator):
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
         return self._job_run_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in glue job: {event}")
         return event["value"]

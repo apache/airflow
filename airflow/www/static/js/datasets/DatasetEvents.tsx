@@ -27,6 +27,7 @@ import {
   TimeCell,
   TaskInstanceLink,
   TriggeredRuns,
+  CodeCell,
 } from "src/components/Table";
 
 const Events = ({ datasetId }: { datasetId: number }) => {
@@ -65,6 +66,12 @@ const Events = ({ datasetId }: { datasetId: number }) => {
         Header: "Triggered Runs",
         accessor: "createdDagruns",
         Cell: TriggeredRuns,
+      },
+      {
+        Header: "Extra",
+        accessor: "extra",
+        Cell: CodeCell,
+        disableSortBy: true,
       },
     ],
     []

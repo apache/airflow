@@ -30,11 +30,12 @@ import ReactFlow, {
   Viewport,
 } from "reactflow";
 
-import { useGraphData, useGridData } from "src/api";
+import { useDatasets, useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { useOffsetTop } from "src/utils";
+import { getMetaValue, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
+import type { DepNode, WebserverEdge } from "src/types";
 
 import Node from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
@@ -48,6 +49,8 @@ interface Props {
   hoveredTaskState?: string | null;
 }
 
+const dagId = getMetaValue("dag_id");
+
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
@@ -59,13 +62,63 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
+  const { data: datasetsCollection } = useDatasets({
+    dagIds: [dagId],
+  });
+
+  const rawNodes =
+    data?.nodes && datasetsCollection?.datasets?.length
+      ? {
+          ...data.nodes,
+          children: [
+            ...(data.nodes.children || []),
+            ...(datasetsCollection?.datasets || []).map(
+              (dataset) =>
+                ({
+                  id: dataset?.id?.toString() || "",
+                  value: {
+                    class: "dataset",
+                    label: dataset.uri,
+                  },
+                } as DepNode)
+            ),
+          ],
+        }
+      : data?.nodes;
+
+  const datasetEdges: WebserverEdge[] = [];
+
+  datasetsCollection?.datasets?.forEach((dataset) => {
+    const producingTask = dataset?.producingTasks?.find(
+      (t) => t.dagId === dagId
+    );
+    const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
+    if (dataset.id) {
+      if (producingTask?.taskId) {
+        datasetEdges.push({
+          sourceId: producingTask.taskId,
+          targetId: dataset.id.toString(),
+        });
+      }
+      if (consumingDag && data?.nodes?.children?.length) {
+        datasetEdges.push({
+          sourceId: dataset.id.toString(),
+          // Point upstream datasets to the first task
+          targetId: data.nodes?.children[0].id,
+        });
+      }
+    }
+  });
+
   const { data: graphData } = useGraphLayout({
-    edges: data?.edges,
-    nodes: data?.nodes,
+    edges: [...(data?.edges || []), ...datasetEdges],
+    nodes: rawNodes,
     openGroupIds,
     arrange,
   });
+
   const { selected } = useSelection();
+
   const {
     data: { dagRuns, groups },
   } = useGridData();

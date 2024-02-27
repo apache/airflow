@@ -36,6 +36,7 @@ IGNORED = {
     "email_on_retry",
     "post_execute",
     "pre_execute",
+    "multiple_outputs",
     # Doesn't matter, not used anywhere.
     "default_args",
     # Deprecated and is aliased to max_active_tis_per_dag.

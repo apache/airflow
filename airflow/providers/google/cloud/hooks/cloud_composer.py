@@ -60,7 +60,7 @@ class CloudComposerHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_environment_client(self) -> EnvironmentsClient:
-        """Retrieves client library object that allow access Environments service."""
+        """Retrieve client library object that allow access Environments service."""
         return EnvironmentsClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
@@ -68,7 +68,7 @@ class CloudComposerHook(GoogleBaseHook):
         )
 
     def get_image_versions_client(self) -> ImageVersionsClient:
-        """Retrieves client library object that allow access Image Versions service."""
+        """Retrieve client library object that allow access Image Versions service."""
         return ImageVersionsClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,
@@ -76,7 +76,7 @@ class CloudComposerHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -309,7 +309,7 @@ class CloudComposerAsyncHook(GoogleBaseHook):
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
     def get_environment_client(self) -> EnvironmentsAsyncClient:
-        """Retrieves client library object that allow access Environments service."""
+        """Retrieve client library object that allow access Environments service."""
         return EnvironmentsAsyncClient(
             credentials=self.get_credentials(),
             client_info=CLIENT_INFO,

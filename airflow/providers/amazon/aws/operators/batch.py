@@ -44,7 +44,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 if TYPE_CHECKING:
@@ -269,10 +269,7 @@ class BatchOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        if event is None:
-            err_msg = "Trigger error: event is None"
-            self.log.info(err_msg)
-            raise AirflowException(err_msg)
+        event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
@@ -541,7 +538,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.log.info("AWS Batch compute environment created successfully")
         return arn
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
         return event["value"]

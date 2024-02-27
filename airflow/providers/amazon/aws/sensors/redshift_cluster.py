@@ -26,6 +26,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -88,10 +89,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            err_msg = "Trigger error: event is None"
-            self.log.error(err_msg)
-            raise AirflowException(err_msg)
+        event = validate_execute_complete_event(event)
 
         status = event["status"]
         if status == "error":

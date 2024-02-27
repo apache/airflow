@@ -19,12 +19,13 @@
 package-name: apache-airflow-providers-microsoft-psrp
 name: PowerShell Remoting Protocol (PSRP)
 description: |
-    This package provides remote execution capabilities via the
-    `PowerShell Remoting Protocol (PSRP)
-    <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
+  This package provides remote execution capabilities via the
+  `PowerShell Remoting Protocol (PSRP)
+  <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 state: ready
 source-date-epoch: 1705912159
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 2.5.0
   - 2.4.0
@@ -60,3 +61,7 @@ hooks:
   - integration-name: Windows PowerShell Remoting Protocol
     python-modules:
       - airflow.providers.microsoft.psrp.hooks.psrp
+
+connection-types:
+  - hook-class-name: airflow.providers.microsoft.psrp.hooks.psrp.PsrpHook
+    connection-type: psrp

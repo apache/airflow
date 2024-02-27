@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from azure.synapse.spark import SparkClient
 
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
 
@@ -172,7 +173,7 @@ def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected
         if expected_output != "timeout":
             assert hook.wait_for_job_run_status(**config) == expected_output
         else:
-            with pytest.raises(Exception):
+            with pytest.raises(AirflowTaskTimeout):
                 hook.wait_for_job_run_status(**config)
 
 

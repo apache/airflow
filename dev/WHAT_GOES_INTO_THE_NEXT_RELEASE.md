@@ -57,7 +57,7 @@ and mark the issues they think are bug fixes, to go into the next release
 
 This is the only thing that the maintainer has to do to get the PR proposed to be considered in
 the next patch release. Sometimes - if controversial - maintainers discuss the proposals in
-the #release-management channel in Slack, sometimes in #development or in the PR itself -
+the #release-management channel in Slack, sometimes in #contributors or in the PR itself -
 especially if the release manager decides to not include it and changes the milestone (and explains why).
 
 # What's the release manager's role ?

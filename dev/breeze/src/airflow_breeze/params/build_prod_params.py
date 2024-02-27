@@ -51,10 +51,10 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_reference: str | None = None
     install_airflow_version: str | None = None
     install_packages_from_context: bool = False
-    use_constraints_for_context_packages: bool = False
     installation_method: str = "."
     runtime_apt_command: str | None = None
     runtime_apt_deps: str | None = None
+    use_constraints_for_context_packages: bool = False
 
     @property
     def airflow_version(self) -> str:

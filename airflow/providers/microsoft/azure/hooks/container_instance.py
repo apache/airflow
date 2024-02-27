@@ -66,7 +66,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_conn(self) -> Any:
         """
-        Authenticates the resource using the connection id passed during init.
+        Authenticate the resource using the connection id passed during init.
 
         :return: the authenticated client.
         """

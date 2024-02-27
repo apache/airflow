@@ -42,6 +42,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.15.0
+.......
+
+Latest change: 2024-02-11
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`9c4a9d7947 <https://github.com/apache/airflow/commit/9c4a9d7947879a3bfab85ef32b8afcfa77fdd871>`_  2024-02-11   ``D401 lint fixes for all hooks in google provider (#37296)``
+`e31aa4e1ea <https://github.com/apache/airflow/commit/e31aa4e1eaecefbdf19197e63e0719cb29e312af>`_  2024-02-10   ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
+`0a8e771fb7 <https://github.com/apache/airflow/commit/0a8e771fb7e201bf4ee89444e7d50ddb6c00d372>`_  2024-02-10   ``D401 lint fixes for google provider (#37304)``
+`90e2b12d6b <https://github.com/apache/airflow/commit/90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36>`_  2024-02-08   ``Upgrade mypy to 1.8.0 (#36428)``
+`6b49bb3a4f <https://github.com/apache/airflow/commit/6b49bb3a4f0994d8beb95b789c07ed894b577abf>`_  2024-02-08   ``Fix metadata override for ComputeEngineSSHHook (#37192)``
+`7883bcc85c <https://github.com/apache/airflow/commit/7883bcc85cee3826540b65eb6522320044931436>`_  2024-02-07   ``Fix assignment of template field in '__init__' in 'custom_job' (#36789)``
+`1fe8cddde8 <https://github.com/apache/airflow/commit/1fe8cddde8159ecffc61f204b8383f5d1ff39047>`_  2024-02-05   ``Fix location requirement in DataflowTemplatedJobStartOperator (#37069)``
+`2372e21d9d <https://github.com/apache/airflow/commit/2372e21d9dd44a9cb1f7cd20bbee7f1c37936faf>`_  2024-02-05   ``add service_file support to GKEPodAsyncHook (#37081)``
+`46470aba68 <https://github.com/apache/airflow/commit/46470aba68e5ebeee24a03dc22d012a50ee287ad>`_  2024-02-04   ``Fix assignment of template field in '__init__' in 'CloudDataTransferServiceCreateJobOperator' (#36909)``
+`11564a0297 <https://github.com/apache/airflow/commit/11564a0297e3a4791836e26b260ce9428daa387e>`_  2024-02-04   ``Fixed the hardcoded default namespace value for GCP Data Fusion links. (#35379)``
+`41503140fc <https://github.com/apache/airflow/commit/41503140fcb063e79d837443eeaf4ab7d7110cb4>`_  2024-01-31   ``Do not ignore the internal_ip_only if set to false in Dataproc cluster config (#37014)``
+`fb62cf281e <https://github.com/apache/airflow/commit/fb62cf281e030abcbcbd275cf974fdd4fa54eac6>`_  2024-01-31   ``Revert protection against back-compatibilty issue with google-core-api (#37111)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+`770a96f4c5 <https://github.com/apache/airflow/commit/770a96f4c577c3af2bcb6c03dcfaac4a5ad051b6>`_  2024-01-26   ``Update GCP Dataproc ClusterGenerator to support GPU params (#37036)``
+`0f2670e7ac <https://github.com/apache/airflow/commit/0f2670e7acaabb7110dd800b42b491aac9a8a511>`_  2024-01-26   ``Create DataprocStartClusterOperator and DataprocStopClusterOperator (#36996)``
+`35617620a9 <https://github.com/apache/airflow/commit/35617620a9d2aee8fcc76db7fb6429e90c25783e>`_  2024-01-26   ``Implement deferrable mode for CreateHyperparameterTuningJobOperator (#36594)``
+`35daa3462b <https://github.com/apache/airflow/commit/35daa3462b128e5972d9e270dc66e6862f934262>`_  2024-01-26   ``Enable '_enable_tcp_keepalive' functionality for GKEPodHook (#36999)``
+=================================================================================================  ===========  ==========================================================================================================
+
 10.14.0
 .......
 
@@ -50,6 +77,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `10ad8d9e38 <https://github.com/apache/airflow/commit/10ad8d9e38351427acfa30c58a7702f0f4d66f05>`_  2024-01-25   ``Add operator to diagnose cluster (#36899)``
 `241b50a46e <https://github.com/apache/airflow/commit/241b50a46ecdc27331c7fc7aeda2405ee3e9f323>`_  2024-01-24   ``Add scopes into a GCP token (#36974)``

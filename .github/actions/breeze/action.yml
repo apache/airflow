@@ -18,6 +18,10 @@
 ---
 name: 'Setup Breeze'
 description: 'Sets up Python and Breeze'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    default: "3.8"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -28,7 +32,7 @@ runs:
     - name: "Setup python"
       uses: actions/setup-python@v5
       with:
-        python-version: 3.8
+        python-version: ${{ inputs.python-version }}
         cache: 'pip'
         cache-dependency-path: ./dev/breeze/setup*
     - name: Cache breeze
@@ -37,11 +41,14 @@ runs:
         path: ~/.local/pipx
         # README has the latest breeze's hash and python location is used to distinguish between
         # different minor versions of python
-        key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
-        restore-keys: breeze-3.8-${{ env.pythonLocation }}
+        key: "breeze-${{inputs.python-version}}-${{env.pythonLocation}}-\
+          ${{hashFiles('dev/breeze/README.md')}}"
+        restore-keys: breeze-${{inputs.python-version}}-${{ env.pythonLocation }}
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh
+      env:
+        PYTHON_VERSION: ${{ inputs.python-version }}
     - name: "Free space"
       shell: bash
       run: breeze ci free-space
