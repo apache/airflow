@@ -123,7 +123,7 @@ opentelemetry-sdk==1.23.0
 opentelemetry-semantic-conventions==0.44b0
 ordered-set==4.1.0
 packaging==23.2
-pandas==2.2.1
+pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.0.0
 platformdirs==4.2.0
