@@ -24,7 +24,7 @@ from airflow.models import Connection
 from airflow.providers.apache.impala.hooks.impala import ImpalaHook
 
 
-@pytest.fixture()
+@pytest.fixture
 def impala_hook_fixture() -> ImpalaHook:
     hook = ImpalaHook()
     mock_get_conn = MagicMock()

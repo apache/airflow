@@ -39,11 +39,11 @@ class TestElasticsearchJSONFormatter:
         "log_id": "Some_log_id",
     }
 
-    @pytest.fixture()
+    @pytest.fixture
     def es_json_formatter(self):
         return ElasticsearchJSONFormatter()
 
-    @pytest.fixture()
+    @pytest.fixture
     def log_record(self):
         return logging.LogRecord(
             name="test",

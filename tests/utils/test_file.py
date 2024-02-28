@@ -88,7 +88,7 @@ class TestOpenMaybeZipped:
 
 
 class TestListPyFilesPath:
-    @pytest.fixture()
+    @pytest.fixture
     def test_dir(self, tmp_path):
         # create test tree with symlinks
         source = os.path.join(tmp_path, "folder")

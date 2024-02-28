@@ -198,7 +198,7 @@ def create_expected_log_file(log_path, tis):
         shutil.rmtree(sub_path)
 
 
-@pytest.fixture()
+@pytest.fixture
 def log_admin_client(log_app):
     return client_with_login(log_app, username="test", password="test")
 
@@ -278,7 +278,7 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client, create_expect
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_run_with_log_filename(tis):
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
