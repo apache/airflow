@@ -208,6 +208,8 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
             continue
         if "@" in line:
             continue
+        if "from file://" in line:
+            continue
         if line.strip() == "":
             continue
         count_lines += 1
