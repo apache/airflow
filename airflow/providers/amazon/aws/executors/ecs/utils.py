@@ -75,6 +75,7 @@ class BaseConfigKeys:
     """Base Implementation of the Config Keys class. Implements iteration for child classes to inherit."""
 
     def __iter__(self):
+        """Return an iterator of values of non-dunder attributes of Config Keys."""
         return iter({value for (key, value) in self.__class__.__dict__.items() if not key.startswith("__")})
 
 
@@ -151,6 +152,7 @@ class EcsExecutorTask:
         return State.SUCCESS if all_containers_succeeded else State.FAILED
 
     def __repr__(self):
+        """Return a string representation of the ECS task."""
         return f"({self.task_arn}, {self.last_status}->{self.desired_status}, {self.get_task_state()})"
 
 
