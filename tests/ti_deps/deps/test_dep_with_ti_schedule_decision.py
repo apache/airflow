@@ -22,9 +22,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
@@ -44,9 +43,7 @@ class DummyDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
-        yield self._failing_status(
-            reason="Always fail, for testing purpose"
-        )
+        yield self._failing_status(reason="Always fail, for testing purpose")
 
 
 class TestDepWithTIScheduleDecision:

@@ -2278,6 +2278,7 @@ def test_mapping_against_empty_list(dag_maker, session):
 def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, session):
     # Create a DAG with 10 tasks
     with dag_maker(session=session):
+
         @task()
         def print_value(value):
             print(value)
@@ -2287,6 +2288,7 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
     dr: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
     from airflow import plugins_manager
+
     plugins_manager.initialize_ti_deps_plugins()
 
     # Case-1: there is no custom TI Dependency class
@@ -2314,11 +2316,11 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
 
         @provide_session
         def _get_dep_statuses(self, ti, session, dep_context=None):
-            yield self._failing_status(
-                reason="Always fail, for testing purpose"
-            )
+            yield self._failing_status(reason="Always fail, for testing purpose")
 
-    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+    with mock.patch(
+        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+    ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 0
 
@@ -2342,11 +2344,11 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
         @provide_session
         def _get_dep_statuses(self, ti, session, dep_context=None):
             if ti.map_index < 6:
-                yield self._failing_status(
-                    reason="Always fail, for testing purpose"
-                )
+                yield self._failing_status(reason="Always fail, for testing purpose")
 
-    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+    with mock.patch(
+        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+    ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 4
 
@@ -2368,11 +2370,11 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
         @provide_session
         def _get_dep_statuses(self, ti, session, dep_context=None):
             if ti.map_index < 6:
-                yield self._failing_status(
-                    reason="Always fail, for testing purpose"
-                )
+                yield self._failing_status(reason="Always fail, for testing purpose")
 
-    with mock.patch("airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}):
+    with mock.patch(
+        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+    ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 10
 

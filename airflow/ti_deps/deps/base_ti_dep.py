@@ -116,6 +116,7 @@ class BaseTIDep:
                 return
         else:
             from airflow import plugins_manager
+
             is_custom_dep = (
                 plugins_manager.registered_ti_dep_classes
                 and qualname(self.__class__) in plugins_manager.registered_ti_dep_classes
