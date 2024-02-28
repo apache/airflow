@@ -268,6 +268,10 @@ class HttpHook(BaseHook):
         # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
         return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
+    def url_from_endpoint(self, endpoint: str | None) -> str:
+        """Combine base url with endpoint."""
+        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
+
     def test_connection(self):
         """Test HTTP Connection."""
         try:

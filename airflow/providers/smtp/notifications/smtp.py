@@ -25,30 +25,12 @@ from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
 
-try:
-    from airflow.settings import SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH, SMTP_DEFAULT_TEMPLATED_SUBJECT
-except ImportError:
-    # This is a fallback for when the settings are not available - they were only added in 2.8.1,
-    # so we should be able to remove it when min airflow version for the SMTP provider is 2.9.0
-    # we do not raise deprecation warning here, because the user might be using 2.8.0 and the new provider
-    # deliberately, and we do not want to upgrade to newer version of Airflow so we should not raise the
-    # deprecation warning here. If the user will modify the settings in local_settings even for earlier
-    # versions of Airflow, they will be properly used as they will be imported above
-    SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = (Path(__file__).parent / "templates" / "email.html").as_posix()
-    SMTP_DEFAULT_TEMPLATED_SUBJECT = """
-{% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
-{% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
-{% endif %}
-"""
-
 
 class SmtpNotifier(BaseNotifier):
     """
     SMTP Notifier.
 
-    Accepts keyword arguments. The only required argument is `to`. Examples:
+    Accepts keyword arguments. The only required arguments are `from_email` and `to`. Examples:
 
     .. code-block:: python
 
@@ -63,7 +45,10 @@ class SmtpNotifier(BaseNotifier):
             ),
         )
 
-    Default template is defined in airflow.settings but can be overridden in local_settings.py
+    Default template can be overridden via the following provider configuration data:
+        - templated_email_subject_path
+        - templated_html_content_path
+
 
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
@@ -104,7 +89,6 @@ class SmtpNotifier(BaseNotifier):
         self.smtp_conn_id = smtp_conn_id
         self.from_email = from_email or conf.get("smtp", "smtp_mail_from")
         self.to = to
-        self.subject = subject or SMTP_DEFAULT_TEMPLATED_SUBJECT.replace("\n", "").strip()
         self.files = files
         self.cc = cc
         self.bcc = bcc
@@ -112,6 +96,14 @@ class SmtpNotifier(BaseNotifier):
         self.mime_charset = mime_charset
         self.custom_headers = custom_headers
 
+        smtp_default_templated_subject_path = conf.get(
+            "smtp",
+            "templated_email_subject_path",
+            fallback=(Path(__file__).parent / "templates" / "email_subject.jinja2").as_posix(),
+        )
+        self.subject = (
+            subject or Path(smtp_default_templated_subject_path).read_text().replace("\n", "").strip()
+        )
         # If html_content is passed, prioritize it. Otherwise, if template is passed, use
         # it to populate html_content. Else, fall back to defaults defined in settings
         if html_content is not None:
@@ -119,7 +111,12 @@ class SmtpNotifier(BaseNotifier):
         elif template is not None:
             self.html_content = Path(template).read_text()
         else:
-            self.html_content = Path(SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH).read_text()
+            smtp_default_templated_html_content_path = conf.get(
+                "smtp",
+                "templated_html_content_path",
+                fallback=(Path(__file__).parent / "templates" / "email.html").as_posix(),
+            )
+            self.html_content = Path(smtp_default_templated_html_content_path).read_text()
 
     @cached_property
     def hook(self) -> SmtpHook:

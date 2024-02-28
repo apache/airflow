@@ -217,21 +217,22 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate constraints flags",
             "options": [
-                "--image-tag",
-                "--python",
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
                 "--github-repository",
+                "--image-tag",
+                "--python",
+                "--use-uv",
             ],
         },
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
+                "--debug-resources",
                 "--parallelism",
                 "--python-versions",
+                "--run-in-parallel",
                 "--skip-cleanup",
-                "--debug-resources",
             ],
         },
     ],
@@ -240,13 +241,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Release PROD IMAGE flags",
             "options": [
                 "--airflow-version",
+                "--chicken-egg-providers",
+                "--commit-sha",
                 "--dockerhub-repo",
-                "--slim-images",
                 "--limit-python",
                 "--limit-platform",
                 "--skip-latest",
-                "--commit-sha",
-                "--chicken-egg-providers",
+                "--slim-images",
             ],
         }
     ],
@@ -265,11 +266,11 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+                "--parallelism",
+                "--run-in-parallel",
+                "--skip-cleanup",
             ],
         },
     ],

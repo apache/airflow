@@ -502,7 +502,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="24.0"
+            export AIRFLOW_PIP_VERSION=24.0
         fi
     fi
 }
@@ -1113,7 +1113,7 @@ RUN bash /scripts/docker/install_os_dependencies.sh dev
 # THE 7 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.10
+ARG AIRFLOW_UV_VERSION=0.1.11
 ARG AIRFLOW_USE_UV="true"
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
@@ -1180,7 +1180,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.10
+ARG AIRFLOW_UV_VERSION=0.1.11
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1281,12 +1281,7 @@ COPY --from=scripts install_airflow.sh /scripts/docker/
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
 #
-# boto3 is limited to <1.34 because of aiobotocore that only works with 1.33 and we want to help
-# `pip` to limit the versions it checks and limit backtracking, by explicitly specifying these limits
-# when performing eager upgrade of dependencies - this way it won't even consider 1.34 versions of boto
-# We should update it every time a new version of aiobotocore is released supporting 1.34
-#
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="boto3>=1.33,<1.34"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

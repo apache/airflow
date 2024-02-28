@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
@@ -537,37 +537,24 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     def __init__(
         self,
-        request_filter: dict | None = None,
+        request_filter: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if request_filter is None:
-            if "filter" in kwargs:
-                request_filter = kwargs["filter"]
-                AirflowProviderDeprecationWarning(
-                    "Use 'request_filter' instead 'filter' to pass the argument."
-                )
-            else:
-                TypeError("__init__() missing 1 required positional argument: 'request_filter'")
-
         super().__init__(**kwargs)
         self.filter = request_filter
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
 
-    def _validate_inputs(self) -> None:
+    def execute(self, context: Context) -> list[dict]:
         if not self.filter:
             raise AirflowException("The required parameter 'filter' is empty or None")
 
-    def execute(self, context: Context) -> list[dict]:
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,

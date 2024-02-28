@@ -29,6 +29,8 @@ import time
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
+from functools import partial
+from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
 from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple
@@ -59,6 +61,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_airflow_version,
+    option_use_uv,
     option_verbose,
     option_version_suffix_for_pypi,
 )
@@ -978,11 +981,13 @@ def run_generate_constraints_in_parallel(
 @option_airflow_constraints_mode_ci
 @option_chicken_egg_providers
 @option_github_repository
+@option_use_uv
 @option_verbose
 @option_dry_run
 @option_answer
 def generate_constraints(
     airflow_constraints_mode: str,
+    chicken_egg_providers: str,
     debug_resources: bool,
     github_repository: str,
     image_tag: str | None,
@@ -991,7 +996,7 @@ def generate_constraints(
     python_versions: str,
     run_in_parallel: bool,
     skip_cleanup: bool,
-    chicken_egg_providers: str,
+    use_uv: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -1033,6 +1038,7 @@ def generate_constraints(
                 github_repository=github_repository,
                 image_tag=image_tag,
                 python=python,
+                use_uv=use_uv,
             )
             for python in python_version_list
         ]
@@ -1052,6 +1058,7 @@ def generate_constraints(
             github_repository=github_repository,
             image_tag=image_tag,
             python=python,
+            use_uv=use_uv,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
@@ -2052,13 +2059,15 @@ def generate_issue_content_providers(
         print(url_to_create_the_issue)
 
 
-def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> None:
+def get_all_constraint_files(
+    refresh_constraints: bool, python_version: str
+) -> tuple[list[str], dict[str, str]]:
     if refresh_constraints:
         shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
+    all_airflow_versions, airflow_release_dates = get_active_airflow_versions(confirm=False)
     if not CONSTRAINTS_CACHE_DIR.exists():
         with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
             CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            all_airflow_versions = get_active_airflow_versions(confirm=False)
             for airflow_version in all_airflow_versions:
                 if not download_constraints_file(
                     airflow_version=airflow_version,
@@ -2071,6 +2080,7 @@ def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> 
                         "[warning]Could not download constraints for "
                         f"Airflow {airflow_version} and Python {python_version}[/]"
                     )
+    return all_airflow_versions, airflow_release_dates
 
 
 MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
@@ -2101,16 +2111,29 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
     if python is None:
         python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
-    get_all_constraint_files(refresh_constraints=refresh_constraints, python_version=python)
+    all_airflow_releases, airflow_release_dates = get_all_constraint_files(
+        refresh_constraints=refresh_constraints, python_version=python
+    )
     constraints = load_constraints(python_version=python)
-    for package_id in sorted(DEPENDENCIES.keys()):
-        with ci_group(f"Generating metadata for {package_id}"):
-            metadata = generate_providers_metadata_for_package(package_id, constraints)
-            if metadata:
-                metadata_dict[package_id] = metadata
+
+    partial_generate_providers_metadata = partial(
+        generate_providers_metadata_for_package,
+        constraints=constraints,
+        all_airflow_releases=all_airflow_releases,
+        airflow_release_dates=airflow_release_dates,
+    )
+    package_ids = DEPENDENCIES.keys()
+    with Pool() as pool:
+        results = pool.map(
+            partial_generate_providers_metadata,
+            package_ids,
+        )
+    for package_id, result in zip(package_ids, results):
+        if result:
+            metadata_dict[package_id] = result
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4))
+    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4) + "\n")
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:

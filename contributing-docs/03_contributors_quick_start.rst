@@ -47,7 +47,7 @@ Before deciding which method to choose, there are a couple of factors to conside
 Local machine development
 #########################
 
-If you do not work in remote development environment, you need those prerequisites.
+If you do not work in a remote development environment, you will need these prerequisites:
 
 1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose

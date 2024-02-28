@@ -32,7 +32,7 @@ We maintain an :doc:`official Helm chart <helm-chart:index>` for Airflow that he
 Kubernetes Executor
 ^^^^^^^^^^^^^^^^^^^
 
-The :doc:`Kubernetes Executor </core-concepts/executor/kubernetes>` allows you to run all the Airflow tasks on
+The :doc:`Kubernetes Executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` allows you to run all the Airflow tasks on
 Kubernetes as separate Pods.
 
 KubernetesPodOperator
