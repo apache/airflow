@@ -85,7 +85,7 @@ def test_label(request):
     return label[-63:]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_get_connection():
     with mock.patch(f"{HOOK_CLASS}.get_connection", return_value=Connection(conn_id="kubernetes_default")):
         yield

@@ -58,7 +58,7 @@ def callable():
 CODE = "def callable():\n    print(10)\n"
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True)
 def clear_cache():
     is_source_enabled.cache_clear()
     try:

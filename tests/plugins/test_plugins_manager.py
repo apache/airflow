@@ -165,7 +165,7 @@ def test_flaskappbuilder_nomenu_views():
 
 
 class TestPluginsManager:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def clean_plugins(self):
         from airflow import plugins_manager
 

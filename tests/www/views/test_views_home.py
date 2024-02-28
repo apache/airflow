@@ -125,7 +125,7 @@ def user_no_importerror(app):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_no_importerror(app, user_no_importerror):
     """Client for User that cannot access Import Errors"""
     return client_with_login(
@@ -150,7 +150,7 @@ def user_single_dag(app):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_single_dag(app, user_single_dag):
     """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -175,7 +175,7 @@ def user_single_dag_edit(app):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_single_dag_edit(app, user_single_dag_edit):
     """Client for User that can only edit the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -194,7 +194,7 @@ def _process_file(file_path, session):
     dag_file_processor.process_file(file_path, [], False, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
@@ -205,7 +205,7 @@ def working_dags(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags_with_read_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
@@ -222,7 +222,7 @@ def working_dags_with_read_perm(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def working_dags_with_edit_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
@@ -239,7 +239,7 @@ def working_dags_with_edit_perm(tmp_path):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def broken_dags(tmp_path, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
@@ -248,7 +248,7 @@ def broken_dags(tmp_path, working_dags):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
@@ -257,7 +257,7 @@ def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
             _process_file(path, session)
 
 
-@pytest.fixture()
+@pytest.fixture
 def broken_dags_after_working(tmp_path):
     # First create and process a DAG file that works
     path = tmp_path / "all_in_one.py"

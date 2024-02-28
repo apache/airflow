@@ -831,7 +831,7 @@ class TestAwsEcsExecutor:
 
 
 class TestEcsExecutorConfig:
-    @pytest.fixture()
+    @pytest.fixture
     def assign_subnets(self):
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 

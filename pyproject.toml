@@ -1326,7 +1326,15 @@ extend-select = [
     "TID253",  # Ban certain modules from being imported at module level
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "PT001",
+    "PT003",
+    "PT009",
     "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
+    "PT023",
+    "PT024",
+    "PT025",
+    "PT026",
+    "PT027",
 ]
 ignore = [
     "D203",
@@ -1493,9 +1501,15 @@ banned-module-level-imports = ["numpy", "pandas"]
 "flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
+# Some specific cases
+"unittest.TestCase".msg = "Use pytest compatible classes"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
+
+[tool.ruff.lint.flake8-pytest-style]
+mark-parentheses = false
+fixture-parentheses = false
 
 ## pytest settings ##
 [tool.pytest.ini_options]

@@ -71,7 +71,7 @@ def task_instance(session, create_task_instance, request):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def log_model(create_log_model, request):
     return create_log_model(
         event="TEST_EVENT",

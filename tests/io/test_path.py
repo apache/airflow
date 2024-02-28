@@ -117,7 +117,7 @@ class TestFs:
 
         assert not o.exists()
 
-    @pytest.fixture()
+    @pytest.fixture
     def fake_fs(self):
         fs = mock.Mock()
         fs._strip_protocol.return_value = "/"
