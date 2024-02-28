@@ -306,3 +306,12 @@ class TestFs:
         finally:
             # Reset the cache to avoid side effects
             _register_filesystems.cache_clear()
+
+    def test_hash(self):
+        file_uri_1 = f"file:///tmp/{str(uuid.uuid4())}"
+        file_uri_2 = f"file:///tmp/{str(uuid.uuid4())}"
+        s = set()
+        for _ in range(10):
+            s.add(ObjectStoragePath(file_uri_1))
+            s.add(ObjectStoragePath(file_uri_2))
+        assert len(s) == 2
