@@ -91,7 +91,6 @@ apache-airflow-providers-discord==3.6.0
 apache-airflow-providers-docker==3.9.1
 apache-airflow-providers-elasticsearch==5.3.3
 apache-airflow-providers-exasol==4.4.2
-apache-airflow-providers-fab==1.0.2.dev0 (from file:///dist/apache_airflow_providers_fab-1.0.2.dev0-py3-none-any.whl)
 apache-airflow-providers-facebook==3.4.0
 apache-airflow-providers-ftp==3.7.0
 apache-airflow-providers-github==2.5.1
