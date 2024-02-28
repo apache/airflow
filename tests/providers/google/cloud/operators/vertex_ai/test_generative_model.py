@@ -18,17 +18,14 @@ from __future__ import annotations
 
 from unittest import mock
 
-from google.api_core.retry import Retry
-
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
+    GenerateTextEmbeddingsOperator,
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
+    PromptMultimodalModelWithMediaOperator,
 )
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
-TIMEOUT = 120
-RETRY = mock.MagicMock(Retry)
-METADATA = [("key", "value")]
 
 TASK_ID = "test_task_id"
 GCP_PROJECT = "test-project"
@@ -77,6 +74,34 @@ class TestVertexAIPromptLanguageModelOperator:
         )
 
 
+class TestVertexAIGenerateTextEmbeddingsOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        prompt = "In 10 words or less, what is Apache Airflow?"
+        pretrained_model = "textembedding-gecko"
+
+        op = GenerateTextEmbeddingsOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.generate_text_embeddings.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=prompt,
+            pretrained_model=pretrained_model,
+        )
+
+
 class TestVertexAIPromptMultimodalModelOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
@@ -102,4 +127,38 @@ class TestVertexAIPromptMultimodalModelOperator:
             location=GCP_LOCATION,
             prompt=prompt,
             pretrained_model=pretrained_model,
+        )
+
+
+class TestVertexAIPromptMultimodalModelWithMediaOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(self, mock_hook):
+        pretrained_model = "gemini-pro-vision"
+        vision_prompt = "In 10 words or less, describe this content."
+        media_gcs_path = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+        mime_type = "image/jpeg"
+
+        op = PromptMultimodalModelWithMediaOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=vision_prompt,
+            pretrained_model=pretrained_model,
+            media_gcs_path=media_gcs_path,
+            mime_type=mime_type,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.prompt_multimodal_model_with_media.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=vision_prompt,
+            pretrained_model=pretrained_model,
+            media_gcs_path=media_gcs_path,
+            mime_type=mime_type,
         )

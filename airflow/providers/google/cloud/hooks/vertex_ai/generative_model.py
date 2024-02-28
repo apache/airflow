@@ -22,8 +22,8 @@ from __future__ import annotations
 from typing import Sequence
 
 import vertexai
-from vertexai.generative_models import GenerativeModel
-from vertexai.language_models import TextGenerationModel
+from vertexai.generative_models import GenerativeModel, Part
+from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
 
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
@@ -49,10 +49,20 @@ class GenerativeModelHook(GoogleBaseHook):
         model = TextGenerationModel.from_pretrained(pretrained_model)
         return model
 
+    def get_text_embedding_model(self, pretrained_model: str):
+        """Return a Model Garden Model object based on Text Embedding."""
+        model = TextEmbeddingModel.from_pretrained(pretrained_model)
+        return model
+
     def get_generative_model(self, pretrained_model: str) -> GenerativeModel:
         """Return a Generative Model object."""
         model = GenerativeModel(pretrained_model)
         return model
+
+    def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
+        """Return a Generative Model Part object."""
+        part = Part.from_uri(content_gcs_path, mime_type=content_mime_type)
+        return part
 
     @GoogleBaseHook.fallback_to_default_project_id
     def prompt_language_model(
@@ -103,6 +113,30 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @GoogleBaseHook.fallback_to_default_project_id
+    def generate_text_embeddings(
+        self,
+        prompt: str,
+        pretrained_model: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> list:
+        """
+        Use the Vertex AI PaLM API to generate text embeddings.
+
+        :param prompt: Required. Inputs or queries that a user or a program gives
+            to the Vertex AI PaLM API, in order to elicit a specific response.
+        :param pretrained_model: A pre-trained model optimized for generating text embeddings.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+        model = self.get_text_embedding_model(pretrained_model)
+
+        response = model.get_embeddings([prompt])[0]  # single prompt
+
+        return response.values
+
+    @GoogleBaseHook.fallback_to_default_project_id
     def prompt_multimodal_model(
         self,
         prompt: str,
@@ -125,6 +159,39 @@ class GenerativeModelHook(GoogleBaseHook):
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
         model = self.get_generative_model(pretrained_model)
-
         response = model.generate_content(prompt)
+
+        return response.text
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def prompt_multimodal_model_with_media(
+        self,
+        prompt: str,
+        location: str,
+        media_gcs_path: str,
+        mime_type: str,
+        pretrained_model: str = "gemini-pro-vision",
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> str:
+        """
+        Use the Vertex AI Gemini Pro foundation model to generate natural language text.
+
+        :param prompt: Required. Inputs or queries that a user or a program gives
+            to the Multi-modal model, in order to elicit a specific response.
+        :param pretrained_model: By default uses the pre-trained model `gemini-pro-vision`,
+            supporting prompts with text-only input, including natural language
+            tasks, multi-turn text and code chat, and code generation. It can
+            output text and code.
+        :param media_gcs_path: A GCS path to a content file such as an image or a video.
+            Can be passed to the multimodal model as part of the prompt. Used with vision models.
+        :param mime_type: Validates the media type presented by the file in the media_gcs_path.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        model = self.get_generative_model(pretrained_model)
+        part = self.get_generative_model_part(media_gcs_path, mime_type)
+        response = model.generate_content([prompt, part])
+
         return response.text

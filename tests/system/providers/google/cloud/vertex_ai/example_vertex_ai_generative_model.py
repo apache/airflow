@@ -26,8 +26,10 @@ from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
+    GenerateTextEmbeddingsOperator,
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
+    PromptMultimodalModelWithMediaOperator,
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -35,7 +37,12 @@ DAG_ID = "example_vertex_ai_generative_model_dag"
 REGION = "us-central1"
 PROMPT = "In 10 words or less, why is Apache Airflow amazing?"
 LANGUAGE_MODEL = "text-bison"
+TEXT_EMBEDDING_MODEL = "textembedding-gecko"
 MULTIMODAL_MODEL = "gemini-pro"
+MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
+VISION_PROMPT = "In 10 words or less, describe this content."
+MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+MIME_TYPE = "image/jpeg"
 
 with DAG(
     dag_id=DAG_ID,
@@ -55,6 +62,16 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_prompt_language_model_operator]
 
+    # [START how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+    generate_text_embeddings_task = GenerateTextEmbeddingsOperator(
+        task_id="generate_text_embeddings_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        prompt=PROMPT,
+        pretrained_model=TEXT_EMBEDDING_MODEL,
+    )
+    # [END how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+
     # [START how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
     prompt_multimodal_model_task = PromptMultimodalModelOperator(
         task_id="prompt_multimodal_model_task",
@@ -64,6 +81,18 @@ with DAG(
         pretrained_model=MULTIMODAL_MODEL,
     )
     # [END how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
+
+    # [START how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
+    prompt_multimodal_model_with_media_task = PromptMultimodalModelWithMediaOperator(
+        task_id="prompt_multimodal_model_with_media_task",
+        project_id=PROJECT_ID,
+        location=REGION,
+        prompt=VISION_PROMPT,
+        pretrained_model=MULTIMODAL_VISION_MODEL,
+        media_gcs_path=MEDIA_GCS_PATH,
+        mime_type=MIME_TYPE,
+    )
+    # [END how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
 
     from tests.system.utils.watcher import watcher
 

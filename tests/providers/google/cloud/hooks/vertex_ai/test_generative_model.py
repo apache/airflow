@@ -37,7 +37,14 @@ TEST_MAX_OUTPUT_TOKENS = 256
 TEST_TOP_P = 0.8
 TEST_TOP_K = 40
 
+TEST_TEXT_EMBEDDING_MODEL = ""
+
 TEST_MULTIMODAL_PRETRAINED_MODEL = "gemini-pro"
+
+TEST_MULTIMODAL_VISION_MODEL = "gemini-pro-vision"
+TEST_VISION_PROMPT = "In 10 words or less, describe this content."
+TEST_MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
+TEST_MIME_TYPE = "image/jpeg"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
@@ -75,6 +82,17 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             top_k=TEST_TOP_K,
         )
 
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_text_embedding_model"))
+    def test_generate_text_embeddings(self, mock_model) -> None:
+        self.hook.generate_text_embeddings(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=TEST_PROMPT,
+            pretrained_model=TEST_TEXT_EMBEDDING_MODEL,
+        )
+        mock_model.assert_called_once_with(TEST_TEXT_EMBEDDING_MODEL)
+        mock_model.return_value.get_embeddings.assert_called_once_with([TEST_PROMPT])
+
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
     def test_prompt_multimodal_model(self, mock_model) -> None:
         self.hook.prompt_multimodal_model(
@@ -85,3 +103,21 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         )
         mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
         mock_model.return_value.generate_content.assert_called_once_with(TEST_PROMPT)
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model_part"))
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    def test_prompt_multimodal_model_with_media(self, mock_model, mock_part) -> None:
+        self.hook.prompt_multimodal_model_with_media(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            prompt=TEST_VISION_PROMPT,
+            pretrained_model=TEST_MULTIMODAL_VISION_MODEL,
+            media_gcs_path=TEST_MEDIA_GCS_PATH,
+            mime_type=TEST_MIME_TYPE,
+        )
+        mock_model.assert_called_once_with(TEST_MULTIMODAL_VISION_MODEL)
+        mock_part.assert_called_once_with(TEST_MEDIA_GCS_PATH, TEST_MIME_TYPE)
+
+        mock_model.return_value.generate_content.assert_called_once_with(
+            [TEST_VISION_PROMPT, mock_part.return_value]
+        )
