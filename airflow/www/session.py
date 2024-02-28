@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
+
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
 from flask_session.sessions import SqlAlchemySessionInterface
+
+_SA_SESSION_INTERFACE_KEYS = set(inspect.signature(SqlAlchemySessionInterface.__init__).parameters.keys())
 
 
 class SessionExemptMixin:
@@ -35,6 +39,38 @@ class SessionExemptMixin:
 
 class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInterface):
     """Session interface that exempts some routes and stores session data in the database."""
+
+    def __init__(
+        self,
+        *,
+        app,
+        db,
+        table: str = "session",
+        sequence=None,
+        schema=None,
+        bind_key=None,
+        key_prefix: str = "",
+        use_signer: bool = False,
+        permanent: bool = True,
+        sid_length: int = 32,
+    ):
+        sa_session_iface_kw = {
+            "app": app,
+            "db": db,
+            "table": table,
+            "key_prefix": key_prefix,
+            "use_signer": use_signer,
+            "permanent": permanent,
+        }
+        if "sequence" in _SA_SESSION_INTERFACE_KEYS:
+            sa_session_iface_kw["sequence"] = sequence
+        if "schema" in _SA_SESSION_INTERFACE_KEYS:
+            sa_session_iface_kw["schema"] = schema
+        if "bind_key" in _SA_SESSION_INTERFACE_KEYS:
+            sa_session_iface_kw["bind_key"] = bind_key
+        if "sid_length" in _SA_SESSION_INTERFACE_KEYS:
+            sa_session_iface_kw["sid_length"] = sid_length
+        super().__init__(**sa_session_iface_kw)
 
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
