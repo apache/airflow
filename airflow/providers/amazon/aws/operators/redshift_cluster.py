@@ -588,7 +588,11 @@ class RedshiftPauseClusterOperator(BaseOperator):
         :ref:`howto/operator:RedshiftPauseClusterOperator`
 
     :param cluster_identifier: id of the AWS Redshift Cluster
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param max_attempts: Maximum number of attempts to poll the cluster
@@ -679,7 +683,11 @@ class RedshiftDeleteClusterOperator(BaseOperator):
     :param final_cluster_snapshot_identifier: name of final cluster snapshot
     :param wait_for_completion: Whether wait for cluster deletion or not
         The default value is ``True``
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     :param deferrable: Run operator in the deferrable mode.
     :param max_attempts: (Deferrable mode only) The maximum number of attempts to be made

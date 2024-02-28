@@ -49,7 +49,11 @@ class StepFunctionStartExecutionOperator(AwsBaseOperator[StepFunctionHook]):
     :param state_machine_arn: ARN of the Step Function State Machine
     :param name: The name of the execution.
     :param state_machine_input: JSON data input to pass to the State Machine
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param do_xcom_push: if True, execution_arn is pushed to XCom with key execution_arn.
     :param waiter_max_attempts: Maximum number of attempts to poll the execution.
     :param waiter_delay: Number of seconds between polling the state of the execution.

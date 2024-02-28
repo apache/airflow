@@ -42,6 +42,10 @@ class BatchSensor(BaseSensorOperator):
 
     :param job_id: Batch job_id to check the state for
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: aws region name associated with the client
     :param deferrable: Run sensor in the deferrable mode.
     :param poke_interval: polling period in seconds to check for the status of the job.
@@ -156,6 +160,10 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
     :param compute_environment: Batch compute environment name
 
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
 
     :param region_name: aws region name associated with the client
     """
@@ -225,6 +233,10 @@ class BatchJobQueueSensor(BaseSensorOperator):
         queue and as such a valid case.
 
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
 
     :param region_name: aws region name associated with the client
     """

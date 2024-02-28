@@ -50,7 +50,11 @@ class EmrBaseSensor(BaseSensorOperator):
 
     Subclasses should set ``target_states`` and ``failed_states`` fields.
 
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     ui_color = "#66c3ff"
@@ -132,6 +136,10 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     :param job_run_id: job_run_id to check the state of
     :param target_states: a set of states to wait for, defaults to 'SUCCESS'
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = (
@@ -195,6 +203,10 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     :param application_id: application_id to check the state of
     :param target_states: a set of states to wait for, defaults to {'CREATED', 'STARTED'}
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -254,6 +266,10 @@ class EmrContainerSensor(BaseSensorOperator):
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param poll_interval: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
     :param deferrable: Run sensor in the deferrable mode.

@@ -74,7 +74,11 @@ class EmrAddStepsOperator(BaseOperator):
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
@@ -358,6 +362,10 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for the notebook.
         to be in a STOPPED or FINISHED state. Defaults to False.
     :param aws_conn_id: aws connection to use.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
 
@@ -851,6 +859,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :param cluster_id: cluster identifier
     :param step_concurrency_level: Concurrency of the cluster
     :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: aws connection to uses
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     """
 
@@ -919,7 +928,11 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         :ref:`howto/operator:EmrTerminateJobFlowOperator`
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check JobFlow status
     :param waiter_max_attempts: The maximum number of times to poll for JobFlow status.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -1019,7 +1032,11 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application to start. Defaults to 25 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
@@ -1188,7 +1205,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
         If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
         when waiting for the application be to in the ``STARTED`` state.
-    :param aws_conn_id: AWS connection to use.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the job finish. Defaults to 25 minutes.
@@ -1552,7 +1573,11 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
     :param application_id: ID of the EMR Serverless application to stop.
     :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application be stopped. Defaults to 5 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the
@@ -1716,7 +1741,11 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param application_id: ID of the EMR Serverless application to delete.
     :param wait_for_completion: If true, wait for the Application to be deleted before returning.
         Defaults to True. Note that this operator will always wait for the application to be STOPPED first.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for each
         step of first,the application to be stopped, and then deleted. Defaults to 25 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
