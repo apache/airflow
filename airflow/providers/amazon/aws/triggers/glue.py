@@ -41,7 +41,7 @@ class GlueJobCompleteTrigger(BaseTrigger):
         job_name: str,
         run_id: str,
         verbose: bool,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         job_poll_interval: int | float,
     ):
         super().__init__()
@@ -95,7 +95,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
         database_name: str,
         table_name: str,
         expression: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         waiter_delay: int = 60,
     ):

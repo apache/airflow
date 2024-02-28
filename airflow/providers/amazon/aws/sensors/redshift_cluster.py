@@ -53,7 +53,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
         *,
         cluster_identifier: str,
         target_status: str = "available",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
