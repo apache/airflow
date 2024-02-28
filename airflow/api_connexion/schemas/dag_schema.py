@@ -150,7 +150,7 @@ class DAGDetailSchema(DAGSchema):
 
 
 class DAGDetailSchemaWithTasksInfo(DAGDetailSchema):
-    """DAG task ids details."""
+    """DAG with task ids details."""
 
     tasks = fields.Method("get_tasks", dump_only=True)
     @staticmethod
