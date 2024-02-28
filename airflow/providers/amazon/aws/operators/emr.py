@@ -107,7 +107,7 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id: str | None = None,
         job_flow_name: str | None = None,
         cluster_states: list[str] | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
         waiter_delay: int = 30,
@@ -257,7 +257,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         master_instance_security_group_id: str | None = None,
         tags: list | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None | ArgNotSet = NOTSET,
         waiter_delay: int | None | ArgNotSet = NOTSET,
@@ -377,7 +377,7 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         self,
         notebook_execution_id: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None | ArgNotSet = NOTSET,
         waiter_delay: int | None | ArgNotSet = NOTSET,
@@ -457,7 +457,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         eks_cluster_name: str,
         eks_namespace: str,
         virtual_cluster_id: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         tags: dict | None = None,
         **kwargs: Any,
     ) -> None:
@@ -533,7 +533,7 @@ class EmrContainerOperator(BaseOperator):
         job_driver: dict,
         configuration_overrides: dict | None = None,
         client_request_token: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
         max_tries: int | None = None,
@@ -718,7 +718,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
@@ -863,7 +863,12 @@ class EmrModifyClusterOperator(BaseOperator):
     )
 
     def __init__(
-        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = "aws_default", **kwargs
+        self,
+        *,
+        cluster_id: str,
+        step_concurrency_level: int,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
@@ -934,7 +939,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self,
         *,
         job_flow_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -1034,7 +1039,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
@@ -1260,7 +1265,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         name: str | None = None,
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
@@ -1571,7 +1576,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
@@ -1735,7 +1740,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,

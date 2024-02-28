@@ -59,7 +59,7 @@ class RedshiftSQLHook(DbApiHook):
     hook_name = "Amazon Redshift"
     supports_autocommit = True
 
-    def __init__(self, *args, aws_conn_id: str = "aws_default", **kwargs) -> None:
+    def __init__(self, *args, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
 

@@ -39,7 +39,7 @@ class EC2StateSensorTrigger(BaseTrigger):
         self,
         instance_id: str,
         target_state: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 60,
     ):

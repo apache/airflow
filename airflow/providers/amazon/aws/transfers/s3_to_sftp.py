@@ -57,7 +57,7 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

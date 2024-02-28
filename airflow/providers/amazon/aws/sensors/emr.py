@@ -55,7 +55,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
     ui_color = "#66c3ff"
 
-    def __init__(self, *, aws_conn_id: str = "aws_default", **kwargs):
+    def __init__(self, *, aws_conn_id: str | None = "aws_default", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.target_states: Iterable[str] = []  # will be set in subclasses
@@ -145,7 +145,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         application_id: str,
         job_run_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -204,7 +204,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         *,
         application_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -281,7 +281,7 @@ class EmrContainerSensor(BaseSensorOperator):
         virtual_cluster_id: str,
         job_id: str,
         max_retries: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         poll_interval: int = 10,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,

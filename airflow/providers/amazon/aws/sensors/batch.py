@@ -57,7 +57,7 @@ class BatchSensor(BaseSensorOperator):
         self,
         *,
         job_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: float = 30,
@@ -167,7 +167,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
     def __init__(
         self,
         compute_environment: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -237,7 +237,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
         self,
         job_queue: str,
         treat_non_existing_as_deleted: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):

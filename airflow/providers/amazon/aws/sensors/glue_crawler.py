@@ -46,7 +46,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
     template_fields: Sequence[str] = ("crawler_name",)
 
-    def __init__(self, *, crawler_name: str, aws_conn_id: str = "aws_default", **kwargs) -> None:
+    def __init__(self, *, crawler_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.crawler_name = crawler_name
         self.aws_conn_id = aws_conn_id

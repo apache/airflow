@@ -92,7 +92,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         between Availability Zones after the cluster is created.
     :param aqua_configuration_status: The cluster is configured to use AQUA .
     :param default_iam_role_arn: ARN for the IAM role.
-    :param aws_conn_id: str = The Airflow connection used for AWS credentials.
+    :param aws_conn_id: str | None = The Airflow connection used for AWS credentials.
         The default connection id is ``aws_default``.
     :param wait_for_completion: Whether wait for the cluster to be in ``available`` state
     :param max_attempt: The maximum number of attempts to be made. Default: 5
@@ -175,7 +175,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         availability_zone_relocation: bool | None = None,
         aqua_configuration_status: str | None = None,
         default_iam_role_arn: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = False,
         max_attempt: int = 5,
         poll_interval: int = 60,
@@ -358,7 +358,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         wait_for_completion: bool = False,
         poll_interval: int = 15,
         max_attempt: int = 20,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -448,7 +448,7 @@ class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
         snapshot_identifier: str,
         cluster_identifier: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         poll_interval: int = 10,
         **kwargs,
     ):
@@ -501,7 +501,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         self,
         *,
         cluster_identifier: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
@@ -602,7 +602,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         self,
         *,
         cluster_identifier: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         max_attempts: int = 15,
@@ -696,7 +696,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         skip_final_cluster_snapshot: bool = True,
         final_cluster_snapshot_identifier: str | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         poll_interval: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         max_attempts: int = 30,

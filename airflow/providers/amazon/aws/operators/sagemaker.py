@@ -71,7 +71,7 @@ class SageMakerBaseOperator(BaseOperator):
     ui_color: str = "#ededed"
     integer_fields: list[list[Any]] = []
 
-    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.aws_conn_id = aws_conn_id
@@ -212,7 +212,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
@@ -381,7 +381,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -458,7 +458,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
@@ -630,7 +630,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_attempts: int | None = None,
@@ -851,7 +851,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
@@ -955,7 +955,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
-    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def expand_role(self) -> None:
@@ -1013,7 +1013,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self,
         *,
         config: dict,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
@@ -1205,7 +1205,7 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
     :param aws_conn_id: The AWS connection ID to use.
     """
 
-    def __init__(self, *, config: dict, aws_conn_id: str = DEFAULT_CONN_ID, **kwargs):
+    def __init__(self, *, config: dict, aws_conn_id: str | None = DEFAULT_CONN_ID, **kwargs):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def execute(self, context: Context) -> Any:
@@ -1243,7 +1243,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         pipeline_name: str,
         display_name: str = "airflow-triggered-execution",
         pipeline_params: dict | None = None,
@@ -1332,7 +1332,7 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
         check_interval: int = CHECK_INTERVAL_SECOND,
@@ -1446,7 +1446,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
         package_desc: str = "",
         model_approval: ApprovalStatus = ApprovalStatus.PENDING_MANUAL_APPROVAL,
         extras: dict | None = None,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         config: dict | None = None,
         **kwargs,
     ):
@@ -1549,7 +1549,7 @@ class SageMakerAutoMLOperator(SageMakerBaseOperator):
         extras: dict | None = None,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         config: dict | None = None,
         **kwargs,
     ):
@@ -1611,7 +1611,7 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
         name: str,
         description: str | None = None,
         tags: dict | None = None,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
@@ -1686,7 +1686,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         root_access: str | None = None,
         create_instance_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -1758,7 +1758,7 @@ class SageMakerStopNotebookOperator(BaseOperator):
         self,
         instance_name: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -1803,7 +1803,7 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
         self,
         instance_name: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -1848,7 +1848,7 @@ class SageMakerStartNoteBookOperator(BaseOperator):
         self,
         instance_name: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

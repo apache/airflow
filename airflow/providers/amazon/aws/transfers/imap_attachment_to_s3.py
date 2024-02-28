@@ -61,7 +61,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         imap_mail_filter: str = "All",
         s3_overwrite: bool = False,
         imap_conn_id: str = "imap_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
