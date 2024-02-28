@@ -31,6 +31,7 @@ class EcsTaskFailToStart(Exception):
         super().__init__(message)
 
     def __reduce__(self):
+        """Return ECSTask state and its message."""
         return EcsTaskFailToStart, (self.message)
 
 
@@ -43,6 +44,7 @@ class EcsOperatorError(Exception):
         super().__init__(message)
 
     def __reduce__(self):
+        """Return EcsOperator state and a tuple of failures list and message."""
         return EcsOperatorError, (self.failures, self.message)
 
 
