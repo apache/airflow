@@ -28,7 +28,6 @@ import { useGridData } from "src/api";
 import { getDuration, formatDateTime, defaultFormat } from "src/datetime_utils";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
 import type { DagRun } from "src/types";
-import { getTask } from "src/utils";
 
 interface RunDuration extends DagRun {
   landingDuration: moment.Duration;
@@ -44,21 +43,15 @@ interface Props {
 }
 
 const RunDurationChart = ({ showLandingTimes }: Props) => {
-  const {
-    selected: { taskId },
-    onSelect,
-  } = useSelection();
+  const { onSelect } = useSelection();
 
   const {
-    data: { dagRuns, groups, ordering },
+    data: { dagRuns, ordering },
   } = useGridData();
 
   let maxDuration = 0;
   let unit = "seconds";
 
-  const task = getTask({ taskId, task: groups });
-
-  if (!task) return null;
   const orderingLabel = ordering[0] || ordering[1] || "startDate";
 
   const durations: (RunDuration | {})[] = dagRuns.map((dagRun) => {
@@ -201,6 +194,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         type: "bar",
         barMinHeight: 1,
         itemStyle: {
+          opacity: 1,
           // @ts-ignore
           color: (params) => stateColors[params.data.state],
         },
@@ -254,7 +248,6 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
     // @ts-ignore
     click(params) {
       onSelect({
-        taskId: params.data.taskId,
         runId: params.data.runId,
       });
     },
