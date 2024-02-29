@@ -172,7 +172,7 @@ class TestAirflowInfo:
         assert "postgresql+psycopg2://p...s:PASSWORD@postgres/airflow" in output
 
 
-@pytest.fixture()
+@pytest.fixture
 def setup_parser():
     yield cli_parser.get_parser()
 

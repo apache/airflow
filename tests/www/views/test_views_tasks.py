@@ -584,7 +584,7 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
         return True
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_id_example_bash_operator():
     dag_id = "example_bash_operator"
     test_dag_id = "non_existent_dag"
@@ -608,7 +608,7 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_dag_to_delete():
     dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
     session = settings.Session()
@@ -616,7 +616,7 @@ def new_dag_to_delete():
     return dag
 
 
-@pytest.fixture()
+@pytest.fixture
 def per_dag_perm_user_client(app, new_dag_to_delete):
     sm = app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
@@ -646,7 +646,7 @@ def per_dag_perm_user_client(app, new_dag_to_delete):
     delete_roles(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def one_dag_perm_user_client(app):
     username = "test_user_one_dag_perm"
     dag_id = "example_bash_operator"

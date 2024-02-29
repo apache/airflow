@@ -46,7 +46,7 @@ SAML_METADATA_PARSED = {
 }
 
 
-@pytest.fixture()
+@pytest.fixture
 def aws_app():
     def factory():
         with conf_vars(

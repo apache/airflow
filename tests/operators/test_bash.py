@@ -37,7 +37,7 @@ END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
 INTERVAL = timedelta(hours=12)
 
 
-@pytest.fixture()
+@pytest.fixture
 def context():
     yield {"ti": mock.Mock()}
 

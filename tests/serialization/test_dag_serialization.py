@@ -349,7 +349,7 @@ def serialize_subprocess(queue, dag_folder):
     queue.put(None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def timetable_plugin(monkeypatch):
     """Patch plugins manager to always and only return our custom timetable."""
     from airflow import plugins_manager

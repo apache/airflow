@@ -32,7 +32,7 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def connection_without_login_password_tenant_id(create_mock_connection):
     return create_mock_connection(
         Connection(

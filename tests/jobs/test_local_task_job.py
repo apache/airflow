@@ -825,7 +825,7 @@ class TestLocalTaskJob:
         assert SIGSEGV_MESSAGE in caplog.messages
 
 
-@pytest.fixture()
+@pytest.fixture
 def clean_db_helper():
     yield
     db.clear_db_jobs()

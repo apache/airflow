@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
 
 
-@pytest.fixture()
+@pytest.fixture
 def clear_db():
     clear_db_runs()
     clear_db_dags()
