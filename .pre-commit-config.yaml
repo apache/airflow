@@ -1107,6 +1107,24 @@ repos:
           - "B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: pylint
+        name: pylint
+        description: "Pylint is a static code analyser for Python 2 or 3."
+        entry: pylint
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['pylint==3.1.0']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          # Use pylint only for the specific check, which are not available into the ruff
+          - "--disable=all"
+          # W0133: "Exception statement has no effect"
+          # see: https://github.com/astral-sh/ruff/issues/10145
+          - "--enable=W0133"
       - id: check-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table
