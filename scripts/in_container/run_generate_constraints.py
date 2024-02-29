@@ -131,22 +131,24 @@ class ConfigParams:
 
     @cached_property
     def get_freeze_command(self) -> list[str]:
-        if self.use_uv:
-            return ["uv", "pip", "freeze"]
-        else:
-            return ["pip", "freeze"]
+        # Some day we might use uv instead of pip
+        # if self.use_uv:
+        #     return ["uv", "pip", "freeze", "--python", sys.executable]
+        # else:
+        #     return ["pip", "freeze"]
+        return ["pip", "freeze"]
 
     @cached_property
     def get_install_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "install"]
+            return ["uv", "pip", "install", "--python", sys.executable]
         else:
             return ["pip", "install"]
 
     @cached_property
     def get_uninstall_command(self) -> list[str]:
         if self.use_uv:
-            return ["uv", "pip", "uninstall"]
+            return ["uv", "pip", "uninstall", "--python", sys.executable]
         else:
             return ["pip", "uninstall"]
 

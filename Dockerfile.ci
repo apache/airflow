@@ -439,10 +439,6 @@ COPY <<"EOF" /common.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-: "${AIRFLOW_UV_VERSION:?Should be set}"
-: "${AIRFLOW_USE_UV:?Should be set}"
-
 function common::get_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -457,27 +453,24 @@ function common::get_colors() {
 }
 
 function common::get_packaging_tool() {
+    : "${AIRFLOW_PIP_VERSION:?Should be set}"
+    : "${AIRFLOW_UV_VERSION:?Should be set}"
+    : "${AIRFLOW_USE_UV:?Should be set}"
+
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/in_container/_in_container_utils.sh`
+    local PYTHON_BIN
+    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS=""
-        export EXTRA_UNINSTALL_FLAGS=""
+        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
         export RESOLUTION_HIGHEST_FLAG="--resolution highest"
         export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
-        # We need to lie about VIRTUAL_ENV to make uv works
-        # Until https://github.com/astral-sh/uv/issues/1396 is fixed
-        # In case we are running user installation, we need to set VIRTUAL_ENV to user's home + .local
-        if [[ ${PIP_USER=} == "true" ]]; then
-            VIRTUAL_ENV="${HOME}/.local"
-        else
-            VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
-        fi
-        export VIRTUAL_ENV
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -1110,14 +1103,6 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
-# THE 7 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
-# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.11
-ARG AIRFLOW_USE_UV="true"
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
-    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 COPY --from=scripts common.sh /scripts/docker/
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
@@ -1180,7 +1165,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.11
+ARG AIRFLOW_UV_VERSION=0.1.12
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1201,6 +1186,10 @@ ARG AIRFLOW_VERSION=""
 
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
+
+ARG AIRFLOW_PIP_VERSION=24.0
+ARG AIRFLOW_UV_VERSION=0.1.12
+ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_BRANCH=${AIRFLOW_BRANCH} \
