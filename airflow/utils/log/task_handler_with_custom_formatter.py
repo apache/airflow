@@ -29,6 +29,9 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
+logger = logging.getLogger(__name__)
+
+
 class TaskHandlerWithCustomFormatter(logging.StreamHandler):
     """Custom implementation of StreamHandler, a class which writes logging records for Airflow."""
 
@@ -58,5 +61,5 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
             return render_template_to_string(self.prefix_jinja_template, jinja_context)
-        logging.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
+        logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
         return ""
