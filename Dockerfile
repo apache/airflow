@@ -49,7 +49,7 @@ ARG AIRFLOW_VERSION="2.8.2"
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.11
+ARG AIRFLOW_UV_VERSION=0.1.12
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -481,10 +481,6 @@ COPY <<"EOF" /common.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
-: "${AIRFLOW_UV_VERSION:?Should be set}"
-: "${AIRFLOW_USE_UV:?Should be set}"
-
 function common::get_colors() {
     COLOR_BLUE=$'\e[34m'
     COLOR_GREEN=$'\e[32m'
@@ -499,27 +495,24 @@ function common::get_colors() {
 }
 
 function common::get_packaging_tool() {
+    : "${AIRFLOW_PIP_VERSION:?Should be set}"
+    : "${AIRFLOW_UV_VERSION:?Should be set}"
+    : "${AIRFLOW_USE_UV:?Should be set}"
+
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/in_container/_in_container_utils.sh`
+    local PYTHON_BIN
+    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS=""
-        export EXTRA_UNINSTALL_FLAGS=""
+        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
         export RESOLUTION_HIGHEST_FLAG="--resolution highest"
         export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
-        # We need to lie about VIRTUAL_ENV to make uv works
-        # Until https://github.com/astral-sh/uv/issues/1396 is fixed
-        # In case we are running user installation, we need to set VIRTUAL_ENV to user's home + .local
-        if [[ ${PIP_USER=} == "true" ]]; then
-            VIRTUAL_ENV="${HOME}/.local"
-        else
-            VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
-        fi
-        export VIRTUAL_ENV
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -1521,10 +1514,7 @@ ARG AIRFLOW_USE_UV
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     # Make sure noninteractive debian install is used and language variables set
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
-    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib
 
 ARG RUNTIME_APT_DEPS=""
 ARG ADDITIONAL_RUNTIME_APT_DEPS=""
@@ -1564,14 +1554,6 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME}
 
-# THE 7 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
-# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.11
-ARG AIRFLOW_USE_UV="false"
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
-    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 COPY --from=scripts common.sh /scripts/docker/
 
 # Only copy mysql/mssql installation scripts for now - so that changing the other
@@ -1602,6 +1584,11 @@ COPY --from=scripts entrypoint_prod.sh /entrypoint
 COPY --from=scripts clean-logs.sh /clean-logs
 COPY --from=scripts airflow-scheduler-autorestart.sh /airflow-scheduler-autorestart
 
+
+ARG AIRFLOW_PIP_VERSION
+ARG AIRFLOW_UV_VERSION
+ARG AIRFLOW_USE_UV
+
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
 # Set default groups for airflow and root user
@@ -1628,7 +1615,10 @@ ENV DUMB_INIT_SETSID="1" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PIP_USER="true" \
-    PATH="/root/bin:${PATH}"
+    PATH="/root/bin:${PATH}" \
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
+    AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 
 # Add protection against running pip as root user
 RUN mkdir -pv /root/bin
