@@ -364,10 +364,7 @@ Airflow allows Operators to track lineage by specifying the input and outputs of
 `inlets and outlets <https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/lineage.html#lineage>`_.
 OpenLineage will, by default, use inlets and outlets as input/output datasets if it cannot find any successful extraction from the OpenLineage methods or the Extractors.
 
-.. important::
-
-    Airflow supports inlets and outlets to be either a Table, Column, File or User entity. However, currently OpenLineage only extracts lineage via Table entity
-
+Airflow supports inlets and outlets to be either a Table, Column, File or User entity and so does OpenLineage.
 
 Example
 ^^^^^^^
@@ -379,33 +376,50 @@ An Operator inside the Airflow DAG can be annotated with inlets and outlets like
     """Example DAG demonstrating the usage of the extraction via Inlets and Outlets."""
 
     import pendulum
-    import datetime
 
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.lineage.entities import Table, File
+    from airflow.lineage.entities import Table, File, Column, User
 
 
-    def create_table(cluster, database, name):
-        return Table(
-            database=database,
-            cluster=cluster,
-            name=name,
-        )
+    t1 = Table(
+        cluster="c1",
+        database="d1",
+        name="t1",
+        owners=[User(email="jdoe@ok.com", first_name="Joe", last_name="Doe")],
+    )
+    t2 = Table(
+        cluster="c1",
+        database="d1",
+        name="t2",
+        columns=[
+            Column(name="col1", description="desc1", data_type="type1"),
+            Column(name="col2", description="desc2", data_type="type2"),
+        ],
+        owners=[
+            User(email="mike@company.com", first_name="Mike", last_name="Smith"),
+            User(email="theo@company.com", first_name="Theo"),
+            User(email="smith@company.com", last_name="Smith"),
+            User(email="jane@company.com"),
+        ],
+    )
+    t3 = Table(
+        cluster="c1",
+        database="d1",
+        name="t3",
+        columns=[
+            Column(name="col3", description="desc3", data_type="type3"),
+            Column(name="col4", description="desc4", data_type="type4"),
+        ],
+    )
+    t4 = Table(cluster="c1", database="d1", name="t4")
+    f1 = File(url="s3://bucket/dir/file1")
 
-
-    t1 = create_table("c1", "d1", "t1")
-    t2 = create_table("c1", "d1", "t2")
-    t3 = create_table("c1", "d1", "t3")
-    t4 = create_table("c1", "d1", "t4")
-    f1 = File(url="http://randomfile")
 
     with DAG(
         dag_id="example_operator",
-        schedule_interval="0 0 * * *",
+        schedule_interval="@once",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        dagrun_timeout=datetime.timedelta(minutes=60),
-        params={"example_key": "example_value"},
     ) as dag:
         task1 = BashOperator(
             task_id="task_1_with_inlet_outlet",
@@ -425,8 +439,6 @@ An Operator inside the Airflow DAG can be annotated with inlets and outlets like
 
     if __name__ == "__main__":
         dag.cli()
-
-Note that the ``File`` entity, defined in the example code, is not captured by the lineage event currently as described in the ``important`` box above.
 
 Conversion from Airflow Table entity to OpenLineage Dataset is made in the following way:
 - ``CLUSTER`` of the table entity becomes the namespace of OpenLineage's Dataset
