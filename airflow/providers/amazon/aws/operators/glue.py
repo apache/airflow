@@ -95,7 +95,7 @@ class GlueJobOperator(BaseOperator):
         script_args: dict | None = None,
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         s3_bucket: str | None = None,
         iam_role_name: str | None = None,

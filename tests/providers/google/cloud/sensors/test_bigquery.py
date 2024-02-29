@@ -271,7 +271,7 @@ class TestBigqueryTablePartitionExistenceSensor:
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def context():
     """
     Creates an empty context.

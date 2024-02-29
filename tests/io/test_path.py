@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import uuid
 from stat import S_ISDIR, S_ISREG
 from tempfile import NamedTemporaryFile
@@ -116,7 +117,7 @@ class TestFs:
 
         assert not o.exists()
 
-    @pytest.fixture()
+    @pytest.fixture
     def fake_fs(self):
         fs = mock.Mock()
         fs._strip_protocol.return_value = "/"
@@ -199,6 +200,26 @@ class TestFs:
         assert e.size() == len(txt)
 
         e.unlink()
+
+    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
+    def test_is_relative_to(self):
+        uuid_dir = f"/tmp/{str(uuid.uuid4())}"
+        o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
+        o2 = ObjectStoragePath(f"file://{uuid_dir}")
+        o3 = ObjectStoragePath(f"file://{str(uuid.uuid4())}")
+        assert o1.is_relative_to(o2)
+        assert not o1.is_relative_to(o3)
+
+    def test_relative_to(self):
+        uuid_dir = f"/tmp/{str(uuid.uuid4())}"
+        o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
+        o2 = ObjectStoragePath(f"file://{uuid_dir}")
+        o3 = ObjectStoragePath(f"file://{str(uuid.uuid4())}")
+
+        _ = o1.relative_to(o2)  # Should not raise any error
+
+        with pytest.raises(ValueError):
+            o1.relative_to(o3)
 
     def test_move_local(self):
         _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
@@ -318,3 +339,12 @@ class TestFs:
         o = ObjectStoragePath(i)
         assert o.protocol == p
         assert o.path == f
+
+    def test_hash(self):
+        file_uri_1 = f"file:///tmp/{str(uuid.uuid4())}"
+        file_uri_2 = f"file:///tmp/{str(uuid.uuid4())}"
+        s = set()
+        for _ in range(10):
+            s.add(ObjectStoragePath(file_uri_1))
+            s.add(ObjectStoragePath(file_uri_2))
+        assert len(s) == 2
