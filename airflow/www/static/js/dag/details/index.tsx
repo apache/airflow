@@ -43,6 +43,8 @@ import {
   MdSyncAlt,
   MdHourglassBottom,
   MdPlagiarism,
+  MdCalendarMonth,
+  MdEvent,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -66,6 +68,7 @@ import XcomCollection from "./taskInstance/Xcom";
 import TaskDetails from "./task";
 import AuditLog from "./AuditLog";
 import RunDuration from "./dag/RunDuration";
+import Calendar from "./dag/Calendar";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -92,6 +95,7 @@ const tabToIndex = (tab?: string) => {
     case "run_duration":
       return 5;
     case "xcom":
+    case "calendar":
       return 6;
     case "details":
     default:
@@ -129,6 +133,7 @@ const indexToTab = (
       if (!runId && !taskId) return "run_duration";
       return undefined;
     case 6:
+      if (!runId && !taskId) return "calendar";
       if (isTaskInstance) return "xcom";
       return undefined;
     default:
@@ -323,6 +328,14 @@ const Details = ({
               </Text>
             </Tab>
           )}
+          {isDag && (
+            <Tab>
+              <MdEvent size={16} />
+              <Text as="strong" ml={1}>
+                Calendar
+              </Text>
+            </Tab>
+          )}
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -416,6 +429,11 @@ const Details = ({
           {isDag && (
             <TabPanel height="100%">
               <RunDuration />
+            </TabPanel>
+          )}
+          {isDag && (
+            <TabPanel height="100%" width="100%">
+              <Calendar />
             </TabPanel>
           )}
           {isTaskInstance && run && (
