@@ -179,7 +179,7 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 
 .. _dataset-timetable-section:
 
-Integrate conditional dataset with Time-Based Scheduling
+Dataset event based scheduling with time based scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
 
