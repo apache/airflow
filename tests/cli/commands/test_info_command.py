@@ -174,7 +174,7 @@ class TestAirflowInfo:
 
 @pytest.fixture
 def setup_parser():
-    yield cli_parser.get_parser()
+    return cli_parser.get_parser()
 
 
 class TestInfoCommandMockHttpx:

@@ -36,7 +36,7 @@ from tests.test_utils.www import client_with_login, client_without_login, client
 @pytest.fixture(autouse=True, scope="module")
 def session():
     settings.configure_orm()
-    yield settings.Session
+    return settings.Session
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -44,7 +44,7 @@ def examples_dag_bag(session):
     DagBag(include_examples=True).sync_to_db()
     dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
     session.commit()
-    yield dag_bag
+    return dag_bag
 
 
 @pytest.fixture(scope="module")

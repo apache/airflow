@@ -50,7 +50,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Header from "./Header";
 import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
-import DagContent from "./Dag";
+import DagContent from "./dag/Dag";
 import Graph from "./graph";
 import Gantt from "./gantt";
 import DagCode from "./dagCode";
@@ -65,6 +65,7 @@ import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
 import TaskDetails from "./task";
 import AuditLog from "./AuditLog";
+import RunDuration from "./dag/RunDuration";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -88,6 +89,7 @@ const tabToIndex = (tab?: string) => {
       return 4;
     case "logs":
     case "mapped_tasks":
+    case "run_duration":
       return 5;
     case "xcom":
       return 6;
@@ -99,9 +101,17 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
-  isTaskInstance: boolean,
+  runId: string | null,
+  taskId: string | null,
+  isGroup: boolean,
   isMappedTaskSummary: boolean
 ) => {
+  const isTaskInstance = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    !isMappedTaskSummary
+  );
   switch (index) {
     case 0:
       return "details";
@@ -116,6 +126,7 @@ const indexToTab = (
     case 5:
       if (isMappedTaskSummary) return "mapped_tasks";
       if (isTaskInstance) return "logs";
+      if (!runId && !taskId) return "run_duration";
       return undefined;
     case 6:
       if (isTaskInstance) return "xcom";
@@ -156,12 +167,14 @@ const Details = ({
     isMapped &&
     mapIndex === undefined
   );
+
   const isTaskInstance = !!(
     taskId &&
     runId &&
     !isGroup &&
     !isMappedTaskSummary
   );
+
   const showTaskDetails = !!taskId && !runId;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,21 +184,32 @@ const Details = ({
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, isTaskInstance, isMappedTaskSummary);
+      const newTab = indexToTab(
+        index,
+        runId,
+        taskId,
+        isGroup,
+        isMappedTaskSummary
+      );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary]
+    [setSearchParams, searchParams, runId, taskId, isGroup, isMappedTaskSummary]
   );
 
   useEffect(() => {
     // Change to graph or task duration tab if the tab is no longer defined
-    if (indexToTab(tabIndex, isTaskInstance, isMappedTaskSummary) === undefined)
+    if (
+      indexToTab(tabIndex, runId, taskId, isGroup, isMappedTaskSummary) ===
+      undefined
+    )
       onChangeTab(showTaskDetails ? 0 : 1);
   }, [
     tabIndex,
-    isTaskInstance,
+    runId,
+    taskId,
+    isGroup,
     isMappedTaskSummary,
     showTaskDetails,
     onChangeTab,
@@ -291,6 +315,14 @@ const Details = ({
               Audit Log
             </Text>
           </Tab>
+          {isDag && (
+            <Tab>
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Run Duration
+              </Text>
+            </Tab>
+          )}
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -381,6 +413,11 @@ const Details = ({
               run={run}
             />
           </TabPanel>
+          {isDag && (
+            <TabPanel height="100%">
+              <RunDuration />
+            </TabPanel>
+          )}
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
