@@ -44,10 +44,10 @@ from tests.listeners.file_write_listener import FileWriteListener
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
-
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-
 TASK_FORMAT = "%(filename)s:%(lineno)d %(levelname)s - %(message)s"
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -378,20 +378,20 @@ class TestStandardTaskRunner:
 
         processes = list(self._procs_in_pgroup(runner_pgid))
 
-        logging.info("Waiting for the task to start")
+        logger.info("Waiting for the task to start")
         with timeout(seconds=20):
             while not path_on_kill_running.exists():
                 time.sleep(0.01)
-        logging.info("Task started. Give the task some time to settle")
+        logger.info("Task started. Give the task some time to settle")
         time.sleep(3)
-        logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
+        logger.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
         task_runner.terminate()
 
-        logging.info("Waiting for the on kill killed file to appear")
+        logger.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
             while not path_on_kill_killed.exists():
                 time.sleep(0.01)
-        logging.info("The file appeared")
+        logger.info("The file appeared")
 
         with path_on_kill_killed.open() as f:
             assert "ON_KILL_TEST" == f.readline()
