@@ -2319,7 +2319,7 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
             yield self._failing_status(reason="Always fail, for testing purpose")
 
     with mock.patch(
-        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+        "airflow.plugins_manager.registered_ti_dep_classes", {"tests.models.test_dagrun.DummyDep": DummyDep}
     ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 0
@@ -2347,7 +2347,7 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
                 yield self._failing_status(reason="Always fail, for testing purpose")
 
     with mock.patch(
-        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+        "airflow.plugins_manager.registered_ti_dep_classes", {"tests.models.test_dagrun.DummyDep": DummyDep}
     ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 4
@@ -2373,7 +2373,7 @@ def test_dagrun_using_custom_plugin_for_making_ti_schedule_decision(dag_maker, s
                 yield self._failing_status(reason="Always fail, for testing purpose")
 
     with mock.patch(
-        "airflow.plugins_manager.registered_ti_dep_classes", {'tests.models.test_dagrun.DummyDep': DummyDep}
+        "airflow.plugins_manager.registered_ti_dep_classes", {"tests.models.test_dagrun.DummyDep": DummyDep}
     ):
         decision = dr.task_instance_scheduling_decisions(session=session)
         assert len(decision.schedulable_tis) == 10
