@@ -42,6 +42,7 @@ logs
 venv
 clients/*
 files/*
+dags/*
 airflow.iml
 .gitmodules
 prod_image_installed_providers.txt
