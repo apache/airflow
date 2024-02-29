@@ -24,18 +24,12 @@ pushd "${TEMP_DOCKER_DIR}"
 
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 # [START build]
-mkdir -p docker-context-files
-
-cat <<EOF >./docker-context-files/pip.conf
-[global]
-verbose = 2
-EOF
 
 export DOCKER_BUILDKIT=1
 docker build . \
-    --build-arg DOCKER_CONTEXT_FILES=./docker-context-files \
-    --tag "my-custom-pip-verbose-airflow:0.0.1"
+    --build-arg AIRFLOW_USE_UV="true" \
+    --tag "my-custom-use-uv-airflow:0.0.1"
 # [END build]
-docker rmi --force "my-custom-pip-verbose-airflow:0.0.1"
+docker rmi --force "my-custom-use-uv-airflow:0.0.1"
 popd
 rm -rf "${TEMP_DOCKER_DIR}"
