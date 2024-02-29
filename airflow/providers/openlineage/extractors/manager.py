@@ -186,16 +186,24 @@ class ExtractorManager(LoggingMixin):
 
         from openlineage.client.run import Dataset
 
+        if "/" not in uri:
+            return None
+
         try:
             scheme, netloc, path, params, _, _ = urlparse(uri)
         except Exception:
             return None
-        if scheme.startswith("s3"):
-            return Dataset(namespace=f"s3://{netloc}", name=path.lstrip("/"))
-        elif scheme.startswith(("gcs", "gs")):
-            return Dataset(namespace=f"gs://{netloc}", name=path.lstrip("/"))
-        elif "/" not in uri:
-            return None
+
+        common_schemas = {
+            "s3": "s3",
+            "gs": "gs",
+            "gcs": "gs",
+            "hdfs": "hdfs",
+            "file": "file",
+        }
+        for found, final in common_schemas.items():
+            if scheme.startswith(found):
+                return Dataset(namespace=f"{final}://{netloc}", name=path.lstrip("/"))
         return Dataset(namespace=scheme, name=f"{netloc}{path}")
 
     @staticmethod
