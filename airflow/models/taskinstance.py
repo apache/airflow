@@ -1253,7 +1253,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(64))
+    rendered_map_index = Column(String(250))
 
     external_executor_id = Column(StringID())
 
