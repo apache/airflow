@@ -180,7 +180,7 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 .. _dataset-timetable-section:
 
 Dataset event based scheduling with time based scheduling
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
 
 The ``DatasetOrTimeSchedule`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
