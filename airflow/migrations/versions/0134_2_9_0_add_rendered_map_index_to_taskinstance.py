@@ -27,8 +27,6 @@ Create Date: 2024-02-26 18:48:06.386776
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.models.base import StringID
-
 
 # revision identifiers, used by Alembic.
 revision = "1fd565369930"
@@ -43,7 +41,7 @@ def upgrade():
     conn = op.get_bind()
 
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("rendered_map_index", sa.String(length=StringID()), nullable=True))
+        batch_op.add_column(sa.Column("rendered_map_index", sa.String(length=250), nullable=True))
 
 
 def downgrade():
