@@ -41,7 +41,7 @@ CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.Certificat
 def jwt_token_file(tmp_path):
     jwt_file = tmp_path / "jwt.json"
     jwt_file.write_text('{"phony":"jwt"}')
-    yield jwt_file.__fspath__()
+    return jwt_file.__fspath__()
 
 
 class TestTrinoHookConn:

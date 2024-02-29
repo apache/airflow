@@ -131,7 +131,6 @@ def reset_db():
     from airflow.utils import db
 
     db.resetdb()
-    yield
 
 
 ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count"]

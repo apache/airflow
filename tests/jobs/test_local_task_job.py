@@ -69,7 +69,6 @@ def clear_db():
     db.clear_db_jobs()
     db.clear_db_runs()
     db.clear_db_task_fail()
-    yield
 
 
 @pytest.fixture(scope="class")

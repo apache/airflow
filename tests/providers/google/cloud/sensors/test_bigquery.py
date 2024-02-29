@@ -277,7 +277,7 @@ def context():
     Creates an empty context.
     """
     context = {}
-    yield context
+    return context
 
 
 class TestBigQueryTableExistenceAsyncSensor:
