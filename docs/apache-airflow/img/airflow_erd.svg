@@ -1031,7 +1031,7 @@
 <text text-anchor="start" x="953.5" y="-640.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
 <polygon fill="none" stroke="black" points="855.5,-606 855.5,-631 1158.5,-631 1158.5,-606 855.5,-606"/>
 <text text-anchor="start" x="860.5" y="-615.8" font-family="Helvetica,sans-Serif" font-size="14.00">rendered_map_index</text>
-<text text-anchor="start" x="1005.5" y="-615.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(64)]</text>
+<text text-anchor="start" x="1005.5" y="-615.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
 <polygon fill="none" stroke="black" points="855.5,-581 855.5,-606 1158.5,-606 1158.5,-581 855.5,-581"/>
 <text text-anchor="start" x="860.5" y="-590.8" font-family="Helvetica,sans-Serif" font-size="14.00">start_date</text>
 <text text-anchor="start" x="930.5" y="-590.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
