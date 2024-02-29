@@ -1303,8 +1303,14 @@ namespace-packages = ["airflow/providers"]
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 extend-select = [
+    # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "TCH", # Rules around TYPE_CHECKING blocks
+    "G", # flake8-logging-format rules
+    "LOG", # flake8-logging rules, most of them autofixable
+    # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -1321,10 +1327,8 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TCH",  # Rules around TYPE_CHECKING blocks
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "PT001",
     "PT003",
@@ -1337,6 +1341,8 @@ extend-select = [
     "PT027",
 ]
 ignore = [
+    "G003", # Logging statement uses + (not fixed yet)
+    "G004", # Logging statement uses f-string (not fixed yet)
     "D203",
     "D212",
     "D213",
