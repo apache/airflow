@@ -524,6 +524,7 @@ dttm
 dtypes
 du
 duckdb
+dunder
 durations
 dylib
 Dynamodb

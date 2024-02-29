@@ -55,7 +55,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         *,
         target_state: str,
         instance_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
