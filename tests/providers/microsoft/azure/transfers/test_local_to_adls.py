@@ -24,7 +24,6 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import (
-    DataToADLSOperator,
     LocalFilesystemToADLSOperator,
 )
 
@@ -79,20 +78,3 @@ class TestADLSUploadOperator:
             blocksize=4194304,
             run=False,  # extra upload options
         )
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeStorageV2Hook")
-    def test_execute_success_when_local_data(self, mock_hook):
-        operator = DataToADLSOperator(
-            task_id=TASK_ID,
-            file_system_name=FILE_SYSTEM_NAME,
-            file_name=REMOTE_PATH,
-            data=DATA,
-            overwrite=True,
-        )
-        operator.execute(None)
-        data_lake_file_client_mock = mock_hook.return_value.create_file
-        data_lake_file_client_mock.assert_called_once_with(
-            file_system_name=FILE_SYSTEM_NAME, file_name=REMOTE_PATH
-        )
-        upload_data_mock = data_lake_file_client_mock.return_value.upload_data
-        upload_data_mock.assert_called_once_with(data=DATA, length=None, overwrite=True)
