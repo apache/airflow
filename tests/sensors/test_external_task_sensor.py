@@ -101,7 +101,7 @@ def dag_zip_maker():
             os.unlink(self.__zip_file_name)
             os.rmdir(self.__tmp_dir)
 
-    yield DagZipMaker()
+    return DagZipMaker()
 
 
 class TestExternalTaskSensor:
@@ -1498,7 +1498,7 @@ def dag_bag_multiple():
         )
         begin >> task
 
-    yield dag_bag
+    return dag_bag
 
 
 def test_clear_multiple_external_task_marker(dag_bag_multiple):

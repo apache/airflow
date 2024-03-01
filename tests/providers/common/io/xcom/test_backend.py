@@ -49,7 +49,7 @@ def reset_db():
         session.query(airflow.models.xcom.XCom).delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance_factory(request, session: Session):
     def func(*, dag_id, task_id, execution_date):
         run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
@@ -76,7 +76,7 @@ def task_instance_factory(request, session: Session):
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance(task_instance_factory):
     return task_instance_factory(
         dag_id="dag",

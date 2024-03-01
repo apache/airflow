@@ -1612,12 +1612,9 @@ class TestTaskInstance:
         ti.xcom_push(key=key, value=value)
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
-        # The second run and assert is to handle AIRFLOW-131 (don't clear on
-        # prior success)
+        # Check that we do not clear Xcom until the task is certain to execute
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-
-        # Test AIRFLOW-703: Xcom shouldn't be cleared if the task doesn't
-        # execute, even if dependencies are ignored
+        # Xcom shouldn't be cleared if the task doesn't execute, even if dependencies are ignored
         ti.run(ignore_all_deps=True, mark_success=True)
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         # Xcom IS finally cleared once task has executed

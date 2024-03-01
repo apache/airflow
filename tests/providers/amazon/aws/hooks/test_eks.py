@@ -99,7 +99,7 @@ if TYPE_CHECKING:
     from moto.core.exceptions import AWSError
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def cluster_builder():
     """A fixture to generate a batch of EKS Clusters on the mocked backend for testing."""
 
@@ -133,7 +133,7 @@ def cluster_builder():
         yield _execute
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def fargate_profile_builder(cluster_builder):
     """A fixture to generate a batch of EKS Fargate profiles on the mocked backend for testing."""
 
@@ -175,7 +175,7 @@ def fargate_profile_builder(cluster_builder):
     return _execute
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def nodegroup_builder(cluster_builder):
     """A fixture to generate a batch of EKS Managed Nodegroups on the mocked backend for testing."""
 

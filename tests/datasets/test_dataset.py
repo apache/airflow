@@ -45,8 +45,8 @@ def clear_datasets():
         pytest.param("", id="empty"),
         pytest.param("\n\t", id="whitespace"),
         pytest.param("a" * 3001, id="too_long"),
-        pytest.param("airflow:" * 3001, id="reserved_scheme"),
-        pytest.param("😊" * 3001, id="non-ascii"),
+        pytest.param("airflow://xcom/dag/task", id="reserved_scheme"),
+        pytest.param("😊", id="non-ascii"),
     ],
 )
 def test_invalid_uris(uri):
@@ -54,9 +54,33 @@ def test_invalid_uris(uri):
         Dataset(uri=uri)
 
 
-def test_uri_with_scheme():
-    dataset = Dataset(uri="s3://example_dataset")
+@pytest.mark.parametrize(
+    "uri, normalized",
+    [
+        pytest.param("foobar", "foobar", id="scheme-less"),
+        pytest.param("foo:bar", "foo:bar", id="scheme-less-colon"),
+        pytest.param("foo/bar", "foo/bar", id="scheme-less-slash"),
+        pytest.param("s3://bucket/key/path", "s3://bucket/key/path", id="normal"),
+        pytest.param("file:///123/456/", "file:///123/456", id="trailing-slash"),
+    ],
+)
+def test_uri_with_scheme(uri: str, normalized: str) -> None:
+    dataset = Dataset(uri)
     EmptyOperator(task_id="task1", outlets=[dataset])
+    assert dataset.uri == normalized
+    assert os.fspath(dataset) == normalized
+
+
+def test_uri_with_auth() -> None:
+    with pytest.warns(UserWarning) as record:
+        dataset = Dataset("ftp://user@localhost/foo.txt")
+    assert len(record) == 1 and str(record[0].message) == (
+        "A dataset URI should not contain auth info (e.g. username or "
+        "password). It has been automatically dropped."
+    )
+    EmptyOperator(task_id="task1", outlets=[dataset])
+    assert dataset.uri == "ftp://localhost/foo.txt"
+    assert os.fspath(dataset) == "ftp://localhost/foo.txt"
 
 
 def test_uri_without_scheme():
@@ -65,26 +89,26 @@ def test_uri_without_scheme():
 
 
 def test_fspath():
-    uri = "s3://example_dataset"
+    uri = "s3://example/dataset"
     dataset = Dataset(uri=uri)
     assert os.fspath(dataset) == uri
 
 
 def test_equal_when_same_uri():
-    uri = "s3://example_dataset"
+    uri = "s3://example/dataset"
     dataset1 = Dataset(uri=uri)
     dataset2 = Dataset(uri=uri)
     assert dataset1 == dataset2
 
 
 def test_not_equal_when_different_uri():
-    dataset1 = Dataset(uri="s3://example_dataset")
-    dataset2 = Dataset(uri="s3://other_dataset")
+    dataset1 = Dataset(uri="s3://example/dataset")
+    dataset2 = Dataset(uri="s3://other/dataset")
     assert dataset1 != dataset2
 
 
 def test_hash():
-    uri = "s3://example_dataset"
+    uri = "s3://example/dataset"
     dataset = Dataset(uri=uri)
     hash(dataset)
 

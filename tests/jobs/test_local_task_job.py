@@ -69,7 +69,6 @@ def clear_db():
     db.clear_db_jobs()
     db.clear_db_runs()
     db.clear_db_task_fail()
-    yield
 
 
 @pytest.fixture(scope="class")
@@ -825,7 +824,7 @@ class TestLocalTaskJob:
         assert SIGSEGV_MESSAGE in caplog.messages
 
 
-@pytest.fixture()
+@pytest.fixture
 def clean_db_helper():
     yield
     db.clear_db_jobs()

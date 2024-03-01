@@ -30,7 +30,11 @@ class EC2StateSensorTrigger(BaseTrigger):
 
     :param instance_id: id of the AWS EC2 instance
     :param target_state: target state of instance
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: (optional) aws region name associated with the client
     :param poll_interval: number of seconds to wait before attempting the next poll
     """
@@ -39,7 +43,7 @@ class EC2StateSensorTrigger(BaseTrigger):
         self,
         instance_id: str,
         target_state: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 60,
     ):

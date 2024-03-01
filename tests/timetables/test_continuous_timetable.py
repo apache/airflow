@@ -31,12 +31,12 @@ END_DATE = pendulum.datetime(2023, 3, 10, tz="UTC")
 AFTER_DATE = pendulum.datetime(2023, 3, 12, tz="UTC")
 
 
-@pytest.fixture()
+@pytest.fixture
 def restriction():
     return TimeRestriction(earliest=START_DATE, latest=END_DATE, catchup=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def timetable():
     return ContinuousTimetable()
 

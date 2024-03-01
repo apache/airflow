@@ -32,7 +32,6 @@ def patch_hook(monkeypatch):
     """Patch hook object by dummy boto3 ECR client."""
     ecr_client = boto3.client("ecr")
     monkeypatch.setattr(EcrHook, "conn", ecr_client)
-    yield
 
 
 @mock_aws
