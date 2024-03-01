@@ -813,7 +813,7 @@ class TestBatchExecutorConfig:
             ),
         ],
     )
-    def test_run_task_kwargs_exec_config_overrides(
+    def test_submit_job_kwargs_exec_config_overrides(
         self, set_env_vars, submit_job_kwargs, exec_config, expected_result
     ):
         submit_job_kwargs_env_key = (

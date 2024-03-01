@@ -203,6 +203,11 @@ class AwsBatchExecutor(BaseExecutor):
                 self.success(task_key)
 
     def _handle_failed_job(self, job):
+        """
+        Handle a failed AWS Batch job.
+
+        If an API failure occurs when running a Batch job, the job is rescheduled.
+        """
         job_info = self.active_workers.id_to_job_info[job.job_id]
         task_key = self.active_workers.id_to_key[job.job_id]
         task_cmd = job_info.cmd
@@ -240,6 +245,14 @@ class AwsBatchExecutor(BaseExecutor):
             self.fail(task_key)
 
     def attempt_submit_jobs(self):
+        """
+        Attempt to submit all jobs submitted to the Executor.
+
+        For each iteration of the sync() method, every pending job is submitted to Batch.
+        If a job fails validation, it will be put at the back of the queue to be reattempted
+        in the next iteration of the sync() method, unless it has exceeded the maximum number of
+        attempts. If a job exceeds the maximum number of attempts, it is removed from the queue.
+        """
         failure_reasons = defaultdict(int)
         for _ in range(len(self.pending_jobs)):
             batch_job = self.pending_jobs.popleft()
