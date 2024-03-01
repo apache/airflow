@@ -82,6 +82,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.www.constants import SWAGGER_BUNDLE
 from airflow.www.extensions.init_views import _LazyResolver
 
 if TYPE_CHECKING:
@@ -155,6 +156,7 @@ class FabAuthManager(BaseAuthManager):
 
         swagger_ui_options = SwaggerUIOptions(
             swagger_ui=conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+            swagger_ui_template_dir=SWAGGER_BUNDLE,
         )
 
         connexion_app.add_api(
