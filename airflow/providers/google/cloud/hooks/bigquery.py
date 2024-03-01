@@ -232,8 +232,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         target_fields: Any = None,
         commit_every: Any = 1000,
         replace: Any = False,
-        *,
-        executemany=False,
         **kwargs,
     ) -> None:
         """Insert rows.

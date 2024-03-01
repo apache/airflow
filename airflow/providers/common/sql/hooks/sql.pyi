@@ -93,6 +93,8 @@ class DbApiHook(BaseForDbApiHook):
         target_fields: Incomplete | None = ...,
         commit_every: int = ...,
         replace: bool = ...,
+        *,
+        executemany=False,
         **kwargs,
     ) -> None: ...
     def bulk_dump(self, table, tmp_file) -> None: ...
