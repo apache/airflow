@@ -17,10 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Sequence, TYPE_CHECKING
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.models import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TeradataOperator(SQLExecuteQueryOperator):
@@ -62,3 +66,38 @@ class TeradataOperator(SQLExecuteQueryOperator):
             }
         super().__init__(**kwargs)
         self.conn_id = conn_id
+
+
+class TeradataStoredProcedureOperator(BaseOperator):
+    """
+    Executes stored procedure in a specific Teradata database.
+
+    :param procedure: name of stored procedure to call (templated)
+    :param conn_id: The :ref:`Teradata connection id <howto/connection:teradata>`
+        reference to a specific Teradata database.
+    :param parameters: (optional, templated) the parameters provided in the call
+
+    """
+
+    template_fields: Sequence[str] = (
+        "parameters",
+        "procedure",
+    )
+    ui_color = "#ededed"
+
+    def __init__(
+        self,
+        *,
+        procedure: str,
+        conn_id: str = TeradataHook.default_conn_name,
+        parameters: dict | list | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.procedure = procedure
+        self.parameters = parameters
+
+    def execute(self, context: Context):
+        hook = TeradataHook(teradata_conn_id=self.conn_id)
+        return hook.callproc(self.procedure, autocommit=True, parameters=self.parameters)
