@@ -21,5 +21,5 @@ class BaseConfigKeys:
     """Base Implementation of the Config Keys class. Implements iteration for child classes to inherit."""
 
     def __iter__(self):
-        """Iterate over the keys defined in the class."""
+        """Return an iterator of values of non dunder attributes of Config Keys."""
         return iter({value for (key, value) in self.__class__.__dict__.items() if not key.startswith("__")})
