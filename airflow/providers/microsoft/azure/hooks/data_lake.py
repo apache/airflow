@@ -348,7 +348,11 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            credential = ClientSecretCredential(tenant, app_id, app_secret)
+            proxies = extra.get("proxies", {})
+
+            credential = ClientSecretCredential(
+                tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
+            )
         elif conn.password:
             credential = conn.password
         else:
@@ -359,8 +363,12 @@ class AzureDataLakeStorageV2Hook(BaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
+        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
+
+        self.log.info("account_url: %s", account_url)
+
         return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            account_url=account_url,
             credential=credential,  # type: ignore[arg-type]
             **extra,
         )
