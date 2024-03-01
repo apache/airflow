@@ -565,6 +565,7 @@
       "httpx",
       "json-merge-patch>=0.2",
       "looker-sdk>=22.2.0",
+      "methodtools>=0.4.7",
       "pandas-gbq",
       "pandas>=1.2.5,<2.2",
       "proto-plus>=1.19.6",

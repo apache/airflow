@@ -22,8 +22,10 @@ import os
 import re
 import sys
 from enum import Enum
-from functools import cached_property, lru_cache
+from functools import cached_property
 from typing import Any, Dict, List, TypeVar
+
+import methodtools
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -540,7 +542,7 @@ class SelectiveChecks:
                 if file in matched_files:
                     matched_files.remove(file)
 
-    @lru_cache(maxsize=None)
+    @methodtools.lru_cache(maxsize=None)
     def _matching_files(
         self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
     ) -> list[str]:
