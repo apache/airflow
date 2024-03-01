@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import yaml
@@ -118,16 +119,28 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
+        """Emit OpenLineage event.
+
+        :param event: Event to be emitted.
+        :return: Redacted Event.
+        """
         if not self._client:
             self._client = self.get_or_create_openlineage_client()
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
+        event_type = event.eventType.value.lower()
+        transport_type = f"{self._client.transport.kind}".lower()
+
         try:
-            with Stats.timer("ol.emit.attempts"):
-                return self._client.emit(redacted_event)
+            with ExitStack() as stack:
+                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                self._client.emit(redacted_event)
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
             self.log.debug("OpenLineage emission failure: %s", e)
+
+        return redacted_event
 
     def start_task(
         self,
@@ -143,7 +156,7 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str],
         task: OperatorLineage | None,
         run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type START.
 
@@ -198,7 +211,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs if task else [],
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def complete_task(
         self,
@@ -208,7 +221,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type COMPLETE.
 
@@ -235,7 +248,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def fail_task(
         self,
@@ -245,7 +258,7 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
         Emit openlineage event of type FAIL.
 
@@ -272,7 +285,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def dag_started(
         self,
