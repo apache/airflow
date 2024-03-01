@@ -18,6 +18,8 @@
 Customizing the UI
 ==================
 
+.. _customizing-the-ui:
+
 Customizing state colours
 -------------------------
 
@@ -29,6 +31,10 @@ following steps:
 1.  Create ``airflow_local_settings.py`` file and put in on ``$PYTHONPATH`` or
     to ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` on ``PYTHONPATH`` when
     Airflow is initialized)
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
+
 
 2.  Add the following contents to ``airflow_local_settings.py`` file. Change the colors to whatever you
     would like.
