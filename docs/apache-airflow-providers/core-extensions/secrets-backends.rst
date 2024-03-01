@@ -30,7 +30,7 @@ via providers that implement secrets backends for services Airflow integrates wi
 
   Secret Backend integration do not allow writes to the secret backend.
   This is a design choice as normally secret stores require elevated permissions to write as it is a protected resource.
-  That means ``Variable.set(...)`` will write to the Airflow metastore.
+  That means ``Variable.set(...)`` will write to the Airflow metastore even if you use secret backend.
   If you need to update a value of a secret stored in the secret backend you must do it explicitly. That can be done
   by using operator that writes to the secret backend of your choice.
 
