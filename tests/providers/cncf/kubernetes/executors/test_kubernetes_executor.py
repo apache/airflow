@@ -1837,7 +1837,7 @@ class TestKubernetesJobWatcher:
         def effect():
             yield "500"
             while True:
-                yield Exception("sentinel")
+                yield SystemError("sentinel")
 
         mock_underscore_run.side_effect = effect()
 
@@ -1846,12 +1846,9 @@ class TestKubernetesJobWatcher:
         with mock.patch(
             "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_kube_client"
         ):
-            try:
+            with pytest.raises(SystemError, match="sentinel"):
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()
-                assert False, "Should have raised Exception"
-            except Exception as e:
-                assert e.args == ("sentinel",)
 
             # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
@@ -1859,9 +1856,7 @@ class TestKubernetesJobWatcher:
 
             # check that in the next run, _run is invoked with resource_version = 0
             mock_underscore_run.reset_mock()
-            try:
+            with pytest.raises(SystemError, match="sentinel"):
                 self.watcher.run()
-            except Exception as e:
-                assert e.args == ("sentinel",)
 
             mock_underscore_run.assert_called_once_with(mock.ANY, "0", mock.ANY, mock.ANY)
