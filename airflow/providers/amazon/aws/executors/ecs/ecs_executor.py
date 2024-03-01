@@ -247,7 +247,7 @@ class AwsEcsExecutor(BaseExecutor):
         elif task_state == State.SUCCESS:
             self.success(task_key)
         elif task_state == State.REMOVED:
-            self.__handle_failed_task(task.task_arn, task.stopped_reason)
+            self.__handle_failed_task(task.task_arn, task.stopped_reason, increment=False)
         if task_state in (State.FAILED, State.SUCCESS):
             self.log.debug(
                 "Airflow task %s marked as %s after running on ECS Task (arn) %s",
@@ -285,7 +285,7 @@ class AwsEcsExecutor(BaseExecutor):
 
         self.log.warning(message + "\n".join(reasons)) if reasons else ""
 
-    def __handle_failed_task(self, task_arn: str, reason: str):
+    def __handle_failed_task(self, task_arn: str, reason: str, increment: bool = True):
         """If an API failure occurs, the task is rescheduled."""
         task_key = self.active_workers.arn_to_key[task_arn]
         task_info = self.active_workers.info_by_key(task_key)
@@ -302,14 +302,15 @@ class AwsEcsExecutor(BaseExecutor):
                 self.__class__.MAX_RUN_TASK_ATTEMPTS,
                 task_arn,
             )
-            self.active_workers.increment_failure_count(task_key)
+            if increment:
+                self.active_workers.increment_failure_count(task_key)
             self.pending_tasks.appendleft(
                 EcsQueuedTask(
                     task_key,
                     task_cmd,
                     queue,
                     exec_info,
-                    failure_count + 1,
+                    failure_count + 1 if increment else failure_count,
                     timezone.utcnow() + calculate_next_attempt_delay(failure_count),
                 )
             )

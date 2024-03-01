@@ -481,7 +481,7 @@ class TestAwsEcsExecutor:
         mock_executor.sync_running_tasks()
 
         assert ARN1 in mock_executor.active_workers.get_all_arns()
-        assert mock_executor.active_workers.key_to_failure_counts[task_instance_key] == 2
+        assert mock_executor.active_workers.key_to_failure_counts[task_instance_key] == 1
         fail_mock.assert_not_called()
         success_mock.assert_not_called()
 
