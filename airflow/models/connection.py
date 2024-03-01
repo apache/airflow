@@ -85,7 +85,8 @@ def _parse_netloc_to_hostname(uri_parts):
 
     ``urlparse(...).hostname`` or ``urlsplit(...).hostname`` returns value into the lowercase in most cases,
     there are some exclusion exists for specific cases such as https://bugs.python.org/issue32323
-    If intends to work with hostname as a path, default behavior ``urlparse``/``urlsplit` this is unexpected.
+    In case if expected to get a path as part of hostname path,
+    then default behavior ``urlparse``/``urlsplit`` is unexpected.
     """
     hostname = unquote(uri_parts.hostname or "")
     if "/" in hostname:
