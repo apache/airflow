@@ -579,10 +579,9 @@ exit 0
         # We need to test for an AirflowException explicitly since
         # AirflowSensorTimeout is a subclass that will be raised if this does
         # not execute properly.
-        try:
+        with pytest.raises(AirflowException) as ex_ctx:
             task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except AirflowException as ex:
-            assert type(ex) == AirflowException
+        assert type(ex_ctx.value) is AirflowException
 
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
