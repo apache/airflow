@@ -77,7 +77,7 @@ def _mask_connection_fields(extra_fields):
     return result
 
 
-def action_logging(func: T | None = None, event: str | None = None) -> T | Callable[[T], T]:
+def action_logging(func: T | None = None, event: str | None = None) -> T | Callable:
     """Log user actions."""
 
     def log_action(f: T) -> T:
