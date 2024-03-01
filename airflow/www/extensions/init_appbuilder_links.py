@@ -53,7 +53,7 @@ def init_appbuilder_links(app):
         appbuilder.add_link(
             name=RESOURCE_DOCS,
             label="REST API Reference (Swagger UI)",
-            href="/api/v1./api/v1_swagger_ui_index",
+            href="/api/v1/ui",
             category=RESOURCE_DOCS_MENU,
         )
     appbuilder.add_link(
