@@ -113,8 +113,7 @@ database client:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/database_view.png" width="640"
-             alt="Airflow Breeze - Database view">
+        <img src="images/database_view.png" width="640" alt="Airflow Breeze - Database view">
     </div>
 
 You can change the used host port numbers by setting appropriate environment variables:
