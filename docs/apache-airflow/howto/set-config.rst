@@ -173,7 +173,7 @@ Configuring local settings
 ==========================
 
 Some Airflow configuration is configured via local setting, because they require changes in the
-code that is executed when Airflow is initialized. Usually It is mentioned in the detailed documentation
+code that is executed when Airflow is initialized. Usually it is mentioned in the detailed documentation
 where you can configure such local settings - This is usually done in the ``airflow_local_settings.py`` file.
 
 You should create a ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
