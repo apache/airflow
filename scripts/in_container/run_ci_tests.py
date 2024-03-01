@@ -325,9 +325,10 @@ if __name__ == "__main__":
     else:
         with cov.collect():
             retcode = pytest.main(command_list)
-        # Combine the coverage and report
-        cov.combine()
-        cov.xml_report(outfile=coverage_file)
+        # Combine the coverage and report if on main branch
+        if os.environ.get("GITHUB_HEAD_REF") == "main":
+            cov.combine()
+            cov.xml_report(outfile=coverage_file)
     # Analyze the coverage
     if source != ["airflow"] and test_type in TEST_TYPE_MAP_TO_SOURCES_FOR_COVERAGE:
         covered = sorted(
