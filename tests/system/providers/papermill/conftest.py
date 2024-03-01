@@ -46,7 +46,8 @@ def remote_kernel(request):
             "--ip=0.0.0.0",
         ]
     )
-    request.addfinalizer(proc.kill)
+    yield
+    proc.kill()
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -1310,6 +1310,7 @@ extend-select = [
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
+    "PT", # flake8-pytest-style rules
     # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
@@ -1330,16 +1331,6 @@ extend-select = [
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
     "B006", # Checks for uses of mutable objects as function argument defaults.
-    "PT001",
-    "PT003",
-    "PT009",
-    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
-    "PT022",
-    "PT023",
-    "PT024",
-    "PT025",
-    "PT026",
-    "PT027",
 ]
 ignore = [
     "G003", # Logging statement uses + (not fixed yet)
@@ -1351,6 +1342,17 @@ ignore = [
     "D215",
     "E731",
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
+    "PT004", # Fixture does not return anything, add leading underscore
+    "PT005", # Fixture returns a value, remove leading underscore
+    "PT006", # Wrong type of names in @pytest.mark.parametrize
+    "PT007", # Wrong type of values in @pytest.mark.parametrize
+    "PT008", # Use return_value= instead of patching with lambda
+    "PT011", # pytest.raises() is too broad, set the match parameter
+    "PT012", # [controversial rule] pytest.raises() block should contain a single simple statement.
+    "PT015", # assertion always fails, replace with pytest.fail()
+    "PT017", # raise exception in except block, use pytest.raises() instead
+    "PT018", # assertion should be broken down into multiple parts
+    "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
