@@ -191,7 +191,7 @@ Setting up a Batch Executor for Apache Airflow
 
 There are 3 steps involved in getting a Batch Executor to work in Apache Airflow:
 
-1. Creating a database that Airflow and the tasks running executed by Batch can connect to.
+1. Creating a database that Airflow and the tasks executed by Batch can connect to.
 
 2. Creating and configuring Batch resources that can run tasks from Airflow.
 
@@ -297,21 +297,21 @@ As a final step, access to the database must be configured for the containers ma
 Configure Airflow
 ~~~~~~~~~~~~~~~~~
 
-To configure Airflow to utilize the Batch Executor and leverage the resources we've set up, create a script (e.g., ``batch_executor_config.sh``) with the following contents:
+To configure Airflow to utilize the Batch Executor and leverage the resources we've set up, ensure the following environment variables are defined:
 
 .. code-block:: bash
 
-   export AIRFLOW__CORE__EXECUTOR='airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor'
+   AIRFLOW__CORE__EXECUTOR='airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor'
 
-   export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=<postgres-connection-string>
+   AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=<postgres-connection-string>
 
-   export AIRFLOW__AWS_BATCH_EXECUTOR__REGION_NAME=<executor-region>
+   AIRFLOW__AWS_BATCH_EXECUTOR__REGION_NAME=<executor-region>
 
-   export AIRFLOW__AWS_BATCH_EXECUTOR__JOB_QUEUE=<batch-job-queue>
+   AIRFLOW__AWS_BATCH_EXECUTOR__JOB_QUEUE=<batch-job-queue>
 
-   export AIRFLOW__AWS_BATCH_EXECUTOR__JOB_DEFINITION=<batch-job-definition>
+   AIRFLOW__AWS_BATCH_EXECUTOR__JOB_DEFINITION=<batch-job-definition>
 
-   export AIRFLOW__AWS_BATCH_EXECUTOR__JOB_NAME=<batch-job-name>
+   AIRFLOW__AWS_BATCH_EXECUTOR__JOB_NAME=<batch-job-name>
 
 .. include:: general.rst
    :start-after: .. BEGIN INIT_DB

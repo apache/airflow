@@ -25,11 +25,10 @@ from unittest import mock
 import pytest
 import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
-from marshmallow import ValidationError
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.batch import batch_executor_config
+from airflow.providers.amazon.aws.executors.batch import batch_executor, batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.batch_executor import (
     AwsBatchExecutor,
     BatchJob,
@@ -39,7 +38,6 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
-    BatchExecutorException,
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
@@ -159,14 +157,14 @@ class TestBatchJob:
         assert running_job.get_job_state() == State.RUNNING
 
     def test_success_jobs(self):
-        """Jobs that have been launched are identified as 'running'"""
+        """Jobs that have been launched are identified as 'SUCCEEDED'"""
         assert self.success in self.all_statuses
 
         success_job = BatchJob("BBB", self.success)
         assert success_job.get_job_state() == State.SUCCESS
 
     def test_failed_jobs(self):
-        """Jobs that have been launched are identified as 'running'"""
+        """Jobs that have been launched are identified as 'FAILED'"""
         assert self.failed in self.all_statuses
         running_job = BatchJob("CCC", self.failed)
         assert running_job.get_job_state() == State.FAILED
@@ -188,18 +186,102 @@ class TestAwsBatchExecutor:
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
 
-    def test_attempt_all_tasks_when_tasks_fail(self, mock_executor):
+    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor, caplog):
         """
-        Test task retry behaviour when tasks fail validation.
+        Test how jobs are tried when one job fails, but others pass.
 
-        Test that when a job fails with a client sided exception, all the jobs are
-        attempted, in order.
+        The expected behaviour is that in one sync() iteration, all the jobs are attempted
+        exactly once. Successful jobs are removed from pending_jobs to active_workers, and
+        failed jobs are added back to the pending_jobs queue to be run in the next iteration.
         """
         airflow_key = mock.Mock(spec=tuple)
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
+        caplog.set_level("ERROR")
+        airflow_commands = [airflow_cmd1, airflow_cmd2]
+        responses = [Exception("Failure 1"), {"jobId": "job-2"}]
+
         submit_job_args = {
-            "containerOverrides": {"command": ""},
+            "jobDefinition": "some-job-def",
+            "jobName": "some-job-name",
+            "jobQueue": "some-job-queue",
+            "containerOverrides": {
+                "command": ["command"],
+                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+            },
+        }
+        mock_executor.execute_async(airflow_key, airflow_cmd1)
+        mock_executor.execute_async(airflow_key, airflow_cmd2)
+        assert len(mock_executor.pending_jobs) == 2
+
+        mock_executor.batch.submit_job.side_effect = responses
+        mock_executor.attempt_submit_jobs()
+
+        for i in range(2):
+            submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
+            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
+        assert len(mock_executor.pending_jobs) == 1
+        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert len(mock_executor.active_workers.get_all_jobs()) == 1
+
+        caplog.clear()
+
+        # Add more tasks to pending_jobs. This simulates tasks being scheduled by Airflow
+        airflow_cmd3 = mock.Mock(spec=list)
+        airflow_cmd4 = mock.Mock(spec=list)
+        airflow_commands.extend([airflow_cmd1, airflow_cmd3, airflow_cmd4])
+        responses.extend([Exception("Failure 1"), {"jobId": "job-3"}, {"jobId": "job-4"}])
+        mock_executor.execute_async(airflow_key, airflow_cmd3)
+        mock_executor.execute_async(airflow_key, airflow_cmd4)
+        assert len(mock_executor.pending_jobs) == 3
+
+        mock_executor.attempt_submit_jobs()
+        assert len(mock_executor.pending_jobs) == 1
+        assert len(mock_executor.active_workers.get_all_jobs()) == 3
+
+        for i in range(2, 5):
+            submit_job_args["containerOverrides"]["command"] = airflow_commands[i]
+            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
+        assert len(mock_executor.pending_jobs) == 1
+        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert len(mock_executor.active_workers.get_all_jobs()) == 3
+
+        caplog.clear()
+
+        airflow_commands.append(airflow_cmd1)
+        responses.append(Exception("Failure 1"))
+
+        mock_executor.attempt_submit_jobs()
+        submit_job_args["containerOverrides"]["command"] = airflow_commands[0]
+        assert mock_executor.batch.submit_job.call_args_list[5].kwargs == submit_job_args
+        assert (
+            "This job has been unsuccessfully attempted too many times (3). Dropping the task."
+            == caplog.messages[0]
+        )
+
+    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_attempt_all_jobs_when_jobs_fail(self, _, mock_executor, caplog):
+        """
+        Test job retry behaviour when jobs fail validation.
+
+        Test that when a job fails with a client sided exception, all the jobs are
+        attempted once. If all jobs fail, then the length of pending tasks should not change,
+        until all the tasks have been attempted the maximum number of times.
+        """
+        airflow_key = mock.Mock(spec=tuple)
+        airflow_cmd1 = mock.Mock(spec=list)
+        airflow_cmd2 = mock.Mock(spec=list)
+        caplog.set_level("ERROR")
+        commands = [airflow_cmd1, airflow_cmd2]
+        failures = [Exception("Failure 1"), Exception("Failure 2")]
+        submit_job_args = {
+            "containerOverrides": {
+                "command": ["command"],
+                "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+            },
             "jobDefinition": "some-job-def",
             "jobName": "some-job-name",
             "jobQueue": "some-job-queue",
@@ -208,17 +290,35 @@ class TestAwsBatchExecutor:
         mock_executor.execute_async(airflow_key, airflow_cmd2)
         assert len(mock_executor.pending_jobs) == 2
 
-        mock_executor.batch.submit_job.side_effect = Exception()
+        mock_executor.batch.submit_job.side_effect = failures
         mock_executor.attempt_submit_jobs()
-        for i in range(int(mock_executor.MAX_SUBMIT_JOB_ATTEMPTS)):
-            submit_job_args["containerOverrides"]["command"] = airflow_cmd1
-            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
 
-        for i in range(
-            int(mock_executor.MAX_SUBMIT_JOB_ATTEMPTS), len(mock_executor.batch.submit_job.call_args_list)
-        ):
-            submit_job_args["containerOverrides"]["command"] = airflow_cmd2
+        for i in range(2):
+            submit_job_args["containerOverrides"]["command"] = commands[i]
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
+        assert len(mock_executor.pending_jobs) == 2
+
+        caplog.clear()
+
+        mock_executor.batch.submit_job.side_effect = failures
+        mock_executor.attempt_submit_jobs()
+        for i in range(2):
+            submit_job_args["containerOverrides"]["command"] = commands[i]
+            assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
+        assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
+        assert len(mock_executor.pending_jobs) == 2
+
+        caplog.clear()
+
+        mock_executor.batch.submit_job.side_effect = failures
+        mock_executor.attempt_submit_jobs()
+        assert len(caplog.messages) == 3
+        for i in range(2):
+            assert (
+                "This job has been unsuccessfully attempted too many times (3). Dropping the task."
+                == caplog.messages[i]
+            )
 
     def test_attempt_submit_jobs_failure(self, mock_executor):
         mock_executor.batch.submit_job.side_effect = NoCredentialsError()
@@ -240,7 +340,8 @@ class TestAwsBatchExecutor:
         assert len(mock_executor.active_workers.get_all_jobs()) == 0
         assert len(mock_executor.pending_jobs) == 1
 
-    def test_task_retry_on_api_failure(self, mock_executor, caplog):
+    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_task_retry_on_api_failure(self, _, mock_executor, caplog):
         """Test API failure retries"""
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
         airflow_cmds = [mock.Mock(spec=list), mock.Mock(spec=list)]
@@ -358,9 +459,12 @@ class TestAwsBatchExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync(self, success_mock, fail_mock, mock_airflow_key, mock_executor):
+    @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_sync(self, _, success_mock, fail_mock, mock_airflow_key, mock_executor):
         """Test failure states"""
-        self._mock_sync(executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED")
+        self._mock_sync(
+            executor=mock_executor, airflow_key=mock_airflow_key(), status="FAILED", attempt_number=2
+        )
 
         mock_executor.sync()
 
@@ -410,16 +514,15 @@ class TestAwsBatchExecutor:
     @mock.patch(
         "airflow.providers.amazon.aws.executors.batch.boto_schema.BatchDescribeJobsResponseSchema.load"
     )
-    def test_describe_jobs(self, mock_load, mock_executor):
-        mock_load.side_effect = ValidationError("Test Error")
-        job_ids = ["id-1", "id-2"]
-        with pytest.raises(BatchExecutorException):
-            mock_executor._describe_jobs(job_ids)
-
     def test_health_check_failure(self, mock_executor):
         mock_executor.batch.describe_jobs.side_effect = Exception("Test_failure")
+        executor = AwsBatchExecutor()
+        batch_mock = mock.Mock(spec=executor.batch)
+        batch_mock.describe_jobs.side_effect = Exception("Test_failure")
+        executor.batch = batch_mock
+
         with pytest.raises(Exception, match="Test_failure"):
-            mock_executor.start()
+            executor.start()
 
     def test_start_health_check_config(self, set_env_vars):
         executor = AwsBatchExecutor()
@@ -485,6 +588,7 @@ class TestAwsBatchExecutor:
         job_id: str = MOCK_JOB_ID,
         status: str = "SUCCEEDED",
         status_reason: str = "",
+        attempt_number: int = 0,
     ):
         """
         This function is not mocking sync so much as it is preparing for
@@ -496,7 +600,7 @@ class TestAwsBatchExecutor:
             airflow_cmd="airflow_cmd",
             queue="queue",
             exec_config={},
-            attempt_number=1,
+            attempt_number=attempt_number,
         )
 
         after_batch_job = {
@@ -584,3 +688,144 @@ class TestBatchExecutorConfig:
 
         # Verify that tag names are exempt from the camel-case conversion.
         assert submit_kwargs["tags"] == templated_tags
+
+    @pytest.mark.parametrize(
+        "submit_job_kwargs, exec_config, expected_result",
+        [
+            # No input submit_job_kwargs or executor overrides
+            (
+                {},
+                {},
+                {
+                    "jobDefinition": "some-job-def",
+                    "jobQueue": "some-job-queue",
+                    "jobName": "some-job-name",
+                    "containerOverrides": {
+                        "command": ["command"],
+                        "environment": [{"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}],
+                    },
+                },
+            ),
+            # submit_job_kwargs provided, not exec_config
+            (
+                {
+                    "shareIdentifier": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "containerOverrides": {
+                        "memory": 500,
+                        "vcpus": 10,
+                        "environment": [{"name": "X", "value": "Y"}],
+                    },
+                },
+                {},
+                {
+                    "shareIdentifier": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "jobDefinition": "some-job-def",
+                    "jobQueue": "some-job-queue",
+                    "jobName": "some-job-name",
+                    "containerOverrides": {
+                        "command": ["command"],
+                        "memory": 500,
+                        "vcpus": 10,
+                        "environment": [
+                            {"name": "X", "value": "Y"},
+                            # Added by the batch executor
+                            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                        ],
+                    },
+                },
+            ),
+            # exec_config provided, no submit_job_kwargs
+            (
+                {},
+                {
+                    "shareIdentifier": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "containerOverrides": {
+                        "memory": 500,
+                        "vcpus": 10,
+                        "environment": [{"name": "X", "value": "Y"}],
+                    },
+                },
+                {
+                    "shareIdentifier": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "jobDefinition": "some-job-def",
+                    "jobQueue": "some-job-queue",
+                    "jobName": "some-job-name",
+                    "containerOverrides": {
+                        "command": ["command"],
+                        "memory": 500,
+                        "vcpus": 10,
+                        "environment": [
+                            {"name": "X", "value": "Y"},
+                            # Added by the batch executor
+                            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                        ],
+                    },
+                },
+            ),
+            # Both submit_job_kwargs and executor_config provided. The latter should override the former,
+            # following a recursive python dict update strategy
+            (
+                {
+                    "shareIdentifier": "Banana",
+                    "tags": [{"key": "FOO", "value": "BAR"}],
+                    "propagateTags": True,
+                    "containerOverrides": {
+                        "memory": 500,
+                        "vcpus": 10,
+                        "environment": [{"name": "X", "value": "Y"}],
+                    },
+                },
+                {
+                    "shareIdentifier": "Fish",
+                    "tags": [{"key": "X", "value": "Y"}, {"key": "W", "value": "Z"}],
+                    "containerOverrides": {
+                        "memory": 300,
+                        "environment": [{"name": "W", "value": "Z"}],
+                    },
+                },
+                {
+                    # tags and shareIdentifier are overridden by exec_config
+                    "shareIdentifier": "Fish",
+                    # List types overwrite entirely, as python dict update would do
+                    "tags": [{"key": "X", "value": "Y"}, {"key": "W", "value": "Z"}],
+                    # propagateTags remains since it is not a list type and not overridden by exec config
+                    "propagateTags": True,
+                    "jobDefinition": "some-job-def",
+                    "jobQueue": "some-job-queue",
+                    "jobName": "some-job-name",
+                    "containerOverrides": {
+                        "command": ["command"],
+                        "memory": 300,
+                        # vcpus is present because it is missing from the exec config
+                        "vcpus": 10,
+                        "environment": [
+                            # Overridden list type
+                            {"name": "W", "value": "Z"},  # Only new env vars present, overwritten
+                            # Added by the batch executor
+                            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"},
+                        ],
+                    },
+                },
+            ),
+        ],
+    )
+    def test_run_task_kwargs_exec_config_overrides(
+        self, set_env_vars, submit_job_kwargs, exec_config, expected_result
+    ):
+        submit_job_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
+        )
+        os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
+
+        mock_ti_key = mock.Mock(spec=tuple)
+        command = ["command"]
+
+        executor = AwsBatchExecutor()
+
+        final_run_task_kwargs = executor._submit_job_kwargs(mock_ti_key, command, "queue", exec_config)
+
+        assert final_run_task_kwargs == expected_result

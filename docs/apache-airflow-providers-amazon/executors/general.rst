@@ -45,8 +45,6 @@ integration, allowing you to interact with AWS services within your
 Airflow environment. It also includes options to load DAGs (Directed
 Acyclic Graphs) from either an S3 bucket or a local folder.
 
-Download this image to use for the docker build commands below or create
-your own image if you prefer.
 
 Prerequisites
 ~~~~~~~~~~~~~

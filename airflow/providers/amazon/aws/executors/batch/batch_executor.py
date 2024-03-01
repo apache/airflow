@@ -24,14 +24,17 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from botocore.exceptions import ClientError, NoCredentialsError
-from marshmallow import ValidationError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import exponential_backoff_retry
+from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
+    calculate_next_attempt_delay,
+    exponential_backoff_retry,
+)
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.utils import timezone
+from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -43,7 +46,6 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
-    BatchExecutorException,
     BatchJob,
     BatchJobCollection,
     BatchQueuedJob,
@@ -64,12 +66,11 @@ class AwsBatchExecutor(BaseExecutor):
     """
     The Airflow Scheduler creates a shell command, and passes it to the executor.
 
-    This Batch Executor simply runs said airflow command a resource provisioned and managed
+    This Batch Executor simply runs said airflow command in a resource provisioned and managed
     by AWS Batch. It then periodically checks in with the launched jobs (via job-ids) to
     determine the status.
-    The `submit_job_kwargs` configuration points to a dictionary that returns a dictionary. The
-    keys of the resulting dictionary should match the kwargs for the SubmitJob definition per AWS'
-    documentation (see below).
+    The `submit_job_kwargs` is a dictionary that should match the kwargs for the
+    SubmitJob definition per AWS' documentation (see below).
     For maximum flexibility, individual tasks can specify `executor_config` as a dictionary, with keys that
     match the request syntax for the SubmitJob definition per AWS' documentation (see link below). The
     `executor_config` will update the `submit_job_kwargs` dictionary when calling the task. This allows
@@ -226,6 +227,7 @@ class AwsBatchExecutor(BaseExecutor):
                     queue,
                     exec_info,
                     failure_count + 1,
+                    timezone.utcnow() + calculate_next_attempt_delay(failure_count),
                 )
             )
         else:
@@ -239,7 +241,7 @@ class AwsBatchExecutor(BaseExecutor):
 
     def attempt_submit_jobs(self):
         failure_reasons = defaultdict(int)
-        while len(self.pending_jobs) > 0:
+        for _ in range(len(self.pending_jobs)):
             batch_job = self.pending_jobs.popleft()
             key = batch_job.key
             cmd = batch_job.command
@@ -247,15 +249,18 @@ class AwsBatchExecutor(BaseExecutor):
             exec_config = batch_job.executor_config
             attempt_number = batch_job.attempt_number
             _failure_reason = []
+            if timezone.utcnow() < batch_job.next_attempt_time:
+                self.pending_jobs.append(batch_job)
+                continue
             try:
                 submit_job_response = self._submit_job(key, cmd, queue, exec_config or {})
             except NoCredentialsError:
-                self.pending_jobs.appendleft(batch_job)
+                self.pending_jobs.append(batch_job)
                 raise
             except ClientError as e:
                 error_code = e.response["Error"]["Code"]
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
-                    self.pending_jobs.appendleft(batch_job)
+                    self.pending_jobs.append(batch_job)
                     raise
                 _failure_reason.append(str(e))
             except Exception as e:
@@ -271,8 +276,11 @@ class AwsBatchExecutor(BaseExecutor):
                     )
                     self.fail(key=key)
                 else:
+                    batch_job.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
+                        attempt_number
+                    )
                     batch_job.attempt_number += 1
-                    self.pending_jobs.appendleft(batch_job)
+                    self.pending_jobs.append(batch_job)
             else:
                 # Success case
                 self.active_workers.add_job(
@@ -296,13 +304,8 @@ class AwsBatchExecutor(BaseExecutor):
             if not batched_job_ids:
                 continue
             boto_describe_tasks = self.batch.describe_jobs(jobs=batched_job_ids)
-            try:
-                describe_tasks_response = BatchDescribeJobsResponseSchema().load(boto_describe_tasks)
-            except ValidationError as err:
-                self.log.error("Batch DescribeJobs API Response: %s", boto_describe_tasks)
-                raise BatchExecutorException(
-                    f"DescribeJobs API call does not match expected JSON shape. Are you sure that the correct version of Boto3 is installed? {err}"
-                )
+
+            describe_tasks_response = BatchDescribeJobsResponseSchema().load(boto_describe_tasks)
             all_jobs.extend(describe_tasks_response["jobs"])
         return all_jobs
 
@@ -313,7 +316,12 @@ class AwsBatchExecutor(BaseExecutor):
 
         self.pending_jobs.append(
             BatchQueuedJob(
-                key=key, command=command, queue=queue, executor_config=executor_config or {}, attempt_number=1
+                key=key,
+                command=command,
+                queue=queue,
+                executor_config=executor_config or {},
+                attempt_number=1,
+                next_attempt_time=timezone.utcnow(),
             )
         )
 
@@ -343,8 +351,13 @@ class AwsBatchExecutor(BaseExecutor):
         .. seealso:: https://docs.aws.amazon.com/batch/latest/APIReference/API_SubmitJob.html
         """
         submit_job_api = deepcopy(self.submit_job_kwargs)
-        submit_job_api["containerOverrides"].update(exec_config)
+        submit_job_api = merge_dicts(submit_job_api, exec_config)
         submit_job_api["containerOverrides"]["command"] = cmd
+        if "environment" not in submit_job_api["containerOverrides"]:
+            submit_job_api["containerOverrides"]["environment"] = []
+        submit_job_api["containerOverrides"]["environment"].append(
+            {"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"}
+        )
         return submit_job_api
 
     def end(self, heartbeat_interval=10):

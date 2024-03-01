@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List
@@ -47,6 +48,7 @@ class BatchQueuedJob:
     queue: str
     executor_config: ExecutorConfigType
     attempt_number: int
+    next_attempt_time: datetime.datetime
 
 
 @dataclass
