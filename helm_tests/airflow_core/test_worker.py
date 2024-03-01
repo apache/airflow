@@ -1030,31 +1030,19 @@ class TestWorkerKedaAutoScaler:
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
-    def test_should_use_keda_queryValue(self):
+    def test_mysql_db_backend_keda(self):
         docs = render_chart(
             values={
                 "data": {"metadataConnection": {"protocol": "mysql"}},
-                "triggerer": {
-                    "enabled": True,
+                "workers": {
                     "keda": {"enabled": True},
                 },
             },
-            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert "1" == jmespath.search("spec.triggers[0].metadata.queryValue", docs[0])
         assert jmespath.search("spec.triggers[0].metadata.targetQueryValue", docs[0]) is None
 
-    def test_should_use_connectionStringFromEnv(self):
-        docs = render_chart(
-            values={
-                "data": {"metadataConnection": {"protocol": "mysql"}},
-                "triggerer": {
-                    "enabled": True,
-                    "keda": {"enabled": True},
-                },
-            },
-            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
-        )
         assert "KEDA_DB_CONN" == jmespath.search("spec.triggers[0].metadata.connectionStringFromEnv", docs[0])
         assert jmespath.search("spec.triggers[0].metadata.connectionFromEnv", docs[0]) is None
 
