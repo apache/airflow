@@ -319,11 +319,12 @@ if __name__ == "__main__":
         concurrency="multiprocessing",
     )
     coverage_file = coverage_filepath(test_type, os.environ["BACKEND"])
+    retcode = 0
     if test_type == "Helm":
-        pytest.main(command_list)
+        retcode = pytest.main(command_list)
     else:
         with cov.collect():
-            pytest.main(command_list)
+            retcode = pytest.main(command_list)
         # Combine the coverage and report
         cov.combine()
         cov.xml_report(outfile=coverage_file)
@@ -354,3 +355,4 @@ if __name__ == "__main__":
                 continue
         if failed:
             get_console().print("[error]There are some coverage errors. Please fix them")
+    sys.exit(retcode)
