@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists, DagNotActive
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -120,6 +120,8 @@ def trigger_dag(
     dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
+    if not dag_model.is_active:
+        raise DagNotActive(f"Dag id {dag_id} is not in active state")
 
     dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
     triggers = _trigger_dag(

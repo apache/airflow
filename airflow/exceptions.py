@@ -196,6 +196,10 @@ class DagNotFound(AirflowNotFoundException):
     """Raise when a DAG is not available in the system."""
 
 
+class DagNotActive(AirflowBadRequest):
+    """Raise when a DAG is not active."""
+
+
 class DagCodeNotFound(AirflowNotFoundException):
     """Raise when a DAG code is not available in the system."""
 
@@ -400,7 +404,6 @@ except ImportError:
 
     class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
         """Raised when exception happens during Pod Mutation Hook execution."""
-
 
 try:
     from airflow.providers.cncf.kubernetes.pod_generator import PodReconciliationError
