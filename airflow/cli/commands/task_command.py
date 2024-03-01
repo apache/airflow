@@ -212,8 +212,8 @@ def _run_task_by_selected_method(
     - as raw task
     - by executor
     """
-    if isinstance(ti, TaskInstancePydantic):
-        raise NotImplementedError("Wait for AIP-44 implementation to complete")
+    if TYPE_CHECKING:
+        assert not isinstance(ti, TaskInstancePydantic)  # Wait for AIP-44 implementation to complete
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
