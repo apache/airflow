@@ -1303,8 +1303,14 @@ namespace-packages = ["airflow/providers"]
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 extend-select = [
+    # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "TCH", # Rules around TYPE_CHECKING blocks
+    "G", # flake8-logging-format rules
+    "LOG", # flake8-logging rules, most of them autofixable
+    # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -1321,15 +1327,14 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TCH",  # Rules around TYPE_CHECKING blocks
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "PT001",
     "PT003",
     "PT009",
     "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
+    "PT022",
     "PT023",
     "PT024",
     "PT025",
@@ -1337,6 +1342,8 @@ extend-select = [
     "PT027",
 ]
 ignore = [
+    "G003", # Logging statement uses + (not fixed yet)
+    "G004", # Logging statement uses f-string (not fixed yet)
     "D203",
     "D212",
     "D213",
@@ -1344,6 +1351,11 @@ ignore = [
     "D215",
     "E731",
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
+]
+unfixable = [
+    # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
+    # In addition, it can't do anything with invalid typing annotations, protected by mypy.
+    "PT022",
 ]
 
 [tool.ruff.format]
@@ -1501,6 +1513,16 @@ banned-module-level-imports = ["numpy", "pandas"]
 "flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
+# Use root logger by a mistake / IDE autosuggestion
+# If for some reason root logger required it could obtained by logging.getLogger("root")
+"logging.debug".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.info".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.warning".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.error".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.exception".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
 # Some specific cases
 "unittest.TestCase".msg = "Use pytest compatible classes"
 

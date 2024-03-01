@@ -1253,7 +1253,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(64))
+    rendered_map_index = Column(String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1479,7 +1479,6 @@ class TaskInstance(Base, LoggingMixin):
         Expose this for the Task Tries and Gantt graph views.
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
-        https://issues.apache.org/jira/browse/AIRFLOW-2143
         """
         return self._try_number
 

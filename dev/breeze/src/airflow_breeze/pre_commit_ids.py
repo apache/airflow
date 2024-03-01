@@ -108,6 +108,7 @@ PRE_COMMIT_LIST = [
     "mypy-docs",
     "mypy-providers",
     "pretty-format-json",
+    "pylint",
     "python-no-log-warn",
     "replace-bad-characters",
     "rst-backticks",

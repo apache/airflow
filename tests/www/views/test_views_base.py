@@ -111,7 +111,7 @@ def heartbeat_not_running():
             Job.job_type == "SchedulerJob",
             Job.state == "running",
         ).delete()
-    yield "unhealthy", None
+    return "unhealthy", None
 
 
 @pytest.mark.parametrize(

@@ -60,7 +60,7 @@ with DAG(
 
     # [START howto_operator_python_render_sql]
     def log_sql(**kwargs):
-        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
 
     log_the_sql = PythonOperator(
         task_id="log_sql_query",
