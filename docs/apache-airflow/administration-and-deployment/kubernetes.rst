@@ -41,6 +41,8 @@ KubernetesPodOperator
 The :ref:`KubernetesPodOperator <howto/operator:kubernetespodoperator>` allows you to create
 Pods on Kubernetes.
 
+.. _kubernetes:pod_mutation_hook:
+
 Pod Mutation Hook
 ^^^^^^^^^^^^^^^^^
 
@@ -51,6 +53,9 @@ are expected to alter its attributes.
 
 This could be used, for instance, to add sidecar or init containers
 to every worker pod launched by KubernetesExecutor or KubernetesPodOperator.
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
 
 
 .. code-block:: python

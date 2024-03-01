@@ -16,7 +16,7 @@
     under the License.
 
 
-
+.. _export_dynamic_environment_variables:
 
 Export dynamic environment variables available for operators to use
 ===================================================================
@@ -50,3 +50,7 @@ In your ``airflow_local_settings.py`` file.
       """
       # more env vars
       return {"airflow_cluster": "main"}
+
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
