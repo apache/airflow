@@ -3574,7 +3574,7 @@ class RedocView(AirflowBaseView):
     @expose("/redoc")
     def redoc(self):
         """Redoc API documentation."""
-        openapi_spec_url = url_for("/api/v1./api/v1_openapi_yaml")
+        openapi_spec_url = "/api/v1/openapi.yaml"
         return self.render_template("airflow/redoc.html", openapi_spec_url=openapi_spec_url)
 
 
