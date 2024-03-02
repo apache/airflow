@@ -846,7 +846,7 @@ class Airflow(AirflowBaseView):
                 prefix_search_match = re2.match(r"(?i)(dag|owner|task):\s*", arg_search_query)
 
                 if prefix_search_match:
-                    query_prefix = prefix_search_match[0]
+                    query_prefix = prefix_search_match[0].lower()
                     query_value = arg_search_query[len(query_prefix) :]
                     if query_value:
                         if query_prefix.startswith("task:"):
@@ -5694,7 +5694,7 @@ class AutocompleteView(AirflowBaseView):
         query_prefix = ""
         prefix_search_match = re2.match(r"(?i)(dag|owner|task):\s*", query)
         if prefix_search_match:
-            query_prefix = prefix_search_match[0]
+            query_prefix = prefix_search_match[0].lower()
             query = query[len(query_prefix) :]
 
         if not query:
