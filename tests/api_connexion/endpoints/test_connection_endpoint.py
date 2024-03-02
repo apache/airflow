@@ -26,7 +26,7 @@ from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.www import _check_last_log
@@ -81,34 +81,30 @@ class TestDeleteConnection(TestConnectionEndpoint):
         session.commit()
         conn = session.query(Connection).all()
         assert len(conn) == 1
-        response = self.client.delete(
-            "/api/v1/connections/test-connection", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.delete("/api/v1/connections/test-connection", headers={"REMOTE_USER": "test"})
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="api.connection.delete", execution_date=None)
 
     def test_delete_should_respond_404(self):
-        response = self.client.delete(
-            "/api/v1/connections/test-connection", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.delete("/api/v1/connections/test-connection", headers={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": "The Connection with connection_id: `test-connection` was not found",
             "status": 404,
-            "title": "Connection not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.delete("/api/v1/connections/test-connection")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/connections/test-connection-id", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+            "/api/v1/connections/test-connection-id", headers={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -129,11 +125,9 @@ class TestGetConnection(TestConnectionEndpoint):
         session.commit()
         result = session.query(Connection).all()
         assert len(result) == 1
-        response = self.client.get(
-            "/api/v1/connections/test-connection-id", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/connections/test-connection-id", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "connection_id": "test-connection-id",
             "conn_type": "mysql",
             "description": "test description",
@@ -155,28 +149,24 @@ class TestGetConnection(TestConnectionEndpoint):
         session.add(connection_model)
         session.commit()
 
-        response = self.client.get(
-            "/api/v1/connections/test-connection-id", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/connections/test-connection-id", headers={"REMOTE_USER": "test"})
 
-        assert response.json["extra"] == '{"nonsensitive": "just_a_value", "api_token": "***"}'
+        assert response.json()["extra"] == '{"nonsensitive": "just_a_value", "api_token": "***"}'
 
     def test_should_respond_404(self):
-        response = self.client.get(
-            "/api/v1/connections/invalid-connection", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/connections/invalid-connection", headers={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "The Connection with connection_id: `invalid-connection` was not found",
             "status": 404,
-            "title": "Connection not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections/test-connection-id")
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestGetConnections(TestConnectionEndpoint):
@@ -188,9 +178,9 @@ class TestGetConnections(TestConnectionEndpoint):
         session.commit()
         result = session.query(Connection).all()
         assert len(result) == 2
-        response = self.client.get("/api/v1/connections", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/connections", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "connections": [
                 {
                     "connection_id": "test-connection-id-1",
@@ -223,11 +213,11 @@ class TestGetConnections(TestConnectionEndpoint):
         result = session.query(Connection).all()
         assert len(result) == 2
         response = self.client.get(
-            "/api/v1/connections?order_by=-connection_id", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/connections?order_by=-connection_id", headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         # Using - means descending
-        assert response.json == {
+        assert response.json() == {
             "connections": [
                 {
                     "connection_id": "test-connection-id-2",
@@ -254,7 +244,7 @@ class TestGetConnections(TestConnectionEndpoint):
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections")
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
@@ -301,10 +291,10 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         connections = self._create_connections(10)
         session.add_all(connections)
         session.commit()
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
-        conn_ids = [conn["connection_id"] for conn in response.json["connections"] if conn]
+        assert response.json()["total_entries"] == 10
+        conn_ids = [conn["connection_id"] for conn in response.json()["connections"] if conn]
         assert conn_ids == expected_conn_ids
 
     def test_should_respect_page_size_limit_default(self, session):
@@ -312,23 +302,21 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/connections", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 200
-        assert len(response.json["connections"]) == 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["connections"]) == 100
 
     def test_invalid_order_by_raises_400(self, session):
         connection_models = self._create_connections(200)
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get(
-            "/api/v1/connections?order_by=invalid", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/connections?order_by=invalid", headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert (
-            response.json["detail"] == "Ordering with 'invalid' is disallowed or"
+            response.json()["detail"] == "Ordering with 'invalid' is disallowed or"
             " the attribute does not exist on the model"
         )
 
@@ -337,11 +325,11 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections?limit=0", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/connections?limit=0", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
-        assert response.json["total_entries"] == 200
-        assert len(response.json["connections"]) == 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["connections"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -349,9 +337,9 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
         session.add_all(connection_models)
         session.commit()
 
-        response = self.client.get("/api/v1/connections?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/connections?limit=180", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json["connections"]) == 150
+        assert len(response.json()["connections"]) == 150
 
     def _create_connections(self, count):
         return [
@@ -373,7 +361,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self._create_connection(session)
 
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/connections/test-connection-id", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
         _check_last_log(session, dag_id=None, event="api.connection.edit", execution_date=None)
@@ -391,12 +379,12 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = self.client.patch(
             "/api/v1/connections/test-connection-id?update_mask=port,login",
             json=payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=test_connection).first()
         assert connection.password is None
-        assert response.json == {
+        assert response.json() == {
             "connection_id": test_connection,  # not updated
             "conn_type": "test_type",  # Not updated
             "description": None,  # Not updated
@@ -462,10 +450,10 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = self.client.patch(
             f"/api/v1/connections/test-connection-id?{update_mask}",
             json=payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400
-        assert response.json["detail"] == error_message
+        assert response.json()["detail"] == error_message
 
     @pytest.mark.parametrize(
         "payload, error_message",
@@ -501,23 +489,23 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_should_respond_400_for_invalid_update(self, payload, error_message, session):
         self._create_connection(session)
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/connections/test-connection-id", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert error_message in response.json["detail"]
+        assert error_message in response.json()["detail"]
 
     def test_patch_should_respond_404_not_found(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "test-type", "port": 90}
         response = self.client.patch(
-            "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/connections/test-connection-id", json=payload, headers={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
         assert {
             "detail": "The Connection with connection_id: `test-connection-id` was not found",
             "status": 404,
-            "title": "Connection not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_connection(session)
@@ -527,15 +515,13 @@ class TestPatchConnection(TestConnectionEndpoint):
             json={"connection_id": "test-connection-id", "conn_type": "test_type", "extra": "{'key': 'var'}"},
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestPostConnection(TestConnectionEndpoint):
     def test_post_should_respond_200(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type"}
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         connection = session.query(Connection).all()
         assert len(connection) == 1
@@ -546,11 +532,9 @@ class TestPostConnection(TestConnectionEndpoint):
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["extra"] is None
+        assert response.json()["extra"] is None
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
@@ -560,11 +544,9 @@ class TestPostConnection(TestConnectionEndpoint):
         payload = {
             "connection_id": "test-connection-id",
         }  # conn_type missing
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'conn_type': ['Missing data for required field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -573,11 +555,9 @@ class TestPostConnection(TestConnectionEndpoint):
 
     def test_post_should_respond_400_for_invalid_conn_id(self):
         payload = {"connection_id": "****", "conn_type": "test_type"}
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "The key '****' has to be made of "
             "alphanumeric characters, dashes, dots and underscores exclusively",
             "status": 400,
@@ -587,16 +567,12 @@ class TestPostConnection(TestConnectionEndpoint):
 
     def test_post_should_respond_409_already_exist(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type"}
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
         # Another request
-        response = self.client.post(
-            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 409
-        assert response.json == {
+        assert response.json() == {
             "detail": "Connection already exist. ID: test-connection-id",
             "status": 409,
             "title": "Conflict",
@@ -608,18 +584,16 @@ class TestPostConnection(TestConnectionEndpoint):
             "/api/v1/connections", json={"connection_id": "test-connection-id", "conn_type": "test_type"}
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
 
 class TestConnection(TestConnectionEndpoint):
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_respond_200(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
-        response = self.client.post(
-            "/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections/test", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "status": True,
             "message": "Connection successfully tested",
         }
@@ -627,7 +601,7 @@ class TestConnection(TestConnectionEndpoint):
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_connection_env_is_cleaned_after_run(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
-        self.client.post("/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"})
+        self.client.post("/api/v1/connections/test", json=payload, headers={"REMOTE_USER": "test"})
         assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
@@ -635,11 +609,9 @@ class TestConnection(TestConnectionEndpoint):
         payload = {
             "connection_id": "test-connection-id",
         }  # conn_type missing
-        response = self.client.post(
-            "/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections/test", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
-        assert response.json == {
+        assert response.json() == {
             "detail": "{'conn_type': ['Missing data for required field.']}",
             "status": 400,
             "title": "Bad Request",
@@ -651,13 +623,11 @@ class TestConnection(TestConnectionEndpoint):
             "/api/v1/connections/test", json={"connection_id": "test-connection-id", "conn_type": "test_type"}
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_respond_403_by_default(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
-        response = self.client.post(
-            "/api/v1/connections/test", json=payload, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.post("/api/v1/connections/test", json=payload, headers={"REMOTE_USER": "test"})
         assert response.status_code == 403
         assert response.text == (
             "Testing connections is disabled in Airflow configuration. "

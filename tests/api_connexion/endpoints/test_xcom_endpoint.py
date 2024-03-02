@@ -31,7 +31,7 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
 from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
@@ -132,11 +132,11 @@ class TestGetXComEntry(TestXComEndpoint):
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert 200 == response.status_code
 
-        current_data = response.json
+        current_data = response.json()
         current_data["timestamp"] = "TIMESTAMP"
         assert current_data == {
             "dag_id": dag_id,
@@ -158,10 +158,10 @@ class TestGetXComEntry(TestXComEndpoint):
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
             f"/api/v1/dags/nonexistentdagid/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert 404 == response.status_code
-        assert response.json["title"] == "XCom entry not found"
+        assert response.json()["title"] == "Not Found"
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "test-dag-id"
@@ -175,7 +175,7 @@ class TestGetXComEntry(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}"
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         dag_id = "test-dag-id"
@@ -188,7 +188,7 @@ class TestGetXComEntry(TestXComEndpoint):
         self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -262,13 +262,13 @@ class TestGetXComEntry(TestXComEndpoint):
         url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/key{query}"
         with mock.patch("airflow.api_connexion.endpoints.xcom_endpoint.XCom", XCom):
             with conf_vars({("api", "enable_xcom_deserialize_support"): str(allowed)}):
-                response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+                response = self.client.get(url, headers={"REMOTE_USER": "test"})
 
         if isinstance(expected_status_or_value, int):
             assert response.status_code == expected_status_or_value
         else:
             assert response.status_code == 200
-            assert response.json["value"] == expected_status_or_value
+            assert response.json()["value"] == expected_status_or_value
 
 
 class TestGetXComEntries(TestXComEndpoint):
@@ -282,11 +282,11 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(dag_id, run_id, execution_date_parsed, task_id)
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
-        response_data = response.json
+        response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
         _compare_xcom_collections(
@@ -329,11 +329,11 @@ class TestGetXComEntries(TestXComEndpoint):
 
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
-        response_data = response.json
+        response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
         _compare_xcom_collections(
@@ -392,11 +392,11 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_invalid_xcom_entries(execution_date_parsed)
         response = self.client.get(
             "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
+            headers={"REMOTE_USER": "test_granular_permissions"},
         )
 
         assert 200 == response.status_code
-        response_data = response.json
+        response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
         _compare_xcom_collections(
@@ -436,11 +436,11 @@ class TestGetXComEntries(TestXComEndpoint):
             response = self.client.get(
                 "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries"
                 f"{('?map_index=' + str(map_index)) if map_index is not None else ''}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
 
             assert 200 == response.status_code
-            response_data = response.json
+            response_data = response.json()
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"
             assert response_data == {
@@ -479,11 +479,11 @@ class TestGetXComEntries(TestXComEndpoint):
         def assert_expected_result(expected_entries, key=None):
             response = self.client.get(
                 f"/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries?xcom_key={key}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
 
             assert 200 == response.status_code
-            response_data = response.json
+            response_data = response.json()
             for xcom_entry in response_data["xcom_entries"]:
                 xcom_entry["timestamp"] = "TIMESTAMP"
             assert response_data == {
@@ -522,7 +522,7 @@ class TestGetXComEntries(TestXComEndpoint):
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries"
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def _create_xcom_entries(self, dag_id, run_id, execution_date, task_id, mapped_ti=False):
         with create_session() as session:
@@ -683,8 +683,8 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 )
                 session.add(xcom)
 
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
-        conn_ids = [conn["key"] for conn in response.json["xcom_entries"] if conn]
+        assert response.json()["total_entries"] == 10
+        conn_ids = [conn["key"] for conn in response.json()["xcom_entries"] if conn]
         assert conn_ids == expected_xcom_ids
