@@ -39,6 +39,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     delete,
+    select,
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -71,6 +72,7 @@ if TYPE_CHECKING:
 
     import pendulum
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
 
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -210,15 +212,15 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
             try:
-                dag_run_id, run_id = (
-                    session.query(DagRun.id, DagRun.run_id)
-                    .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                    .one()
-                )
+                dag_run_id, run_id = session.execute(
+                    select(DagRun.id, DagRun.run_id).where(
+                        DagRun.dag_id == dag_id, DagRun.execution_date == execution_date
+                    )
+                ).one()
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
         else:
-            dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+            dag_run_id = session.scalar(select(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id))
             if dag_run_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -389,7 +391,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             raise ValueError("Exactly one of run_id or execution_date must be passed")
 
         if run_id:
-            query = BaseXCom.get_many(
+            stmt = BaseXCom._get_many_statement(
                 run_id=run_id,
                 key=key,
                 task_ids=task_id,
@@ -397,7 +399,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 map_indexes=map_index,
                 include_prior_dates=include_prior_dates,
                 limit=1,
-                session=session,
             )
         elif execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
@@ -405,7 +406,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-                query = BaseXCom.get_many(
+                stmt = BaseXCom._get_many_statement(
                     execution_date=execution_date,
                     key=key,
                     task_ids=task_id,
@@ -413,15 +414,75 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                     map_indexes=map_index,
                     include_prior_dates=include_prior_dates,
                     limit=1,
-                    session=session,
                 )
         else:
             raise RuntimeError("Should not happen?")
 
-        result = query.with_entities(BaseXCom.value).first()
+        result = session.execute(stmt.with_only_columns(BaseXCom.value)).first()
         if result:
             return XCom.deserialize_value(result)
         return None
+
+    @staticmethod
+    def _get_many_statement(
+        execution_date: datetime.datetime | None = None,
+        key: str | None = None,
+        task_ids: str | Iterable[str] | None = None,
+        dag_ids: str | Iterable[str] | None = None,
+        map_indexes: int | Iterable[int] | None = None,
+        include_prior_dates: bool = False,
+        limit: int | None = None,
+        *,
+        run_id: str | None = None,
+    ) -> Select:
+        from airflow.models.dagrun import DagRun
+
+        if not exactly_one(execution_date is not None, run_id is not None):
+            raise ValueError(
+                f"Exactly one of run_id or execution_date must be passed. "
+                f"Passed execution_date={execution_date}, run_id={run_id}"
+            )
+        if execution_date is not None:
+            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
+            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
+
+        stmt = select(BaseXCom).join(BaseXCom.dag_run)
+
+        if key:
+            stmt = stmt.where(BaseXCom.key == key)
+
+        if is_container(task_ids):
+            stmt = stmt.where(BaseXCom.task_id.in_(task_ids))
+        elif task_ids is not None:
+            stmt = stmt.where(BaseXCom.task_id == task_ids)
+
+        if is_container(dag_ids):
+            stmt = stmt.where(BaseXCom.dag_id.in_(dag_ids))
+        elif dag_ids is not None:
+            stmt = stmt.where(BaseXCom.dag_id == dag_ids)
+
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            stmt = stmt.where(BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop)
+        elif is_container(map_indexes):
+            stmt = stmt.where(BaseXCom.map_index.in_(map_indexes))
+        elif map_indexes is not None:
+            stmt = stmt.where(BaseXCom.map_index == map_indexes)
+
+        if include_prior_dates:
+            if execution_date is not None:
+                stmt = stmt.where(DagRun.execution_date <= execution_date)
+            else:
+                dr = select(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+                stmt = stmt.where(BaseXCom.execution_date <= dr.c.execution_date)
+        elif execution_date is not None:
+            stmt = stmt.where(DagRun.execution_date == execution_date)
+        else:
+            stmt = stmt.where(BaseXCom.run_id == run_id)
+
+        stmt = stmt.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
+        if limit:
+            return stmt.limit(limit)
+        return stmt
 
     @overload
     @staticmethod
@@ -498,56 +559,17 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         :sphinx-autoapi-skip:
         """
-        from airflow.models.dagrun import DagRun
-
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError(
-                f"Exactly one of run_id or execution_date must be passed. "
-                f"Passed execution_date={execution_date}, run_id={run_id}"
-            )
-        if execution_date is not None:
-            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-
-        query = session.query(BaseXCom).join(BaseXCom.dag_run)
-
-        if key:
-            query = query.filter(BaseXCom.key == key)
-
-        if is_container(task_ids):
-            query = query.filter(BaseXCom.task_id.in_(task_ids))
-        elif task_ids is not None:
-            query = query.filter(BaseXCom.task_id == task_ids)
-
-        if is_container(dag_ids):
-            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
-        elif dag_ids is not None:
-            query = query.filter(BaseXCom.dag_id == dag_ids)
-
-        if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(
-                BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
-            )
-        elif is_container(map_indexes):
-            query = query.filter(BaseXCom.map_index.in_(map_indexes))
-        elif map_indexes is not None:
-            query = query.filter(BaseXCom.map_index == map_indexes)
-
-        if include_prior_dates:
-            if execution_date is not None:
-                query = query.filter(DagRun.execution_date <= execution_date)
-            else:
-                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-                query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
-        elif execution_date is not None:
-            query = query.filter(DagRun.execution_date == execution_date)
-        else:
-            query = query.filter(BaseXCom.run_id == run_id)
-
-        query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
-        if limit:
-            return query.limit(limit)
-        return query
+        stmt = BaseXCom._get_many_statement(
+            execution_date=execution_date,
+            key=key,
+            task_ids=task_ids,
+            dag_ids=dag_ids,
+            map_indexes=map_indexes,
+            include_prior_dates=include_prior_dates,
+            limit=limit,
+            run_id=run_id,
+        )
+        return session.scalars(stmt)
 
     @classmethod
     @provide_session
@@ -640,17 +662,15 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-            run_id = (
-                session.query(DagRun.run_id)
-                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                .scalar()
+            run_id = session.scalar(
+                select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
             )
 
-        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
+        stmt = select(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
-            query = query.filter_by(map_index=map_index)
+            stmt = stmt.filter_by(map_index=map_index)
 
-        for xcom in query:
+        for xcom in session.scalars(stmt):
             # print(f"Clearing XCOM {xcom} with value {xcom.value}")
             XCom.purge(xcom, session)
             session.delete(xcom)

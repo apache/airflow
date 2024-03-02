@@ -3120,19 +3120,13 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-        # NOTE: Since we're only fetching the value field and not the whole
-        # class, the @recreate annotation does not kick in. Therefore we need to
-        # call XCom.deserialize_value() manually.
-
         # We are only pulling one single task.
         if (task_ids is None or isinstance(task_ids, str)) and not isinstance(map_indexes, Iterable):
-            first = query.with_entities(
-                XCom.run_id, XCom.task_id, XCom.dag_id, XCom.map_index, XCom.value
-            ).first()
+            first = query.one_or_none()
             if first is None:  # No matching XCom at all.
                 return default
             if map_indexes is not None or first.map_index < 0:
-                return XCom.deserialize_value(first)
+                return first.value
             query = query.order_by(None).order_by(XCom.map_index.asc())
             return LazyXComAccess.build_from_xcom_query(query)
 
