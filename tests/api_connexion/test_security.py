@@ -20,13 +20,13 @@ import pytest
 
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
-    connexion_app = minimal_app_for_api
     flask_app = minimal_app_for_api.app
     create_user(
         flask_app,  # type:ignore
@@ -35,7 +35,8 @@ def configured_app(minimal_app_for_api):
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)],  # type: ignore
     )
 
-    yield connexion_app
+    with conf_vars({("webserver", "expose_config"): "True"}):
+        yield minimal_app_for_api
 
     delete_user(flask_app, username="test")  # type: ignore
 
@@ -44,12 +45,12 @@ class TestSession:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.connexion_app = configured_app
-        self.client = self.connexion_app.app.test_client()  # type:ignore
+        self.client = self.connexion_app.test_client()  # type:ignore
 
     def test_session_not_created_on_api_request(self):
-        self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test"})
-        assert all(cookie.name != "session" for cookie in self.client.cookie_jar)
+        self.client.get("/api/v1/dags", headers={"REMOTE_USER": "test"})
+        assert all(cookie.name != "session" for cookie in self.client.cookies)
 
     def test_session_not_created_on_health_endpoint_request(self):
         self.client.get("health")
-        assert all(cookie.name != "session" for cookie in self.client.cookie_jar)
+        assert all(cookie.name != "session" for cookie in self.client.cookies)

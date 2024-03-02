@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -73,9 +73,7 @@ class TestGetConfig:
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_text_plain(self, mock_as_dict):
-        response = self.client.get(
-            "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/config", headers={"Accept": "text/plain", "REMOTE_USER": "test"})
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -88,14 +86,12 @@ class TestGetConfig:
         smtp_mail_from = airflow@example.com
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
-        response = self.client.get(
-            "/api/v1/config", headers={"Accept": "text/plain"}, environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/config", headers={"Accept": "text/plain", "REMOTE_USER": "test"})
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=False)
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -108,14 +104,13 @@ class TestGetConfig:
         smtp_mail_from = airflow@example.com
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
@@ -136,14 +131,13 @@ class TestGetConfig:
                 },
             ]
         }
-        assert expected == response.json
+        assert response.json() == expected
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_single_section_as_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
@@ -154,14 +148,13 @@ class TestGetConfig:
         smtp_mail_from = airflow@example.com
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_single_section_as_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         mock_as_dict.assert_called_with(display_source=False, display_sensitive=True)
         assert response.status_code == 200
@@ -176,38 +169,35 @@ class TestGetConfig:
                 },
             ]
         }
-        assert expected == response.json
+        assert expected == response.json()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_404_when_section_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config?section=smtp1",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
 
         assert response.status_code == 404
-        assert "section=smtp1 not found." in response.json["detail"]
+        assert "section=smtp1 not found." in response.json()["detail"]
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config",
-            headers={"Accept": "application/octet-stream"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/octet-stream", "REMOTE_USER": "test"},
         )
         assert response.status_code == 406
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/config", headers={"Accept": "application/json"})
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self):
         response = self.client.get(
             "/api/v1/config",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -216,11 +206,10 @@ class TestGetConfig:
     def test_should_respond_403_when_expose_config_off(self):
         response = self.client.get(
             "/api/v1/config",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         assert response.status_code == 403
-        assert "chose not to expose" in response.json["detail"]
+        assert "chose not to expose" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",
@@ -243,8 +232,7 @@ class TestGetValue:
     def test_should_respond_200_text_plain(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -253,7 +241,7 @@ class TestGetValue:
         smtp_mail_from = airflow@example.com
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch(
         "airflow.api_connexion.endpoints.config_endpoint.conf.as_dict",
@@ -272,8 +260,7 @@ class TestGetValue:
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
         response = self.client.get(
             f"/api/v1/config/section/{section}/option/{option}",
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = textwrap.dedent(
@@ -282,14 +269,13 @@ class TestGetValue:
         {option} = < hidden >
         """
         )
-        assert expected == response.data.decode()
+        assert expected == response.text
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_200_application_json(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = {
@@ -302,25 +288,23 @@ class TestGetValue:
                 },
             ]
         }
-        assert expected == response.json
+        assert expected == response.json()
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_404_when_option_not_exist(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from1",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
 
         assert response.status_code == 404
-        assert "The option [smtp/smtp_mail_from1] is not found in config." in response.json["detail"]
+        assert "The option [smtp/smtp_mail_from1] is not found in config." in response.json()["detail"]
 
     @patch("airflow.api_connexion.endpoints.config_endpoint.conf.as_dict", return_value=MOCK_CONF)
     def test_should_respond_406(self, mock_as_dict):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
-            headers={"Accept": "application/octet-stream"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/octet-stream", "REMOTE_USER": "test"},
         )
         assert response.status_code == 406
 
@@ -329,13 +313,12 @@ class TestGetValue:
             "/api/v1/config/section/smtp/option/smtp_mail_from", headers={"Accept": "application/json"}
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raises_403_unauthorized(self):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -344,11 +327,10 @@ class TestGetValue:
     def test_should_respond_403_when_expose_config_off(self):
         response = self.client.get(
             "/api/v1/config/section/smtp/option/smtp_mail_from",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         assert response.status_code == 403
-        assert "chose not to expose" in response.json["detail"]
+        assert "chose not to expose" in response.json()["detail"]
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",
