@@ -21,7 +21,6 @@ from urllib.parse import quote_plus
 
 import pytest
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -105,39 +104,39 @@ class TestGetExtraLinks:
         [
             pytest.param(
                 "/api/v1/dags/INVALID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                "DAG not found",
+                "Not Found",
                 'DAG with ID = "INVALID" not found',
                 id="missing_dag",
             ),
             pytest.param(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/INVALID/taskInstances/TEST_SINGLE_QUERY/links",
-                "DAG Run not found",
+                "Not Found",
                 'DAG Run with ID = "INVALID" not found',
                 id="missing_dag_run",
             ),
             pytest.param(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/INVALID/links",
-                "Task not found",
+                "Not Found",
                 'Task with ID = "INVALID" not found',
                 id="missing_task",
             ),
         ],
     )
     def test_should_respond_404(self, url, expected_title, expected_detail):
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
 
         assert 404 == response.status_code
         assert {
             "detail": expected_detail,
             "status": 404,
             "title": expected_title,
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -152,23 +151,23 @@ class TestGetExtraLinks:
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
+        assert 200 == response.status_code
         assert {
             "BigQuery Console": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID"
-        } == response.json
+        } == response.json()
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"BigQuery Console": None} == response.json
+        assert 200 == response.status_code
+        assert {"BigQuery Console": None} == response.json()
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
@@ -181,24 +180,24 @@ class TestGetExtraLinks:
         )
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
+        assert 200 == response.status_code
         assert {
             "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_1",
             "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_JOB_ID_2",
-        } == response.json
+        } == response.json()
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
         response = self.client.get(
             "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_MULTIPLE_QUERY/links",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"BigQuery Console #1": None, "BigQuery Console #2": None} == response.json
+        assert 200 == response.status_code
+        assert {"BigQuery Console #1": None, "BigQuery Console #2": None} == response.json()
 
     def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
@@ -229,10 +228,10 @@ class TestGetExtraLinks:
         with mock_plugin_manager(plugins=[AirflowTestPlugin]):
             response = self.client.get(
                 "/api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/taskInstances/TEST_SINGLE_QUERY/links",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code, response.data
+            assert 200 == response.status_code
             assert {
                 "BigQuery Console": None,
                 "Google": "https://www.google.com",
@@ -240,4 +239,4 @@ class TestGetExtraLinks:
                     "https://s3.amazonaws.com/airflow-logs/"
                     "TEST_DAG_ID/TEST_SINGLE_QUERY/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
-            } == response.json
+            } == response.json()

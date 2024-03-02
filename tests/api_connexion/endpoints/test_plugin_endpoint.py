@@ -29,7 +29,7 @@ from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -133,9 +133,9 @@ class TestGetPlugins(TestPluginsEndpoint):
         mock_plugin = MockPlugin()
         mock_plugin.name = "test_plugin"
         with mock_plugin_manager(plugins=[mock_plugin]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("api/v1/plugins", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "plugins": [
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
@@ -167,24 +167,22 @@ class TestGetPlugins(TestPluginsEndpoint):
         mock_plugin_2 = AirflowPlugin()
         mock_plugin_2.name = "test_plugin2"
         with mock_plugin_manager(plugins=[mock_plugin, mock_plugin_2]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("api/v1/plugins", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
+        assert response.json()["total_entries"] == 2
 
     def test_get_plugins_return_200_if_no_plugins(self):
         with mock_plugin_manager(plugins=[]):
-            response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("api/v1/plugins", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/plugins")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
-        response = self.client.get(
-            "/api/v1/plugins", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
+        response = self.client.get("/api/v1/plugins", headers={"REMOTE_USER": "test_no_permissions"})
         assert response.status_code == 403
 
 
@@ -230,35 +228,35 @@ class TestGetPluginsPagination(TestPluginsEndpoint):
     def test_handle_limit_offset(self, url, expected_plugin_names):
         plugins = self._create_plugins(10)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 10
-        plugin_names = [plugin["name"] for plugin in response.json["plugins"] if plugin]
+        assert response.json()["total_entries"] == 10
+        plugin_names = [plugin["name"] for plugin in response.json()["plugins"] if plugin]
         assert plugin_names == expected_plugin_names
 
     def test_should_respect_page_size_limit_default(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("/api/v1/plugins", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 200
-        assert len(response.json["plugins"]) == 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["plugins"]) == 100
 
     def test_limit_of_zero_should_return_default(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins?limit=0", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("/api/v1/plugins?limit=0", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert response.json["total_entries"] == 200
-        assert len(response.json["plugins"]) == 100
+        assert response.json()["total_entries"] == 200
+        assert len(response.json()["plugins"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self):
         plugins = self._create_plugins(200)
         with mock_plugin_manager(plugins=plugins):
-            response = self.client.get("/api/v1/plugins?limit=180", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("/api/v1/plugins?limit=180", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json["plugins"]) == 150
+        assert len(response.json()["plugins"]) == 150
 
     def _create_plugins(self, count):
         plugins = []

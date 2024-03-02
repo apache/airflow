@@ -62,7 +62,7 @@ def requires_authentication(function: T):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        user_id = request.remote_user
+        user_id = request.headers.get("REMOTE-USER")
         if not user_id:
             log.debug("Missing REMOTE_USER.")
             return Response("Forbidden", 403)
