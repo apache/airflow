@@ -65,14 +65,14 @@ function install_airflow() {
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
-        common::install_packaging_tool
+        common::install_packaging_tools
         echo
-        echo "${COLOR_BLUE}Running '${PACKAGING_TOOL} check'${COLOR_RESET}"
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
         pip check
     else
         echo
-        echo "${COLOR_BLUE}Installing all packages with constraints or upgrade if needed${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with constraints${COLOR_RESET}"
         echo
         set -x
         # Install all packages with constraints
@@ -80,18 +80,20 @@ function install_airflow() {
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${HOME}/constraints.txt"; then
+            set +x
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
             echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
             echo
+            set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         fi
-        common::install_packaging_tool
         set +x
+        common::install_packaging_tools
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
