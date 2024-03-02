@@ -23,7 +23,6 @@ from unittest.mock import ANY
 import pytest
 import time_machine
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
@@ -37,7 +36,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
@@ -112,10 +111,10 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         with assert_queries_count(5):
             response = self.client.get(
                 f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"REMOTE_USER": "test"},
             )
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "id": 1,
             "uri": "s3://bucket/key",
             "extra": {"foo": "bar"},
@@ -128,20 +127,20 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
     def test_should_respond_404(self):
         response = self.client.get(
             f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert {
             "detail": "The Dataset with uri: `s3://bucket/key` was not found",
             "status": 404,
-            "title": "Dataset not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_dataset(session)
         response = self.client.get(f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}")
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",
@@ -177,10 +176,10 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 2
 
         with assert_queries_count(8):
-            response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
+            response = self.client.get("/api/v1/datasets", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "datasets": [
                 {
@@ -220,12 +219,12 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert session.query(DatasetModel).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/datasets?order_by=fake", headers={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
-        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json["detail"] == msg
+        msg = "Extra query parameter(s) order_by not in spec"
+        assert response.json()["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         datasets = [
@@ -243,7 +242,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         response = self.client.get("/api/v1/datasets")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     @pytest.mark.parametrize(
         "url, expected_datasets",
@@ -273,9 +272,9 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset4 = DatasetModel("wasb://some_dataset_bucket_/key")
         session.add_all([dataset1, dataset2, dataset3, dataset4])
         session.commit()
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
+        dataset_urls = {dataset["uri"] for dataset in response.json()["datasets"]}
         assert expected_datasets == dataset_urls
 
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
@@ -294,11 +293,9 @@ class TestGetDatasets(TestDatasetEndpoint):
         task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
-        response = self.client.get(
-            f"/api/v1/datasets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/datasets?dag_ids={dag_ids}", headers={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert len(response_data["datasets"]) == expected_num
 
     @pytest.mark.parametrize(
@@ -323,10 +320,10 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         response = self.client.get(
             f"/api/v1/datasets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert len(response_data["datasets"]) == expected_num
 
     @pytest.mark.parametrize(
@@ -383,10 +380,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
+        dataset_uris = [dataset["uri"] for dataset in response.json()["datasets"]]
         assert dataset_uris == expected_dataset_uris
 
     def test_should_respect_page_size_limit_default(self, session):
@@ -402,10 +399,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/datasets", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 100
+        assert len(response.json()["datasets"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -421,10 +418,10 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         session.add_all(datasets)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets?limit=180", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/datasets?limit=180", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 150
+        assert len(response.json()["datasets"]) == 150
 
 
 class TestGetDatasetEvents(TestDatasetEndpoint):
@@ -445,10 +442,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetEvent).count() == 2
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/datasets/events", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "dataset_events": [
                 {
@@ -507,12 +504,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetEvent).count() == 3
 
-        response = self.client.get(
-            f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get(f"/api/v1/datasets/events?{attr}={value}", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "dataset_events": [
                 {
@@ -550,16 +545,16 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert session.query(DatasetEvent).count() == 2
 
         response = self.client.get(
-            "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/datasets/events?order_by=fake", headers={"REMOTE_USER": "test"}
         )  # missing attr
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json["detail"] == msg
+        assert response.json()["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.get("/api/v1/datasets/events")
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_includes_created_dagrun(self, session):
         self._create_dataset(session)
@@ -587,10 +582,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         event.created_dagruns.append(dagrun)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/datasets/events", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "dataset_events": [
                 {
@@ -662,11 +657,11 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         self._create_dataset(session)
         event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/datasets/events", json=event_payload, headers={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "id": ANY,
             "created_dagruns": [],
@@ -709,14 +704,14 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         self._create_dataset(session)
         event_invalid_payload = {"dataset_uri": "TEST_DATASET_URI", "extra": {"foo": "bar"}, "fake": {}}
         response = self.client.post(
-            "/api/v1/datasets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
+            "/api/v1/datasets/events", json=event_invalid_payload, headers={"REMOTE_USER": "test"}
         )
-        assert response.status_code == 400
+        assert response.json()["status"] == 400
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_dataset(session)
         response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "TEST_DATASET_URI"})
-        assert_401(response)
+        assert response.json()["status"] == 401
 
     @pytest.mark.parametrize(
         "set_auto_role_public, expected_status_code",
@@ -775,10 +770,10 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get(url, headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        event_runids = [event["source_run_id"] for event in response.json["dataset_events"]]
+        event_runids = [event["source_run_id"] for event in response.json()["dataset_events"]]
         assert event_runids == expected_event_runids
 
     def test_should_respect_page_size_limit_default(self, session):
@@ -797,10 +792,10 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("/api/v1/datasets/events", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 100
+        assert len(response.json()["dataset_events"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -819,12 +814,10 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         session.add_all(events)
         session.commit()
 
-        response = self.client.get(
-            "/api/v1/datasets/events?limit=180", environ_overrides={"REMOTE_USER": "test"}
-        )
+        response = self.client.get("/api/v1/datasets/events?limit=180", headers={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 150
+        assert len(response.json()["dataset_events"]) == 150
 
 
 class TestQueuedEventEndpoint(TestDatasetEndpoint):
@@ -855,11 +848,11 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "created_at": self.default_time,
             "uri": "s3://bucket/key",
             "dag_id": "dag",
@@ -871,16 +864,16 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
@@ -888,7 +881,7 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self, session):
         dag_id = "dummy"
@@ -896,7 +889,7 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -938,7 +931,7 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
 
         response = self.client.delete(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 204
@@ -954,29 +947,29 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
 
         response = self.client.delete(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
         dataset_uri = "dummy"
         response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}")
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self, session):
         dag_id = "dummy"
         dataset_uri = "dummy"
         response = self.client.delete(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
 
@@ -991,11 +984,11 @@ class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "queued_events": [
                 {
                     "created_at": self.default_time,
@@ -1011,30 +1004,30 @@ class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
         response = self.client.get(f"/api/v1/dags/{dag_id}/datasets/queuedEvent")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         dag_id = "dummy"
 
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -1064,30 +1057,30 @@ class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
 
         response = self.client.delete(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
         response = self.client.delete(f"/api/v1/dags/{dag_id}/datasets/queuedEvent")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         dag_id = "dummy"
 
         response = self.client.delete(
             f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -1129,11 +1122,11 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "queued_events": [
                 {
                     "created_at": self.default_time,
@@ -1149,30 +1142,30 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.get(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
         dataset_uri = "not_exists"
 
         response = self.client.get(f"/api/v1/datasets/queuedEvent/{dataset_uri}")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         dataset_uri = "not_exists"
 
         response = self.client.get(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
@@ -1208,7 +1201,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.delete(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 204
@@ -1221,30 +1214,30 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         response = self.client.delete(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
+            headers={"REMOTE_USER": "test_queued_event"},
         )
 
         assert response.status_code == 404
         assert {
             "detail": "Queue event with dataset uri: `not_exists` was not found",
             "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+            "title": "Not Found",
+            "type": "about:blank",
+        } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
         dataset_uri = "not_exists"
 
         response = self.client.delete(f"/api/v1/datasets/queuedEvent/{dataset_uri}")
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         dataset_uri = "not_exists"
 
         response = self.client.delete(
             f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            headers={"REMOTE_USER": "test_no_permissions"},
         )
 
         assert response.status_code == 403
