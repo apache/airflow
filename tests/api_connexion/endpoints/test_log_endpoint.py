@@ -33,7 +33,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -159,18 +159,17 @@ class TestGetLog:
         token = serializer.dumps({"download_logs": False})
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         expected_filename = (
             f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt=1.log"
         )
         assert (
-            response.json["content"]
+            response.text
             == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\nLog for testing.')]"
         )
-        info = serializer.loads(response.json["continuation_token"])
+        info = serializer.loads(response.json()["continuation_token"])
         assert info == {"end_of_log": True, "log_pos": 16}
         assert 200 == response.status_code
 
@@ -198,13 +197,12 @@ class TestGetLog:
 
         response = self.client.get(
             request_url,
-            query_string={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, **extra_query_string},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert 200 == response.status_code
         assert (
-            response.data.decode("utf-8")
+            response.text("utf-8")
             == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
         )
 
@@ -238,14 +236,13 @@ class TestGetLog:
 
         response = self.client.get(
             request_url,
-            query_string={"token": token, **extra_query_string},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, **extra_query_string},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
         assert (
-            response.data.decode("utf-8")
+            response.text
             == f"localhost\n*** Found local files:\n***   * {expected_filename}\nLog for testing.\n"
         )
 
@@ -256,15 +253,15 @@ class TestGetLog:
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/1",
-            query_string={"token": token},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "TaskInstance not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         }
 
     def test_get_logs_with_metadata_as_download_large_file(self):
@@ -278,14 +275,13 @@ class TestGetLog:
             response = self.client.get(
                 f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/1?full_content=True",
-                headers={"Accept": "text/plain"},
-                environ_overrides={"REMOTE_USER": "test"},
+                headers={"Accept": "text/plain", "REMOTE_USER": "test"},
             )
 
-            assert "1st line" in response.data.decode("utf-8")
-            assert "2nd line" in response.data.decode("utf-8")
-            assert "3rd line" in response.data.decode("utf-8")
-            assert "should never be read" not in response.data.decode("utf-8")
+            assert "1st line" in response.text
+            assert "2nd line" in response.text
+            assert "3rd line" in response.text
+            assert "should never be read" not in response.text
 
     @mock.patch("airflow.api_connexion.endpoints.log_endpoint.TaskLogReader")
     def test_get_logs_for_handler_without_read_method(self, mock_log_reader):
@@ -298,23 +294,21 @@ class TestGetLog:
         # check guessing
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Content-Type": "application/jso"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Content-Type": "application/json", "REMOTE_USER": "test"},
         )
         assert 400 == response.status_code
-        assert "Task log handler does not support read logs." in response.data.decode("utf-8")
+        assert "Task log handler does not support read logs." in response.text
 
     def test_bad_signature_raises(self):
         token = {"download_logs": False}
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 400,
             "title": "Bad Signature. Please use only the tokens provided by the API.",
@@ -325,15 +319,14 @@ class TestGetLog:
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
-            headers={"Accept": "application/json"},
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"Accept": "application/json", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json == {
+        assert response.json() == {
             "detail": None,
             "status": 404,
-            "title": "TaskInstance not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         }
 
     def test_should_raises_401_unauthenticated(self):
@@ -343,11 +336,11 @@ class TestGetLog:
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
+            params={"token": token},
             headers={"Accept": "application/json"},
         )
 
-        assert_401(response)
+        assert response.status_code == 401
 
     def test_should_raise_403_forbidden(self):
         key = self.flask_app.config["SECRET_KEY"]
@@ -356,9 +349,8 @@ class TestGetLog:
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+            params={"token": token},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test_no_permission"},
         )
         assert response.status_code == 403
 
@@ -369,12 +361,11 @@ class TestGetLog:
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
-            query_string={"token": token},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json["title"] == "TaskInstance not found"
+        assert response.json()["title"] == "Not Found"
 
     def test_should_raise_404_when_filtering_on_map_index_for_unmapped_task(self):
         key = self.flask_app.config["SECRET_KEY"]
@@ -383,9 +374,8 @@ class TestGetLog:
 
         response = self.client.get(
             f"api/v1/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
-            query_string={"token": token, "map_index": 0},
-            headers={"Accept": "text/plain"},
-            environ_overrides={"REMOTE_USER": "test"},
+            params={"token": token, "map_index": 0},
+            headers={"Accept": "text/plain", "REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert response.json["title"] == "TaskInstance not found"
+        assert response.json()["title"] == "Not Found"
