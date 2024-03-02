@@ -300,7 +300,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
+                self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
                 self.event_buffer[key] = (TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend

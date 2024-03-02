@@ -1165,8 +1165,9 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
+    message += "execution_date=%s, start_date=%s, end_date=%s"
     log.info(
-        message + "execution_date=%s, start_date=%s, end_date=%s",
+        message,
         *params,
         _date_or_empty(task_instance=task_instance, attr="execution_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
