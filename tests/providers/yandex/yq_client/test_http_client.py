@@ -22,7 +22,7 @@ from responses import matchers
 from airflow.providers.yandex.yq_client.http_client import YQHttpClient, YQHttpClientConfig
 
 IAM_TOKEN = "my_iam_token"
-PROJECT="my_project"
+PROJECT = "my_project"
 
 
 class TestYQHttpClient:
@@ -59,7 +59,10 @@ class TestYQHttpClient:
         result_set_count = len(query_results_json_list)
         responses.get(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1",
-            json={"id": "query1", "result_sets": [{"rows_count": 1, "truncated": False} for _ in range(result_set_count)]},
+            json={
+                "id": "query1",
+                "result_sets": [{"rows_count": 1, "truncated": False} for _ in range(result_set_count)],
+            },
             status=200,
         )
 
@@ -104,7 +107,10 @@ class TestYQHttpClient:
         }
         self.client.stop_query(query_id)
 
-        assert self.client.compose_query_web_link(query_id) == f"https://yq.cloud.yandex.ru/folders/{PROJECT}/ide/queries/query1"
+        assert (
+            self.client.compose_query_web_link(query_id)
+            == f"https://yq.cloud.yandex.ru/folders/{PROJECT}/ide/queries/query1"
+        )
 
     @responses.activate()
     def test_select_two_record_sets(self):

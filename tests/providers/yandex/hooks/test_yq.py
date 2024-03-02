@@ -61,7 +61,9 @@ class TestYandexCloudYqHook:
         query_id = self.hook.create_query(query_text="select 777", name="my query")
         assert query_id == "query1"
 
-        with mock.patch("airflow.providers.yandex.yq_client.http_client.YQHttpClient.compose_query_web_link") as m:
+        with mock.patch(
+            "airflow.providers.yandex.yq_client.http_client.YQHttpClient.compose_query_web_link"
+        ) as m:
             m.return_value = "http://gg.zz"
             assert self.hook.compose_query_web_link("query1") == "http://gg.zz"
             m.assert_called_once_with("query1")
@@ -101,7 +103,9 @@ class TestYandexCloudYqHook:
 
             results = self.hook.wait_results(query_id, execution_timeout=timedelta(minutes=10))
             assert results == {"x": 765}
-            mocks["wait_query_to_succeed"].assert_called_once_with(query_id, execution_timeout=timedelta(minutes=10), stop_on_timeout=True)
+            mocks["wait_query_to_succeed"].assert_called_once_with(
+                query_id, execution_timeout=timedelta(minutes=10), stop_on_timeout=True
+            )
             mocks["get_query_all_result_sets"].assert_called_once_with(query_id=query_id, result_set_count=2)
 
             assert self.hook.get_query_status(query_id) == "COMPLETED"

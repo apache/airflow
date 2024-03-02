@@ -19,10 +19,10 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime
-import requests
-
-from requests.adapters import HTTPAdapter
 from typing import Any
+
+import requests
+from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from airflow.providers.yandex.yq_client.query_results import YQResults
@@ -72,7 +72,9 @@ class YQHttpClientConfig:
 class YQHttpClientException(Exception):
     """YandexQuery client exception type."""
 
-    def __init__(self, message: str, status: str | None = None, msg: str | None = None, details: Any = None) -> None:
+    def __init__(
+        self, message: str, status: str | None = None, msg: str | None = None, details: Any = None
+    ) -> None:
         super().__init__(message)
         self.status = status
         self.msg = msg

@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from dateutil.tz import tzutc
 from decimal import Decimal
+
+from dateutil.tz import tzutc
 
 from airflow.providers.yandex.yq_client.query_results import YQResults
 
