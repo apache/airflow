@@ -132,30 +132,30 @@ class TestFABRoleForwarding(TestFABforwarding):
     @mock.patch("airflow.api_connexion.endpoints.forward_to_fab_endpoint.get_auth_manager")
     def test_raises_400_if_manager_is_not_fab(self, mock_get_auth_manager):
         mock_get_auth_manager.return_value = BaseAuthManager(self.flask_app.appbuilder)
-        response = self.client.get("api/v1/roles", environ_overrides={"REMOTE_USER": "test"})
+        response = self.client.get("api/v1/roles", headers={"REMOTE_USER": "test"})
         assert response.status_code == 400
         assert (
-            response.json["detail"]
+            response.json()["detail"]
             == "This endpoint is only available when using the default auth manager FabAuthManager."
         )
 
     def test_get_role_forwards_to_fab(self):
-        resp = self.client.get("api/v1/roles/Test", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get("api/v1/roles/Test", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
     def test_get_roles_forwards_to_fab(self):
-        resp = self.client.get("api/v1/roles", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get("api/v1/roles", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
     def test_delete_role_forwards_to_fab(self):
         role = create_role(self.flask_app, "mytestrole")
-        resp = self.client.delete(f"api/v1/roles/{role.name}", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.delete(f"api/v1/roles/{role.name}", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 204
 
     def test_patch_role_forwards_to_fab(self):
         role = create_role(self.flask_app, "mytestrole")
         resp = self.client.patch(
-            f"api/v1/roles/{role.name}", json={"name": "Test2"}, environ_overrides={"REMOTE_USER": "test"}
+            f"api/v1/roles/{role.name}", json={"name": "Test2"}, headers={"REMOTE_USER": "test"}
         )
         assert resp.status_code == 200
 
@@ -164,11 +164,11 @@ class TestFABRoleForwarding(TestFABforwarding):
             "name": "Test2",
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
-        resp = self.client.post("api/v1/roles", json=payload, environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.post("api/v1/roles", json=payload, headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
     def test_get_role_permissions_forwards_to_fab(self):
-        resp = self.client.get("api/v1/permissions", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get("api/v1/permissions", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
 
@@ -196,7 +196,7 @@ class TestFABUserForwarding(TestFABforwarding):
         session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
-        resp = self.client.get("api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get("api/v1/users/TEST_USER1", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
     def test_get_users_forwards_to_fab(self):
@@ -204,16 +204,16 @@ class TestFABUserForwarding(TestFABforwarding):
         session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
-        resp = self.client.get("api/v1/users", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.get("api/v1/users", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 200
 
     def test_post_user_forwards_to_fab(self, autoclean_username, autoclean_user_payload):
         response = self.client.post(
             "/api/v1/users",
             json=autoclean_user_payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 200, response.json
+        assert response.status_code == 200, response.json()
 
         security_manager = self.flask_app.appbuilder.sm
         user = security_manager.find_user(autoclean_username)
@@ -226,14 +226,14 @@ class TestFABUserForwarding(TestFABforwarding):
         response = self.client.patch(
             f"/api/v1/users/{autoclean_username}",
             json=autoclean_user_payload,
-            environ_overrides={"REMOTE_USER": "test"},
+            headers={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 200, response.json
+        assert response.status_code == 200, response.json()
 
     def test_delete_user_forwards_to_fab(self):
         users = self._create_users(1)
         session = self.flask_app.appbuilder.get_session
         session.add_all(users)
         session.commit()
-        resp = self.client.delete("api/v1/users/TEST_USER1", environ_overrides={"REMOTE_USER": "test"})
+        resp = self.client.delete("api/v1/users/TEST_USER1", headers={"REMOTE_USER": "test"})
         assert resp.status_code == 204
