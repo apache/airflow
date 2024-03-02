@@ -1333,7 +1333,6 @@ extend-select = [
     "B006", # Checks for uses of mutable objects as function argument defaults.
 ]
 ignore = [
-    "G004", # Logging statement uses f-string (not fixed yet)
     "D203",
     "D212",
     "D213",

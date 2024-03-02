@@ -63,7 +63,7 @@ class DateTimeTrigger(BaseTrigger):
         for step in 3600, 60, 10:
             seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
             while seconds_remaining > 2 * step:
-                self.log.info(f"{int(seconds_remaining)} seconds remaining; sleeping {step} seconds")
+                self.log.info("%d seconds remaining; sleeping %s seconds", seconds_remaining, step)
                 await asyncio.sleep(step)
                 seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
         # Sleep a second at a time otherwise
