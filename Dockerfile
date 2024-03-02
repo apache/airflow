@@ -555,7 +555,7 @@ function common::get_constraints_location() {
     if [[ -z ${AIRFLOW_CONSTRAINTS_LOCATION=} ]]; then
         local constraints_base="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${AIRFLOW_CONSTRAINTS_REFERENCE}"
         local python_version
-        python_version="$(python --version 2>/dev/stdout | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         AIRFLOW_CONSTRAINTS_LOCATION="${constraints_base}/${AIRFLOW_CONSTRAINTS_MODE}-${python_version}.txt"
     fi
 }
@@ -1076,7 +1076,7 @@ function set_pythonpath_for_root_user() {
     # Now also adds applications installed as local user "airflow".
     if [[ $UID == "0" ]]; then
         local python_major_minor
-        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        python_major_minor=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
         >&2 echo "The container is run as root user. For security, consider using a regular user account."
     fi
