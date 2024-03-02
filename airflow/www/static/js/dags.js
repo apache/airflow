@@ -147,8 +147,7 @@ $(".typeahead").typeahead({
     const caseSensitive = [];
     const caseInsensitive = [];
     let item;
-    let { query } = this;
-    query = query.replace(/^([a-z]+:\s*)/i, "");
+    const query = this.query.replace(/^([a-z]+:\s*)/i, "");
 
     while (items.length) {
       item = items.shift();
@@ -164,14 +163,13 @@ $(".typeahead").typeahead({
     return beginswith.concat(caseSensitive, caseInsensitive);
   },
   highlighter(displayText, item) {
-    let { query } = this;
-    query = query.replace(/^([a-z]+:\s*)/i, "");
+    let query = this.query.replace(/^([a-z]+:\s*)/i, "");
 
     if (query === "") {
       return displayText;
     }
 
-    let { name } = item;
+    let name = item;
     query = query.replace(/[()/.*+?[\]]/g, (mat) => `\\${mat}`);
     const reg = new RegExp(query, "gi");
     name = name.replace(name, name.replace(reg, "<strong>$&</strong>"));
@@ -189,7 +187,7 @@ $(".typeahead").typeahead({
       window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
     }
     if (value.type === "task") {
-      query.set("search", value.dag_id);
+      query.set("task_id", value.name);
       window.location = `${gridUrl.replace(
         "__DAG_ID__",
         value.dag_id
