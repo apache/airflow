@@ -101,7 +101,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                --constraint "${HOME}/constraints.txt" \
                 ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
             set +x
         fi
