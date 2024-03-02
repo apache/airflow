@@ -558,6 +558,18 @@ function common::get_constraints_location() {
         python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
         AIRFLOW_CONSTRAINTS_LOCATION="${constraints_base}/${AIRFLOW_CONSTRAINTS_MODE}-${python_version}.txt"
     fi
+
+    if [[ ${AIRFLOW_CONSTRAINTS_LOCATION} =~ http.* ]]; then
+        echo
+        echo "${COLOR_BLUE}Downloading constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
+        echo
+        curl -sSf -o "${HOME}/constraints.txt" "${AIRFLOW_CONSTRAINTS_LOCATION}"
+    else
+        echo
+        echo "${COLOR_BLUE}Copying constraints from ${AIRFLOW_CONSTRAINTS_LOCATION} to ${HOME}/constraints.txt ${COLOR_RESET}"
+        echo
+        cp "${AIRFLOW_CONSTRAINTS_LOCATION}" "${HOME}/constraints.txt"
+    fi
 }
 
 function common::show_packaging_tool_version_and_location() {
@@ -730,7 +742,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                --constraint "${HOME}/constraints.txt" \
                 ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
             set +x
         fi
@@ -826,19 +838,24 @@ function install_airflow() {
         pip check
     else
         echo
-        echo "${COLOR_BLUE}Installing all packages with constraints and upgrade if needed${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with constraints or upgrade if needed${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+        # Install all packages with constraints
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
-        common::install_packaging_tool
-        # then upgrade if needed without using constraints to account for new limits in pyproject.toml
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+            --constraint "${HOME}/constraints.txt"; then
+            echo
+            echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
+            echo
+            echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
+            echo
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+        fi
         common::install_packaging_tool
         set +x
         echo
