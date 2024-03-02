@@ -16,139 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import responses
 from datetime import datetime
 from dateutil.tz import tzutc
 from decimal import Decimal
-from responses import matchers
-from unittest import mock
 
-from airflow.models import Connection
-from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook
-
-OAUTH_TOKEN = "my_oauth_token"
-SERVICE_ACCOUNT_AUTH_KEY_JSON = (
-    """{"id":"my_id", "service_account_id":"my_sa1", "private_key":"-----BEGIN PRIVATE KEY----- my_pk"}"""
-)
+from airflow.providers.yandex.yq_client.query_results import YQResults
 
 
-class TestYandexCloudYqHook:
-    def _init_hook(self):
-        with mock.patch("airflow.hooks.base.BaseHook.get_connection") as mock_get_connection:
-            mock_get_connection.return_value = self.connection
-            self.hook = YQHook(default_folder_id="my_folder_id")
-
-    def setup_method(self):
-        self.connection = Connection(extra={"service_account_json": SERVICE_ACCOUNT_AUTH_KEY_JSON})
-
-    def setup_mocks_for_query_execution(self, mock_jwt, query_results_json):
-        responses.post(
-            "https://iam.api.cloud.yandex.net/iam/v1/tokens",
-            json={"iamToken": "super_token"},
-            status=200,
-        )
-        mock_jwt.return_value = "zzzz"
-
-        responses.post(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
-            match=[
-                matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": "Bearer super_token"}
-                ),
-                matchers.query_param_matcher({"project": "my_folder_id"}),
-                matchers.json_params_matcher({"name": "my query", "text": "select 777"}),
-            ],
-            json={"id": "query1"},
-            status=200,
-        )
-
-        responses.get(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/status",
-            json={"status": "RUNNING"},
-            status=200,
-        )
-
-        responses.get(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/status",
-            json={"status": "COMPLETED"},
-            status=200,
-        )
-
-        responses.get(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1",
-            json={"id": "query1", "result_sets": [{"rows_count": 1, "truncated": False}]},
-            status=200,
-        )
-
-        responses.get(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/results/0",
-            json=query_results_json,
-            status=200,
-        )
-
-    def _create_test_query(self):
-        query_id = self.hook.create_query(query_text="select 777", name="my query")
-        assert query_id == "query1"
-        return query_id
-
-    @responses.activate()
-    def test_oauth_token_usage(self):
-        responses.post(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
-            match=[
-                matchers.header_matcher(
-                    {"Content-Type": "application/json", "Authorization": f"Bearer {OAUTH_TOKEN}"}
-                ),
-                matchers.query_param_matcher({"project": "my_folder_id"}),
-            ],
-            json={"id": "query1"},
-            status=200,
-        )
-
-        self.connection = Connection(extra={"oauth": OAUTH_TOKEN})
-        self._init_hook()
-        self._create_test_query()
-
-    @responses.activate()
-    @mock.patch("jwt.encode")
-    def test_select_results(self, mock_jwt):
-        self.setup_mocks_for_query_execution(
-            mock_jwt, {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
-        )
-
-        self._init_hook()
-        query_id = self._create_test_query()
-
-        assert (
-            self.hook.compose_query_web_link(query_id)
-            == "https://yq.cloud.yandex.ru/folders/my_folder_id/ide/queries/query1"
-        )
-
-        results = self.hook.wait_results(query_id)
-        assert results == {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
-
-        responses.post(
-            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/stop",
-            match=[
-                matchers.header_matcher({"Authorization": "Bearer super_token"}),
-                matchers.query_param_matcher({"project": "my_folder_id"}),
-            ],
-            status=204,
-        )
-
-        assert self.hook.get_query_status(query_id) == "COMPLETED"
-        assert self.hook.get_query(query_id) == {
-            "id": "query1",
-            "result_sets": [{"rows_count": 1, "truncated": False}],
-        }
-        self.hook.stop_query(query_id)
-
-    @responses.activate()
-    @mock.patch("jwt.encode")
-    def test_integral_results(self, mock_jwt):
+class TestYQResults:
+    def test_integral_results(self):
         # json response and results could be found here: https://github.com/ydb-platform/ydb/blob/284b7efb67edcdade0b12c849b7fad40739ad62b/ydb/tests/fq/http_api/test_http_api.py#L336
-        self.setup_mocks_for_query_execution(
-            mock_jwt,
+        r = YQResults(
             {
                 "rows": [
                     [
@@ -203,10 +81,8 @@ class TestYandexCloudYqHook:
             },
         )
 
-        self._init_hook()
-        query_id = self._create_test_query()
+        results = r.results
 
-        results = self.hook.wait_results(query_id)
         assert results == {
             "rows": [
                 [
@@ -260,12 +136,9 @@ class TestYandexCloudYqHook:
             ],
         }
 
-    @responses.activate()
-    @mock.patch("jwt.encode")
-    def test_complex_results(self, mock_jwt):
+    def test_complex_results(self):
         # json response and results could be found here: https://github.com/ydb-platform/ydb/blob/284b7efb67edcdade0b12c849b7fad40739ad62b/ydb/tests/fq/http_api/test_http_api.py#L445
-        self.setup_mocks_for_query_execution(
-            mock_jwt,
+        r = YQResults(
             {
                 "rows": [
                     [
@@ -334,10 +207,8 @@ class TestYandexCloudYqHook:
             },
         )
 
-        self._init_hook()
-        query_id = self._create_test_query()
+        results = r.results
 
-        results = self.hook.wait_results(query_id)
         assert results == {
             "rows": [
                 [

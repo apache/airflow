@@ -88,7 +88,7 @@ hooks:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
   - integration-name: Yandex.Cloud YQ
     python-modules:
-      - airflow.providers.yandex.hooks.yandexcloud_yq
+      - airflow.providers.yandex.hooks.yq
 
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook

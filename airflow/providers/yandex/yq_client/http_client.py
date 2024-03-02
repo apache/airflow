@@ -59,7 +59,6 @@ class YQHttpClientConfig:
         project: str | None = None,
         user_agent: str | None = "Python YQ HTTP SDK",
     ) -> None:
-        assert len(token) > 0, "empty token"
         self.token = token
         self.project = project
         self.user_agent = user_agent

@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.providers.yandex.hooks.yandexcloud_yq import YQHook
+from airflow.providers.yandex.hooks.yq import YQHook
 from airflow.providers.yandex.links.yq import YQLink
 
 if TYPE_CHECKING:
