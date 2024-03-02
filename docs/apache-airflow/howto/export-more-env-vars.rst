@@ -30,17 +30,7 @@ value are must be string.
 ``dag_id``, ``task_id``, ``execution_date``, ``dag_run_id``,
 ``dag_owner``, ``dag_email`` are reserved keys.
 
-
-1.  Create ``airflow_local_settings.py`` file and put in on ``$PYTHONPATH`` or
-    to ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` on ``PYTHONPATH`` when
-    Airflow is initialized)
-
-2.  Define ``get_airflow_context_vars`` in ``airflow_local_settings.py`` file.
-
-
-For example:
-
-In your ``airflow_local_settings.py`` file.
+For example, in your ``airflow_local_settings.py`` file:
 
 .. code-block:: python
 
