@@ -50,7 +50,7 @@ def get_test_run(dag):
             results.append([t.task_id, t.state, f"{(t.end_date - prev_time).total_seconds():.1f}"])
             prev_time = t.end_date
 
-        logger.info("EXECUTION SUMMARY:\n" + tabulate(results, headers=headers, tablefmt="fancy_grid"))
+        logger.info("EXECUTION SUMMARY:\n%s", tabulate(results, headers=headers, tablefmt="fancy_grid"))
 
     def add_callback(current: list[Callable] | Callable | None, new: Callable) -> list[Callable] | Callable:
         if not current:
