@@ -16,6 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
+os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = "http://localhost:8888"
+
 import json
 import os
 import platform

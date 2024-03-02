@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import json
 from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
 
+from airflow.models import DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
@@ -161,3 +164,36 @@ class TestRpcApiEndpoint:
         assert response.status_code == 400
         assert response.data == b"Expected jsonrpc 2.0 request."
         mock_test_method.assert_not_called()
+
+
+class TestTryThis:
+    @pytest.fixture(autouse=True)
+    def setup_attrs(self, minimal_app_for_internal_api: Flask) -> Generator:
+        self.app = minimal_app_for_internal_api
+        self.client = self.app.test_client()  # type:ignore
+        mock_test_method.reset_mock()
+        mock_test_method.side_effect = None
+        with mock.patch(
+            "airflow.api_internal.endpoints.rpc_api_endpoint._initialize_map"
+        ) as mock_initialize_map:
+            mock_initialize_map.return_value = {
+                TEST_METHOD_NAME: mock_test_method,
+            }
+            yield mock_initialize_map
+
+    def test_this(self, dag_maker, session):
+        with dag_maker(dag_id="mydag") as dag:
+            task1 = EmptyOperator(task_id="mytask")
+            task2 = EmptyOperator(task_id="mytask2")
+        self.app.__dict__
+        self.client
+        dr = DagRun(dag_id=dag.dag_id, run_id="abcarocehruc", run_type="manual")
+        session.add(dr)
+        session.commit()
+        session.rollback()
+        ti = DagRun.fetch_task_instance(
+            dag_id=dr.dag_id,
+            dag_run_id=dr.run_id,
+            task_id="mytask",
+        )
+        ti

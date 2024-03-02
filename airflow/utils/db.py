@@ -837,6 +837,8 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
 
 
 def check_and_run_migrations():
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        return
     """Check and run migrations if necessary. Only use in a tty."""
     with _configured_alembic_environment() as env:
         context = env.get_context()

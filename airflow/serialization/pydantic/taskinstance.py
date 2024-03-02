@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
+import jinja2
 from typing_extensions import Annotated
 
 from airflow.models import Operator
@@ -35,6 +36,7 @@ from airflow.utils.pydantic import (
     PlainValidator,
     is_pydantic_2_installed,
 )
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -126,6 +128,39 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def set_state(self, state, session: Session | None = None) -> bool:
         return TaskInstance._set_state(ti=self, state=state, session=session)
 
+    def _run_raw_task(
+        self,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        raise_on_defer: bool = False,
+        session: Session = NEW_SESSION,
+    ):
+        self.refresh_from_db()
+        state = None
+        try:
+            context = self.get_template_context(ignore_param_exceptions=False)
+            TaskInstance._execute_task_with_callbacks(self, context, test_mode, session=session)
+            state = "success"
+            self.set_state(ti=self, state=state)
+        except Exception:
+            state = "failed"
+            self.set_state(ti=self, state=state)
+            raise
+
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> Operator:
+        return TaskInstance.render_templates(self=self, context=context, jinja_env=jinja_env)
+
+    def _run_execute_callback(self, context: Context, task: Operator) -> None:
+        TaskInstance._run_execute_callback(
+            self=self,
+            context=context,
+            task=task,
+        )
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw
@@ -203,9 +238,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        from airflow.models.taskinstance import _refresh_from_db
+        from airflow.models.taskinstance import TaskInstance
 
-        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+        TaskInstance._refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
     def set_duration(self) -> None:
         """Set task instance duration."""

@@ -490,63 +490,6 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     return result
 
 
-def _refresh_from_db(
-    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
-) -> None:
-    """
-    Refresh the task instance from the database based on the primary key.
-
-    :param task_instance: the task instance
-    :param session: SQLAlchemy ORM Session
-    :param lock_for_update: if True, indicates that the database should
-        lock the TaskInstance (issuing a FOR UPDATE clause) until the
-        session is committed.
-
-    :meta private:
-    """
-    if task_instance in session:
-        session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
-
-    ti = TaskInstance.get_task_instance(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task_id,
-        run_id=task_instance.run_id,
-        map_index=task_instance.map_index,
-        select_columns=True,
-        lock_for_update=lock_for_update,
-        session=session,
-    )
-
-    if ti:
-        # Fields ordered per model definition
-        task_instance.start_date = ti.start_date
-        task_instance.end_date = ti.end_date
-        task_instance.duration = ti.duration
-        task_instance.state = ti.state
-        # Since we selected columns, not the object, this is the raw value
-        task_instance.try_number = ti.try_number
-        task_instance.max_tries = ti.max_tries
-        task_instance.hostname = ti.hostname
-        task_instance.unixname = ti.unixname
-        task_instance.job_id = ti.job_id
-        task_instance.pool = ti.pool
-        task_instance.pool_slots = ti.pool_slots or 1
-        task_instance.queue = ti.queue
-        task_instance.priority_weight = ti.priority_weight
-        task_instance.operator = ti.operator
-        task_instance.custom_operator_name = ti.custom_operator_name
-        task_instance.queued_dttm = ti.queued_dttm
-        task_instance.queued_by_job_id = ti.queued_by_job_id
-        task_instance.pid = ti.pid
-        task_instance.executor_config = ti.executor_config
-        task_instance.external_executor_id = ti.external_executor_id
-        task_instance.trigger_id = ti.trigger_id
-        task_instance.next_method = ti.next_method
-        task_instance.next_kwargs = ti.next_kwargs
-    else:
-        task_instance.state = None
-
-
 def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
     Set task instance duration.
@@ -1804,6 +1747,76 @@ class TaskInstance(Base, LoggingMixin):
 
         return None
 
+    @staticmethod
+    @internal_api_call
+    def _refresh_from_db(
+        *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    ) -> None:
+        """
+        Refresh the task instance from the database based on the primary key.
+
+        :param task_instance: the task instance
+        :param session: SQLAlchemy ORM Session
+        :param lock_for_update: if True, indicates that the database should
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
+
+        :meta private:
+        """
+        TI = TaskInstance
+        if not isinstance(task_instance, TaskInstance):
+            task_instance = (
+                session.query(TI)
+                .filter(
+                    TI.task_id == task_instance.task_id,
+                    TI.dag_id == task_instance.dag_id,
+                    TI.run_id == task_instance.run_id,
+                    TI.map_index == task_instance.map_index,
+                )
+                .one()
+            )
+        if task_instance in session:
+            session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
+
+        ti = TaskInstance.get_task_instance(
+            dag_id=task_instance.dag_id,
+            task_id=task_instance.task_id,
+            run_id=task_instance.run_id,
+            map_index=task_instance.map_index,
+            select_columns=True,
+            lock_for_update=lock_for_update,
+            session=session,
+        )
+
+        if ti:
+            # Fields ordered per model definition
+            task_instance.start_date = ti.start_date
+            task_instance.end_date = ti.end_date
+            task_instance.duration = ti.duration
+            task_instance.state = ti.state
+            # Since we selected columns, not the object, this is the raw value
+            task_instance.try_number = ti.try_number
+            task_instance.max_tries = ti.max_tries
+            task_instance.hostname = ti.hostname
+            task_instance.unixname = ti.unixname
+            task_instance.job_id = ti.job_id
+            task_instance.pool = ti.pool
+            task_instance.pool_slots = ti.pool_slots or 1
+            task_instance.queue = ti.queue
+            task_instance.priority_weight = ti.priority_weight
+            task_instance.operator = ti.operator
+            task_instance.custom_operator_name = ti.custom_operator_name
+            task_instance.queued_dttm = ti.queued_dttm
+            task_instance.queued_by_job_id = ti.queued_by_job_id
+            task_instance.pid = ti.pid
+            task_instance.executor_config = ti.executor_config
+            task_instance.external_executor_id = ti.external_executor_id
+            task_instance.trigger_id = ti.trigger_id
+            task_instance.next_method = ti.next_method
+            task_instance.next_kwargs = ti.next_kwargs
+        else:
+            task_instance.state = None
+
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
@@ -1814,7 +1827,7 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+        self._refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
@@ -2224,10 +2237,15 @@ class TaskInstance(Base, LoggingMixin):
 
         if isinstance(task_instance, TaskInstance):
             ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance,TaskInstancePydantic)
+        else:  # isinstance(task_instance, TaskInstancePydantic)
             filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
             ti = session.query(TaskInstance).filter(*filters).scalar()
+            dag = ti.dag_model.serialized_dag.dag
+            task_instance.task = dag.task_dict[ti.task_id]
+            ti.task = task_instance.task
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
@@ -2586,8 +2604,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
         if TYPE_CHECKING:
             assert self.task
 
@@ -2627,10 +2643,10 @@ class TaskInstance(Base, LoggingMixin):
                     jinja_env = None
                 task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
-            if not test_mode:
-                rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
-                RenderedTaskInstanceFields.write(rtif)
-                RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
+            # if not test_mode:
+            #     rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
+            #     RenderedTaskInstanceFields.write(rtif)
+            #     RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id)
 
             # Export context to make it available for operators to use.
             airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
@@ -2653,9 +2669,10 @@ class TaskInstance(Base, LoggingMixin):
             self._run_execute_callback(context, self.task)
 
             # Run on_task_instance_running event
-            get_listener_manager().hook.on_task_instance_running(
-                previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
-            )
+            if session is not None:
+                get_listener_manager().hook.on_task_instance_running(
+                    previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+                )
 
             # Execute the task
             with set_current_context(context):
