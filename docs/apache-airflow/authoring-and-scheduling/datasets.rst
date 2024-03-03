@@ -63,12 +63,18 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
 Airflow makes no assumptions about the content or location of the data represented by the URI. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
 
-There are two restrictions on the dataset URI:
+A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
 
-1. It must be a valid URI, which means it must be composed of only ASCII characters.
-2. The URI scheme cannot be ``airflow`` (this is reserved for future use).
+What is valid URI?
+------------------
 
-If you try to use either of the examples below, your code will cause a ValueError to be raised, and Airflow will not import it.
+Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
+
+The URI is also case sensitive, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
+
+Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
+
+Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part to correctly distinguish between resources.
 
 .. code-block:: python
 
@@ -76,7 +82,14 @@ If you try to use either of the examples below, your code will cause a ValueErro
     reserved = Dataset("airflow://example_dataset")
     not_ascii = Dataset("èxample_datašet")
 
-The identifier does not have to be an absolute URI, it can be a scheme-less, relative URI, or even just a simple path or string:
+If you wish to define datasets with a scheme without additional semantic constraints, use a scheme with the prefix ``x-``. Airflow will skip any semantic validation on URIs with such schemes.
+
+.. code-block:: python
+
+    # valid dataset, treated as a plain string
+    my_ds = Dataset("x-my-thing://foobarbaz")
+
+The identifier does not have to be absolute; it can be a scheme-less, relative URI, or even just a simple path or string:
 
 .. code-block:: python
 
@@ -84,7 +97,12 @@ The identifier does not have to be an absolute URI, it can be a scheme-less, rel
     schemeless = Dataset("//example/dataset")
     csv_file = Dataset("example_dataset")
 
-If required, an extra dictionary can be included in a Dataset:
+Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
+
+Extra information
+-----------------
+
+If needed, an extra dictionary can be included in a Dataset:
 
 .. code-block:: python
 
@@ -93,9 +111,24 @@ If required, an extra dictionary can be included in a Dataset:
         extra={"team": "trainees"},
     )
 
-.. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
+This extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
 
-The URI is also case sensitive throughout, so ``s3://example_dataset`` and ``s3://Example_Dataset`` are considered different, as is ``s3://example_dataset`` and ``S3://example_dataset``.
+.. code-block:: python
+
+    with DAG(
+        dag_id="consumer",
+        schedule=[Dataset("s3://dataset/example.csv", extra={"different": "extras"})],
+    ):
+        ...
+
+    with DAG(dag_id="producer", ...):
+        MyOperator(
+            # triggers "consumer" with the given extra!
+            outlets=[Dataset("s3://dataset/example.csv", extra={"team": "trainees"})],
+            ...,
+        )
+
+.. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
 
 How to use datasets in your DAGs
 --------------------------------
@@ -237,6 +270,68 @@ Example:
 
 Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one Dataset given to the DAG, and the first of one DatasetEvent for that Dataset. An implementation may be quite complex if you have multiple Datasets, potentially with multiple DatasetEvents.
 
+Advanced Dataset Scheduling with Conditional Expressions
+--------------------------------------------------------
+
+Apache Airflow introduces advanced scheduling capabilities that leverage conditional expressions with datasets. This feature allows Airflow users to define complex dependencies for DAG executions based on dataset updates, using logical operators for more granular control over workflow triggers.
+
+Logical Operators for Datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow supports two logical operators for combining dataset conditions:
+
+- **AND (``&``)**: Specifies that the DAG should be triggered only after all of the specified datasets have been updated.
+- **OR (``|``)**: Specifies that the DAG should be triggered when any one of the specified datasets is updated.
+
+These operators enable the expression of complex dataset update conditions, enhancing the dynamism and flexibility of Airflow workflows.
+
+Example Usage
+-------------
+
+**Scheduling Based on Multiple Dataset Updates**
+
+To schedule a DAG to run only when two specific datasets have both been updated, use the AND operator (``&``):
+
+.. code-block:: python
+
+    dag1_dataset = Dataset("s3://dag1/output_1.txt")
+    dag2_dataset = Dataset("s3://dag2/output_1.txt")
+
+    with DAG(
+        # Consume dataset 1 and 2 with dataset expressions
+        schedule=(dag1_dataset & dag2_dataset),
+        ...,
+    ):
+        ...
+
+**Scheduling Based on Any Dataset Update**
+
+To trigger a DAG execution when either of two datasets is updated, apply the OR operator (``|``):
+
+.. code-block:: python
+
+    with DAG(
+        # Consume dataset 1 or 2 with dataset expressions
+        schedule=(dag1_dataset | dag2_dataset),
+        ...,
+    ):
+        ...
+
+**Complex Conditional Logic**
+
+For scenarios requiring more intricate conditions, such as triggering a DAG when one dataset is updated or when both of two other datasets are updated, combine the OR and AND operators:
+
+.. code-block:: python
+
+    dag3_dataset = Dataset("s3://dag3/output_3.txt")
+
+    with DAG(
+        # Consume dataset 1 or both 2 and 3 with dataset expressions
+        schedule=(dag1_dataset | (dag2_dataset & dag3_dataset)),
+        ...,
+    ):
+        ...
+
 Combining Dataset and Time-Based Schedules
 ------------------------------------------
 
@@ -245,3 +340,5 @@ DatasetTimetable Integration
 With the introduction of ``DatasetTimetable``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
 
 For more detailed information on ``DatasetTimetable`` and its usage, refer to the corresponding section in :ref:`DatasetTimetable <dataset-timetable-section>`.
+
+These examples illustrate how Airflow's conditional dataset expressions can be used to create complex data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.

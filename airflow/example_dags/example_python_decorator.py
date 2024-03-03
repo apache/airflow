@@ -57,7 +57,7 @@ def example_python_decorator():
     # [START howto_operator_python_render_sql]
     @task(task_id="log_sql_query", templates_dict={"query": "sql/sample.sql"}, templates_exts=[".sql"])
     def log_sql(**kwargs):
-        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
 
     log_the_sql = log_sql()
     # [END howto_operator_python_render_sql]

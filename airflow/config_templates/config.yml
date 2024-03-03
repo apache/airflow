@@ -252,7 +252,7 @@ core:
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp patterns.
         This is a secondary option to ``allowed_deserialization_classes``.
-      version_added: 2.8.1
+      version_added: 2.8.2
       type: string
       default: ''
       example: ~
@@ -1837,8 +1837,8 @@ webserver:
         The audit logs in the db will not be affected by this parameter.
       version_added: 2.3.0
       type: string
-      example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
+      example: "cli_task_run,running,success"
+      default: ~
     audit_view_included_events:
       description: |
         Comma separated string of view events to include in dag audit view.

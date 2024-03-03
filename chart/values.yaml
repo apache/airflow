@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.8.1"
+defaultAirflowTag: "2.8.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.8.1"
+airflowVersion: "2.8.2"
 
 # Images
 images:
@@ -1085,6 +1085,9 @@ migrateDatabaseJob:
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  # Labels specific to migrate database job objects and pods
+  labels: {}
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}

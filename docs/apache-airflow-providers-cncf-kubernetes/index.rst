@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    KubernetesExecutor details <kubernetes_executor>
+    LocalKubernetesExecutor details <local_kubernetes_executor>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/kubernetes>

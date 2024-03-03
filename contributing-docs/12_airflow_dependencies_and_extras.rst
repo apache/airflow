@@ -85,7 +85,7 @@ from the PyPI package:
 
 .. code-block:: bash
 
-  pip install apache-airflow[google,amazon,async]==2.2.5 \
+  pip install "apache-airflow[google,amazon,async]==2.2.5" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without

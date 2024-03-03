@@ -72,11 +72,10 @@ def temp_override_attr(obj, attr, val):
     setattr(obj, attr, orig)
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db():
     db.clear_db_dags()
     db.clear_db_runs()
-    yield
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -936,7 +935,7 @@ class TestKubernetesPodOperator:
         tpl_file = tmp_path / "template.yaml"
         tpl_file.write_text(pod_template_yaml)
 
-        yield tpl_file
+        return tpl_file
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_pod_template_file(self, randomize_name, pod_template_file):
@@ -1229,16 +1228,21 @@ class TestKubernetesPodOperator:
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert "already_checked!=True" in kwargs["label_selector"]
 
+    @patch(KUB_OP_PATH.format("find_pod"))
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
-    def test_mark_checked_unexpected_exception(self, mock_patch_already_checked, mock_delete_pod):
+    def test_mark_checked_unexpected_exception(
+        self, mock_patch_already_checked, mock_delete_pod, find_pod_mock
+    ):
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
             on_finish_action="keep_pod",
         )
+        found_pods = [MagicMock(), MagicMock(), MagicMock()]
+        find_pod_mock.side_effect = [None] + found_pods
         self.await_pod_mock.side_effect = AirflowException("oops")
-        context = create_context(k)
+        context = create_context(k, persist_to_db=True)
         with pytest.raises(AirflowException):
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()

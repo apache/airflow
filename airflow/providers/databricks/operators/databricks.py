@@ -287,8 +287,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["git_source"] = git_source
         if access_control_list is not None:
             self.json["access_control_list"] = access_control_list
-
-        self.json = normalise_json_content(self.json)
+        if self.json:
+            self.json = normalise_json_content(self.json)
 
     @cached_property
     def _hook(self):
@@ -797,8 +797,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["spark_submit_params"] = spark_submit_params
         if idempotency_token is not None:
             self.json["idempotency_token"] = idempotency_token
-
-        self.json = normalise_json_content(self.json)
+        if self.json:
+            self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push

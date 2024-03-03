@@ -31,9 +31,9 @@ import ReactFlow, {
 import { Box, Tooltip, useTheme } from "@chakra-ui/react";
 import { RiFocus3Line } from "react-icons/ri";
 
-import { useDatasetDependencies } from "src/api";
 import Edge from "src/components/Graph/Edge";
 import { useContainerRef } from "src/context/containerRef";
+import { useDatasetGraphs } from "src/api/useDatasetDependencies";
 
 import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
@@ -41,16 +41,27 @@ import Legend from "./Legend";
 interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
+  filteredDagIds: string[];
+  onFilterDags: (dagIds: string[]) => void;
 }
 
 const nodeTypes = { custom: Node };
 const edgeTypes = { custom: Edge };
 
-const Graph = ({ onSelect, selectedUri }: Props) => {
-  const { data } = useDatasetDependencies();
+const Graph = ({
+  onSelect,
+  selectedUri,
+  filteredDagIds,
+  onFilterDags,
+}: Props) => {
   const { colors } = useTheme();
   const { setCenter, setViewport } = useReactFlow();
   const containerRef = useContainerRef();
+
+  const { data: graph } = useDatasetGraphs({
+    dagIds: filteredDagIds,
+    selectedUri,
+  });
 
   useEffect(() => {
     setViewport({ x: 0, y: 0, zoom: 1 });
@@ -61,46 +72,51 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
   }: ReactFlowNode<CustomNodeProps>) =>
     isSelected ? colors.blue["300"] : colors.gray["300"];
 
-  if (!data || !data.fullGraph || !data.subGraphs) return null;
-  const graph = selectedUri
-    ? data.subGraphs.find((g) =>
-        g.children.some((n) => n.id === `dataset:${selectedUri}`)
-      )
-    : data.fullGraph;
-  if (!graph) return null;
-
-  const edges = graph.edges.map((e) => ({
-    id: e.id,
-    source: e.sources[0],
-    target: e.targets[0],
-    type: "custom",
-    data: {
-      rest: {
-        ...e,
-        isSelected: selectedUri && e.id.includes(selectedUri),
+  const edges =
+    graph?.edges?.map((e) => ({
+      id: e.id,
+      source: e.sources[0],
+      target: e.targets[0],
+      type: "custom",
+      data: {
+        rest: {
+          ...e,
+          isSelected: selectedUri && e.id.includes(selectedUri),
+        },
       },
-    },
-  }));
+    })) || [];
 
-  const nodes: ReactFlowNode<CustomNodeProps>[] = graph.children.map((c) => ({
-    id: c.id,
-    data: {
-      label: c.value.label,
-      type: c.value.class,
-      width: c.width,
-      height: c.height,
-      onSelect,
-      isSelected: selectedUri === c.value.label,
-      isHighlighted: edges.some(
-        (e) => e.data.rest.isSelected && e.id.includes(c.id)
-      ),
-    },
-    type: "custom",
-    position: {
-      x: c.x || 0,
-      y: c.y || 0,
-    },
-  }));
+  const handleSelect = (id: string, type: string) => {
+    if (type === "dataset") onSelect(id);
+    if (type === "dag") {
+      if (filteredDagIds.includes(id))
+        onFilterDags(filteredDagIds.filter((dagId) => dagId !== id));
+      else onFilterDags([...filteredDagIds, id]);
+    }
+  };
+
+  const nodes: ReactFlowNode<CustomNodeProps>[] =
+    graph?.children?.map((c) => ({
+      id: c.id,
+      data: {
+        label: c.value.label,
+        type: c.value.class,
+        width: c.width,
+        height: c.height,
+        onSelect: handleSelect,
+        isSelected:
+          selectedUri === c.value.label ||
+          (c.value.class === "dag" && filteredDagIds.includes(c.value.label)),
+        isHighlighted: edges.some(
+          (e) => e.data.rest.isSelected && e.id.includes(c.id)
+        ),
+      },
+      type: "custom",
+      position: {
+        x: c.x || 0,
+        y: c.y || 0,
+      },
+    })) || [];
 
   const focusNode = () => {
     if (selectedUri) {

@@ -174,6 +174,7 @@ const generateGraph = ({
     }
     const extraLabelLength =
       value.label.length > 20 ? value.label.length - 19 : 0;
+
     return {
       id,
       label: value.label,
@@ -218,7 +219,7 @@ export const useGraphLayout = ({
   return useQuery(
     [
       "graphLayout",
-      !!nodes?.children,
+      nodes?.children?.length,
       openGroupIds,
       arrange,
       root,

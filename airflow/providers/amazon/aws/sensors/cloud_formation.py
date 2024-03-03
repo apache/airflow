@@ -102,7 +102,7 @@ class CloudFormationDeleteStackSensor(AwsBaseSensor[CloudFormationHook]):
         self,
         *,
         stack_name: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):

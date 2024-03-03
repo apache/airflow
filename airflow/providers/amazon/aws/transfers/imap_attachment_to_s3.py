@@ -45,7 +45,11 @@ class ImapAttachmentToS3Operator(BaseOperator):
         See :py:meth:`imaplib.IMAP4.search` for details.
     :param s3_overwrite: If set overwrites the s3 key if already exists.
     :param imap_conn_id: The reference to the connection details of the mail server.
-    :param aws_conn_id: AWS connection to use.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = ("imap_attachment_name", "s3_key", "imap_mail_filter")
@@ -61,7 +65,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         imap_mail_filter: str = "All",
         s3_overwrite: bool = False,
         imap_conn_id: str = "imap_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

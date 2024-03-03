@@ -35,14 +35,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.0.0
+2.0.0
 .....
 
-Latest change: 2024-02-16
+Latest change: 2024-02-21
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`69d48ed7b5 <https://github.com/apache/airflow/commit/69d48ed7b57db48567347f000c12b28d66f972ba>`_  2024-02-21   ``Prepare docs ad hoc Teradata provider February 2024 (#37589)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `c41794d056 <https://github.com/apache/airflow/commit/c41794d0562984243c0bb0331e41c58d213eb690>`_  2024-02-15   ``Add Teradata Provider (#36953)``
 =================================================================================================  ===========  ==================================================================

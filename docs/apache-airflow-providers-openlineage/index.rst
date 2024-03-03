@@ -32,29 +32,12 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: User guide
+    :caption: Guides
 
-    Guides <guides/user>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Developer guide
-
-    Guides <guides/developer>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Structure of provider
-
-    Guides <guides/structure>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Macros
-
+    Intro <guides/structure>
+    User <guides/user>
+    Developer <guides/developer>
+    Supported operators <supported_classes>
     Macros <macros>
 
 .. toctree::
@@ -72,7 +55,6 @@
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-openlineage/>
     Installing from sources <installing-providers-from-sources>
-    Supported operators <supported_classes.rst>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

@@ -380,16 +380,16 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     source_date_epoch = get_source_date_epoch(AIRFLOW_SOURCES_ROOT / "airflow")
     shutil.rmtree(DIST_DIR, ignore_errors=True)
-    if confirm_action("Create tarball?"):
-        # Create the tarball
-        tarball_release(
-            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
-        )
     # Create the artifacts
     if confirm_action("Use docker to create artifacts?"):
         create_artifacts_with_docker()
     elif confirm_action("Use hatch to create artifacts?"):
         create_artifacts_with_hatch(source_date_epoch)
+    if confirm_action("Create tarball?"):
+        # Create the tarball
+        tarball_release(
+            version=version, version_without_rc=version_without_rc, source_date_epoch=source_date_epoch
+        )
     # Sign the release
     sign_the_release(airflow_repo_root)
     # Tag and push constraints

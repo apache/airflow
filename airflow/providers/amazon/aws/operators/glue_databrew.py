@@ -64,7 +64,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         delay: int = 30,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

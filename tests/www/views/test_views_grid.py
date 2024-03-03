@@ -96,7 +96,7 @@ def dag_with_runs(dag_without_runs):
         execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
     )
 
-    yield run_1, run_2
+    return run_1, run_2
 
 
 def test_no_runs(admin_client, dag_without_runs):
@@ -187,7 +187,6 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
-    yield
 
 
 @pytest.mark.usefixtures("freeze_time_for_dagruns")

@@ -538,7 +538,7 @@ class FileTaskHandler(logging.Handler):
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logging.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 

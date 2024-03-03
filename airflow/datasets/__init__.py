@@ -18,12 +18,68 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
-from urllib.parse import urlsplit
+import urllib.parse
+import warnings
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, Protocol, runtime_checkable
 
 import attr
 
+if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
 __all__ = ["Dataset", "DatasetAll", "DatasetAny"]
+
+
+def normalize_noop(parts: SplitResult) -> SplitResult:
+    return parts
+
+
+def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
+    if scheme == "file":
+        return normalize_noop
+    from airflow.providers_manager import ProvidersManager
+
+    return ProvidersManager().dataset_uri_handlers.get(scheme)
+
+
+def _sanitize_uri(uri: str) -> str:
+    if not uri:
+        raise ValueError("Dataset URI cannot be empty")
+    if uri.isspace():
+        raise ValueError("Dataset URI cannot be just whitespace")
+    if not uri.isascii():
+        raise ValueError("Dataset URI must only consist of ASCII characters")
+    parsed = urllib.parse.urlsplit(uri)
+    if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
+        return uri
+    normalized_scheme = parsed.scheme.lower()
+    if normalized_scheme.startswith("x-"):
+        return uri
+    if normalized_scheme == "airflow":
+        raise ValueError("Dataset scheme 'airflow' is reserved")
+    _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
+    if auth_exists:
+        # TODO: Collect this into a DagWarning.
+        warnings.warn(
+            "A dataset URI should not contain auth info (e.g. username or "
+            "password). It has been automatically dropped.",
+            UserWarning,
+            stacklevel=3,
+        )
+    if parsed.query:
+        normalized_query = urllib.parse.urlencode(sorted(urllib.parse.parse_qsl(parsed.query)))
+    else:
+        normalized_query = ""
+    parsed = parsed._replace(
+        scheme=normalized_scheme,
+        netloc=normalized_netloc,
+        path=parsed.path.rstrip("/") or "/",  # Remove all trailing slashes.
+        query=normalized_query,
+        fragment="",  # Ignore any fragments.
+    )
+    if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
+        parsed = normalizer(parsed)
+    return urllib.parse.urlunsplit(parsed)
 
 
 @runtime_checkable
@@ -32,6 +88,12 @@ class BaseDatasetEventInput(Protocol):
 
     :meta private:
     """
+
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        return DatasetAny(self, other)
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        return DatasetAll(self, other)
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
@@ -44,33 +106,24 @@ class BaseDatasetEventInput(Protocol):
 class Dataset(os.PathLike, BaseDatasetEventInput):
     """A representation of data dependencies between workflows."""
 
-    uri: str = attr.field(validator=[attr.validators.min_len(1), attr.validators.max_len(3000)])
+    uri: str = attr.field(
+        converter=_sanitize_uri,
+        validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
+    )
     extra: dict[str, Any] | None = None
 
     __version__: ClassVar[int] = 1
 
-    @uri.validator
-    def _check_uri(self, attr, uri: str):
-        if uri.isspace():
-            raise ValueError(f"{attr.name} cannot be just whitespace")
-        try:
-            uri.encode("ascii")
-        except UnicodeEncodeError:
-            raise ValueError(f"{attr.name!r} must be ascii")
-        parsed = urlsplit(uri)
-        if parsed.scheme and parsed.scheme.lower() == "airflow":
-            raise ValueError(f"{attr.name!r} scheme `airflow` is reserved")
-
     def __fspath__(self) -> str:
         return self.uri
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         if isinstance(other, self.__class__):
             return self.uri == other.uri
         else:
             return NotImplemented
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self.uri)
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
@@ -106,8 +159,22 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
+    def __or__(self, other: BaseDatasetEventInput) -> DatasetAny:
+        # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
+        return DatasetAny(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAny({', '.join(map(str, self.objects))})"
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
+
+    def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
+        # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
+        return DatasetAll(*self.objects, other)
+
+    def __repr__(self) -> str:
+        return f"DatasetAll({', '.join(map(str, self.objects))})"

@@ -49,7 +49,7 @@ def ti(dag_maker):
 
     dr = dag.create_dagrun("running", run_id="abc")
     ti = dr.get_task_instances()[0]
-    yield ti
+    return ti
 
 
 def test_task_context_logger_enabled_by_default():

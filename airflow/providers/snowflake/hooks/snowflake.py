@@ -341,10 +341,8 @@ class SnowflakeHook(DbApiHook):
         """Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
-        execute sequentially. The variable ``execution_info`` is returned so
-        that it can be used in the Operators to modify the behavior depending on
-        the result of the query (i.e fail the operator if the copy has processed
-        0 files).
+        execute sequentially. The result of the queries is returned if the
+        ``handler`` callable is set.
 
         :param sql: The SQL string to be executed with possibly multiple
             statements, or a list of sql statements to execute

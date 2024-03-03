@@ -38,7 +38,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialize
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def current_file_token(url_safe_serializer) -> str:
     return url_safe_serializer.dumps(__file__)
 

@@ -67,8 +67,8 @@ performance in your Airflow:
 
 * Optional *worker*, which executes the tasks given to it by the scheduler. In the basic installation
   worker might be part of the scheduler not a separate component. It can be run as a long running process
-  in the :doc:`CeleryExecutor <executor/celery>`, or as a POD in the
-  :doc:`KubernetesExecutor <executor/kubernetes>`.
+  in the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`, or as a POD in the
+  :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`.
 
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be

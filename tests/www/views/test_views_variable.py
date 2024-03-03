@@ -62,7 +62,7 @@ def user_variable_reader(app):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_variable_reader(app, user_variable_reader):
     """Client for User that can only access the first DAG from TEST_FILTER_DAG_IDS"""
     return client_with_login(
@@ -221,7 +221,7 @@ def test_description_retrieval(session, admin_client):
     assert row.key == "test_key" and row.description == "test_description"
 
 
-@pytest.fixture()
+@pytest.fixture
 def variable(session):
     variable = Variable(
         key=VARIABLE["key"],

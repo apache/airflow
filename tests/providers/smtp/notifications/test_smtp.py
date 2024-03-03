@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from unittest import mock
 
 import pytest
@@ -30,6 +31,7 @@ from airflow.providers.smtp.notifications.smtp import (
     send_smtp_notification,
 )
 from airflow.utils import timezone
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -166,3 +168,42 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
+        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        context = {"dag": ti.dag_run.dag, "ti": ti}
+
+        with tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject, tempfile.NamedTemporaryFile(
+            mode="wt", suffix=".txt"
+        ) as f_content:
+            f_subject.write("Task {{ ti.task_id }} failed")
+            f_subject.flush()
+
+            f_content.write("Mock content goes here")
+            f_content.flush()
+
+            with conf_vars(
+                {
+                    ("smtp", "templated_html_content_path"): f_content.name,
+                    ("smtp", "templated_email_subject_path"): f_subject.name,
+                }
+            ):
+                notifier = SmtpNotifier(
+                    from_email=conf.get("smtp", "smtp_mail_from"),
+                    to="test_reciver@test.com",
+                )
+                notifier(context)
+                mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+                    from_email=conf.get("smtp", "smtp_mail_from"),
+                    to="test_reciver@test.com",
+                    subject="Task op failed",
+                    html_content="Mock content goes here",
+                    smtp_conn_id="smtp_default",
+                    files=None,
+                    cc=None,
+                    bcc=None,
+                    mime_subtype="mixed",
+                    mime_charset="utf-8",
+                    custom_headers=None,
+                )

@@ -933,7 +933,7 @@ def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
     result = None
-    uri = "s3://test"
+    uri = "s3://bucket/name"
 
     with dag_maker(session=session) as dag:
 

@@ -28,6 +28,8 @@ from airflow.utils.helpers import parse_template_string
 from airflow.utils.log.logging_mixin import DISABLE_PROPOGATE
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
+logger = logging.getLogger(__name__)
+
 
 class FileProcessorHandler(logging.Handler):
     """
@@ -124,13 +126,13 @@ class FileProcessorHandler(logging.Handler):
                         os.unlink(latest_log_directory_path)
                         os.symlink(rel_link_target, latest_log_directory_path)
                 elif os.path.isdir(latest_log_directory_path) or os.path.isfile(latest_log_directory_path):
-                    logging.warning(
+                    logger.warning(
                         "%s already exists as a dir/file. Skip creating symlink.", latest_log_directory_path
                     )
                 else:
                     os.symlink(rel_link_target, latest_log_directory_path)
             except OSError:
-                logging.warning("OSError while attempting to symlink the latest log directory")
+                logger.warning("OSError while attempting to symlink the latest log directory")
 
     def _init_file(self, filename):
         """

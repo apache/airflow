@@ -24,7 +24,7 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run the checks via `Breeze <dev/breeze/doc/README.rst>`_ environment.
+You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
 .. contents:: :local:
 
@@ -74,7 +74,7 @@ The current list of prerequisites is limited to ``xmllint``:
 Some pre-commit hooks also require the Docker Engine to be configured as the static
 checks are executed in the Docker environment (See table in the
 `Available pre-commit checks <#available-pre-commit-checks>`_ . You should build the images
-locally before installing pre-commit checks as described in `Breeze docs <dev/breeze/doc/README.rst>`__.
+locally before installing pre-commit checks as described in `Breeze docs <../dev/breeze/doc/README.rst>`__.
 
 Sometimes your image is outdated and needs to be rebuilt because some dependencies have been changed.
 In such cases, the Docker-based pre-commit will inform you that you should rebuild the image.
@@ -307,6 +307,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | pretty-format-json                                        | Format JSON files                                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| pylint                                                    | pylint                                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | replace-bad-characters                                    | Replace bad characters                                       |         |
@@ -344,6 +346,8 @@ require Breeze Docker image to be built locally.
 | update-inlined-dockerfile-scripts                         | Inline Dockerfile and Dockerfile.ci scripts                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-installed-providers-to-be-sorted                   | Sort alphabetically and uniquify installed_providers.txt     |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-installers                                         | Update installers to latest (manual)                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-local-yml-file                                     | Update mounts in the local yml file                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -546,7 +550,7 @@ Run all checks for all changes in my branch since branched from main:
      breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in
-`Breeze documentation <dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_
+`Breeze documentation <../dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_
 
 
 Debugging pre-commit check scripts requiring image

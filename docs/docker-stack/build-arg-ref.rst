@@ -45,7 +45,11 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``24.0``                                 |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``<LATEST_AVAILABLE_IN_PYPI>``           |  PIP version used.                          |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_UV_VERSION``                   | ``<LATEST_AVAILABLE_IN_PYPI>``           |  UV version used.                           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_USE_UV``                       | ``false``                                |  Whether to use UV.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |

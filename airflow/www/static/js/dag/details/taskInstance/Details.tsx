@@ -144,6 +144,12 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               <Td>{taskInstance.mapIndex}</Td>
             </Tr>
           )}
+          {taskInstance?.renderedMapIndex !== undefined && (
+            <Tr>
+              <Td>Rendered Map Index</Td>
+              <Td>{taskInstance.renderedMapIndex}</Td>
+            </Tr>
+          )}
           {!!taskInstance?.tryNumber && (
             <Tr>
               <Td>Try Number</Td>

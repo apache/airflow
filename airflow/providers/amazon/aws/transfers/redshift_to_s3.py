@@ -97,7 +97,7 @@ class RedshiftToS3Operator(BaseOperator):
         table: str | None = None,
         select_query: str | None = None,
         redshift_conn_id: str = "redshift_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         unload_options: list | None = None,
         autocommit: bool = False,
@@ -158,8 +158,8 @@ class RedshiftToS3Operator(BaseOperator):
             redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
         else:
             redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-        conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-        if conn.extra_dejson.get("role_arn", False):
+        conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)

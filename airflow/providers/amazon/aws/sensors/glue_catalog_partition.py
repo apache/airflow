@@ -70,7 +70,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         database_name: str = "default",
         poke_interval: int = 60 * 3,

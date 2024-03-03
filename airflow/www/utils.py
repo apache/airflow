@@ -655,7 +655,6 @@ def get_chart_height(dag):
     Without this the charts are tiny and unreadable when DAGs have a large number of tasks).
     Ideally nvd3 should allow for dynamic-height charts, that is charts that take up space
     based on the size of the components within.
-    TODO(aoen): See [AIRFLOW-1263].
     """
     return 600 + len(dag.tasks) * 10
 

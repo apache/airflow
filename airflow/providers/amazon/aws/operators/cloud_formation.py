@@ -96,7 +96,7 @@ class CloudFormationDeleteStackOperator(AwsBaseOperator[CloudFormationHook]):
         *,
         stack_name: str,
         cloudformation_parameters: dict | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

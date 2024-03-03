@@ -497,7 +497,7 @@ class TestGKEPodAsyncHook:
 
         mock_obj.return_value = f
 
-    @pytest.fixture()
+    @pytest.fixture
     def async_hook(self):
         return GKEPodAsyncHook(
             cluster_url=CLUSTER_URL,
@@ -569,7 +569,7 @@ class TestGKEPodAsyncHook:
         assert "Test string #2" in caplog.text
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_gke_hook():
     return GKEAsyncHook(
         gcp_conn_id=GCP_CONN_ID,
@@ -578,7 +578,7 @@ def async_gke_hook():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_async_gke_cluster_client():
     f = Future()
     f.set_result(None)

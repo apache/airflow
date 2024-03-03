@@ -429,6 +429,20 @@ class TestGoogleCloudStoragePrefixSensor:
         task.execute(mock.MagicMock())
         assert not mock_defer.called
 
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_xcom_value_when_poke_success(self, mock_hook):
+        mock_hook.return_value.list.return_value = ["test.txt"]
+        task = GCSObjectsWithPrefixExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            prefix=TEST_PREFIX,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+        responses = task.execute(None)
+        assert responses == ["test.txt"]
+
 
 class TestGCSObjectsWithPrefixExistenceAsyncSensor:
     OPERATOR = GCSObjectsWithPrefixExistenceSensor(

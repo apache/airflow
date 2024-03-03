@@ -1208,7 +1208,7 @@ class TestVaultHook:
         test_hook = VaultHook(**kwargs)
         test_hook.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=None
+            mount_point="secret", path="path", secret={"key": "value"}, cas=None
         )
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
@@ -1227,7 +1227,7 @@ class TestVaultHook:
         test_hook = VaultHook(**kwargs)
         test_hook.create_or_update_secret(secret_path="path", secret={"key": "value"}, cas=10)
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=10
+            mount_point="secret", path="path", secret={"key": "value"}, cas=10
         )
 
     @pytest.mark.parametrize(
@@ -1253,7 +1253,7 @@ class TestVaultHook:
         test_hook = VaultHook(**kwargs)
         test_hook.create_or_update_secret(secret_path="path", secret={"key": "value"}, method=method)
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, method=expected_method
+            mount_point="secret", path="path", secret={"key": "value"}, method=expected_method
         )
 
 

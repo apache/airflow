@@ -40,7 +40,9 @@ metastore_db
 logs
 .bash_aliases
 venv
-files
+clients/*
+files/*
+dags/*
 airflow.iml
 .gitmodules
 prod_image_installed_providers.txt

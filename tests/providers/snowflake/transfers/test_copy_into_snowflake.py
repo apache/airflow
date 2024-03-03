@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Callable
 from unittest import mock
 
+import pytest
 from openlineage.client.facet import (
     ExternalQueryRunFacet,
     ExtractionError,
@@ -26,7 +27,6 @@ from openlineage.client.facet import (
     SqlJobFacet,
 )
 from openlineage.client.run import Dataset
-from pytest import mark
 
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -131,7 +131,7 @@ class TestCopyFromExternalStageToSnowflake:
             job_facets={"sql": SqlJobFacet(query=expected_sql)},
         )
 
-    @mark.parametrize("rows", (None, []))
+    @pytest.mark.parametrize("rows", (None, []))
     @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
     def test_get_openlineage_facets_on_complete_with_empty_inputs(self, mock_hook, rows):
         mock_hook().run.return_value = rows

@@ -299,7 +299,7 @@ class TestBaseAuthManager:
         assert result == expected
 
     @patch.object(EmptyAuthManager, "security_manager")
-    def test_get_permitted_menu_items(self, mock_security_manager, auth_manager):
+    def test_filter_permitted_menu_items(self, mock_security_manager, auth_manager):
         mock_security_manager.has_access.side_effect = [True, False, True, True, False]
 
         menu = Menu()
@@ -309,7 +309,7 @@ class TestBaseAuthManager:
         menu.add_link("item3.1", category="item3")
         menu.add_link("item3.2", category="item3")
 
-        result = auth_manager.get_permitted_menu_items(menu.get_list())
+        result = auth_manager.filter_permitted_menu_items(menu.get_list())
 
         assert len(result) == 2
         assert result[0].name == "item1"

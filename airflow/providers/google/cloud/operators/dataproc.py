@@ -835,7 +835,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae_inner, exc_info=True)
+                self.log.exception(ae_inner)
             finally:
                 raise ae
 

@@ -27,7 +27,7 @@ from tests.test_utils.www import client_with_login
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def app_with_rate_limit_one(examples_dag_bag):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[

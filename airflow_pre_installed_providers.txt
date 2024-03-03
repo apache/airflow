@@ -5,4 +5,5 @@ fab
 ftp
 http
 imap
+smtp
 sqlite

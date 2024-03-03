@@ -95,7 +95,7 @@ You are STRONGLY encouraged to also install and use `pre-commit hooks <08_static
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
-The full list of extras is available in `<pyproject.toml>`_ and can be easily retrieved using hatch via
+The full list of extras is available in `pyproject.toml <../pyproject.toml>`_ and can be easily retrieved using hatch via
 
 .. note::
 
@@ -252,7 +252,7 @@ You can clean the env by running:
 
     hatch env prune
 
-More information about hatch can be found in https://hatch.pypa.io/1.9/environment/
+More information about hatch can be found in `Hatch: Environments <https://hatch.pypa.io/latest/environment/>`__
 
 ## Using Hatch to build your packages
 
@@ -318,7 +318,7 @@ available in the same environment. However, most provider need some additional d
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable
 mode with ``provider id`` as extra (with ``-`` instead of ``.``) . You can see the list of provider's extras in the
-`extras reference <./docs/apache-airflow/extra-packages-ref.rst>`_.
+`extras reference <../docs/apache-airflow/extra-packages-ref.rst>`_.
 
 For example, if you want to develop Google provider, you can install it with:
 
@@ -366,7 +366,7 @@ all basic devel requirements and requirements of google provider as last success
 
 .. code:: bash
 
-    pip install -e ".[devel,google]"" \
+    pip install -e ".[devel,google]" \
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 Make sure to use latest main for such installation, those constraints are "development constraints" and they
@@ -406,7 +406,7 @@ of Integration tests. You can technically use local virtualenv to run those test
 set up all necessary dependencies for all the providers you are going to tests and also setup
 databases - and sometimes other external components (for integration test).
 
-So, generally it should be easier to use the `Breeze <dev/breeze/doc/README.rst>`__ development environment
+So, generally it should be easier to use the `Breeze <../dev/breeze/doc/README.rst>`__ development environment
 (especially for Integration tests).
 
 

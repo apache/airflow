@@ -135,13 +135,13 @@ interface DepNode {
     id?: string;
     class: "dag" | "dataset" | "trigger" | "sensor";
     label: string;
-    rx: number;
-    ry: number;
+    rx?: number;
+    ry?: number;
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
-    labelStyle: string;
-    style: string;
+    labelStyle?: string;
+    style?: string;
     setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];

@@ -16,13 +16,20 @@
     under the License.
 
 
+.. _supported_classes:openlineage:
+
 Supported operators
 ===================
 
-Below is a list of operators that support OpenLineage extraction,
-along with specific DB types that are compatible with the SQLExecuteQueryOperator.
+Below is a list of Operators that support OpenLineage extraction, along with specific DB types that are compatible with the SQLExecuteQueryOperator.
 
-**Disclaimer:** While we strive to keep the list of supported operators current,
-please be aware that our updating process is automated and may not always capture everything accurately.
+.. important::
+
+    While we strive to keep the list of supported operators current,
+    please be aware that our updating process is automated and may not always capture everything accurately.
+
+.. tip::
+
+  You can easily implement OpenLineage support for any operator. See :ref:`guides/developer:openlineage`.
 
 .. airflow-providers-openlineage-supported-classes::

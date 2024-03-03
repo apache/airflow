@@ -25,9 +25,11 @@ import json
 import multiprocessing
 import os
 import pickle
+import re
 from datetime import datetime, timedelta
 from glob import glob
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -347,7 +349,7 @@ def serialize_subprocess(queue, dag_folder):
     queue.put(None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def timetable_plugin(monkeypatch):
     """Patch plugins manager to always and only return our custom timetable."""
     from airflow import plugins_manager
@@ -619,6 +621,7 @@ class TestStringifiedDAGs:
             assert isinstance(serialized_task, MappedOperator)
             fields_to_check = {f.name for f in attr.fields(MappedOperator)}
             fields_to_check -= {
+                "map_index_template",
                 # Matching logic in BaseOperator.get_serialized_fields().
                 "dag",
                 "task_group",
@@ -1236,6 +1239,7 @@ class TestStringifiedDAGs:
             "executor_config": {},
             "ignore_first_depends_on_past": True,
             "inlets": [],
+            "map_index_template": None,
             "max_active_tis_per_dag": None,
             "max_active_tis_per_dagrun": None,
             "max_retry_delay": None,
@@ -2070,7 +2074,15 @@ class TestStringifiedDAGs:
             task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
             assert task.email == "foo@test.com,bar@test.com"
 
-        with pytest.raises(AirflowException, match="Cannot template BaseOperator field: 'execution_timeout'"):
+        with pytest.raises(
+            AirflowException,
+            match=re.escape(
+                dedent(
+                    """Failed to serialize DAG 'test_dag': Cannot template BaseOperator field:
+                        'execution_timeout' op.__class__.__name__='TestOperator' op.template_fields=('email', 'execution_timeout')"""
+                )
+            ),
+        ):
             SerializedDAG.to_dict(dag)
 
 

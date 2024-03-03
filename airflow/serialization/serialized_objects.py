@@ -26,6 +26,7 @@ import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import signature
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
 
 import attrs
@@ -912,7 +913,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
-                    raise AirflowException(f"Cannot template BaseOperator field: {template_field!r}")
+                    raise AirflowException(
+                        dedent(
+                            f"""Cannot template BaseOperator field:
+                        {template_field!r} {op.__class__.__name__=} {op.template_fields=}"""
+                        )
+                    )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
@@ -1124,6 +1130,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                map_index_template=None,
                 disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
             )

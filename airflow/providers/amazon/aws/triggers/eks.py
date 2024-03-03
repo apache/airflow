@@ -50,7 +50,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
         cluster_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(
@@ -113,7 +113,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         cluster_name,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None,
         force_delete_compute: bool,
     ):
@@ -234,7 +234,7 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
         fargate_profile_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region: str | None = None,
         region_name: str | None = None,
     ):
@@ -281,7 +281,7 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
         fargate_profile_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region: str | None = None,
         region_name: str | None = None,
     ):
@@ -334,7 +334,7 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
         nodegroup_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(
@@ -382,7 +382,7 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
         nodegroup_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(

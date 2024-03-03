@@ -76,7 +76,7 @@ class TestElasticsearchTaskHandler:
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
-    @pytest.fixture()
+    @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
         create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
         yield get_ti(

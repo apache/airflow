@@ -337,6 +337,13 @@ option_upgrade_boto = click.option(
     is_flag=True,
     envvar="UPGRADE_BOTO",
 )
+option_use_uv = click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=True,
+    help="Use uv instead of pip as packaging tool.",
+    envvar="USE_UV",
+)
 option_pydantic = click.option(
     "--pydantic",
     help="Determines which pydantic should be used during tests.",

@@ -25,44 +25,80 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 source_files = [
     "airflow/dag_processing",
+    "airflow/triggers",
 ]
+"""
+Other potential source file packages to scan for coverage.
+You can also compare the stats against those on
+https://app.codecov.io/github/apache/airflow
+(as it combines the coverage from all tests and so may be a bit higher).
+
+    "airflow/auth",
+    "airflow/callbacks",
+    "airflow/config_templates",
+    "airflow/dag_processing",
+    "airflow/datasets",
+    "airflow/decorators",
+    "airflow/hooks",
+    "airflow/io",
+    "airflow/lineage",
+    "airflow/listeners",
+    "airflow/macros",
+    "airflow/notifications",
+    "airflow/secrets",
+    "airflow/security",
+    "airflow/sensors",
+    "airflow/task",
+    "airflow/template",
+    "airflow/timetables",
+    "airflow/triggers",
+"""
 
 files_not_fully_covered = [
     "airflow/dag_processing/manager.py",
     "airflow/dag_processing/processor.py",
+    "airflow/triggers/base.py",
+    "airflow/triggers/external_task.py",
+    "airflow/triggers/file.py",
+    "airflow/triggers/testing.py",
 ]
 
 other_tests = [
     "tests/dag_processing",
+    "tests/jobs",
+    "tests/triggers",
 ]
 
 """
-These 'other' packages can be added to the above lists
-as necessary:
+Other tests to potentially run against the source_file packages:
 
-"tests/auth",
-"tests/callbacks",
-"tests/charts",
-"tests/cluster_policies",
-"tests/config_templates",
-"tests/datasets",
-"tests/decorators",
-"tests/hooks",
-"tests/io",
-"tests/lineage",
-"tests/listeners",
-"tests/macros",
-"tests/notifications",
-"tests/plugins",
-"tests/secrets",
-"tests/security",
-"tests/sensors",
-"tests/task",
-"tests/template",
-"tests/testconfig",
-"tests/timetables",
-"tests/triggers",
+    "tests/api_internal",
+    "tests/auth",
+    "tests/callbacks",
+    "tests/charts",
+    "tests/cluster_policies",
+    "tests/config_templates",
+    "tests/dag_processing",
+    "tests/datasets",
+    "tests/decorators",
+    "tests/hooks",
+    "tests/io",
+    "tests/jobs",
+    "tests/lineage",
+    "tests/listeners",
+    "tests/macros",
+    "tests/notifications",
+    "tests/plugins",
+    "tests/secrets",
+    "tests/security",
+    "tests/sensors",
+    "tests/task",
+    "tests/template",
+    "tests/testconfig",
+    "tests/timetables",
+    "tests/triggers",
 """
+
 
 if __name__ == "__main__":
     args = ["-qq"] + other_tests

@@ -28,7 +28,7 @@ import {
 import { getDagRunLabel, getMetaValue, getTask } from "src/utils";
 import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
-import { useGridData } from "src/api";
+import { useGridData, useTaskInstance } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
 
 import BreadcrumbText from "./BreadcrumbText";
@@ -45,6 +45,15 @@ const Header = () => {
     onSelect,
     clearSelection,
   } = useSelection();
+
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId: runId || "",
+    taskId: taskId || "",
+    mapIndex,
+    enabled: mapIndex !== undefined,
+  });
+
   const dagRun = dagRuns.find((r) => r.runId === runId);
 
   const group = getTask({ taskId, task: groups });
@@ -131,7 +140,10 @@ const Header = () => {
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}
           >
-            <BreadcrumbText label="Map Index" value={mapIndex} />
+            <BreadcrumbText
+              label="Map Index"
+              value={taskInstance?.renderedMapIndex || mapIndex}
+            />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}

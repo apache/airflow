@@ -84,7 +84,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         container_name: str,
         prefix: str | None = None,
         delimiter: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         dest_s3_extra_args: dict | None = None,

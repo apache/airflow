@@ -110,7 +110,7 @@ class SqlToS3Operator(BaseOperator):
         sql_hook_params: dict | None = None,
         parameters: None | Mapping[str, Any] | list | tuple = None,
         replace: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         file_format: Literal["csv", "json", "parquet"] = "csv",
         max_rows_per_file: int = 0,

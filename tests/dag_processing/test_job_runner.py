@@ -65,9 +65,8 @@ from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
-
+logger = logging.getLogger(__name__)
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
-
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -902,7 +901,7 @@ class TestDagProcessorJobRunner:
                     break
 
                 req = CallbackRequest(str(dag_filepath))
-                logging.info("Sending CallbackRequests %d", n)
+                logger.info("Sending CallbackRequests %d", n)
                 try:
                     pipe.send(req)
                 except TypeError:
@@ -911,7 +910,7 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                logging.debug("   Sent %d CallbackRequests", n)
+                logger.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
 
@@ -943,13 +942,13 @@ class TestDagProcessorJobRunner:
             manager._run_parsing_loop()
             exit_event.set()
         finally:
-            logging.info("Closing pipes")
+            logger.info("Closing pipes")
             parent_pipe.close()
             child_pipe.close()
-            logging.info("Closed pipes")
-            logging.info("Joining thread")
+            logger.info("Closed pipes")
+            logger.info("Joining thread")
             thread.join(timeout=1.0)
-            logging.info("Joined thread")
+            logger.info("Joined thread")
 
     @conf_vars({("core", "load_examples"): "False"})
     @mock.patch("airflow.dag_processing.manager.Stats.timing")

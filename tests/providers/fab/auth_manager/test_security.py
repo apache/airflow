@@ -154,7 +154,7 @@ def clear_db_after_suite():
     _clear_db_dag_and_runs()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db_before_test():
     _clear_db_dag_and_runs()
 
@@ -189,7 +189,7 @@ def db(app):
     return SQLA(app)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def role(request, app, security_manager):
     params = request.param
     _role = None
@@ -201,7 +201,7 @@ def role(request, app, security_manager):
     delete_role(app, params["name"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def mock_dag_models(request, session, security_manager):
     dags_ids = request.param
     dags = [_create_dag_model(dag_id, session, security_manager) for dag_id in dags_ids]
@@ -212,7 +212,7 @@ def mock_dag_models(request, session, security_manager):
         _delete_dag_model(dag, session, security_manager)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def sample_dags(security_manager):
     dags = [
         DAG("has_access_control", access_control={"Public": {permissions.ACTION_CAN_READ}}),
@@ -1049,14 +1049,14 @@ def test_fab_models_use_airflow_base_meta():
     assert user.metadata is Base.metadata
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_security_manager(app_builder):
     mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
     mocked_security_manager.update_user = mock.MagicMock()
     return mocked_security_manager
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_user():
     user = mock.MagicMock()
     user.login_count = None
@@ -1065,7 +1065,7 @@ def new_user():
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def old_user():
     user = mock.MagicMock()
     user.login_count = 42

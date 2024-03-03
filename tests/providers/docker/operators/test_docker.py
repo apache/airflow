@@ -138,7 +138,7 @@ def test_on_kill_client_not_created(docker_api_client_patcher):
 
 
 class TestDockerOperator:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def setup_patchers(self, docker_api_client_patcher):
         self.tempdir_patcher = mock.patch("airflow.providers.docker.operators.docker.TemporaryDirectory")
         self.tempdir_mock = self.tempdir_patcher.start()

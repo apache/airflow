@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 import functools
 import hashlib
-import logging
 import time
 import traceback
 from datetime import timedelta
@@ -257,7 +256,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise e
             except Exception as e:
                 if self.silent_fail:
-                    logging.error("Sensor poke failed: \n %s", traceback.format_exc())
+                    self.log.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
                 elif self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
