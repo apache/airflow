@@ -125,7 +125,6 @@ class TestTemplateJobStartTrigger:
         actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
-    
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
     async def test_run_loop_return_cancelled_event(self, mock_job_status, trigger):
