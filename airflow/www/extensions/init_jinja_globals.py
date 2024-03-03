@@ -27,6 +27,8 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+logger = logging.getLogger(__name__)
+
 
 def init_jinja_globals(app):
     """Add extra globals variable to Jinja context."""
@@ -51,7 +53,7 @@ def init_jinja_globals(app):
         airflow_version = airflow.__version__
     except Exception as e:
         airflow_version = None
-        logging.error(e)
+        logger.error(e)
 
     git_version = get_airflow_git_version()
 
@@ -62,6 +64,9 @@ def init_jinja_globals(app):
             "hostname": hostname,
             "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
             "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
+            "navbar_hover_color": conf.get("webserver", "NAVBAR_HOVER_COLOR"),
+            "navbar_text_hover_color": conf.get("webserver", "NAVBAR_TEXT_HOVER_COLOR"),
+            "navbar_logo_text_color": conf.get("webserver", "NAVBAR_LOGO_TEXT_COLOR"),
             "log_fetch_delay_sec": conf.getint("webserver", "log_fetch_delay_sec", fallback=2),
             "log_auto_tailing_offset": conf.getint("webserver", "log_auto_tailing_offset", fallback=30),
             "log_animation_speed": conf.getint("webserver", "log_animation_speed", fallback=1000),

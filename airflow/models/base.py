@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import MetaData, String
+from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import registry
 
 from airflow.configuration import conf
@@ -79,3 +79,14 @@ COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 def StringID(*, length=ID_LEN, **kwargs) -> String:
     return String(length=length, **kwargs, **COLLATION_ARGS)
+
+
+class TaskInstanceDependencies(Base):
+    """Base class for depending models linked to TaskInstance."""
+
+    __abstract__ = True
+
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))

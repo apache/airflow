@@ -31,9 +31,9 @@ SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
 class SubprocessHook(BaseHook):
     """Hook for running processes with the ``subprocess`` module."""
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         self.sub_process: Popen[bytes] | None = None
-        super().__init__()
+        super().__init__(**kwargs)
 
     def run_command(
         self,

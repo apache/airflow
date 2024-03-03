@@ -66,8 +66,8 @@ class CohereHook(BaseHook):
         embeddings = response.embeddings
         return embeddings
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
             "hidden_fields": ["schema", "login", "port", "extra"],
             "relabeling": {

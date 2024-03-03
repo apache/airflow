@@ -21,7 +21,13 @@ from io import StringIO
 from unittest import mock
 
 import pytest
-from azure.storage.fileshare import DirectoryProperties, FileProperties, ShareServiceClient
+from azure.storage.fileshare import (
+    DirectoryProperties,
+    FileProperties,
+    ShareDirectoryClient,
+    ShareFileClient,
+    ShareServiceClient,
+)
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
@@ -57,6 +63,13 @@ class TestAzureFileshareHook:
                 login="login",
                 extra={"wrong_key": "token"},
             ),
+            Connection(
+                conn_id="azure_default",
+                conn_type="azure",
+                login="app_id",
+                password="secret",
+                extra={"tenantId": "t_id", "subscriptionId": "s_id"},
+            ),
         )
 
     def test_key_and_connection(self):
@@ -64,6 +77,28 @@ class TestAzureFileshareHook:
         assert hook._conn_id == "azure_fileshare_test_key"
         share_client = hook.share_service_client
         assert isinstance(share_client, ShareServiceClient)
+
+    def test_azure_default_share_service_client(self):
+        hook = AzureFileShareHook(azure_fileshare_conn_id="azure_default")
+        assert hook._conn_id == "azure_default"
+        share_client = hook.share_service_client
+        assert isinstance(share_client, ShareServiceClient)
+
+    def test_azure_default_share_directory_client(self):
+        hook = AzureFileShareHook(
+            azure_fileshare_conn_id="azure_default", share_name="share", directory_path="directory"
+        )
+        assert hook._conn_id == "azure_default"
+        share_client = hook.share_directory_client
+        assert isinstance(share_client, ShareDirectoryClient)
+
+    def test_azure_default_share_file_client(self):
+        hook = AzureFileShareHook(
+            azure_fileshare_conn_id="azure_default", share_name="share", file_path="file"
+        )
+        assert hook._conn_id == "azure_default"
+        share_client = hook.share_file_client
+        assert isinstance(share_client, ShareFileClient)
 
     def test_sas_token(self):
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")

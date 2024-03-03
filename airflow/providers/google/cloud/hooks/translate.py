@@ -53,7 +53,7 @@ class CloudTranslateHook(GoogleBaseHook):
 
     def get_conn(self) -> Client:
         """
-        Retrieves connection to Cloud Translate.
+        Retrieve connection to Cloud Translate.
 
         :return: Google Cloud Translate client object.
         """

@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
-from packaging.version import Version
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -34,18 +33,6 @@ if TYPE_CHECKING:
     import logging
 
     from airflow.models.taskinstance import TaskInstance
-
-
-def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
-
-    TODO: delete this function when min airflow version >= 2.6
-    """
-    from airflow.version import version
-
-    if Version(version) < Version("2.6"):
-        return False
-    return conf.getboolean("logging", "delete_local_logs")
 
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
@@ -73,13 +60,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = ""
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = (
-            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        self.delete_local_copy = kwargs.get(
+            "delete_local_copy", conf.getboolean("logging", "delete_local_logs")
         )
 
     @cached_property
     def hook(self):
-        """Returns WasbHook."""
+        """Return WasbHook."""
         remote_conn_id = conf.get("logging", "REMOTE_LOG_CONN_ID")
         try:
             from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -234,7 +221,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook was created.
+        Write the log to the remote_log_location. Fails silently if no hook was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

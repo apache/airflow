@@ -171,6 +171,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
         self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
@@ -462,8 +463,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.closed:
             return
 
-        # todo: remove `getattr` when min airflow version >= 2.6
-        if not self.mark_end_on_close or getattr(self, "ctx_task_deferred", None):
+        if not self.mark_end_on_close:
             # when we're closing due to task deferral, don't mark end of log
             self.closed = True
             return

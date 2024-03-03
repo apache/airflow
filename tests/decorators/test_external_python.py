@@ -46,14 +46,14 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def venv_python():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=False)
         yield Path(d) / "bin" / "python"
 
 
-@pytest.fixture()
+@pytest.fixture
 def venv_python_with_dill():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
@@ -65,6 +65,20 @@ def venv_python_with_dill():
 class TestExternalPythonDecorator:
     def test_with_dill_works(self, dag_maker, venv_python_with_dill):
         @task.external_python(python=venv_python_with_dill, use_dill=True)
+        def f():
+            """Import dill to double-check it is installed ."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            ret = f()
+
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_with_templated_python(self, dag_maker, venv_python_with_dill):
+        # add template that produces empty string when rendered
+        templated_python_with_dill = venv_python_with_dill.as_posix() + "{{ '' }}"
+
+        @task.external_python(python=templated_python_with_dill, use_dill=True)
         def f():
             """Import dill to double-check it is installed ."""
             import dill  # noqa: F401
@@ -125,7 +139,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker():
-            ret = f(datetime.datetime.utcnow())
+            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 

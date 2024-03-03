@@ -177,6 +177,35 @@ first) event for the data interval, otherwise manual runs will run with a ``data
     def example_dag():
         pass
 
+.. _dataset-timetable-section:
+
+Dataset event based scheduling with time based scheduling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
+
+The ``DatasetOrTimeSchedule`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
+
+This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
+
+Here's an example of a DAG using ``DatasetOrTimeSchedule``:
+
+.. code-block:: python
+
+    from airflow.timetables import DatasetOrTimeSchedule
+    from airflow.timetables.trigger import CronTriggerTimetable
+
+
+    @dag(
+        schedule=DatasetOrTimeSchedule(
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
+        )
+        # Additional arguments here, replace this comment with actual arguments
+    )
+    def example_dag():
+        # DAG tasks go here
+        pass
+
+
 
 Timetables comparisons
 ----------------------

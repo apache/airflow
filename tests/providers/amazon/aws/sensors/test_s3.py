@@ -232,6 +232,25 @@ class TestS3KeySensor:
         mock_head_object.return_value = {"ContentLength": 1}
         assert op.poke(None) is True
 
+    @pytest.mark.parametrize(
+        "key, pattern, expected",
+        [
+            ("test.csv", r"[a-z]+\.csv", True),
+            ("test.txt", r"test/[a-z]+\.csv", False),
+            ("test/test.csv", r"test/[a-z]+\.csv", True),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata")
+    def test_poke_with_use_regex(self, mock_get_file_metadata, key, pattern, expected):
+        op = S3KeySensor(
+            task_id="s3_key_sensor_async",
+            bucket_key=pattern,
+            bucket_name="test_bucket",
+            use_regex=True,
+        )
+        mock_get_file_metadata.return_value = [{"Key": key, "Size": 0}]
+        assert op.poke(None) is expected
+
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3KeySensor.poke", return_value=False)
     def test_s3_key_sensor_execute_complete_success_with_keys(self, mock_poke):
         """

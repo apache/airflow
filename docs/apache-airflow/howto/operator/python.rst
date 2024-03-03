@@ -24,7 +24,7 @@ PythonOperator
 
 Use the :class:`~airflow.operators.python.PythonOperator` to execute Python callables.
 
-.. warning::
+.. tip::
     The ``@task`` decorator is recommended over the classic ``PythonOperator`` to execute Python callables.
 
 .. tab-set::
@@ -111,7 +111,7 @@ Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` decorator to
 inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment
 that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
-.. warning::
+.. tip::
     The ``@task.virtualenv`` decorator is recommended over the classic ``PythonVirtualenvOperator``
     to execute Python callables inside new Python virtual environments.
 
@@ -146,7 +146,7 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
-.. warning::
+.. important::
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
@@ -219,7 +219,7 @@ pre-defined environment. The virtualenv package should be preinstalled in the en
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
 
-.. warning::
+.. tip::
     The ``@task.external_python`` decorator is recommended over the classic ``ExternalPythonOperator``
     to execute Python code in pre-defined Python environments.
 
@@ -255,7 +255,7 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy`` to your virtual environment.
 
-.. warning::
+.. important::
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
@@ -270,7 +270,7 @@ PythonBranchOperator
 Use the :class:`~airflow.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
 tasks.
 
-.. warning::
+.. tip::
     The ``@task.branch`` decorator is recommended over the classic ``PythonBranchOperator``
     to execute Python code.
 
@@ -304,7 +304,7 @@ BranchPythonVirtualenvOperator
 Use the :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
 tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in a virtual environment.
 
-.. warning::
+.. tip::
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
     ``BranchPythonVirtualenvOperator`` to execute Python code.
 
@@ -339,7 +339,7 @@ Use the :class:`~airflow.operators.python.BranchExternalPythonOperator` to execu
 tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in an
 external Python environment.
 
-.. warning::
+.. tip::
     The ``@task.branch_external_python`` decorator is recommended over the classic
     ``BranchExternalPythonOperator`` to execute Python code.
 
@@ -380,7 +380,7 @@ based on the configured short-circuiting (more on this later). In the example be
 "condition_is_true" task will execute while the tasks downstream of the "condition_is_false" task will be
 skipped.
 
-.. warning::
+.. tip::
     The ``@task.short_circuit`` decorator is recommended over the classic ``ShortCircuitOperator``
     to short-circuit pipelines via Python callables.
 
@@ -458,7 +458,7 @@ PythonSensor
 The :class:`~airflow.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
 value to be True.
 
-.. warning::
+.. tip::
     The ``@task.sensor`` decorator is recommended over the classic ``PythonSensor``
     to execute Python callables to check for True condition.
 

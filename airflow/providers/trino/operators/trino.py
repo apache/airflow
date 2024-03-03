@@ -18,9 +18,9 @@
 """This module contains the Trino operator."""
 from __future__ import annotations
 
-import warnings
 from typing import Any, Sequence
 
+from deprecated import deprecated
 from trino.exceptions import TrinoQueryError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -28,6 +28,10 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
 
+@deprecated(
+    reason="Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class TrinoOperator(SQLExecuteQueryOperator):
     """
     Executes sql code using a specific Trino query Engine.
@@ -57,19 +61,13 @@ class TrinoOperator(SQLExecuteQueryOperator):
 
     def __init__(self, *, trino_conn_id: str = "trino_default", **kwargs: Any) -> None:
         super().__init__(conn_id=trino_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
     def on_kill(self) -> None:
-        if self._hook is not None and isinstance(self._hook, TrinoHook):
-            query_id = "'" + self._hook.query_id + "'"
+        if self._hook is not None and isinstance(self._hook, TrinoHook):  # type: ignore[attr-defined]
+            query_id = "'" + self._hook.query_id + "'"  # type: ignore[attr-defined]
             try:
-                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)
-                self._hook.run(
+                self.log.info("Stopping query run with queryId - %s", self._hook.query_id)  # type: ignore[attr-defined]
+                self._hook.run(  # type: ignore[attr-defined]
                     sql=f"CALL system.runtime.kill_query(query_id => {query_id},message => 'Job "
                     f"killed by "
                     f"user');",

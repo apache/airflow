@@ -56,36 +56,36 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-mongo
+apache-airflow-providers-mongo package
 ------------------------------------------------------
 
-`MongoDB <https://www.mongodb.com/what-is-mongodb>`__
+`MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 3.4.0
+Release: 4.0.0
 
 Provider package
 ----------------
 
-This is a provider package for ``mongo`` provider. All classes for this provider package
-are in ``airflow.providers.mongo`` python package.
+This package is for the ``mongo`` provider.
+All classes for this package are included in the ``airflow.providers.mongo`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-mongo``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-mongo``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.5.0``
+``apache-airflow``  ``>=2.6.0``
 ``dnspython``       ``>=1.13.0``
 ``pymongo``         ``>=3.6.0``
 ==================  ==================

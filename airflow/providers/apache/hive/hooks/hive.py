@@ -80,6 +80,7 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
+    :param proxy_user: Run HQL code as this user.
     """
 
     conn_name_attr = "hive_cli_conn_id"
@@ -90,12 +91,12 @@ class HiveCliHook(BaseHook):
     def __init__(
         self,
         hive_cli_conn_id: str = default_conn_name,
-        run_as: str | None = None,
         mapred_queue: str | None = None,
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        proxy_user: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
@@ -103,9 +104,7 @@ class HiveCliHook(BaseHook):
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
         self.conn = conn
-        self.run_as = run_as
         self.sub_process: Any = None
-
         if mapred_queue_priority:
             mapred_queue_priority = mapred_queue_priority.upper()
             if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
@@ -116,19 +115,40 @@ class HiveCliHook(BaseHook):
         self.mapred_queue = mapred_queue or conf.get("hive", "default_hive_mapred_queue")
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
+        self.proxy_user = proxy_user
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Hive Client Wrapper connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, StringField
+
+        return {
+            "use_beeline": BooleanField(lazy_gettext("Use Beeline"), default=False),
+            "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget(), default=""),
+            "principal": StringField(
+                lazy_gettext("Principal"), widget=BS3TextFieldWidget(), default="hive/_HOST@EXAMPLE.COM"
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Hive Client Wrapper connection."""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
 
     def _get_proxy_user(self) -> str:
         """Set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
-
+        if self.proxy_user is not None:
+            return f"hive.server2.proxy.user={self.proxy_user}"
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
-        if proxy_user_value == "login" and conn.login:
-            return f"hive.server2.proxy.user={conn.login}"
-        if proxy_user_value == "owner" and self.run_as:
-            return f"hive.server2.proxy.user={self.run_as}"
-        if proxy_user_value != "":  # There is a custom proxy user
+        if proxy_user_value != "":
             return f"hive.server2.proxy.user={proxy_user_value}"
-        return proxy_user_value  # The default proxy user (undefined)
+        return ""
 
     def _prepare_cli_cmd(self) -> list[Any]:
         """Create the command list from available information."""
@@ -458,8 +478,7 @@ class HiveCliHook(BaseHook):
             pvals = ", ".join(f"{k}='{v}'" for k, v in partition.items())
             hql += f"PARTITION ({pvals})"
 
-        # As a workaround for HIVE-10541, add a newline character
-        # at the end of hql (AIRFLOW-2412).
+        # Add a newline character as a workaround for https://issues.apache.org/jira/browse/HIVE-10541,
         hql += ";\n"
 
         self.log.info(hql)
@@ -582,12 +601,11 @@ class HiveMetastoreHook(BaseHook):
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
-        :param partition: Expression that matches the partitions to check for
-            (eg `a = 'b' AND c = 'd'`)
+        :param partition: Expression that matches the partitions to check for (e.g. `a = 'b' AND c = 'd'`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_partition("airflow", t, "ds='2015-01-01'")
         True
         """
         with self.metastore as client:
@@ -606,10 +624,10 @@ class HiveMetastoreHook(BaseHook):
         :param partition_name: Name of the partitions to check for (eg `a=b/c=d`)
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> hh.check_for_named_partition('airflow', t, "ds=2015-01-01")
+        >>> t = "static_babynames_partitioned"
+        >>> hh.check_for_named_partition("airflow", t, "ds=2015-01-01")
         True
-        >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
+        >>> hh.check_for_named_partition("airflow", t, "ds=xxx")
         False
         """
         with self.metastore as client:
@@ -619,7 +637,7 @@ class HiveMetastoreHook(BaseHook):
         """Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = hh.get_table(db='airflow', table_name='static_babynames')
+        >>> t = hh.get_table(db="airflow", table_name="static_babynames")
         >>> t.tableName
         'static_babynames'
         >>> [col.name for col in t.sd.cols]
@@ -649,8 +667,8 @@ class HiveMetastoreHook(BaseHook):
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
-        >>> t = 'static_babynames_partitioned'
-        >>> parts = hh.get_partitions(schema='airflow', table_name=t)
+        >>> t = "static_babynames_partitioned"
+        >>> parts = hh.get_partitions(schema="airflow", table_name=t)
         >>> len(parts)
         1
         >>> parts
@@ -765,9 +783,9 @@ class HiveMetastoreHook(BaseHook):
         Check if table exists.
 
         >>> hh = HiveMetastoreHook()
-        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        >>> hh.table_exists(db="airflow", table_name="static_babynames")
         True
-        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        >>> hh.table_exists(db="airflow", table_name="does_not_exist")
         False
         """
         try:
@@ -888,10 +906,8 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            # not all query services (e.g. impala AIRFLOW-4434) support the set command
-
             db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-
+            # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

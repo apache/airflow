@@ -30,7 +30,7 @@ from urllib.parse import urlencode
 import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
-from google.auth import impersonated_credentials
+from google.auth import impersonated_credentials  # type: ignore[attr-defined]
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 
 from airflow.exceptions import AirflowException
@@ -358,7 +358,7 @@ class _CredentialProvider(LoggingMixin):
 
 
 def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credentials.Credentials, str]:
-    """Returns the Credentials object for Google API and the associated project_id."""
+    """Return the Credentials object for Google API and the associated project_id."""
     return _CredentialProvider(*args, **kwargs).get_credentials_and_project()
 
 
@@ -398,7 +398,7 @@ def _get_target_principal_and_delegates(
 
 def _get_project_id_from_service_account_email(service_account_email: str) -> str:
     """
-    Extracts project_id from service account's email address.
+    Extract project_id from service account's email address.
 
     :param service_account_email: email of the service account.
 

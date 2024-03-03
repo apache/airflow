@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -36,11 +37,15 @@ TEST_REQ_URI = "s3://bucket/key"
 
 class TestFilesystem:
     def test_get_s3fs(self):
+        import s3fs
+
         from airflow.providers.amazon.aws.fs.s3 import get_fs
 
-        fs = get_fs(conn_id=TEST_CONN)
+        fs = get_fs(conn_id=TEST_CONN, storage_options={"key": "value"})
+        fs = cast(s3fs.S3FileSystem, fs)
 
         assert "s3" in fs.protocol
+        assert fs.config_kwargs["key"] == "value"
 
     @patch("s3fs.S3FileSystem", autospec=True)
     def test_get_s3fs_anonymous(self, s3fs, monkeypatch):
@@ -51,7 +56,7 @@ class TestFilesystem:
             if env_name.startswith("AWS"):
                 monkeypatch.delenv(env_name, raising=False)
 
-        get_fs(conn_id=None)
+        get_fs(conn_id=None, storage_options=None)
 
         assert s3fs.call_args.kwargs["anon"] is True
 

@@ -294,7 +294,7 @@ class S3CopyObjectOperator(BaseOperator):
         source_bucket_name: str | None = None,
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         acl_policy: str | None = None,
         **kwargs,
@@ -400,7 +400,7 @@ class S3CreateObjectOperator(BaseOperator):
         acl_policy: str | None = None,
         encoding: str | None = None,
         compression: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -494,7 +494,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         bucket: str,
         keys: str | list | None = None,
         prefix: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):
@@ -621,9 +621,9 @@ class S3FileTransformOperator(BaseOperator):
         transform_script: str | None = None,
         select_expression=None,
         script_args: Sequence[str] | None = None,
-        source_aws_conn_id: str = "aws_default",
+        source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
-        dest_aws_conn_id: str = "aws_default",
+        dest_aws_conn_id: str | None = "aws_default",
         dest_verify: bool | str | None = None,
         replace: bool = False,
         **kwargs,
@@ -744,7 +744,6 @@ class S3ListOperator(BaseOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :param verify: Whether or not to verify SSL certificates for S3 connection.
-    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
         By default SSL certificates are verified.
         You can provide the following values:
 
@@ -754,6 +753,7 @@ class S3ListOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
 
     **Example**:
@@ -762,11 +762,11 @@ class S3ListOperator(BaseOperator):
         ``customers/2018/04/`` key in the ``data`` bucket. ::
 
             s3_file = S3ListOperator(
-                task_id='list_3s_files',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_3s_files",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 
@@ -779,7 +779,7 @@ class S3ListOperator(BaseOperator):
         bucket: str,
         prefix: str = "",
         delimiter: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         apply_wildcard: bool = False,
         **kwargs,
@@ -843,11 +843,11 @@ class S3ListPrefixesOperator(BaseOperator):
         from the S3 ``customers/2018/04/`` prefix in the ``data`` bucket. ::
 
             s3_file = S3ListPrefixesOperator(
-                task_id='list_s3_prefixes',
-                bucket='data',
-                prefix='customers/2018/04/',
-                delimiter='/',
-                aws_conn_id='aws_customers_conn'
+                task_id="list_s3_prefixes",
+                bucket="data",
+                prefix="customers/2018/04/",
+                delimiter="/",
+                aws_conn_id="aws_customers_conn",
             )
     """
 
@@ -860,7 +860,7 @@ class S3ListPrefixesOperator(BaseOperator):
         bucket: str,
         prefix: str,
         delimiter: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):

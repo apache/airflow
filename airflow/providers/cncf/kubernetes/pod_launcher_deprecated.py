@@ -21,7 +21,7 @@ import json
 import math
 import time
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pendulum
 import tenacity
@@ -119,7 +119,7 @@ class PodLauncher(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def start_pod(self, pod: V1Pod, startup_timeout: int = 120):
@@ -148,13 +148,13 @@ class PodLauncher(LoggingMixin):
         """
         if get_logs:
             read_logs_since_sec = None
-            last_log_time = None
+            last_log_time: pendulum.DateTime | None = None
             while True:
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode("utf-8"))
                     if timestamp:
-                        last_log_time = pendulum.parse(timestamp)
+                        last_log_time = cast(pendulum.DateTime, pendulum.parse(timestamp))
                     self.log.info(message)
                 time.sleep(1)
 

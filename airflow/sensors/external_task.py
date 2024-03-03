@@ -23,28 +23,27 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 import attr
-from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.external_task import TaskStateTrigger
+from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
+from airflow.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
 
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -57,10 +56,25 @@ class ExternalDagLink(BaseOperatorLink):
 
     name = "External DAG"
 
-    def get_link(self, operator, dttm):
-        ti = TaskInstance(task=operator, execution_date=dttm)
-        operator.render_template_fields(ti.get_template_context())
-        query = {"dag_id": operator.external_dag_id, "execution_date": dttm.isoformat()}
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        ti = TaskInstance.get_task_instance(
+            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
+        )
+
+        if TYPE_CHECKING:
+            assert ti is not None
+
+        template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
+        external_dag_id = (
+            template_fields["external_dag_id"] if template_fields else operator.external_dag_id  # type: ignore[attr-defined]
+        )
+        query = {
+            "dag_id": external_dag_id,
+            "execution_date": ti.execution_date.isoformat(),  # type: ignore[union-attr]
+        }
+
         return build_airflow_url_with_query(query)
 
 
@@ -334,13 +348,14 @@ class ExternalTaskSensor(BaseSensorOperator):
             super().execute(context)
         else:
             self.defer(
-                trigger=TaskStateTrigger(
-                    dag_id=self.external_dag_id,
-                    task_id=self.external_task_id,
+                timeout=self.execution_timeout,
+                trigger=WorkflowTrigger(
+                    external_dag_id=self.external_dag_id,
+                    external_task_ids=self.external_task_ids,
                     execution_dates=self._get_dttm_filter(context),
-                    states=self.allowed_states,
-                    trigger_start_time=utcnow(),
-                    poll_interval=self.poll_interval,
+                    allowed_states=self.allowed_states,
+                    poke_interval=self.poll_interval,
+                    soft_fail=self.soft_fail,
                 ),
                 method_name="execute_complete",
             )
@@ -348,15 +363,17 @@ class ExternalTaskSensor(BaseSensorOperator):
     def execute_complete(self, context, event=None):
         """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
-            self.log.info("External task %s has executed successfully.", self.external_task_id)
-            return None
-        elif event["status"] == "timeout":
-            raise AirflowException("Dag was not started within 1 minute, assuming fail.")
+            self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
+        elif event["status"] == "skipped":
+            raise AirflowSkipException("External job has skipped skipping.")
         else:
-            raise AirflowException(
-                "Error occurred while trying to retrieve task status. Please, check the "
-                "name of executed task and Dag."
-            )
+            if self.soft_fail:
+                raise AirflowSkipException("External job has failed skipping.")
+            else:
+                raise AirflowException(
+                    "Error occurred while trying to retrieve task status. Please, check the "
+                    "name of executed task and Dag."
+                )
 
     def _check_for_existence(self, session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
@@ -395,55 +412,25 @@ class ExternalTaskSensor(BaseSensorOperator):
         :param states: task or dag states
         :return: count of record against the filters
         """
-        TI = TaskInstance
-        DR = DagRun
-        if not dttm_filter:
-            return 0
-
-        if self.external_task_ids:
-            count = (
-                self._count_query(TI, session, states, dttm_filter)
-                .filter(TI.task_id.in_(self.external_task_ids))
-                .scalar()
-            ) / len(self.external_task_ids)
-        elif self.external_task_group_id:
-            external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
-            if not external_task_group_task_ids:
-                count = 0
-            else:
-                count = (
-                    self._count_query(TI, session, states, dttm_filter)
-                    .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
-                    .scalar()
-                ) / len(external_task_group_task_ids)
-        else:
-            count = self._count_query(DR, session, states, dttm_filter).scalar()
-        return count
-
-    def _count_query(self, model, session, states, dttm_filter) -> Query:
-        query = session.query(func.count()).filter(
-            model.dag_id == self.external_dag_id,
-            model.state.in_(states),
-            model.execution_date.in_(dttm_filter),
+        warnings.warn(
+            "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
         )
-        return query
+        return _get_count(
+            dttm_filter,
+            self.external_task_ids,
+            self.external_task_group_id,
+            self.external_dag_id,
+            states,
+            session,
+        )
 
     def get_external_task_group_task_ids(self, session, dttm_filter):
-        refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
-        task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
-
-        if task_group:
-            group_tasks = session.query(TaskInstance).filter(
-                TaskInstance.dag_id == self.external_dag_id,
-                TaskInstance.task_id.in_(task.task_id for task in task_group),
-                TaskInstance.execution_date.in_(dttm_filter),
-            )
-
-            return [(t.task_id, t.map_index) for t in group_tasks]
-
-        # returning default task_id as group_id itself, this will avoid any failure in case of
-        # 'check_existence=False' and will fail on timeout
-        return [(self.external_task_group_id, -1)]
+        warnings.warn(
+            "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
+        )
+        return _get_external_task_group_task_ids(
+            dttm_filter, self.external_task_group_id, self.external_dag_id, session
+        )
 
     def _handle_execution_date_fn(self, context) -> Any:
         """

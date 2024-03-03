@@ -45,7 +45,7 @@ class SignError(Exception):
     """Raises when unable to sign a S3 request."""
 
 
-def get_fs(conn_id: str | None) -> AbstractFileSystem:
+def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -> AbstractFileSystem:
     try:
         from s3fs import S3FileSystem
     except ImportError:
@@ -60,6 +60,8 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     endpoint_url = s3_hook.conn_config.get_service_endpoint_url(service_name="s3")
 
     config_kwargs: dict[str, Any] = s3_hook.conn_config.extra_config.get("config_kwargs", {})
+    config_kwargs.update(storage_options or {})
+
     register_events: dict[str, Callable[[Properties], None]] = {}
 
     s3_service_config = s3_hook.service_config

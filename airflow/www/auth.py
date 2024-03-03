@@ -22,7 +22,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import flash, redirect, render_template, request
+from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode
 from flask_appbuilder.const import (
     FLAMSG_ERR_SEC_ACCESS_DENIED,
@@ -81,14 +81,14 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
 
     return _has_access_fab(permissions)
 
 
 def has_access_with_pk(f):
     """
-    This decorator is used to check permissions on views.
+    Check permissions on views.
 
     The implementation is very similar from
     https://github.com/dpgaspar/Flask-AppBuilder/blob/c6fecdc551629e15467fde5d06b4437379d90592/flask_appbuilder/security/decorators.py#L134
@@ -107,20 +107,16 @@ def has_access_with_pk(f):
             _permission_name = self.method_permission_name.get(f.__name__)
             if _permission_name:
                 permission_str = f"{PERMISSION_PREFIX}{_permission_name}"
-        if (
-            get_auth_manager().is_logged_in()
-            and permission_str in self.base_permissions
-            and self.appbuilder.sm.has_access(
-                action_name=permission_str,
-                resource_name=self.class_permission_name,
-                resource_pk=kwargs.get("pk"),
-            )
+        if permission_str in self.base_permissions and self.appbuilder.sm.has_access(
+            action_name=permission_str,
+            resource_name=self.class_permission_name,
+            resource_pk=kwargs.get("pk"),
         ):
             return f(self, *args, **kwargs)
         else:
             log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -176,14 +172,12 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             ),
             403,
         )
+    elif not get_auth_manager().is_logged_in():
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
-    return redirect(get_auth_manager().get_url_login(next=request.url))
-
-
-def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
+    return redirect(url_for("Airflow.index"))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
@@ -351,5 +345,5 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
 
 
 def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
-    """Decorator that checks current user's permissions to access the website."""
+    """Check current user's permissions to access the website."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))

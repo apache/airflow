@@ -76,6 +76,8 @@ class HiveStatsCollectionOperator(BaseOperator):
         metastore_conn_id: str = "metastore_default",
         presto_conn_id: str = "presto_default",
         mysql_conn_id: str = "airflow_db",
+        ds: str = "{{ ds }}",
+        dttm: str = "{{ logical_date.isoformat() }}",
         **kwargs: Any,
     ) -> None:
         if "col_blacklist" in kwargs:
@@ -96,8 +98,8 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.presto_conn_id = presto_conn_id
         self.mysql_conn_id = mysql_conn_id
         self.assignment_func = assignment_func
-        self.ds = "{{ ds }}"
-        self.dttm = "{{ execution_date.isoformat() }}"
+        self.ds = ds
+        self.dttm = dttm
 
     def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
         """Get default expressions."""

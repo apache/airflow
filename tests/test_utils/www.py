@@ -23,7 +23,7 @@ from airflow.models import Log
 
 
 def client_with_login(app, expected_response_code=302, **kwargs):
-    patch_path = "airflow.auth.managers.fab.security_manager.override.check_password_hash"
+    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()
@@ -35,6 +35,13 @@ def client_with_login(app, expected_response_code=302, **kwargs):
 def client_without_login(app):
     # Anonymous users can only view if AUTH_ROLE_PUBLIC is set to non-Public
     app.config["AUTH_ROLE_PUBLIC"] = "Viewer"
+    client = app.test_client()
+    return client
+
+
+def client_without_login_as_admin(app):
+    # Anonymous users as Admin if set AUTH_ROLE_PUBLIC=Admin
+    app.config["AUTH_ROLE_PUBLIC"] = "Admin"
     client = app.test_client()
     return client
 

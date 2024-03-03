@@ -74,8 +74,8 @@ class JdbcHook(DbApiHook):
         self._driver_path = driver_path
         self._driver_class = driver_class
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],

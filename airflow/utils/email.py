@@ -125,7 +125,7 @@ def send_email_smtp(
     :param custom_headers: Dictionary of custom headers to include in the email.
     :param kwargs: Additional keyword arguments.
 
-    >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
+    >>> send_email("test@example.com", "foo", "<b>Foo</b> bar", ["/dev/null"], dryrun=True)
     """
     smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
 

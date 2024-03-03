@@ -319,7 +319,7 @@ class DockerOperator(BaseOperator):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
         self.port_bindings = port_bindings or {}

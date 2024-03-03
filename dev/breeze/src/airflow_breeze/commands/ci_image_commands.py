@@ -29,58 +29,58 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import click
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_image_options import (
     option_additional_airflow_extras,
     option_additional_dev_apt_command,
     option_additional_dev_apt_deps,
     option_additional_dev_apt_env,
     option_additional_pip_install_flags,
     option_additional_python_deps,
-    option_airflow_constraints_location,
-    option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
-    option_answer,
     option_build_progress,
-    option_build_timeout_minutes,
-    option_builder,
-    option_commit_sha,
     option_debian_version,
-    option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
-    option_docker_host,
-    option_dry_run,
-    option_eager_upgrade_additional_requirements,
-    option_github_repository,
-    option_github_token,
-    option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
     option_image_tag_for_verifying,
-    option_include_success_outputs,
-    option_install_providers_from_sources,
-    option_parallelism,
+    option_install_mysql_client_type,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
     option_push,
-    option_python,
     option_python_image,
+    option_tag_as_latest,
+    option_verify,
+    option_wait_for_image,
+)
+from airflow_breeze.commands.common_options import (
+    option_answer,
+    option_builder,
+    option_commit_sha,
+    option_debug_resources,
+    option_docker_host,
+    option_dry_run,
+    option_github_repository,
+    option_github_token,
+    option_image_name,
+    option_include_success_outputs,
+    option_parallelism,
+    option_python,
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
-    option_tag_as_latest,
-    option_upgrade_on_failure,
-    option_upgrade_to_newer_dependencies,
+    option_use_uv,
     option_verbose,
-    option_verify,
-    option_version_suffix_for_pypi_ci,
-    option_wait_for_image,
 )
+from airflow_breeze.commands.common_package_installation_options import (
+    option_airflow_constraints_location,
+    option_airflow_constraints_mode_ci,
+)
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docker_command_utils import (
@@ -103,6 +103,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
@@ -235,6 +236,50 @@ def get_exitcode(status: int) -> int:
         return 1
 
 
+option_build_timeout_minutes = click.option(
+    "--build-timeout-minutes",
+    required=False,
+    type=int,
+    envvar="BUILD_TIMEOUT_MINUTES",
+    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
+)
+
+option_eager_upgrade_additional_requirements = click.option(
+    "--eager-upgrade-additional-requirements",
+    required=False,
+    type=str,
+    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
+    "(see `breeze ci find-backtracking-candidates`).",
+)
+
+option_upgrade_to_newer_dependencies = click.option(
+    "-u",
+    "--upgrade-to-newer-dependencies",
+    is_flag=True,
+    help="When set, upgrade all PIP packages to latest.",
+    envvar="UPGRADE_TO_NEWER_DEPENDENCIES",
+)
+
+option_upgrade_on_failure = click.option(
+    "--upgrade-on-failure/--no-upgrade-on-failure",
+    is_flag=True,
+    help="When set, attempt to run upgrade to newer dependencies when regular build fails. It is set to False"
+    " by default on CI and True by default locally.",
+    envvar="UPGRADE_ON_FAILURE",
+    show_default=True,
+    default=not os.environ.get("CI", "") if not generating_command_images() else True,
+)
+
+option_version_suffix_for_pypi_ci = click.option(
+    "--version-suffix-for-pypi",
+    help="Version suffix used for PyPI packages (alpha, beta, rc1, etc.).",
+    default="dev0",
+    show_default=True,
+    envvar="VERSION_SUFFIX_FOR_PYPI",
+)
+
+
 @ci_image.command(name="build")
 @option_additional_airflow_extras
 @option_additional_dev_apt_command
@@ -260,9 +305,9 @@ def get_exitcode(status: int) -> int:
 @option_eager_upgrade_additional_requirements
 @option_github_repository
 @option_github_token
+@option_install_mysql_client_type
 @option_image_tag_for_building
 @option_include_success_outputs
-@option_install_providers_from_sources
 @option_parallelism
 @option_platform_multiple
 @option_prepare_buildx_cache
@@ -275,6 +320,7 @@ def get_exitcode(status: int) -> int:
 @option_tag_as_latest
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
+@option_use_uv
 @option_verbose
 @option_version_suffix_for_pypi_ci
 def build(
@@ -302,7 +348,7 @@ def build(
     github_token: str | None,
     image_tag: str,
     include_success_outputs,
-    install_providers_from_sources: bool,
+    install_mysql_client_type: str,
     parallelism: int,
     platform: str | None,
     prepare_buildx_cache: bool,
@@ -315,6 +361,7 @@ def build(
     tag_as_latest: bool,
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
+    use_uv: bool,
     version_suffix_for_pypi: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -373,7 +420,7 @@ def build(
         github_repository=github_repository,
         github_token=github_token,
         image_tag=image_tag,
-        install_providers_from_sources=install_providers_from_sources,
+        install_mysql_client_type=install_mysql_client_type,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
         python=python,
@@ -381,6 +428,7 @@ def build(
         tag_as_latest=tag_as_latest,
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        use_uv=use_uv,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -575,7 +623,7 @@ def verify(
     )
     if (pull or image_name) and run_in_parallel:
         get_console().print(
-            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. " "Exiting[/]"
+            "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
         )
         sys.exit(1)
     if run_in_parallel:
@@ -669,7 +717,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
                     get_console().print(
                         f"[info]Please rebase your code to latest {build_ci_params.airflow_branch} "
                         "before continuing.[/]\nCheck this link to find out how "
-                        "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#id15\n"
+                        "https://github.com/apache/airflow/blob/main/contributing-docs/11_working_with_git.rst\n"
                     )
                     get_console().print("[error]Exiting the process[/]\n")
                     sys.exit(1)
@@ -758,7 +806,7 @@ def run_build_ci_image(
             if ci_image_params.upgrade_on_failure:
                 ci_image_params.upgrade_to_newer_dependencies = True
                 get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                    "[warning]Attempting to build with --upgrade-to-newer-dependencies on failure"
                 )
                 build_command_result = run_command(
                     prepare_docker_build_command(
@@ -811,6 +859,9 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
         upgrade_to_newer_dependencies=False,
         warn_image_upgrade_needed=command_params.warn_image_upgrade_needed,
+        # upgrade on failure is disabled on CI but enabled locally, to make sure we are not
+        # accidentally upgrading dependencies on CI
+        upgrade_on_failure=not os.environ.get("CI", ""),
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

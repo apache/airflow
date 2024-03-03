@@ -28,6 +28,7 @@
     Home <self>
     Changelog <changelog>
     Security <security>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
@@ -36,6 +37,7 @@
 
     Transferring a file <transfer>
     Operators <operators>
+    Object Storage XCom Backend <xcom_backend>
 
 .. toctree::
     :hidden:
@@ -71,26 +73,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-common-io
+apache-airflow-providers-common-io package
 ------------------------------------------------------
 
 ``Common IO Provider``
 
 
-Release: 1.1.0
+Release: 1.3.0
 
 Provider package
 ----------------
 
-This is a provider package for ``common.io`` provider. All classes for this provider package
-are in ``airflow.providers.common.io`` python package.
+This package is for the ``common.io`` provider.
+All classes for this package are included in the ``airflow.providers.common.io`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-common-io``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-common-io``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -102,3 +104,31 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.8.0``
 ==================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-io[openlineage]
+
+
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-common-io 1.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-io-1.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-io 1.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_io-1.3.0-py3-none-any.whl.sha512>`__)

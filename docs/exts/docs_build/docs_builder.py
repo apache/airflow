@@ -26,13 +26,11 @@ from subprocess import run
 from rich.console import Console
 
 from .code_utils import (
-    AIRFLOW_SITE_DIR,
     ALL_PROVIDER_YAMLS,
     ALL_PROVIDER_YAMLS_WITH_SUSPENDED,
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
-    pretty_format_path,
 )
 from .errors import DocBuildError, parse_sphinx_warnings
 from .helm_chart_utils import chart_version
@@ -106,13 +104,6 @@ class AirflowDocsBuilder:
         return Exception(f"Unsupported package: {self.package_name}")
 
     @property
-    def _publish_dir(self) -> str:
-        if self.is_versioned:
-            return f"docs-archive/{self.package_name}/{self._current_version}"
-        else:
-            return f"docs-archive/{self.package_name}"
-
-    @property
     def _src_dir(self) -> str:
         return f"{DOCS_DIR}/{self.package_name}"
 
@@ -125,7 +116,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> list[SpellingError]:
+    def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
         """
         Checks spelling
 
@@ -133,6 +124,7 @@ class AirflowDocsBuilder:
         :return: list of errors
         """
         spelling_errors = []
+        build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
         shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
         os.makedirs(self.log_spelling_output_dir, exist_ok=True)
@@ -182,12 +174,17 @@ class AirflowDocsBuilder:
                     ),
                 )
             )
-            warning_text = ""
+            spelling_warning_text = ""
             for filepath in glob(f"{self.log_spelling_output_dir}/**/*.spelling", recursive=True):
                 with open(filepath) as spelling_file:
-                    warning_text += spelling_file.read()
-
-            spelling_errors.extend(parse_spelling_warnings(warning_text, self._src_dir))
+                    spelling_warning_text += spelling_file.read()
+            spelling_errors.extend(parse_spelling_warnings(spelling_warning_text, self._src_dir))
+            if os.path.isfile(self.log_spelling_filename):
+                with open(self.log_spelling_filename) as warning_file:
+                    warning_text = warning_file.read()
+                # Remove 7-bit C1 ANSI escape sequences
+                warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
+                build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
             console.print(f"[info]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]")
         else:
             if spelling_errors:
@@ -198,7 +195,7 @@ class AirflowDocsBuilder:
                 console.print(
                     f"[info]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
                 )
-        return spelling_errors
+        return spelling_errors, build_errors
 
     def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
         """
@@ -265,31 +262,6 @@ class AirflowDocsBuilder:
         else:
             console.print(f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
         return build_errors
-
-    def publish(self, override_versioned: bool):
-        """Copy documentation packages files to airflow-site repository."""
-        console.print(f"Publishing docs for {self.package_name}")
-        output_dir = os.path.join(AIRFLOW_SITE_DIR, self._publish_dir)
-        pretty_source = pretty_format_path(self._build_dir, os.getcwd())
-        pretty_target = pretty_format_path(output_dir, AIRFLOW_SITE_DIR)
-        console.print(f"Copy directory: {pretty_source} => {pretty_target}")
-        if os.path.exists(output_dir):
-            if self.is_versioned:
-                if override_versioned:
-                    console.print(f"Overriding previously existing {output_dir}! ")
-                else:
-                    console.print(
-                        f"Skipping previously existing {output_dir}! "
-                        f"Delete it manually if you want to regenerate it!"
-                    )
-                    console.print()
-                    return
-            shutil.rmtree(output_dir)
-        shutil.copytree(self._build_dir, output_dir)
-        if self.is_versioned:
-            with open(os.path.join(output_dir, "..", "stable.txt"), "w") as stable_file:
-                stable_file.write(self._current_version)
-        console.print()
 
 
 def get_available_providers_packages(include_suspended: bool = False):

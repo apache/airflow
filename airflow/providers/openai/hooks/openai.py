@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
-import openai
+from openai import OpenAI
 
 from airflow.hooks.base import BaseHook
 
@@ -41,37 +42,40 @@ class OpenAIHook(BaseHook):
     def __init__(self, conn_id: str = default_conn_name, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
-        openai.api_key = self._get_api_key()
-        api_base = self._get_api_base()
-        if api_base:
-            openai.api_base = api_base
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "port", "login", "extra"],
+            "hidden_fields": ["schema", "port", "login"],
             "relabeling": {"password": "API Key"},
             "placeholders": {},
         }
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            openai.Model.list()
+            self.conn.models.list()
             return True, "Connection established!"
         except Exception as e:
             return False, str(e)
 
-    def _get_api_key(self) -> str:
-        """Get the OpenAI API key from the connection."""
-        conn = self.get_connection(self.conn_id)
-        if not conn.password:
-            raise ValueError("OpenAI API key not found in connection")
-        return str(conn.password)
+    @cached_property
+    def conn(self) -> OpenAI:
+        """Return an OpenAI connection object."""
+        return self.get_conn()
 
-    def _get_api_base(self) -> None | str:
+    def get_conn(self) -> OpenAI:
+        """Return an OpenAI connection object."""
         conn = self.get_connection(self.conn_id)
-        return conn.host
+        extras = conn.extra_dejson
+        openai_client_kwargs = extras.get("openai_client_kwargs", {})
+        api_key = openai_client_kwargs.pop("api_key", None) or conn.password
+        base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
+        return OpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            **openai_client_kwargs,
+        )
 
     def create_embeddings(
         self,
@@ -84,6 +88,6 @@ class OpenAIHook(BaseHook):
         :param text: The text to generate embeddings for.
         :param model: The model to use for generating embeddings.
         """
-        response = openai.Embedding.create(model=model, input=text, **kwargs)
-        embeddings: list[float] = response["data"][0]["embedding"]
+        response = self.conn.embeddings.create(model=model, input=text, **kwargs)
+        embeddings: list[float] = response.data[0].embedding
         return embeddings

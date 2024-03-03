@@ -27,6 +27,7 @@ import {
   TabPanels,
   Tab,
   Text,
+  Button,
 } from "@chakra-ui/react";
 import { useSearchParams } from "react-router-dom";
 
@@ -40,6 +41,8 @@ import {
   MdCode,
   MdOutlineViewTimeline,
   MdSyncAlt,
+  MdHourglassBottom,
+  MdPlagiarism,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -47,7 +50,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Header from "./Header";
 import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
-import DagContent from "./Dag";
+import DagContent from "./dag/Dag";
 import Graph from "./graph";
 import Gantt from "./gantt";
 import DagCode from "./dagCode";
@@ -60,6 +63,9 @@ import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
+import TaskDetails from "./task";
+import AuditLog from "./AuditLog";
+import RunDuration from "./dag/RunDuration";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -79,11 +85,14 @@ const tabToIndex = (tab?: string) => {
       return 2;
     case "code":
       return 3;
+    case "audit_log":
+      return 4;
     case "logs":
     case "mapped_tasks":
-      return 4;
-    case "xcom":
+    case "run_duration":
       return 5;
+    case "xcom":
+      return 6;
     case "details":
     default:
       return 0;
@@ -92,11 +101,20 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
+  runId: string | null,
   taskId: string | null,
-  isTaskInstance: boolean,
+  isGroup: boolean,
   isMappedTaskSummary: boolean
 ) => {
+  const isTaskInstance = !!(
+    taskId &&
+    runId &&
+    !isGroup &&
+    !isMappedTaskSummary
+  );
   switch (index) {
+    case 0:
+      return "details";
     case 1:
       return "graph";
     case 2:
@@ -104,13 +122,15 @@ const indexToTab = (
     case 3:
       return "code";
     case 4:
+      return "audit_log";
+    case 5:
       if (isMappedTaskSummary) return "mapped_tasks";
       if (isTaskInstance) return "logs";
+      if (!runId && !taskId) return "run_duration";
       return undefined;
-    case 5:
+    case 6:
       if (isTaskInstance) return "xcom";
       return undefined;
-    case 0:
     default:
       return undefined;
   }
@@ -147,12 +167,15 @@ const Details = ({
     isMapped &&
     mapIndex === undefined
   );
+
   const isTaskInstance = !!(
     taskId &&
     runId &&
     !isGroup &&
     !isMappedTaskSummary
   );
+
+  const showTaskDetails = !!taskId && !runId;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -163,24 +186,34 @@ const Details = ({
       const params = new URLSearchParamsWrapper(searchParams);
       const newTab = indexToTab(
         index,
+        runId,
         taskId,
-        isTaskInstance,
+        isGroup,
         isMappedTaskSummary
       );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, isTaskInstance, isMappedTaskSummary, taskId]
+    [setSearchParams, searchParams, runId, taskId, isGroup, isMappedTaskSummary]
   );
 
   useEffect(() => {
-    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
-    const tabCount = runId && taskId && !isGroup ? 5 : 4;
-    if (tabCount === 4 && tabIndex > 3) {
-      onChangeTab(1);
-    }
-  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
+    // Change to graph or task duration tab if the tab is no longer defined
+    if (
+      indexToTab(tabIndex, runId, taskId, isGroup, isMappedTaskSummary) ===
+      undefined
+    )
+      onChangeTab(showTaskDetails ? 0 : 1);
+  }, [
+    tabIndex,
+    runId,
+    taskId,
+    isGroup,
+    isMappedTaskSummary,
+    showTaskDetails,
+    onChangeTab,
+  ]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -197,7 +230,7 @@ const Details = ({
       : group?.instances.find((ti) => ti.runId === runId);
 
   return (
-    <Flex flexDirection="column" pl={3} height="100%">
+    <Flex flexDirection="column" height="100%">
       <Flex
         alignItems="center"
         justifyContent="space-between"
@@ -227,7 +260,11 @@ const Details = ({
               <MarkInstanceAs
                 taskId={taskId}
                 runId={runId}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
                 isGroup={isGroup}
                 isMapped={isMapped}
                 mapIndex={mapIndex}
@@ -272,6 +309,20 @@ const Details = ({
               Code
             </Text>
           </Tab>
+          <Tab>
+            <MdPlagiarism size={16} />
+            <Text as="strong" ml={1}>
+              Audit Log
+            </Text>
+          </Tab>
+          {isDag && (
+            <Tab>
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Run Duration
+              </Text>
+            </Tab>
+          )}
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -296,12 +347,35 @@ const Details = ({
               </Text>
             </Tab>
           )}
+          {/* Match the styling of a tab but its actually a button */}
+          {!!taskId && !!runId && (
+            <Button
+              variant="unstyled"
+              display="flex"
+              alignItems="center"
+              fontSize="lg"
+              py={3}
+              // need to split pl and pr instead of px
+              pl={4}
+              pr={4}
+              mt="4px"
+              onClick={() => {
+                onChangeTab(0);
+                onSelect({ taskId });
+              }}
+            >
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Task Duration
+              </Text>
+            </Button>
+          )}
         </TabList>
         <TabPanels height="100%">
           <TabPanel height="100%">
             {isDag && <DagContent />}
             {isDagRun && <DagRunContent runId={runId} />}
-            {isTaskInstance && (
+            {!!runId && !!taskId && (
               <>
                 <BackToTaskSummary
                   isMapIndexDefined={mapIndex !== undefined && mapIndex > -1}
@@ -314,6 +388,7 @@ const Details = ({
                 />
               </>
             )}
+            {showTaskDetails && <TaskDetails />}
           </TabPanel>
           <TabPanel p={0} height="100%">
             <Graph
@@ -332,6 +407,17 @@ const Details = ({
           <TabPanel height="100%">
             <DagCode />
           </TabPanel>
+          <TabPanel height="100%">
+            <AuditLog
+              taskId={isGroup || !taskId ? undefined : taskId}
+              run={run}
+            />
+          </TabPanel>
+          {isDag && (
+            <TabPanel height="100%">
+              <RunDuration />
+            </TabPanel>
+          )}
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
@@ -348,7 +434,11 @@ const Details = ({
                 mapIndex={mapIndex}
                 executionDate={run?.executionDate}
                 tryNumber={instance?.tryNumber}
-                state={instance?.state}
+                state={
+                  !instance?.state || instance?.state === "none"
+                    ? undefined
+                    : instance.state
+                }
               />
             </TabPanel>
           )}

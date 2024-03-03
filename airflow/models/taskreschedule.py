@@ -21,12 +21,12 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, select, text
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -38,9 +38,10 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
-class TaskReschedule(Base):
+class TaskReschedule(TaskInstanceDependencies):
     """TaskReschedule tracks rescheduled task instances."""
 
     __tablename__ = "task_reschedule"
@@ -103,7 +104,7 @@ class TaskReschedule(Base):
     @classmethod
     def stmt_for_task_instance(
         cls,
-        ti: TaskInstance,
+        ti: TaskInstance | TaskInstancePydantic,
         *,
         try_number: int | None = None,
         descending: bool = False,
@@ -194,15 +195,3 @@ class TaskReschedule(Base):
         return session.scalars(
             TaskReschedule.stmt_for_task_instance(ti=task_instance, try_number=try_number, descending=False)
         ).all()
-
-
-@event.listens_for(TaskReschedule.__table__, "before_create")
-def add_ondelete_for_mssql(table, conn, **kw):
-    if conn.dialect.name != "mssql":
-        return
-
-    for constraint in table.constraints:
-        if constraint.name != "task_reschedule_dr_fkey":
-            continue
-        constraint.ondelete = "NO ACTION"
-        return

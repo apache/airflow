@@ -73,39 +73,39 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apache-hive
+apache-airflow-providers-apache-hive package
 ------------------------------------------------------
 
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 6.2.0
+Release: 7.0.0
 
 Provider package
 ----------------
 
-This is a provider package for ``apache.hive`` provider. All classes for this provider package
-are in ``airflow.providers.apache.hive`` python package.
+This package is for the ``apache.hive`` provider.
+All classes for this package are included in the ``airflow.providers.apache.hive`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apache-hive``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apache-hive``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.5.0``
+``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``hmsclient``                            ``>=0.1.0``
-``pandas``                               ``>=0.17.1``
+``pandas``                               ``>=1.2.5``
 ``pyhive[hive_pure_sasl]``               ``>=0.7.0``
 ``thrift``                               ``>=0.9.2``
 =======================================  ==================
@@ -141,5 +141,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 6.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 6.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-hive 7.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-7.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-7.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-7.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 7.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-7.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-7.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-7.0.0-py3-none-any.whl.sha512>`__)

@@ -52,7 +52,12 @@ class WebHDFSHook(BaseHook):
     :param proxy_user: The user used to authenticate.
     """
 
-    def __init__(self, webhdfs_conn_id: str = "webhdfs_default", proxy_user: str | None = None):
+    conn_type = "webhdfs"
+    conn_name_attr = "webhdfs_conn_id"
+    default_conn_name = "webhdfs_default"
+    hook_name = "Apache WebHDFS"
+
+    def __init__(self, webhdfs_conn_id: str = default_conn_name, proxy_user: str | None = None):
         super().__init__()
         self.webhdfs_conn_id = webhdfs_conn_id
         self.proxy_user = proxy_user

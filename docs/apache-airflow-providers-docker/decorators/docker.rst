@@ -130,12 +130,6 @@ cap_add
     Include container capabilities
 extra_hosts
     Additional hostnames to resolve inside the container, as a mapping of hostname to IP address.
-retrieve_output
-    Should this docker image consistently attempt to pull from and output
-    file before manually shutting down the image. Useful for cases where users want a pickle serialized
-    output that is not posted to logs
-retrieve_output_path
-    path for output file that will be retrieved and passed to xcom
 timeout
     Default timeout for API calls, in seconds.
 device_requests

@@ -180,9 +180,8 @@ __deprecated_classes = {
         "DataprocDeleteClusterOperator": (
             "airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator"
         ),
-        "DataprocInstantiateInlineWorkflowTemplateOperator":
-            "airflow.providers.google.cloud.operators.dataproc."
-            "DataprocInstantiateInlineWorkflowTemplateOperator",
+        "DataprocInstantiateInlineWorkflowTemplateOperator": "airflow.providers.google.cloud.operators.dataproc."
+        "DataprocInstantiateInlineWorkflowTemplateOperator",
         "DataprocInstantiateWorkflowTemplateOperator": (
             "airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator"
         ),
@@ -240,9 +239,8 @@ __deprecated_classes = {
         "DataProcSparkSqlOperator": (
             "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator"
         ),
-        "DataprocWorkflowTemplateInstantiateInlineOperator":
-            "airflow.providers.google.cloud.operators.dataproc."
-            "DataprocInstantiateInlineWorkflowTemplateOperator",
+        "DataprocWorkflowTemplateInstantiateInlineOperator": "airflow.providers.google.cloud.operators.dataproc."
+        "DataprocInstantiateInlineWorkflowTemplateOperator",
         "DataprocWorkflowTemplateInstantiateOperator": (
             "airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator"
         ),
@@ -351,9 +349,8 @@ __deprecated_classes = {
         "ComputeEngineCopyInstanceTemplateOperator": (
             "airflow.providers.google.cloud.operators.compute.ComputeEngineCopyInstanceTemplateOperator"
         ),
-        "ComputeEngineInstanceGroupUpdateManagerTemplateOperator":
-            "airflow.providers.google.cloud.operators.compute."
-            "ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
+        "ComputeEngineInstanceGroupUpdateManagerTemplateOperator": "airflow.providers.google.cloud.operators.compute."
+        "ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
         "ComputeEngineSetMachineTypeOperator": (
             "airflow.providers.google.cloud.operators.compute.ComputeEngineSetMachineTypeOperator"
         ),
@@ -364,9 +361,8 @@ __deprecated_classes = {
             "airflow.providers.google.cloud.operators.compute.ComputeEngineStopInstanceOperator"
         ),
         "GceBaseOperator": "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
-        "GceInstanceGroupManagerUpdateTemplateOperator":
-            "airflow.providers.google.cloud.operators.compute."
-            "ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
+        "GceInstanceGroupManagerUpdateTemplateOperator": "airflow.providers.google.cloud.operators.compute."
+        "ComputeEngineInstanceGroupUpdateManagerTemplateOperator",
         "GceInstanceStartOperator": (
             "airflow.providers.google.cloud.operators.compute.ComputeEngineStartInstanceOperator"
         ),
@@ -513,30 +509,22 @@ __deprecated_classes = {
         ),
     },
     "gcp_natural_language_operator": {
-        "CloudNaturalLanguageAnalyzeEntitiesOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeEntitiesOperator",
-        "CloudNaturalLanguageAnalyzeEntitySentimentOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeEntitySentimentOperator",
-        "CloudNaturalLanguageAnalyzeSentimentOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeSentimentOperator",
-        "CloudNaturalLanguageClassifyTextOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageClassifyTextOperator",
-        "CloudLanguageAnalyzeEntitiesOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeEntitiesOperator",
-        "CloudLanguageAnalyzeEntitySentimentOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeEntitySentimentOperator",
-        "CloudLanguageAnalyzeSentimentOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageAnalyzeSentimentOperator",
-        "CloudLanguageClassifyTextOperator":
-            "airflow.providers.google.cloud.operators.natural_language."
-            "CloudNaturalLanguageClassifyTextOperator",
+        "CloudNaturalLanguageAnalyzeEntitiesOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeEntitiesOperator",
+        "CloudNaturalLanguageAnalyzeEntitySentimentOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeEntitySentimentOperator",
+        "CloudNaturalLanguageAnalyzeSentimentOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeSentimentOperator",
+        "CloudNaturalLanguageClassifyTextOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageClassifyTextOperator",
+        "CloudLanguageAnalyzeEntitiesOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeEntitiesOperator",
+        "CloudLanguageAnalyzeEntitySentimentOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeEntitySentimentOperator",
+        "CloudLanguageAnalyzeSentimentOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageAnalyzeSentimentOperator",
+        "CloudLanguageClassifyTextOperator": "airflow.providers.google.cloud.operators.natural_language."
+        "CloudNaturalLanguageClassifyTextOperator",
     },
     "gcp_spanner_operator": {
         "SpannerDeleteDatabaseInstanceOperator": (
@@ -692,66 +680,46 @@ __deprecated_classes = {
         ),
     },
     "gcp_transfer_operator": {
-        "CloudDataTransferServiceCancelOperationOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceCancelOperationOperator",
-        "CloudDataTransferServiceCreateJobOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceCreateJobOperator",
-        "CloudDataTransferServiceDeleteJobOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceDeleteJobOperator",
-        "CloudDataTransferServiceGCSToGCSOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceGCSToGCSOperator",
-        "CloudDataTransferServiceGetOperationOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceGetOperationOperator",
-        "CloudDataTransferServiceListOperationsOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceListOperationsOperator",
-        "CloudDataTransferServicePauseOperationOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServicePauseOperationOperator",
-        "CloudDataTransferServiceResumeOperationOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceResumeOperationOperator",
-        "CloudDataTransferServiceS3ToGCSOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceS3ToGCSOperator",
-        "CloudDataTransferServiceUpdateJobOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceUpdateJobOperator",
-        "GcpTransferServiceJobCreateOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceCreateJobOperator",
-        "GcpTransferServiceJobDeleteOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceDeleteJobOperator",
-        "GcpTransferServiceJobUpdateOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceUpdateJobOperator",
-        "GcpTransferServiceOperationCancelOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceCancelOperationOperator",
-        "GcpTransferServiceOperationGetOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceGetOperationOperator",
-        "GcpTransferServiceOperationPauseOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServicePauseOperationOperator",
-        "GcpTransferServiceOperationResumeOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceResumeOperationOperator",
-        "GcpTransferServiceOperationsListOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceListOperationsOperator",
-        "GoogleCloudStorageToGoogleCloudStorageTransferOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceGCSToGCSOperator",
-        "S3ToGoogleCloudStorageTransferOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceS3ToGCSOperator",
+        "CloudDataTransferServiceCancelOperationOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceCancelOperationOperator",
+        "CloudDataTransferServiceCreateJobOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceCreateJobOperator",
+        "CloudDataTransferServiceDeleteJobOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceDeleteJobOperator",
+        "CloudDataTransferServiceGCSToGCSOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGCSToGCSOperator",
+        "CloudDataTransferServiceGetOperationOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGetOperationOperator",
+        "CloudDataTransferServiceListOperationsOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceListOperationsOperator",
+        "CloudDataTransferServicePauseOperationOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServicePauseOperationOperator",
+        "CloudDataTransferServiceResumeOperationOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceResumeOperationOperator",
+        "CloudDataTransferServiceS3ToGCSOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceS3ToGCSOperator",
+        "CloudDataTransferServiceUpdateJobOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceUpdateJobOperator",
+        "GcpTransferServiceJobCreateOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceCreateJobOperator",
+        "GcpTransferServiceJobDeleteOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceDeleteJobOperator",
+        "GcpTransferServiceJobUpdateOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceUpdateJobOperator",
+        "GcpTransferServiceOperationCancelOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceCancelOperationOperator",
+        "GcpTransferServiceOperationGetOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGetOperationOperator",
+        "GcpTransferServiceOperationPauseOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServicePauseOperationOperator",
+        "GcpTransferServiceOperationResumeOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceResumeOperationOperator",
+        "GcpTransferServiceOperationsListOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceListOperationsOperator",
+        "GoogleCloudStorageToGoogleCloudStorageTransferOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceGCSToGCSOperator",
+        "S3ToGoogleCloudStorageTransferOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceS3ToGCSOperator",
     },
     "gcp_translate_operator": {
         "CloudTranslateTextOperator": (
@@ -767,15 +735,12 @@ __deprecated_classes = {
         ),
     },
     "gcp_video_intelligence_operator": {
-        "CloudVideoIntelligenceDetectVideoExplicitContentOperator":
-            "airflow.providers.google.cloud.operators.video_intelligence."
-            "CloudVideoIntelligenceDetectVideoExplicitContentOperator",
-        "CloudVideoIntelligenceDetectVideoLabelsOperator":
-            "airflow.providers.google.cloud.operators.video_intelligence."
-            "CloudVideoIntelligenceDetectVideoLabelsOperator",
-        "CloudVideoIntelligenceDetectVideoShotsOperator":
-            "airflow.providers.google.cloud.operators.video_intelligence."
-            "CloudVideoIntelligenceDetectVideoShotsOperator",
+        "CloudVideoIntelligenceDetectVideoExplicitContentOperator": "airflow.providers.google.cloud.operators.video_intelligence."
+        "CloudVideoIntelligenceDetectVideoExplicitContentOperator",
+        "CloudVideoIntelligenceDetectVideoLabelsOperator": "airflow.providers.google.cloud.operators.video_intelligence."
+        "CloudVideoIntelligenceDetectVideoLabelsOperator",
+        "CloudVideoIntelligenceDetectVideoShotsOperator": "airflow.providers.google.cloud.operators.video_intelligence."
+        "CloudVideoIntelligenceDetectVideoShotsOperator",
     },
     "gcp_vision_operator": {
         "CloudVisionAddProductToProductSetOperator": (
@@ -945,9 +910,7 @@ __deprecated_classes = {
         "JiraOperator": "airflow.providers.atlassian.jira.operators.jira.JiraOperator",
     },
     "kubernetes_pod_operator": {
-        "KubernetesPodOperator": (
-            "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator"
-        ),
+        "KubernetesPodOperator": ("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator"),
     },
     "mlengine_operator": {
         "MLEngineManageModelOperator": (
@@ -997,9 +960,8 @@ __deprecated_classes = {
         "OpsgenieAlertOperator": "airflow.providers.opsgenie.operators.opsgenie.OpsgenieCreateAlertOperator",
     },
     "oracle_to_azure_data_lake_transfer": {
-        "OracleToAzureDataLakeOperator":
-            "airflow.providers.microsoft.azure.transfers."
-            "oracle_to_azure_data_lake.OracleToAzureDataLakeOperator",
+        "OracleToAzureDataLakeOperator": "airflow.providers.microsoft.azure.transfers."
+        "oracle_to_azure_data_lake.OracleToAzureDataLakeOperator",
     },
     "oracle_to_oracle_transfer": {
         "OracleToOracleOperator": (
@@ -1056,9 +1018,8 @@ __deprecated_classes = {
         "S3ToGCSOperator": "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator",
     },
     "s3_to_gcs_transfer_operator": {
-        "CloudDataTransferServiceS3ToGCSOperator":
-            "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
-            "CloudDataTransferServiceS3ToGCSOperator",
+        "CloudDataTransferServiceS3ToGCSOperator": "airflow.providers.google.cloud.operators.cloud_storage_transfer_service."
+        "CloudDataTransferServiceS3ToGCSOperator",
     },
     "s3_to_sftp_operator": {
         "S3ToSFTPOperator": "airflow.providers.amazon.aws.transfers.s3_to_sftp.S3ToSFTPOperator",
@@ -1098,9 +1059,6 @@ __deprecated_classes = {
         "BaseSQLToGoogleCloudStorageOperator": (
             "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator"
         ),
-    },
-    "sqoop_operator": {
-        "SqoopOperator": "airflow.providers.apache.sqoop.operators.sqoop.SqoopOperator",
     },
     "ssh_operator": {
         "SSHOperator": "airflow.providers.ssh.operators.ssh.SSHOperator",

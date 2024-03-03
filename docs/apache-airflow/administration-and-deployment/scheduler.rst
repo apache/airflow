@@ -248,8 +248,7 @@ There are several areas of resource usage that you should pay attention to:
   might be a problem for Postgres, where connection handling is process-based. It is a general consensus
   that if you have even medium size Postgres-based Airflow installation, the best solution is to use
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
-  supports PGBouncer out-of-the-box. For MsSQL we have not yet worked out the best practices as support
-  for MsSQL is still experimental.
+  supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
   Python DAG files. Since Schedulers triggers such parsing continuously, when you have a lot of DAGs,
   the processing might take a lot of CPU. You can mitigate it by increasing the

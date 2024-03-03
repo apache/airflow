@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from google.longrunning import operations_pb2
+    from google.longrunning import operations_pb2  # type: ignore[attr-defined]
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 
@@ -81,7 +81,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes class arguments and classpath."""
+        """Serialize class arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.cloud_run.CloudRunJobFinishedTrigger",
             {

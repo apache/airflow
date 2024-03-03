@@ -90,6 +90,7 @@ def process_fd(
     fd,
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
+    check_job_status_callback: Callable[[], bool | None] | None = None,
 ):
     """
     Print output to logs.
@@ -111,6 +112,8 @@ def process_fd(
         if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))
+        if check_job_status_callback and check_job_status_callback():
+            return
 
 
 def run_beam_command(
@@ -118,6 +121,7 @@ def run_beam_command(
     log: logging.Logger,
     process_line_callback: Callable[[str], None] | None = None,
     working_directory: str | None = None,
+    check_job_status_callback: Callable[[], bool | None] | None = None,
 ) -> None:
     """
     Run pipeline command in subprocess.
@@ -149,14 +153,16 @@ def run_beam_command(
             continue
 
         for readable_fd in readable_fds:
-            process_fd(proc, readable_fd, log, process_line_callback)
+            process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
+            if check_job_status_callback and check_job_status_callback():
+                return
 
         if proc.poll() is not None:
             break
 
     # Corner case: check if more output was created between the last read and the process termination
     for readable_fd in reads:
-        process_fd(proc, readable_fd, log, process_line_callback)
+        process_fd(proc, readable_fd, log, process_line_callback, check_job_status_callback)
 
     log.info("Process exited with return code: %s", proc.returncode)
 
@@ -187,6 +193,7 @@ class BeamHook(BaseHook):
         command_prefix: list[str],
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
+        check_job_status_callback: Callable[[], bool | None] | None = None,
     ) -> None:
         cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
@@ -196,6 +203,7 @@ class BeamHook(BaseHook):
             process_line_callback=process_line_callback,
             working_directory=working_directory,
             log=self.log,
+            check_job_status_callback=check_job_status_callback,
         )
 
     def start_python_pipeline(
@@ -207,6 +215,7 @@ class BeamHook(BaseHook):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         process_line_callback: Callable[[str], None] | None = None,
+        check_job_status_callback: Callable[[], bool | None] | None = None,
     ):
         """
         Start Apache Beam python pipeline.
@@ -279,6 +288,7 @@ class BeamHook(BaseHook):
                 variables=variables,
                 command_prefix=command_prefix,
                 process_line_callback=process_line_callback,
+                check_job_status_callback=check_job_status_callback,
             )
 
     def start_java_pipeline(
@@ -497,6 +507,25 @@ class BeamAsyncHook(BeamHook):
                 command_prefix=command_prefix,
             )
             return return_code
+
+    async def start_java_pipeline_async(self, variables: dict, jar: str, job_class: str | None = None):
+        """
+        Start Apache Beam Java pipeline.
+
+        :param variables: Variables passed to the job.
+        :param jar: Name of the jar for the pipeline.
+        :param job_class: Name of the java class for the pipeline.
+        :return: Beam command execution return code.
+        """
+        if "labels" in variables:
+            variables["labels"] = json.dumps(variables["labels"], separators=(",", ":"))
+
+        command_prefix = ["java", "-cp", jar, job_class] if job_class else ["java", "-jar", jar]
+        return_code = await self.start_pipeline_async(
+            variables=variables,
+            command_prefix=command_prefix,
+        )
+        return return_code
 
     async def start_pipeline_async(
         self,

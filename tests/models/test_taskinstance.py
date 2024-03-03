@@ -45,6 +45,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -496,7 +497,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task_
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowTaskTerminated):
             ti.run()
         assert "on_failure_callback called" in caplog.text
 
@@ -519,7 +520,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
-        with pytest.raises(AirflowException):
+        with pytest.raises(AirflowTaskTerminated):
             ti.run()
         ti.refresh_from_db()
         assert ti.state == State.UP_FOR_RETRY
@@ -1611,12 +1612,9 @@ class TestTaskInstance:
         ti.xcom_push(key=key, value=value)
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
-        # The second run and assert is to handle AIRFLOW-131 (don't clear on
-        # prior success)
+        # Check that we do not clear Xcom until the task is certain to execute
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
-
-        # Test AIRFLOW-703: Xcom shouldn't be cleared if the task doesn't
-        # execute, even if dependencies are ignored
+        # Xcom shouldn't be cleared if the task doesn't execute, even if dependencies are ignored
         ti.run(ignore_all_deps=True, mark_success=True)
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         # Xcom IS finally cleared once task has executed
@@ -1697,6 +1695,67 @@ class TestTaskInstance:
         ti.task = task
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
+
+    def test_xcom_without_multiple_outputs(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs without multiple outputs
+        """
+        value = {"key1": "value1", "key2": "value2"}
+        task_id = "test_xcom_push_without_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        ti.run()
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
+
+    def test_xcom_with_multiple_outputs(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs with multiple outputs
+        """
+        value = {"key1": "value1", "key2": "value2"}
+        task_id = "test_xcom_push_with_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+                multiple_outputs=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        ti.run()
+        assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
+        assert ti.xcom_pull(task_ids=task_id, key="key1") == "value1"
+        assert ti.xcom_pull(task_ids=task_id, key="key2") == "value2"
+
+    def test_xcom_with_multiple_outputs_and_no_mapping_result(self, dag_maker):
+        """
+        Tests the option for Operators to push XComs with multiple outputs and no mapping result
+        """
+        value = "value"
+        task_id = "test_xcom_push_with_multiple_outputs"
+
+        with dag_maker(dag_id="test_xcom"):
+            task = PythonOperator(
+                task_id=task_id,
+                python_callable=lambda: value,
+                do_xcom_push=True,
+                multiple_outputs=True,
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+        with pytest.raises(AirflowException) as ctx:
+            ti.run()
+        assert f"Returned output was type {type(value)} expected dictionary for multiple_outputs" in str(
+            ctx.value
+        )
 
     def test_post_execute_hook(self, dag_maker):
         """
@@ -2096,6 +2155,10 @@ class TestTaskInstance:
         assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
             dataset_id=event.dataset.id
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
+            ("conditional_dataset_and_time_based_timetable",),
+            ("consume_1_and_2_with_dataset_expressions",),
+            ("consume_1_or_2_with_dataset_expressions",),
+            ("consume_1_or_both_2_and_3_with_dataset_expressions",),
             ("dataset_consumes_1",),
             ("dataset_consumes_1_and_2",),
             ("dataset_consumes_1_never_scheduled",),
@@ -2924,6 +2987,37 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    @pytest.mark.parametrize(
+        "code, expected_state",
+        [
+            (1, State.FAILED),
+            (-1, State.FAILED),
+            ("error", State.FAILED),
+            (0, State.SUCCESS),
+            (None, State.SUCCESS),
+        ],
+    )
+    def test_handle_system_exit(self, dag_maker, code, expected_state):
+        with dag_maker():
+
+            def f(*args, **kwargs):
+                exit(code)
+
+            task = PythonOperator(task_id="mytask", python_callable=f)
+
+        dr = dag_maker.create_dagrun()
+        ti = TI(task=task, run_id=dr.run_id)
+        ti.state = State.RUNNING
+        session = settings.Session()
+        session.merge(ti)
+        session.commit()
+        try:
+            ti._run_raw_task()
+        except Exception:
+            ...
+        ti.refresh_from_db()
+        assert ti.state == expected_state
+
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
             from airflow.operators.python import get_current_context
@@ -3097,6 +3191,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
+            "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
             "executor_config": {"Some": {"extra": "information"}},
@@ -3172,6 +3267,26 @@ class TestTaskInstance:
             assert session.query(table).count() == 0
 
         assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
+
+    def test_skipped_task_call_on_skipped_callback(self, dag_maker):
+        def raise_skip_exception():
+            raise AirflowSkipException
+
+        callback_function = mock.MagicMock()
+
+        with dag_maker(dag_id="test_skipped_task"):
+            task = PythonOperator(
+                task_id="test_skipped_task",
+                python_callable=raise_skip_exception,
+                on_skipped_callback=callback_function,
+            )
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        ti = dr.task_instances[0]
+        ti.task = task
+        ti.run()
+        assert State.SKIPPED == ti.state
+        assert callback_function.called
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -3954,14 +4069,7 @@ class TestMappedTaskInstanceReceiveValue:
 
 def _get_lazy_xcom_access_expected_sql_lines() -> list[str]:
     backend = os.environ.get("BACKEND")
-    if backend == "mssql":
-        return [
-            "SELECT xcom.value",
-            "FROM xcom",
-            "WHERE xcom.dag_id = 'test_dag' AND xcom.run_id = 'test' "
-            "AND xcom.task_id = 't' AND xcom.map_index = -1 AND xcom.[key] = 'xxx'",
-        ]
-    elif backend == "mysql":
+    if backend == "mysql":
         return [
             "SELECT xcom.value",
             "FROM xcom",

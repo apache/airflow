@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import boto3
 import pytest
-from moto import mock_s3
+from moto import mock_aws
 
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -66,7 +66,7 @@ class TestS3ToSFTPOperator:
         self.sftp_path = SFTP_PATH
         self.s3_key = S3_KEY
 
-    @mock_s3
+    @mock_aws
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_s3_to_sftp_operation(self):
         s3_hook = S3Hook(aws_conn_id=None)

@@ -244,7 +244,7 @@ Zombie/Undead Tasks
 No system runs perfectly, and task instances are expected to die once in a while. Airflow detects two kinds of task/process mismatch:
 
 * *Zombie tasks* are ``TaskInstances`` stuck in a ``running`` state despite their associated jobs being inactive
-  (e.g. their process didn't send a recent heartbeat as it got killed, or the machine died). Airflow will find these
+  (e.g. their process did not send a recent heartbeat as it got killed, or the machine died). Airflow will find these
   periodically, clean them up, and either fail or retry the task depending on its settings.
 
 * *Undead tasks* are tasks that are *not* supposed to be running but are, often caused when you manually edit Task
@@ -273,7 +273,7 @@ The explanation of the criteria used in the above snippet to detect zombie tasks
 
 3. **Job Type**
 
-    The job associated with the task must be of type "LocalTaskJob."
+    The job associated with the task must be of type ``LocalTaskJob``.
 
 4. **Queued by Job ID**
 

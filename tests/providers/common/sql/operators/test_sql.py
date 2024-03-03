@@ -642,6 +642,16 @@ class TestCheckOperator:
             self._operator.execute({})
 
     @mock.patch.object(SQLCheckOperator, "get_db_hook")
+    def test_execute_records_dict_not_all_values_are_true(self, mock_get_db_hook):
+        mock_get_db_hook.return_value.get_first.return_value = {
+            "DUPLICATE_ID_CHECK": False,
+            "NULL_VALUES_CHECK": True,
+        }
+
+        with pytest.raises(AirflowException, match=r"Test failed."):
+            self._operator.execute({})
+
+    @mock.patch.object(SQLCheckOperator, "get_db_hook")
     def test_sqlcheckoperator_parameters(self, mock_get_db_hook):
         self._operator.execute({})
         mock_get_db_hook.return_value.get_first.assert_called_once_with("sql", "parameters")
@@ -891,12 +901,21 @@ class TestThresholdCheckOperator:
             operator.execute(context=MagicMock())
 
     @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
-    def test_pass_min_value_max_sql(self, mock_get_db_hook):
+    @pytest.mark.parametrize(
+        ("sql", "min_threshold", "max_threshold"),
+        (
+            ("Select 75", 45, "Select 100"),
+            # check corner-case if result of query is "falsey" does not raise error
+            ("Select 0", 0, 1),
+            ("Select 1", 0, 1),
+        ),
+    )
+    def test_pass_min_value_max_sql(self, mock_get_db_hook, sql, min_threshold, max_threshold):
         mock_hook = mock.Mock()
         mock_hook.get_first.side_effect = lambda x: (int(x.split()[1]),)
         mock_get_db_hook.return_value = mock_hook
 
-        operator = self._construct_operator("Select 75", 45, "Select 100")
+        operator = self._construct_operator(sql, min_threshold, max_threshold)
 
         operator.execute(context=MagicMock())
 
@@ -909,6 +928,18 @@ class TestThresholdCheckOperator:
         operator = self._construct_operator("Select 155", "Select 45", 100)
 
         with pytest.raises(AirflowException, match="155.*45.*100.0"):
+            operator.execute(context=MagicMock())
+
+    @mock.patch.object(SQLThresholdCheckOperator, "get_db_hook")
+    def test_fail_if_query_returns_no_rows(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = None
+        mock_get_db_hook.return_value = mock_hook
+
+        sql = "Select val from table1 where val = 'val not in table'"
+        operator = self._construct_operator(sql, 20, 100)
+
+        with pytest.raises(AirflowException, match=f"The following query returned zero rows: {sql}"):
             operator.execute(context=MagicMock())
 
 

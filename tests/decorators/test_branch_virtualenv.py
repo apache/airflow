@@ -31,7 +31,10 @@ class Test_BranchPythonVirtualenvDecoratedOperator:
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
     @pytest.mark.execution_timeout(180)
     @pytest.mark.parametrize("branch_task_name", ["task_1", "task_2"])
-    def test_branch_one(self, dag_maker, branch_task_name):
+    def test_branch_one(self, dag_maker, branch_task_name, tmp_path):
+        requirements_file = tmp_path / "requirements.txt"
+        requirements_file.write_text("funcsigs==0.4")
+
         @task
         def dummy_f():
             pass
@@ -57,14 +60,14 @@ class Test_BranchPythonVirtualenvDecoratedOperator:
 
         else:
 
-            @task.branch_virtualenv(task_id="branching", requirements=["funcsigs"])
+            @task.branch_virtualenv(task_id="branching", requirements="requirements.txt")
             def branch_operator():
                 import funcsigs
 
                 print(f"We successfully imported funcsigs version {funcsigs.__version__}")
                 return "task_2"
 
-        with dag_maker():
+        with dag_maker(template_searchpath=tmp_path.as_posix()):
             branchoperator = branch_operator()
             df = dummy_f()
             task_1 = task_1()

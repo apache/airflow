@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformGetWorkflowInvocationOperator,
     DataformInstallNpmPackagesOperator,
     DataformMakeDirectoryOperator,
+    DataformQueryWorkflowInvocationActionsOperator,
     DataformRemoveDirectoryOperator,
     DataformRemoveFileOperator,
     DataformWriteFileOperator,
@@ -182,6 +183,18 @@ with DAG(
     )
     # [END howto_operator_get_workflow_invocation]
 
+    # [START howto_operator_query_workflow_invocation_actions]
+    query_workflow_invocation_actions = DataformQueryWorkflowInvocationActionsOperator(
+        task_id="query-workflow-invocation-actions",
+        project_id=PROJECT_ID,
+        region=REGION,
+        repository_id=REPOSITORY_ID,
+        workflow_invocation_id=(
+            "{{ task_instance.xcom_pull('create-workflow-invocation')['name'].split('/')[-1] }}"
+        ),
+    )
+    # [END howto_operator_query_workflow_invocation_actions]
+
     create_workflow_invocation_for_cancel = DataformCreateWorkflowInvocationOperator(
         task_id="create-workflow-invocation-for-cancel",
         project_id=PROJECT_ID,
@@ -291,6 +304,7 @@ with DAG(
         >> get_compilation_result
         >> create_workflow_invocation
         >> get_workflow_invocation
+        >> query_workflow_invocation_actions
         >> create_workflow_invocation_async
         >> is_workflow_invocation_done
         >> create_workflow_invocation_for_cancel

@@ -164,10 +164,6 @@ class BaseExecutor(LoggingMixin):
         """Queues task instance."""
         pool = pool or task_instance.pool
 
-        # TODO (edgarRd): AIRFLOW-1985:
-        # cfg_path is needed to propagate the config values if using impersonation
-        # (run_as_user), given that there are different code paths running tasks.
-        # For a long term solution we need to address AIRFLOW-1986
         command_list_to_run = task_instance.command_as_list(
             local=True,
             mark_success=mark_success,
@@ -178,6 +174,9 @@ class BaseExecutor(LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id,
+            # cfg_path is needed to propagate the config values if using impersonation
+            # (run_as_user), given that there are different code paths running tasks.
+            # https://github.com/apache/airflow/pull/2991
             cfg_path=cfg_path,
         )
         self.log.debug("created command %s", command_list_to_run)

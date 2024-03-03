@@ -56,6 +56,7 @@ class PriorityWeightStrategy(ABC):
         return {}
 
     def __eq__(self, other: object) -> bool:
+        """Equality comparison."""
         if not isinstance(other, type(self)):
             return False
         return self.serialize() == other.serialize()
@@ -101,7 +102,7 @@ _airflow_priority_weight_strategies = {
 
 
 def _validate_and_load_priority_weight_strategy(
-    priority_weight_strategy: str | PriorityWeightStrategy
+    priority_weight_strategy: str | PriorityWeightStrategy,
 ) -> PriorityWeightStrategy:
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
     from airflow.utils.module_loading import qualname

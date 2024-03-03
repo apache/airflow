@@ -93,8 +93,8 @@ class TestMappedTaskInstanceEndpoint:
         clear_db_sla_miss()
         clear_rendered_ti_fields()
 
-    def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags={}):
-        for dag_id, dag in dags.items():
+    def create_dag_runs_with_mapped_tasks(self, dag_maker, session, dags=None):
+        for dag_id, dag in (dags or {}).items():
             count = dag["success"] + dag["running"]
             with dag_maker(session=session, dag_id=dag_id, start_date=DEFAULT_DATETIME_1):
                 task1 = BaseOperator(task_id="op1")
@@ -234,6 +234,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "queue": "default",
             "queued_when": None,
             "rendered_fields": {},
+            "rendered_map_index": None,
             "sla_miss": None,
             "start_date": "2020-01-01T00:00:00+00:00",
             "state": "success",

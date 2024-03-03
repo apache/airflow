@@ -44,7 +44,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 if TYPE_CHECKING:
@@ -230,7 +230,7 @@ class BatchOperator(BaseOperator):
             region_name=self.region_name,
         )
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> str | None:
         """Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
@@ -238,28 +238,43 @@ class BatchOperator(BaseOperator):
         self.submit_job(context)
 
         if self.deferrable:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BatchJobTrigger(
-                    job_id=self.job_id,
-                    waiter_max_attempts=self.max_retries,
-                    aws_conn_id=self.aws_conn_id,
-                    region_name=self.region_name,
-                    waiter_delay=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.job_id:
+                raise AirflowException("AWS Batch job - job_id was not found")
+
+            job = self.hook.get_job_description(self.job_id)
+            job_status = job.get("status")
+            if job_status == self.hook.SUCCESS_STATE:
+                self.log.info("Job completed.")
+                return self.job_id
+            elif job_status == self.hook.FAILURE_STATE:
+                raise AirflowException(f"Error while running job: {self.job_id} is in {job_status} state")
+            elif job_status in self.hook.INTERMEDIATE_STATES:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BatchJobTrigger(
+                        job_id=self.job_id,
+                        waiter_max_attempts=self.max_retries,
+                        aws_conn_id=self.aws_conn_id,
+                        region_name=self.region_name,
+                        waiter_delay=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+
+            raise AirflowException(f"Unexpected status: {job_status}")
 
         if self.wait_for_completion:
             self.monitor_job(context)
 
         return self.job_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info("Job completed.")
+
+        self.log.info("Job completed.")
         return event["job_id"]
 
     def on_kill(self):
@@ -523,7 +538,9 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.log.info("AWS Batch compute environment created successfully")
         return arn
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
         return event["value"]

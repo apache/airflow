@@ -84,10 +84,13 @@ class PrestoHook(DbApiHook):
     default_conn_name = "presto_default"
     conn_type = "presto"
     hook_name = "Presto"
-    placeholder = "?"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._placeholder: str = "?"
 
     def get_conn(self) -> Connection:
-        """Returns a connection object."""
+        """Return a connection object."""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
@@ -132,7 +135,7 @@ class PrestoHook(DbApiHook):
         return presto_conn
 
     def get_isolation_level(self) -> Any:
-        """Returns an isolation level."""
+        """Return an isolation level."""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
@@ -186,7 +189,7 @@ class PrestoHook(DbApiHook):
         **kwargs,
     ) -> None:
         """
-        A generic way to insert a set of tuples into a table.
+        Insert a set of tuples into a table.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table

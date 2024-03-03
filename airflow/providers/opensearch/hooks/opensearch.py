@@ -102,12 +102,13 @@ class OpenSearchHook(BaseHook):
             return self.client.delete_by_query(index=index_name, body=query)
         elif doc_id is not None:
             return self.client.delete(index=index_name, id=doc_id)
-        else:
-            AirflowException("To delete a document you must include one of either a query or a document id. ")
+        raise AirflowException(
+            "To delete a document you must include one of either a query or a document id."
+        )
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for OpenSearch Connection."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for OpenSearch Connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {

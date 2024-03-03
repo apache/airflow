@@ -23,8 +23,10 @@ from urllib.parse import urlparse
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.amazon.aws.links.athena import AthenaQueryResultsLink
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
@@ -82,6 +84,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
+    operator_extra_links = (AthenaQueryResultsLink(),)
 
     def __init__(
         self,
@@ -132,6 +135,13 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             self.client_request_token,
             self.workgroup,
         )
+        AthenaQueryResultsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            query_execution_id=self.query_execution_id,
+        )
 
         if self.deferrable:
             self.defer(
@@ -170,7 +180,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         return self.query_execution_id
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
         return event["value"]

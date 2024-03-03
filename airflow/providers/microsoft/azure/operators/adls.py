@@ -78,9 +78,9 @@ class ADLSListOperator(BaseOperator):
         folder in the specified ADLS account ::
 
             adls_files = ADLSListOperator(
-                task_id='adls_files',
-                path='folder/output/*.parquet',
-                azure_data_lake_conn_id='azure_data_lake_default'
+                task_id="adls_files",
+                path="folder/output/*.parquet",
+                azure_data_lake_conn_id="azure_data_lake_default",
             )
     """
 

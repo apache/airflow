@@ -71,13 +71,17 @@ def test_get_field_non_prefixed(input, expected):
 
 
 def test_add_managed_identity_connection_widgets():
-    def test_func() -> dict[str, Any]:
-        return {}
+    class FakeHook:
+        @classmethod
+        @add_managed_identity_connection_widgets
+        def test_class_method(cls) -> dict[str, Any]:
+            return {"foo": "bar"}
 
-    widgets = add_managed_identity_connection_widgets(test_func)()
+    widgets = FakeHook.test_class_method()
 
     assert "managed_identity_client_id" in widgets
     assert "workload_identity_tenant_id" in widgets
+    assert widgets["foo"] == "bar"
 
 
 @mock.patch(f"{MODULE}.DefaultAzureCredential")

@@ -15,11 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
+version: "3.8"
 services:
   rabbitmq:
     image: rabbitmq:3.7
+    labels:
+      breeze.description: "Integration required for Celery executor tests."
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - rabbitmq-db-volume:/var/lib/rabbitmq
     healthcheck:
       test: rabbitmq-diagnostics -q ping
@@ -30,7 +32,6 @@ services:
   redis:
     image: redis:5.0.1
     volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - redis-db-volume:/data/redis
     ports:
       - "${REDIS_HOST_PORT}:6379"

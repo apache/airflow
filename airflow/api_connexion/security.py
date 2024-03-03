@@ -70,7 +70,7 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    from airflow.auth.managers.fab.decorators.auth import _requires_access_fab
+    from airflow.providers.fab.auth_manager.decorators.auth import _requires_access_fab
 
     return _requires_access_fab(permissions)
 
@@ -145,10 +145,11 @@ def requires_access_dag(
             # ``access`` means here:
             # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
             # - if no DAG id is provided: is the user authorized to access all DAGs
-            if dag_id or access:
+            if dag_id or access or access_entity:
                 return access
 
-            # No DAG id is provided and the user is not authorized to access all DAGs
+            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
+            # on DAG level
             # If method is "GET", return whether the user has read access to any DAGs
             # If method is "PUT", return whether the user has edit access to any DAGs
             return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
@@ -267,5 +268,5 @@ def requires_access_custom_view(
     return requires_access_decorator
 
 
-def get_readable_dags() -> list[str]:
-    return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+def get_readable_dags() -> set[str]:
+    return get_auth_manager().get_permitted_dag_ids(user=g.user)

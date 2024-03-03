@@ -20,15 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

@@ -65,7 +65,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
 
@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-    TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -166,7 +165,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='running'"),
-            mssql_where=text("state='running'"),
             sqlite_where=text("state='running'"),
         ),
         # since mysql lacks filtered/partial indices, this creates a
@@ -176,7 +174,6 @@ class DagRun(Base, LoggingMixin):
             "state",
             "dag_id",
             postgresql_where=text("state='queued'"),
-            mssql_where=text("state='queued'"),
             sqlite_where=text("state='queued'"),
         ),
     )
@@ -272,11 +269,75 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState) -> None:
+        """Change the state of the DagRan.
+
+        Changes to attributes are implemented in accordance with the following table
+        (rows represent old states, columns represent new states):
+
+        .. list-table:: State transition matrix
+           :header-rows: 1
+           :stub-columns: 1
+
+           * -
+             - QUEUED
+             - RUNNING
+             - SUCCESS
+             - FAILED
+           * - None
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - QUEUED
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - RUNNING
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             -
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - SUCCESS
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+           * - FAILED
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+
+        """
         if state not in State.dag_states:
             raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
+            if state == DagRunState.QUEUED:
+                self.queued_at = timezone.utcnow()
+                self.start_date = None
+                self.end_date = None
+            if state == DagRunState.RUNNING:
+                if self._state in State.finished_dr_states:
+                    self.start_date = timezone.utcnow()
+                else:
+                    self.start_date = self.start_date or timezone.utcnow()
+                self.end_date = None
+            if self._state in State.unfinished_dr_states or self._state is None:
+                if state in State.finished_dr_states:
+                    self.end_date = timezone.utcnow()
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished_dr_states else None
+        else:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
@@ -367,7 +428,7 @@ class DagRun(Base, LoggingMixin):
             query = query.where(DagRun.execution_date <= func.now())
 
         return session.scalars(
-            with_row_locks(query.limit(max_number), of=cls, session=session, **skip_locked(session=session))
+            with_row_locks(query.limit(max_number), of=cls, session=session, skip_locked=True)
         )
 
     @classmethod
@@ -507,7 +568,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
@@ -550,7 +611,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param dag_id: the DAG id
         :param dag_run_id: the DAG run id
@@ -681,9 +742,8 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with Stats.timer(
-            f"dagrun.dependency-check.{self.dag_id}",
-            tags=self.stats_tags,
+        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"), Stats.timer(
+            "dagrun.dependency-check", tags=self.stats_tags
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1043,8 +1103,8 @@ class DagRun(Base, LoggingMixin):
 
         duration = self.end_date - self.start_date
         timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
@@ -1220,7 +1280,7 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: TaskCreator,
+        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
         *,
         session: Session,
     ) -> CreatedTasks:

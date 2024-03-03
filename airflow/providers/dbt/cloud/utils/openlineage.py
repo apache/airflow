@@ -121,7 +121,10 @@ def generate_openlineage_events_from_dbt_cloud_run(
 
         # generate same run id of current task instance
         parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
-            operator.task_id, task_instance.execution_date, task_instance.try_number - 1
+            dag_id=task_instance.dag_id,
+            task_id=operator.task_id,
+            execution_date=task_instance.execution_date,
+            try_number=task_instance.try_number - 1,
         )
 
         parent_job = ParentRunMetadata(

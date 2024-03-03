@@ -84,9 +84,9 @@ Airflow™ installation can be tricky because Airflow is both a library and an a
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
-(in ``setup.cfg`` and ``setup.py``) so users can install different
-version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
-not work or will produce an unusable Airflow installation.
+(in ``pyproject.toml``) so users can install different version of libraries if needed. This means that
+from time to time plain ``pip install apache-airflow`` will not work or will produce an unusable
+Airflow installation.
 
 Reproducible Airflow installation
 =================================

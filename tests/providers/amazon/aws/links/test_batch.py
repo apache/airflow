@@ -57,7 +57,7 @@ class TestBatchJobQueueLink(BaseAwsLinksTestCase):
     def test_extra_link(self):
         self.assert_extra_link_url(
             expected_url=(
-                "https://console.aws.amazon.com/batch/home" "?region=us-east-1#queues/detail/arn:fake:jq"
+                "https://console.aws.amazon.com/batch/home?region=us-east-1#queues/detail/arn:fake:jq"
             ),
             region_name="us-east-1",
             aws_partition="aws",

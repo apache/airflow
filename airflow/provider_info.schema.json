@@ -135,6 +135,13 @@
                 "type": "string"
             }
         },
+        "auth-managers": {
+            "type": "array",
+            "description": "Auth managers module names",
+            "items": {
+                "type": "string"
+            }
+        },
         "notifications": {
             "type": "array",
             "description": "Notification class names",

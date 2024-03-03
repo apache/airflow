@@ -33,13 +33,13 @@ def botocore_version():
     try:
         version = importlib_metadata.version("botocore")
     except importlib_metadata.PackageNotFoundError:
-        warnings.warn("'botocore' package not found'", UserWarning)
+        warnings.warn("'botocore' package not found'", UserWarning, stacklevel=2)
         return None
 
     try:
         return tuple(map(int, version.split(".")[:3]))
     except Exception:
-        warnings.warn(f"Unable to parse botocore {version!r}", UserWarning)
+        warnings.warn(f"Unable to parse botocore {version!r}", UserWarning, stacklevel=2)
         return None
 
 
@@ -102,4 +102,3 @@ def set_default_aws_settings(aws_testing_env_vars, monkeypatch):
             monkeypatch.delenv(env_name, raising=False)
     for env_name, value in aws_testing_env_vars.items():
         monkeypatch.setenv(env_name, value)
-    yield

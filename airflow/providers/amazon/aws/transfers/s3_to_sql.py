@@ -86,7 +86,7 @@ class S3ToSqlOperator(BaseOperator):
         schema: str | None = None,
         sql_conn_id: str = "sql_default",
         sql_hook_params: dict | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

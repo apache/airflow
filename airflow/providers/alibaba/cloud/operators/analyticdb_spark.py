@@ -131,7 +131,7 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.spark_params = {
+        spark_params = {
             "sql": sql,
             "conf": conf,
             "driver_resource_spec": driver_resource_spec,
@@ -139,7 +139,7 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
             "num_executors": num_executors,
             "name": name,
         }
-
+        self.spark_params = spark_params
         self._cluster_id = cluster_id
         self._rg_name = rg_name
 
@@ -196,7 +196,7 @@ class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.spark_params = {
+        spark_params = {
             "file": file,
             "class_name": class_name,
             "args": args,
@@ -210,7 +210,7 @@ class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
             "archives": archives,
             "name": name,
         }
-
+        self.spark_params = spark_params
         self._cluster_id = cluster_id
         self._rg_name = rg_name
 

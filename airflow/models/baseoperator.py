@@ -15,7 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base operator for all operators."""
+"""
+Base operator for all operators.
+
+:sphinx-autoapi-skip:
+"""
 from __future__ import annotations
 
 import abc
@@ -121,7 +125,7 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or isinstance(retries, int):
+    if retries is None or type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -244,12 +248,14 @@ def partial(
     weight_rule: str | ArgNotSet = NOTSET,
     priority_weight_strategy: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
+    map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     run_as_user: str | None | ArgNotSet = NOTSET,
     executor_config: dict | None | ArgNotSet = NOTSET,
     inlets: Any | None | ArgNotSet = NOTSET,
@@ -287,6 +293,7 @@ def partial(
         "dag": dag,
         "task_group": task_group,
         "task_id": task_id,
+        "map_index_template": map_index_template,
         "start_date": start_date,
         "end_date": end_date,
         "owner": owner,
@@ -314,6 +321,7 @@ def partial(
         "on_failure_callback": on_failure_callback,
         "on_retry_callback": on_retry_callback,
         "on_success_callback": on_success_callback,
+        "on_skipped_callback": on_skipped_callback,
         "run_as_user": run_as_user,
         "executor_config": executor_config,
         "inlets": inlets,
@@ -606,6 +614,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that it is executed when retries occur.
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
+    :param on_skipped_callback: much like the ``on_failure_callback`` except
+        that it is executed when skipped occur; this callback will be called only if AirflowSkipException get raised.
+        Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
+        decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+        is never scheduled.
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
@@ -637,15 +650,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         **Example**: to run this task in a specific docker container through
         the KubernetesExecutor ::
 
-            MyOperator(...,
-                executor_config={
-                    "KubernetesExecutor":
-                        {"image": "myCustomDockerImage"}
-                }
-            )
+            MyOperator(..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
+    :param multiple_outputs: if True and do_xcom_push is True, pushes multiple XComs, one for each
+        key in the returned dictionary result. If False and do_xcom_push is True, pushes a single XCom.
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
     :param doc: Add documentation or notes to your Task objects that is visible in
@@ -714,7 +724,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_failure_callback",
         "on_success_callback",
         "on_retry_callback",
+        "on_skipped_callback",
         "do_xcom_push",
+        "multiple_outputs",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -774,16 +786,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
+        on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         pre_execute: TaskPreExecuteHook | None = None,
         post_execute: TaskPostExecuteHook | None = None,
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
+        map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
+        multiple_outputs: bool = False,
         inlets: Any | None = None,
         outlets: Any | None = None,
         task_group: TaskGroup | None = None,
@@ -840,6 +855,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.on_skipped_callback = on_skipped_callback
         self._pre_execute_hook = pre_execute
         self._post_execute_hook = post_execute
 
@@ -937,6 +953,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.map_index_template: str | None = map_index_template
+        self.multiple_outputs: bool = multiple_outputs
 
         self.doc_md = doc_md
         self.doc_json = doc_json
@@ -1169,9 +1187,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # This is equivalent to
             with DAG(...):
                 generate_content = GenerateContentOperator(task_id="generate_content")
-                send_email = EmailOperator(
-                    ..., html_content="{{ task_instance.xcom_pull('generate_content') }}"
-                )
+                send_email = EmailOperator(..., html_content="{{ task_instance.xcom_pull('generate_content') }}")
                 generate_content >> send_email
 
         """
@@ -1577,6 +1593,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_setup",
                     "is_teardown",
                     "on_failure_fail_dagrun",
+                    "map_index_template",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1612,7 +1629,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """This method is called when a deferred task is resumed."""
+        """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == "__fail__":
@@ -1883,12 +1900,7 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     Then you can accomplish like so::
 
-        chain_linear(
-            op1,
-            [op2, op3],
-            [op4, op5, op6],
-            op7
-        )
+        chain_linear(op1, [op2, op3], [op4, op5, op6], op7)
 
     :param elements: a list of operators / lists of operators
     """

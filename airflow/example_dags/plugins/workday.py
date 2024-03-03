@@ -73,23 +73,20 @@ class AfterWorkdayTimetable(Timetable):
     ) -> DagRunInfo | None:
         if last_automated_data_interval is not None:  # There was a previous run on the regular schedule.
             last_start = last_automated_data_interval.start
-            next_start = DateTime.combine((last_start + timedelta(days=1)).date(), Time.min).replace(
-                tzinfo=UTC
-            )
-        else:  # This is the first ever run on the regular schedule.
-            next_start = restriction.earliest
-            if next_start is None:  # No start_date. Don't schedule.
-                return None
-            if not restriction.catchup:
-                # If the DAG has catchup=False, today is the earliest to consider.
-                next_start = max(next_start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
-            elif next_start.time() != Time.min:
-                # If earliest does not fall on midnight, skip to the next day.
-                next_start = DateTime.combine(next_start.date() + timedelta(days=1), Time.min).replace(
-                    tzinfo=UTC
-                )
+            next_start = DateTime.combine((last_start + timedelta(days=1)).date(), Time.min)
+        # Otherwise this is the first ever run on the regular schedule...
+        elif (earliest := restriction.earliest) is None:
+            return None  # No start_date. Don't schedule.
+        elif not restriction.catchup:
+            # If the DAG has catchup=False, today is the earliest to consider.
+            next_start = max(earliest, DateTime.combine(Date.today(), Time.min))
+        elif earliest.time() != Time.min:
+            # If earliest does not fall on midnight, skip to the next day.
+            next_start = DateTime.combine(earliest.date() + timedelta(days=1), Time.min)
+        else:
+            next_start = earliest
         # Skip weekends and holidays
-        next_start = self.get_next_workday(next_start)
+        next_start = self.get_next_workday(next_start.replace(tzinfo=UTC))
 
         if restriction.latest is not None and next_start > restriction.latest:
             return None  # Over the DAG's scheduled end; don't schedule.

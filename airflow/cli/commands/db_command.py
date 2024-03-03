@@ -223,13 +223,6 @@ def shell(args):
         env["PGPASSWORD"] = url.password or ""
         env["PGDATABASE"] = url.database
         execute_interactive(["psql"], env=env)
-    elif url.get_backend_name() == "mssql":
-        env = os.environ.copy()
-        env["MSSQL_CLI_SERVER"] = url.host
-        env["MSSQL_CLI_DATABASE"] = url.database
-        env["MSSQL_CLI_USER"] = url.username
-        env["MSSQL_CLI_PASSWORD"] = url.password
-        execute_interactive(["mssql-cli"], env=env)
     else:
         raise AirflowException(f"Unknown driver: {url.drivername}")
 

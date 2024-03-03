@@ -77,6 +77,7 @@ class S3ToRedshiftOperator(BaseOperator):
         "copy_options",
         "redshift_conn_id",
         "method",
+        "aws_conn_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#99e699"
@@ -89,14 +90,14 @@ class S3ToRedshiftOperator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         redshift_conn_id: str = "redshift_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         column_list: list[str] | None = None,
         copy_options: list | None = None,
         autocommit: bool = False,
         method: str = "APPEND",
         upsert_keys: list[str] | None = None,
-        redshift_data_api_kwargs: dict = {},
+        redshift_data_api_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,7 +113,7 @@ class S3ToRedshiftOperator(BaseOperator):
         self.autocommit = autocommit
         self.method = method
         self.upsert_keys = upsert_keys
-        self.redshift_data_api_kwargs = redshift_data_api_kwargs
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
@@ -141,11 +142,11 @@ class S3ToRedshiftOperator(BaseOperator):
             redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
         else:
             redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-        conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
+        conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
         region_info = ""
-        if conn.extra_dejson.get("region", False):
+        if conn and conn.extra_dejson.get("region", False):
             region_info = f"region '{conn.extra_dejson['region']}'"
-        if conn.extra_dejson.get("role_arn", False):
+        if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)

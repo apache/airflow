@@ -23,7 +23,6 @@ import os
 import sys
 from argparse import Namespace
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -56,7 +55,7 @@ class TestCliUtil:
         for k, v in expected.items():
             assert v == metrics.get(k)
 
-        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("start_datetime") <= timezone.utcnow()
         assert metrics.get("full_command")
 
     def test_fail_function(self):
@@ -147,7 +146,7 @@ class TestCliUtil:
 
             log = session.query(Log).order_by(Log.dttm.desc()).first()
 
-        assert metrics.get("start_datetime") <= datetime.utcnow()
+        assert metrics.get("start_datetime") <= timezone.utcnow()
 
         command: str = json.loads(log.extra).get("full_command")
         # Replace single quotes to double quotes to avoid json decode error

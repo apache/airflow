@@ -55,7 +55,7 @@ pipx install -e ./dev/breeze --force
 ```
 
 
-You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/BREEZE.rst)
+You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
 
 This README file contains automatically generated hash of the `pyproject.toml` files that were
 available when the package was installed. Since this file becomes part of the installed package, it helps
@@ -66,6 +66,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: c7d80ab49c6dc4bf2b54957663b0126ab9c8f48df28a34c0eb56340540cb1f52d063ef99ee5f9cacbd375b1a711278884f9ef9aab41e620fa70fffd81f7ece3c
+Package config hash: e2db123fd25e40b515520fb9f6ed32a601fe85e6a22b9845343bc5c81e5785b472527ed3bf6d07521c512d2222f99877a1ce1911ac504a3a6af7b7866aa674cc
 
 ---------------------------------------------------------------------------------------------------------

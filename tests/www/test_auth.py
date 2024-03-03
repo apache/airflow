@@ -25,10 +25,7 @@ import airflow.www.auth as auth
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import Connection, Pool, Variable
-from airflow.security import permissions
-from airflow.settings import json
 from airflow.www.auth import has_access
-from tests.test_utils.api_connexion_utils import create_user_scope
 
 mock_call = Mock()
 
@@ -45,7 +42,6 @@ class TestHasAccessDecorator:
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name",
     [
-        ("has_access_cluster_activity", "is_authorized_cluster_activity"),
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_dataset", "is_authorized_dataset"),
         ("has_access_view", "is_authorized_view"),
@@ -112,16 +108,31 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
+@pytest.fixture
+def get_connection():
+    return [Connection("conn_1"), Connection("conn_2")]
+
+
+@pytest.fixture
+def get_pool():
+    return [Pool(pool="pool_1"), Pool(pool="pool_2")]
+
+
+@pytest.fixture
+def get_variable():
+    return [Variable("var_1"), Variable("var_2")]
+
+
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name, items",
     [
         (
             "has_access_connection",
             "batch_is_authorized_connection",
-            [Connection("conn_1"), Connection("conn_2")],
+            "get_connection",
         ),
-        ("has_access_pool", "batch_is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
-        ("has_access_variable", "batch_is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
+        ("has_access_pool", "batch_is_authorized_pool", "get_pool"),
+        ("has_access_variable", "batch_is_authorized_variable", "get_variable"),
     ],
 )
 class TestHasAccessWithDetails:
@@ -134,8 +145,9 @@ class TestHasAccessWithDetails:
 
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_authorized(
-        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = True
@@ -150,8 +162,9 @@ class TestHasAccessWithDetails:
     @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
-        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items
+        self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items, request
     ):
+        items = request.getfixturevalue(items)
         auth_manager = Mock()
         is_authorized_method = Mock()
         is_authorized_method.return_value = False
@@ -206,67 +219,20 @@ class TestHasAccessDagEntities:
             result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
         mock_call.assert_not_called()
-        assert result.status_code == 302
+        assert result.headers["Location"] == "/home"
 
+    @pytest.mark.db_test
+    @patch("airflow.www.auth.get_auth_manager")
+    def test_has_access_dag_entities_when_logged_out(self, mock_get_auth_manager, app, dag_access_entity):
+        auth_manager = Mock()
+        auth_manager.batch_is_authorized_dag.return_value = False
+        auth_manager.is_logged_in.return_value = False
+        auth_manager.get_url_login.return_value = "login_url"
+        mock_get_auth_manager.return_value = auth_manager
+        items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
-@pytest.mark.db_test
-class TestHasAccessDagDecorator:
-    @pytest.mark.parametrize(
-        "dag_id_args, dag_id_kwargs, dag_id_form, dag_id_json, fail",
-        [
-            ("a", None, None, None, False),
-            (None, "b", None, None, False),
-            (None, None, "c", None, False),
-            (None, None, None, "d", False),
-            ("a", "a", None, None, False),
-            ("a", "a", "a", None, False),
-            ("a", "a", "a", "a", False),
-            (None, "a", "a", "a", False),
-            (None, None, "a", "a", False),
-            ("a", None, None, "a", False),
-            ("a", None, "a", None, False),
-            ("a", None, "c", None, True),
-            (None, "b", "c", None, True),
-            (None, None, "c", "d", True),
-            ("a", "b", "c", "d", True),
-        ],
-    )
-    def test_dag_id_consistency(
-        self,
-        app,
-        dag_id_args: str | None,
-        dag_id_kwargs: str | None,
-        dag_id_form: str | None,
-        dag_id_json: str | None,
-        fail: bool,
-    ):
-        with app.test_request_context() as mock_context:
-            from airflow.www.auth import has_access_dag
+        with app.test_request_context():
+            result = auth.has_access_dag_entities("GET", dag_access_entity)(self.method_test)(None, items)
 
-            mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
-            kwargs = {"dag_id": dag_id_kwargs} if dag_id_kwargs else {}
-            mock_context.request.form = {"dag_id": dag_id_form} if dag_id_form else {}
-            if dag_id_json:
-                mock_context.request._cached_data = json.dumps({"dag_id": dag_id_json})
-                mock_context.request._parsed_content_type = ["application/json"]
-
-            with create_user_scope(
-                app,
-                username="test-user",
-                role_name="limited-role",
-                permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
-            ) as user:
-                with patch(
-                    "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager.get_user"
-                ) as mock_get_user:
-                    mock_get_user.return_value = user
-
-                    @has_access_dag("GET")
-                    def test_func(**kwargs):
-                        return True
-
-                    result = test_func(**kwargs)
-                    if fail:
-                        assert result[1] == 403
-                    else:
-                        assert result is True
+        mock_call.assert_not_called()
+        assert result.headers["Location"] == "login_url"

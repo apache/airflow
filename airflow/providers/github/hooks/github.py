@@ -68,8 +68,8 @@ class GithubHook(BaseHook):
 
         return self.client
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict:
         """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],

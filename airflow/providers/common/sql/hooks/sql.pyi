@@ -53,6 +53,7 @@ class DbApiHook(BaseForDbApiHook):
     placeholder: str
     log_sql: Incomplete
     descriptions: Incomplete
+    _placeholder: str
     def __init__(self, *args, schema: Union[str, None] = ..., log_sql: bool = ..., **kwargs) -> None: ...
     def get_conn(self): ...
     def get_uri(self) -> str: ...
@@ -92,6 +93,8 @@ class DbApiHook(BaseForDbApiHook):
         target_fields: Incomplete | None = ...,
         commit_every: int = ...,
         replace: bool = ...,
+        *,
+        executemany: bool = ...,
         **kwargs,
     ) -> None: ...
     def bulk_dump(self, table, tmp_file) -> None: ...

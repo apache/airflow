@@ -29,6 +29,7 @@ from airflow_breeze.global_constants import ALL_PROVIDER_YAML_FILES, FILES_FOR_R
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.shared_options import get_verbose
 
 if TYPE_CHECKING:
     from airflow_breeze.params.build_ci_params import BuildCiParams
@@ -102,11 +103,15 @@ def calculate_md5_checksum_for_files(
         if modified_provider_yaml_files:
             get_console().print(
                 "[info]Attempting to generate provider dependencies. "
-                "Provider yaml files changed since last check:[/]"
+                f"{len(modified_provider_yaml_files)} provider.yaml file(s) changed since last check."
             )
-            get_console().print(
-                [os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT)) for file in modified_provider_yaml_files]
-            )
+            if get_verbose():
+                get_console().print(
+                    [
+                        os.fspath(file.relative_to(AIRFLOW_SOURCES_ROOT))
+                        for file in modified_provider_yaml_files
+                    ]
+                )
             # Regenerate provider_dependencies.json
             run_command(
                 [

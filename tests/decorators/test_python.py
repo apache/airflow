@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
-from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
@@ -49,6 +48,8 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+PY38 = sys.version_info >= (3, 8)
+PY311 = sys.version_info >= (3, 11)
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -96,6 +97,39 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {"x": x, "y": y}
 
         assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+
+    def test_infer_multiple_outputs_typed_dict(self):
+        from typing import TypedDict
+
+        class TypeDictClass(TypedDict):
+            pass
+
+        @task_decorator
+        def t1() -> TypeDictClass:
+            return {}
+
+        assert t1().operator.multiple_outputs is True
+
+    # We do not enable `from __future__ import annotations` for particular this test module,
+    # that mean `str | None` annotation would raise TypeError in Python 3.9 and below
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="PEP 604 is implemented in Python 3.10")
+    def test_infer_multiple_outputs_pep_604_union_type(self):
+        @task_decorator
+        def t1() -> str | None:
+            # Before PEP 604 which are implemented in Python 3.10 `str | None`
+            # returns `types.UnionType` which are class and could be check in `issubclass()`.
+            # However in Python 3.10+ this construction returns object `typing.Union`
+            # which can not be used in `issubclass()`
+            return "foo"
+
+        assert t1().operator.multiple_outputs is False
+
+    def test_infer_multiple_outputs_union_type(self):
+        @task_decorator
+        def t1() -> Union[str, None]:
+            return "foo"
+
+        assert t1().operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_forward_annotation(self):
         if TYPE_CHECKING:
@@ -899,7 +933,7 @@ def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
     result = None
-    uri = "s3://test"
+    uri = "s3://bucket/name"
 
     with dag_maker(session=session) as dag:
 

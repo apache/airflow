@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 import functools
 import hashlib
-import logging
 import time
 import traceback
 from datetime import timedelta
@@ -212,7 +211,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if self.reschedule:
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
-            first_try_number = context["ti"].max_tries - self.retries + 1
+            max_tries: int = context["ti"].max_tries or 0
+            retries: int = self.retries or 0
+            first_try_number = max_tries - retries + 1
             with create_session() as session:
                 start_date = session.scalar(
                     TaskReschedule.stmt_for_task_instance(
@@ -255,7 +256,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise e
             except Exception as e:
                 if self.silent_fail:
-                    logging.error("Sensor poke failed: \n %s", traceback.format_exc())
+                    self.log.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
                 elif self.soft_fail:
                     raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e

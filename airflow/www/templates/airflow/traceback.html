@@ -27,25 +27,24 @@
       <h1> Ooops! </h1>
       <div>
           <pre>
-Something bad has happened.
+Something bad has happened. For security reasons detailed information about the error is not logged.
 
-Airflow is used by many users, and it is very likely that others had similar problems and you can easily find
-a solution to your problem.
+  * You should check your webserver logs and retrieve details of this error.
 
-Consider following these steps:
+  * When you get the logs, it might explain the reasons, you should also Look for similar issues using:
 
-  * gather the relevant information (detailed logs with errors, reproduction steps, details of your deployment)
-
-  * find similar issues using:
      * <b><a href="https://github.com/apache/airflow/discussions">GitHub Discussions</a></b>
      * <b><a href="https://github.com/apache/airflow/issues">GitHub Issues</a></b>
      * <b><a href="https://stackoverflow.com/questions/tagged/airflow">Stack Overflow</a></b>
      * the usual search engine you use on a daily basis
 
+    All those resources might help you to find a solution to your problem.
+
   * if you run Airflow on a Managed Service, consider opening an issue using the service support channels
 
-  * if you tried and have difficulty with diagnosing and fixing the problem yourself, consider creating a <b><a href="https://github.com/apache/airflow/issues/new/choose">bug report</a></b>.
-    Make sure however, to include all relevant details and results of your investigation so far.
+  * only after you tried it all, and have difficulty with diagnosing and fixing the problem yourself,
+    get the logs with errors, describe results of your investigation so far, and consider creating a
+    <b><a href="https://github.com/apache/airflow/issues/new/choose">bug report</a></b> including this information.
 
 Python version: {{ python_version }}
 Airflow version: {{ airflow_version }}

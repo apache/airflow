@@ -26,7 +26,7 @@ from airflow.utils.deprecation_tools import add_deprecated_classes
 warnings.warn(
     "This module is deprecated. Please use airflow.providers.*.secrets.",
     RemovedInAirflow3Warning,
-    stacklevel=2
+    stacklevel=2,
 )
 
 __deprecated_classes = {

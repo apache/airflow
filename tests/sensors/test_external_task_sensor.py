@@ -45,7 +45,7 @@ from airflow.sensors.external_task import (
 )
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.triggers.external_task import TaskStateTrigger
+from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -101,7 +101,7 @@ def dag_zip_maker():
             os.unlink(self.__zip_file_name)
             os.rmdir(self.__tmp_dir)
 
-    yield DagZipMaker()
+    return DagZipMaker()
 
 
 class TestExternalTaskSensor:
@@ -579,10 +579,9 @@ exit 0
         # We need to test for an AirflowException explicitly since
         # AirflowSensorTimeout is a subclass that will be raised if this does
         # not execute properly.
-        try:
+        with pytest.raises(AirflowException) as ex_ctx:
             task_chain_with_failure.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except AirflowException as ex:
-            assert type(ex) == AirflowException
+        assert type(ex_ctx.value) is AirflowException
 
     def test_external_task_sensor_delta(self):
         self.add_time_sensor()
@@ -996,7 +995,7 @@ class TestExternalTaskAsyncSensor:
         with pytest.raises(TaskDeferred) as exc:
             sensor.execute(context=mock.MagicMock())
 
-        assert isinstance(exc.value.trigger, TaskStateTrigger), "Trigger is not a TaskStateTrigger"
+        assert isinstance(exc.value.trigger, WorkflowTrigger), "Trigger is not a WorkflowTrigger"
 
     def test_defer_and_fire_failed_state_trigger(self):
         """Tests that an AirflowException is raised in case of error event"""
@@ -1041,7 +1040,7 @@ class TestExternalTaskAsyncSensor:
                 context=mock.MagicMock(),
                 event={"status": "success"},
             )
-        mock_log_info.assert_called_with("External task %s has executed successfully.", EXTERNAL_TASK_ID)
+        mock_log_info.assert_called_with("External tasks %s has executed successfully.", [EXTERNAL_TASK_ID])
 
 
 def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
@@ -1052,28 +1051,41 @@ def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
             op._check_for_existence(session)
 
 
-def test_external_task_sensor_templated(dag_maker, app):
-    with dag_maker():
-        ExternalTaskSensor(
-            task_id="templated_task",
-            external_dag_id="dag_{{ ds }}",
-            external_task_id="task_{{ ds }}",
-        )
+@pytest.mark.parametrize(
+    argnames=["external_dag_id", "external_task_id", "expected_external_dag_id", "expected_external_task_id"],
+    argvalues=[
+        ("dag_test", "task_test", "dag_test", "task_test"),
+        ("dag_{{ ds }}", "task_{{ ds }}", f"dag_{DEFAULT_DATE.date()}", f"task_{DEFAULT_DATE.date()}"),
+    ],
+    ids=["not_templated", "templated"],
+)
+def test_external_task_sensor_extra_link(
+    external_dag_id,
+    external_task_id,
+    expected_external_dag_id,
+    expected_external_task_id,
+    create_task_instance_of_operator,
+    app,
+):
+    ti = create_task_instance_of_operator(
+        ExternalTaskSensor,
+        dag_id="external_task_sensor_extra_links_dag",
+        execution_date=DEFAULT_DATE,
+        task_id="external_task_sensor_extra_links_task",
+        external_dag_id=external_dag_id,
+        external_task_id=external_task_id,
+    )
+    ti.render_templates()
 
-    dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, execution_date=DEFAULT_DATE)
-    (instance,) = dagrun.task_instances
-    instance.render_templates()
+    assert ti.task.external_dag_id == expected_external_dag_id
+    assert ti.task.external_task_id == expected_external_task_id
+    assert ti.task.external_task_ids == [expected_external_task_id]
 
-    assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
-    assert instance.task.external_task_id == f"task_{DEFAULT_DATE.date()}"
-    assert instance.task.external_task_ids == [f"task_{DEFAULT_DATE.date()}"]
-
-    # Verify that the operator link uses the rendered value of ``external_dag_id``.
     app.config["SERVER_NAME"] = ""
     with app.app_context():
-        url = instance.task.get_extra_links(instance, "External DAG")
+        url = ti.task.get_extra_links(ti, "External DAG")
 
-        assert f"/dags/dag_{DEFAULT_DATE.date()}/grid" in url
+    assert f"/dags/{expected_external_dag_id}/grid" in url
 
 
 class TestExternalTaskMarker:
@@ -1485,7 +1497,7 @@ def dag_bag_multiple():
         )
         begin >> task
 
-    yield dag_bag
+    return dag_bag
 
 
 def test_clear_multiple_external_task_marker(dag_bag_multiple):

@@ -172,7 +172,8 @@ with DAG(
     )
     # [END howto_operator_ec2_hibernate_instance]
     hibernate_instance.wait_for_completion = True
-    hibernate_instance.max_attempts = 75
+    hibernate_instance.poll_interval = 60
+    hibernate_instance.max_attempts = 40
 
     # [START howto_operator_ec2_terminate_instance]
     terminate_instance = EC2TerminateInstanceOperator(

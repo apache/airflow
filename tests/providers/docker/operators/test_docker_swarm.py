@@ -40,7 +40,7 @@ class TestDockerSwarmOperator:
                 yield [{"Status": {"State": "complete"}}]
 
         def _client_service_logs_effect():
-            yield b"Testing is awesome."
+            yield b"2023-12-05T00:00:00.000000000Z Testing is awesome."
 
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {"ID": "some_id"}
@@ -98,8 +98,8 @@ class TestDockerSwarmOperator:
             base_url="unix://var/run/docker.sock", tls=False, version="1.19", timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
-        client_mock.service_logs.assert_called_once_with(
-            "some_id", follow=True, stdout=True, stderr=True, is_tty=True
+        client_mock.service_logs.assert_called_with(
+            "some_id", follow=False, stdout=True, stderr=True, is_tty=True, since=0, timestamps=True
         )
 
         csargs, cskwargs = client_mock.create_service.call_args_list[0]
@@ -108,7 +108,7 @@ class TestDockerSwarmOperator:
         assert cskwargs["labels"] == {"name": "airflow__adhoc_airflow__unittest"}
         assert cskwargs["name"].startswith("airflow-")
         assert cskwargs["mode"] == types.ServiceMode(mode="replicated", replicas=3)
-        assert client_mock.tasks.call_count == 5
+        assert client_mock.tasks.call_count == 6
         client_mock.remove_service.assert_called_once_with("some_id")
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")

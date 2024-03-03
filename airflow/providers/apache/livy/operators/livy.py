@@ -97,7 +97,8 @@ class LivyOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.spark_params = {
+        spark_params = {
+            # Prepare spark parameters, it will be templated later.
             "file": file,
             "class_name": class_name,
             "args": args,
@@ -115,7 +116,7 @@ class LivyOperator(BaseOperator):
             "conf": conf,
             "proxy_user": proxy_user,
         }
-
+        self.spark_params = spark_params
         self._livy_conn_id = livy_conn_id
         self._livy_conn_auth_type = livy_conn_auth_type
         self._polling_interval = polling_interval

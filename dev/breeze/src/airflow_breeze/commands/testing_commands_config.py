@@ -55,7 +55,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -70,15 +70,22 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Upgrading/downgrading/removing selected packages",
+            "options": [
+                "--upgrade-boto",
+                "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
+                "--pydantic",
+                "--remove-arm-packages",
+            ],
+        },
+        {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
                 "--github-repository",
                 "--use-airflow-version",
                 "--mount-sources",
-                "--upgrade-boto",
-                "--downgrade-sqlalchemy",
-                "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
         },
@@ -104,6 +111,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test environment",
             "options": [
                 "--python",
+                "--forward-credentials",
             ],
         },
         {
@@ -116,15 +124,22 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Upgrading/downgrading/removing selected packages",
+            "options": [
+                "--upgrade-boto",
+                "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
+                "--pydantic",
+                "--remove-arm-packages",
+            ],
+        },
+        {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
                 "--github-repository",
                 "--use-airflow-version",
                 "--mount-sources",
-                "--upgrade-boto",
-                "--downgrade-sqlalchemy",
-                "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
         },
@@ -153,7 +168,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {
@@ -166,15 +181,22 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
+            "name": "Upgrading/downgrading/removing selected packages",
+            "options": [
+                "--upgrade-boto",
+                "--downgrade-sqlalchemy",
+                "--downgrade-pendulum",
+                "--pydantic",
+                "--remove-arm-packages",
+            ],
+        },
+        {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
                 "--github-repository",
                 "--use-airflow-version",
                 "--mount-sources",
-                "--upgrade-boto",
-                "--downgrade-sqlalchemy",
-                "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],
         },
@@ -197,7 +219,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
-                "--mssql-version",
+                "--forward-credentials",
             ],
         },
         {

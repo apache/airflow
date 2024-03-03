@@ -31,6 +31,11 @@ AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
+if os.environ.get("PYDANTIC", "v2") != "v2":
+    pytest.skip(
+        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
+    )
+
 
 def get_suspended_providers_folders() -> list[str]:
     """
@@ -40,7 +45,7 @@ def get_suspended_providers_folders() -> list[str]:
     suspended_providers = []
     for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
-        if provider_yaml.get("suspended"):
+        if provider_yaml["state"] == "suspended":
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()

@@ -52,6 +52,7 @@ from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -311,6 +312,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
+        "map_index_template",
         "next_ds",
         "next_ds_nodash",
         "outlets",
@@ -386,7 +388,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
             else [skip_on_exit_code]
-            if skip_on_exit_code
+            if skip_on_exit_code is not None
             else []
         )
 
@@ -437,15 +439,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
+
+            jinja_context = {
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            }
+
+            if inspect.getfile(self.python_callable) == self.dag.fileloc:
+                jinja_context["modified_dag_module_name"] = get_unique_dag_module_name(self.dag.fileloc)
+
             write_python_script(
-                jinja_context={
-                    "op_args": self.op_args,
-                    "op_kwargs": op_kwargs,
-                    "expect_airflow": self.expect_airflow,
-                    "pickling_library": self.pickling_library.__name__,
-                    "python_callable": self.python_callable.__name__,
-                    "python_callable_source": self.get_python_source(),
-                },
+                jinja_context=jinja_context,
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
@@ -471,6 +479,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     raise AirflowException(error_msg) from None
                 else:
                     raise
+
+            if 0 in self.skip_on_exit_code:
+                raise AirflowSkipException("Process exited with code 0. Skipping.")
 
             return self._read_result(output_path)
 
@@ -630,7 +641,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         )
 
     def _calculate_cache_hash(self) -> tuple[str, str]:
-        """Helper to generate the hash of the cache folder to use.
+        """Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
         - (sorted) list of requirements
@@ -656,7 +667,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         return requirements_hash[:8], hash_text
 
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
-        """Helper to ensure a valid virtual environment is set up and will create inplace."""
+        """Ensure a valid virtual environment is set up and will create inplace."""
         cache_hash, hash_data = self._calculate_cache_hash()
         venv_path = venv_cache_path / f"venv-{cache_hash}"
         self.log.info("Python virtual environment will be cached in %s", venv_path)
@@ -879,21 +890,44 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 )
             return False
 
+    @property
+    def _external_airflow_version_script(self):
+        """
+        Return python script which determines the version of the Apache Airflow.
+
+        Import airflow as a module might take a while as a result,
+        obtaining a version would take up to 1 second.
+        On the other hand, `importlib.metadata.version` will retrieve the package version pretty fast
+        something below 100ms; this includes new subprocess overhead.
+
+        Possible side effect: it might be a situation that backport package is not available
+        in Python 3.8 and below, which indicates that venv doesn't contain an `apache-airflow`
+        or something wrong with the environment.
+        """
+        return textwrap.dedent(
+            """
+            import sys
+            if sys.version_info >= (3, 9):
+                from importlib.metadata import version
+            else:
+                from importlib_metadata import version
+            print(version("apache-airflow"))
+            """
+        )
+
     def _get_airflow_version_from_target_env(self) -> str | None:
         from airflow import __version__ as airflow_version
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                [self.python, "-c", self._external_airflow_version_script],
                 text=True,
-                # Avoid Airflow logs polluting stdout.
-                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
                 raise AirflowConfigException(
-                    f"The version of Airflow installed for the {self.python}("
-                    f"{target_airflow_version}) is different than the runtime Airflow version: "
+                    f"The version of Airflow installed for the {self.python} "
+                    f"({target_airflow_version}) is different than the runtime Airflow version: "
                     f"{airflow_version}. Make sure your environment has the same Airflow version "
                     f"installed as the Airflow runtime."
                 )

@@ -21,15 +21,8 @@ import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.providers.slack.hooks.slack import SlackHook
-
-try:
-    from airflow.notifications.basenotifier import BaseNotifier
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
-    )
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler

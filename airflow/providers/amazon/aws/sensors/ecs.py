@@ -26,14 +26,13 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskDefinitionStates,
     EcsTaskStates,
 )
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     import boto3
 
     from airflow.utils.context import Context
-
-DEFAULT_CONN_ID: str = "aws_default"
 
 
 def _check_failed(current_state, target_state, failure_states, soft_fail: bool) -> None:
@@ -45,18 +44,10 @@ def _check_failed(current_state, target_state, failure_states, soft_fail: bool) 
         raise AirflowException(message)
 
 
-class EcsBaseSensor(BaseSensorOperator):
+class EcsBaseSensor(AwsBaseSensor[EcsHook]):
     """Contains general sensor behavior for Elastic Container Service."""
 
-    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
-
-    @cached_property
-    def hook(self) -> EcsHook:
-        """Create and return an EcsHook."""
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+    aws_hook_class = EcsHook
 
     @cached_property
     def client(self) -> boto3.client:
@@ -78,7 +69,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
          Success State. (Default: "FAILED" or "INACTIVE")
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("cluster_name", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -116,7 +107,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     :param target_state: Success state to watch for. (Default: "ACTIVE")
     """
 
-    template_fields: Sequence[str] = ("task_definition", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("task_definition", "target_state", "failure_states")
 
     def __init__(
         self,
@@ -162,7 +153,7 @@ class EcsTaskStateSensor(EcsBaseSensor):
          the Success State. (Default: "STOPPED")
     """
 
-    template_fields: Sequence[str] = ("cluster", "task", "target_state", "failure_states")
+    template_fields: Sequence[str] = aws_template_fields("cluster", "task", "target_state", "failure_states")
 
     def __init__(
         self,

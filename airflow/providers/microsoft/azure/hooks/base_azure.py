@@ -47,10 +47,10 @@ class AzureBaseHook(BaseHook):
     conn_type = "azure"
     hook_name = "Azure"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -60,9 +60,9 @@ class AzureBaseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         import json
 
         return {
@@ -93,7 +93,7 @@ class AzureBaseHook(BaseHook):
 
     def get_conn(self) -> Any:
         """
-        Authenticates the resource using the connection id passed during init.
+        Authenticate the resource using the connection id passed during init.
 
         :return: the authenticated client.
         """

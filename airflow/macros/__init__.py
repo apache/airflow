@@ -49,9 +49,9 @@ def ds_add(ds: str, days: int) -> str:
     :param ds: anchor date in ``YYYY-MM-DD`` format to add to
     :param days: number of days to add to the ds, you can use negative values
 
-    >>> ds_add('2015-01-01', 5)
+    >>> ds_add("2015-01-01", 5)
     '2015-01-06'
-    >>> ds_add('2015-01-06', -5)
+    >>> ds_add("2015-01-06", -5)
     '2015-01-01'
     """
     if not days:
@@ -68,9 +68,9 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     :param input_format: input string format. E.g. %Y-%m-%d
     :param output_format: output string format  E.g. %Y-%m-%d
 
-    >>> ds_format('2015-01-01', "%Y-%m-%d", "%m-%d-%y")
+    >>> ds_format("2015-01-01", "%Y-%m-%d", "%m-%d-%y")
     '01-01-15'
-    >>> ds_format('1/5/2015', "%m/%d/%Y",  "%Y-%m-%d")
+    >>> ds_format("1/5/2015", "%m/%d/%Y", "%Y-%m-%d")
     '2015-01-05'
     """
     return datetime.strptime(str(ds), input_format).strftime(output_format)

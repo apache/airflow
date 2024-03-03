@@ -23,11 +23,7 @@ import sys
 from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
-from airflow_breeze.commands.production_image_commands import prod_image
-from airflow_breeze.commands.testing_commands import group_for_testing
-from airflow_breeze.configure_rich_click import click
-from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.common_options import (
+from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_builder,
@@ -39,7 +35,6 @@ from airflow_breeze.utils.common_options import (
     option_github_repository,
     option_integration,
     option_max_time,
-    option_mssql_version,
     option_mysql_version,
     option_postgres_version,
     option_project_name,
@@ -47,10 +42,14 @@ from airflow_breeze.utils.common_options import (
     option_standalone_dag_processor,
     option_verbose,
 )
+from airflow_breeze.commands.production_image_commands import prod_image
+from airflow_breeze.commands.testing_commands import group_for_testing
+from airflow_breeze.configure_rich_click import click
+from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -115,7 +114,6 @@ class MainGroupWithAliases(BreezeGroup):
 @option_github_repository
 @option_integration
 @option_max_time
-@option_mssql_version
 @option_mysql_version
 @option_postgres_version
 @option_python
@@ -290,5 +288,12 @@ def cleanup(all: bool):
     if given_answer == Answer.YES:
         if not get_dry_run():
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
+    get_console().print("Uninstalling airflow and removing configuration")
+    given_answer = user_confirm("Are you sure with the uninstall / remove?")
+    if given_answer == Answer.YES:
+        if not get_dry_run():
+            shutil.rmtree(AIRFLOW_HOME_DIR, ignore_errors=True)
+            AIRFLOW_HOME_DIR.mkdir(exist_ok=True, parents=True)
+            run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)

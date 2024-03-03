@@ -75,6 +75,8 @@ def create_app(config=None, testing=False):
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
 
+    flask_app.config["MAX_CONTENT_LENGTH"] = conf.getfloat("webserver", "allowed_payload_size") * 1024 * 1024
+
     webserver_config = conf.get_mandatory_value("webserver", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
     with flask_app.app_context():

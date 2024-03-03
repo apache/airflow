@@ -162,7 +162,7 @@ class ExasolHook(DbApiHook):
             )
         return cols
 
-    @overload
+    @overload  # type: ignore[override]
     def run(
         self,
         sql: str | Iterable[str],
@@ -183,7 +183,7 @@ class ExasolHook(DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         ...
 
     def run(
@@ -194,7 +194,7 @@ class ExasolHook(DbApiHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
@@ -232,7 +232,9 @@ class ExasolHook(DbApiHook):
                 with closing(conn.execute(sql_statement, parameters)) as exa_statement:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                     if handler is not None:
-                        result = handler(exa_statement)
+                        result = self._make_common_data_structure(  # type: ignore[attr-defined]
+                            handler(exa_statement)
+                        )
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_columns = self.get_description(exa_statement)

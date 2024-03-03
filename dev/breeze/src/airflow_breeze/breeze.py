@@ -28,6 +28,7 @@ from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
 find_airflow_sources_root_to_operate_on()
 create_directories_and_files()
 
+
 from airflow_breeze.commands import developer_commands  # noqa
 from airflow_breeze.commands.ci_commands import ci_group  # noqa
 from airflow_breeze.commands.ci_image_commands import ci_image  # noqa

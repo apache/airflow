@@ -311,9 +311,6 @@ __deprecated_classes = {
     "spark_submit_hook": {
         "SparkSubmitHook": "airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook",
     },
-    "sqoop_hook": {
-        "SqoopHook": "airflow.providers.apache.sqoop.hooks.sqoop.SqoopHook",
-    },
     "ssh_hook": {
         "SSHHook": "airflow.providers.ssh.hooks.ssh.SSHHook",
     },

@@ -157,7 +157,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
-            run_id = self.trigger_run_id
+            run_id = str(self.trigger_run_id)
         else:
             run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
 

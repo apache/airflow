@@ -20,14 +20,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sns import SnsHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SnsPublishOperator(BaseOperator):
+class SnsPublishOperator(AwsBaseOperator[SnsHook]):
     """
     Publish a message to Amazon SNS.
 
@@ -35,16 +36,30 @@ class SnsPublishOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SnsPublishOperator`
 
-    :param aws_conn_id: aws connection to use
     :param target_arn: either a TopicArn or an EndpointArn
     :param message: the default message you want to send (templated)
     :param subject: the message subject you want to send (templated)
     :param message_attributes: the message attributes you want to send as a flat dict (data type will be
         determined automatically)
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = ("target_arn", "message", "subject", "message_attributes", "aws_conn_id")
-    template_ext: Sequence[str] = ()
+    aws_hook_class = SnsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "target_arn",
+        "message",
+        "subject",
+        "message_attributes",
+    )
     template_fields_renderers = {"message_attributes": "json"}
 
     def __init__(
@@ -54,7 +69,6 @@ class SnsPublishOperator(BaseOperator):
         message: str,
         subject: str | None = None,
         message_attributes: dict | None = None,
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -62,11 +76,8 @@ class SnsPublishOperator(BaseOperator):
         self.message = message
         self.subject = subject
         self.message_attributes = message_attributes
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
-        sns = SnsHook(aws_conn_id=self.aws_conn_id)
-
         self.log.info(
             "Sending SNS notification to %s using %s:\nsubject=%s\nattributes=%s\nmessage=%s",
             self.target_arn,
@@ -76,7 +87,7 @@ class SnsPublishOperator(BaseOperator):
             self.message,
         )
 
-        return sns.publish_to_target(
+        return self.hook.publish_to_target(
             target_arn=self.target_arn,
             message=self.message,
             subject=self.subject,

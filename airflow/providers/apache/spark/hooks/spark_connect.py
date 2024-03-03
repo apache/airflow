@@ -37,9 +37,9 @@ class SparkConnectHook(BaseHook, LoggingMixin):
     conn_type = "spark_connect"
     hook_name = "Spark Connect"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Return custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Spark Connect connection."""
         return {
             "hidden_fields": [
                 "schema",
@@ -47,9 +47,9 @@ class SparkConnectHook(BaseHook, LoggingMixin):
             "relabeling": {"password": "Token", "login": "User ID"},
         }
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to Spark Connect connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
 

@@ -123,16 +123,29 @@ class TestDockerDecorator:
         assert dag.task_ids[-1] == "do_run__20"
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_state",
+        "kwargs, actual_exit_code, expected_state",
         [
-            (None, 99, TaskInstanceState.FAILED),
+            ({}, 0, TaskInstanceState.SUCCESS),
+            ({}, 100, TaskInstanceState.FAILED),
+            ({}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": None}, 100, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 0, TaskInstanceState.SUCCESS),
             ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
             ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 0}, 0, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": (100,)}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": (100,)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100,)}, 101, TaskInstanceState.FAILED),
         ],
     )
-    def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs or {}))
+    def test_skip_docker_operator(self, kwargs, actual_exit_code, expected_state, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", **kwargs)
         def f(exit_code):
             raise SystemExit(exit_code)
 

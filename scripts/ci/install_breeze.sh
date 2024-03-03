@@ -19,8 +19,15 @@ set -euxo pipefail
 
 cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
-# Limit `pipx` temporarily to avoid --force-reinstall added in a wrong place
-# Can be removed after https://github.com/pypa/pipx/issues/1122 is solved (and possibly yanked)
-python -m pip install "pipx>=1.2.1,!=1.3.0"
-python -m pipx install --editable ./dev/breeze/ --force
+PYTHON_ARG=""
+
+if [[ ${PYTHON_VERSION=} != "" ]]; then
+    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
+fi
+
+python -m pip install --upgrade pip==24.0
+python -m pip install "pipx>=1.4.1"
+python -m pipx uninstall apache-airflow-breeze >/dev/null 2>&1 || true
+# shellcheck disable=SC2086
+python -m pipx install ${PYTHON_ARG} --editable ./dev/breeze/
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"

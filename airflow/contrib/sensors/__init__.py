@@ -85,12 +85,10 @@ __deprecated_classes = {
         "FTPSSensor": "airflow.providers.ftp.sensors.ftp.FTPSSensor",
     },
     "gcp_transfer_sensor": {
-        "CloudDataTransferServiceJobStatusSensor":
-            "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
-            "CloudDataTransferServiceJobStatusSensor",
-        "GCPTransferServiceWaitForJobStatusSensor":
-            "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
-            "CloudDataTransferServiceJobStatusSensor",
+        "CloudDataTransferServiceJobStatusSensor": "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
+        "CloudDataTransferServiceJobStatusSensor",
+        "GCPTransferServiceWaitForJobStatusSensor": "airflow.providers.google.cloud.sensors.cloud_storage_transfer_service."
+        "CloudDataTransferServiceJobStatusSensor",
     },
     "gcs_sensor": {
         "GCSObjectExistenceSensor": "airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor",

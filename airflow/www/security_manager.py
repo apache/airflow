@@ -25,7 +25,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
-from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
 from airflow.auth.managers.models.resource_details import (
     AccessView,
     ConnectionDetails,
@@ -71,13 +70,19 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 
-EXISTING_ROLES = FAB_EXISTING_ROLES
+EXISTING_ROLES = {
+    "Admin",
+    "Viewer",
+    "User",
+    "Op",
+    "Public",
+}
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.providers.fab.auth_manager.models import Action, Resource
 
 
 class AirflowSecurityManagerV2(LoggingMixin):

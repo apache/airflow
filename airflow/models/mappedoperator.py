@@ -213,6 +213,7 @@ class OperatorPartial:
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
+            map_index_template=partial_kwargs.pop("map_index_template", None),
             params=self.params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
@@ -282,6 +283,7 @@ class MappedOperator(AbstractOperator):
     end_date: pendulum.DateTime | None
     upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
+    map_index_template: str | None
 
     _disallow_kwargs_override: bool
     """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
@@ -536,6 +538,14 @@ class MappedOperator(AbstractOperator):
     @on_success_callback.setter
     def on_success_callback(self, value: TaskStateChangeCallback | None) -> None:
         self.partial_kwargs["on_success_callback"] = value
+
+    @property
+    def on_skipped_callback(self) -> None | TaskStateChangeCallback | list[TaskStateChangeCallback]:
+        return self.partial_kwargs.get("on_skipped_callback")
+
+    @on_skipped_callback.setter
+    def on_skipped_callback(self, value: TaskStateChangeCallback | None) -> None:
+        self.partial_kwargs["on_skipped_callback"] = value
 
     @property
     def run_as_user(self) -> str | None:

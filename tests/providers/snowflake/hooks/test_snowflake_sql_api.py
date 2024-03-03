@@ -258,7 +258,7 @@ class TestSnowflakeSqlApiHook:
         result = hook.get_headers()
         assert result == HEADERS
 
-    @pytest.fixture()
+    @pytest.fixture
     def non_encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
         """Encrypt the pem file from the path"""
         key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
@@ -269,7 +269,7 @@ class TestSnowflakeSqlApiHook:
         test_key_file.write_bytes(private_key)
         return test_key_file
 
-    @pytest.fixture()
+    @pytest.fixture
     def encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
         """Encrypt private key from the temp path"""
         key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)

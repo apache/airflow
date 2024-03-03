@@ -69,10 +69,10 @@ class AzureSynapseHook(BaseHook):
     default_conn_name: str = "azure_synapse_default"
     hook_name: str = "Azure Synapse"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -82,9 +82,9 @@ class AzureSynapseHook(BaseHook):
             "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -179,7 +179,7 @@ class AzureSynapseHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a job run to match an expected status.
+        Wait for a job run to match an expected status.
 
         :param job_id: The job run identifier.
         :param expected_statuses: The desired status(es) to check against a job run's current status.
@@ -253,9 +253,9 @@ class AzureSynapsePipelineHook(BaseHook):
     default_conn_name: str = "azure_synapse_connection"
     hook_name: str = "Azure Synapse Pipeline"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -264,9 +264,9 @@ class AzureSynapsePipelineHook(BaseHook):
             "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
@@ -362,7 +362,7 @@ class AzureSynapsePipelineHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a pipeline run to match an expected status.
+        Wait for a pipeline run to match an expected status.
 
         :param run_id: The pipeline run identifier.
         :param expected_statuses: The desired status(es) to check against a pipeline run's current status.

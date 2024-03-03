@@ -23,7 +23,7 @@ from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.role_and_permission_schema import RoleSchema
-from airflow.auth.managers.fab.models import User
+from airflow.providers.fab.auth_manager.models import User
 
 
 class UserCollectionItemSchema(SQLAlchemySchema):
