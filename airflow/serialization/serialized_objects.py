@@ -530,9 +530,9 @@ class BaseSerialization:
 
             if isinstance(var, Job):
                 return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
-            elif isinstance(var, TaskInstance):
+            elif isinstance(var, (TaskInstance, TaskInstancePydantic)):
                 return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
-            elif isinstance(var, DagRun):
+            elif isinstance(var, (DagRun, DagRunPydantic)):
                 return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
                 return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
