@@ -114,6 +114,10 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
+    @property
+    def _logger_name(self):
+        return "airflow.task"
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw

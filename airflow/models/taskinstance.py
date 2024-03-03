@@ -1334,6 +1334,7 @@ class TaskInstance(Base, LoggingMixin):
 
     :meta private:
     """
+    _logger_name = "airflow.task"
 
     def __init__(
         self,
@@ -1435,8 +1436,6 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
-        # correctly config the ti log
-        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @hybrid_property
