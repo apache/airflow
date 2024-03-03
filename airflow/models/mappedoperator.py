@@ -752,5 +752,4 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=seen_oids,
-            session=session,
         )
