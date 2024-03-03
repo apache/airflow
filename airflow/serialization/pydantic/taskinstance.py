@@ -35,7 +35,6 @@ from airflow.utils.pydantic import (
     PlainValidator,
     is_pydantic_2_installed,
 )
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -144,13 +143,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         return None
 
-    @provide_session
     def xcom_push(
         self,
         key: str,
         value: Any,
         execution_date: datetime | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """
         Push an XCom value for this task instance.
@@ -162,8 +160,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         pass
 
-    @provide_session
-    def get_dagrun(self, session: Session = NEW_SESSION) -> DagRunPydantic:
+    def get_dagrun(self, session: Session | None = None) -> DagRunPydantic:
         """
         Return the DagRun for this TaskInstance.
 
@@ -186,8 +183,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _execute_task(task_instance=self, context=context, task_orig=task_orig)
 
-    @provide_session
-    def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
+    def refresh_from_db(self, session: Session | None = None, lock_for_update: bool = False) -> None:
         """
         Refresh the task instance from the database based on the primary key.
 
@@ -244,14 +240,13 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _is_eligible_to_retry(task_instance=self)
 
-    @provide_session
     def handle_failure(
         self,
         error: None | str | Exception | KeyboardInterrupt,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """
         Handle Failure for a task instance.
@@ -284,7 +279,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
-    @provide_session
     def get_previous_dagrun(
         self,
         state: DagRunState | None = None,
@@ -300,11 +294,10 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_dagrun(task_instance=self, state=state, session=session)
 
-    @provide_session
     def get_previous_execution_date(
         self,
         state: DagRunState | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> pendulum.DateTime | None:
         """
         Return the execution date from property previous_ti_success.
@@ -340,11 +333,10 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_email_subject_content(task_instance=self, exception=exception, task=task)
 
-    @provide_session
     def get_previous_ti(
         self,
         state: DagRunState | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> TaskInstance | TaskInstancePydantic | None:
         """
         Return the task instance for the task that ran before this task instance.
@@ -356,7 +348,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
-    @provide_session
     def check_and_change_state_before_execution(
         self,
         verbose: bool = True,
@@ -370,7 +361,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> bool:
         return TaskInstance._check_and_change_state_before_execution(
             task_instance=self,
@@ -389,8 +380,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
         )
 
-    @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
+    def schedule_downstream_tasks(self, session: Session | None = None, max_tis_per_query: int | None = None):
         """
         Schedule downstream tasks of this task instance.
 
