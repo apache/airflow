@@ -194,6 +194,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | discord             | ``pip install 'apache-airflow[discord]'``           | Discord hooks and sensors                           |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| dremio             | ``pip install 'apache-airflow[dremio]'``             | Dremio hooks and sensors                            |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | facebook            | ``pip install 'apache-airflow[facebook]'``          | Facebook Social                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | github              | ``pip install 'apache-airflow[github]'``            | GitHub operators and hook                           |

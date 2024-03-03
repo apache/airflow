@@ -688,6 +688,7 @@ docker = [ # source: airflow/providers/docker/provider.yaml
   "docker>=6",
   "python-dotenv>=0.21.0",
 ]
+dremio = [] # source: airflow/providers/dremio/provider.yaml
 elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
   "apache-airflow[common_sql]",
   "elasticsearch>=8.10,<9",
@@ -1031,6 +1032,7 @@ all = [
     "apache-airflow[dingding]",
     "apache-airflow[discord]",
     "apache-airflow[docker]",
+    "apache-airflow[dremio]",
     "apache-airflow[elasticsearch]",
     "apache-airflow[exasol]",
     "apache-airflow[fab]",
@@ -1132,6 +1134,7 @@ devel-all = [
     "apache-airflow[dingding]",
     "apache-airflow[discord]",
     "apache-airflow[docker]",
+    "apache-airflow[dremio]",
     "apache-airflow[elasticsearch]",
     "apache-airflow[exasol]",
     "apache-airflow[fab]",
