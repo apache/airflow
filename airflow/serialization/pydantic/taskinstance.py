@@ -94,7 +94,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     priority_weight: Optional[int]
     operator: str
     custom_operator_name: Optional[str]
-    queued_dttm: Optional[str]
+    queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
     executor_config: Any
@@ -105,12 +105,13 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     trigger_timeout: Optional[datetime]
     next_method: Optional[str]
     next_kwargs: Optional[dict]
-    run_as_user: Optional[str]
-    task: PydanticOperator
+    run_as_user: Optional[str] = None
+    task: Optional[PydanticOperator] = None
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
-
+    raw: Optional[bool] = None
+    is_trigger_log_context: Optional[bool] = False
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property
