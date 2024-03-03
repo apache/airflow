@@ -111,8 +111,6 @@ class RedshiftToS3Operator(BaseOperator):
         self.s3_bucket = s3_bucket
         if table and table_as_file_name:
             s3_key = f"{s3_key}/{table}_"
-        else:
-            pass
         self.s3_key = s3_key
         self.schema = schema
         self.table = table
