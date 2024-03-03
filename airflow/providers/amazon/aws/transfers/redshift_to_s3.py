@@ -109,13 +109,17 @@ class RedshiftToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
-        self.s3_key = f"{s3_key}/{table}_" if (table and table_as_file_name) else s3_key
+        if table and table_as_file_name:
+            s3_key = f"{s3_key}/{table}_"
+        else:
+            pass
+        self.s3_key = s3_key
         self.schema = schema
         self.table = table
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.unload_options: list = unload_options or []
+        self.unload_options = unload_options or []
         self.autocommit = autocommit
         self.include_header = include_header
         self.parameters = parameters
@@ -123,13 +127,14 @@ class RedshiftToS3Operator(BaseOperator):
         self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
 
         if select_query:
-            self.select_query = select_query
+            pass
         elif self.schema and self.table:
-            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
+            select_query = f"SELECT * FROM {self.schema}.{self.table}"
         else:
             raise ValueError(
                 "Please provide both `schema` and `table` params or `select_query` to fetch the data."
             )
+        self.select_query = select_query
 
         if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = [*self.unload_options, "HEADER"]
