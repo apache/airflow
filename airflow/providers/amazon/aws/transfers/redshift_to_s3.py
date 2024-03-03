@@ -123,7 +123,6 @@ class RedshiftToS3Operator(BaseOperator):
         self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
         self.select_query = select_query
 
-
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
@@ -148,10 +147,10 @@ class RedshiftToS3Operator(BaseOperator):
             raise ValueError(
                 "Please provide both `schema` and `table` params or `select_query` to fetch the data."
             )
-        
+
         if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = [*self.unload_options, "HEADER"]            
-                
+            self.unload_options = [*self.unload_options, "HEADER"]
+
         redshift_hook: RedshiftDataHook | RedshiftSQLHook
         if self.redshift_data_api_kwargs:
             redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
