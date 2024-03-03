@@ -89,7 +89,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
 def substitution_code_role(*args, **kwargs) -> tuple[list, list[SystemMessage]]:
     """Decorate an inline code so that SubstitutionCodeBlockTransform will notice it"""
     [node], system_messages = code_role(*args, **kwargs)
-    node[_SUBSTITUTION_OPTION_NAME] = True
+    node[_SUBSTITUTION_OPTION_NAME] = True  # type: ignore[index]
 
     return [node], system_messages
 
