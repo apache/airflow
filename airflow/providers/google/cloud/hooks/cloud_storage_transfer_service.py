@@ -35,8 +35,6 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from packaging.version import Version
-
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
     StorageTransferServiceAsyncClient,
@@ -518,31 +516,11 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         :return: Google Storage Transfer asynchronous client.
         """
         if not self._client:
-            try:
-                from airflow.providers.google import __version__
-
-                if Version(__version__) >= Version("10.15.0"):
-                    credentials = (await self.get_sync_hook()).get_credentials()
-                    self._client = StorageTransferServiceAsyncClient(
-                        credentials=credentials,
-                        client_info=CLIENT_INFO,
-                    )
-                else:
-                    self._client = StorageTransferServiceAsyncClient()
-                    warnings.warn(
-                        "Getting credentials from the environment has been deprecated. "
-                        "You should pass gcp_conn_id as parameter.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-            except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.15.0
-                self._client = StorageTransferServiceAsyncClient()
-                warnings.warn(
-                    "Getting credentials from the environment has been deprecated. "
-                    "You should pass gcp_conn_id as parameter.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+            credentials = (await self.get_sync_hook()).get_credentials()
+            self._client = StorageTransferServiceAsyncClient(
+                credentials=credentials,
+                client_info=CLIENT_INFO,
+            )
         return self._client
 
     async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
@@ -567,7 +545,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         """
         latest_operation_name = job.latest_operation_name
         if latest_operation_name:
-            client = self.get_conn()
+            client = await self.get_conn()
             response_operation = await client.transport.operations_client.get_operation(latest_operation_name)
             operation = TransferOperation.deserialize(response_operation.metadata.value)
             return operation
