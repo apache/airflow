@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import DagNotFound, DagRunAlreadyExists, DagNotActive
+from airflow.exceptions import DagNotActive, DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
