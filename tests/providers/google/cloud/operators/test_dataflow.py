@@ -584,7 +584,7 @@ class TestDataflowTemplatedJobStartOperator:
             ("error", f"Dataflow job with id {JOB_ID} has failed its execution"),
             ("stopped", f"Dataflow job with id {JOB_ID} was stopped"),
             ("cancelled", f"Dataflow job with id {JOB_ID} was cancelled"),
-        ]
+        ],
     )
     def test_execute_complete_exception(self, deferrable_operator, status, message):
         event = {
