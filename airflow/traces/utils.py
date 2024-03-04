@@ -33,7 +33,6 @@ def gen_trace_id(dag_run)->str:
     if conf is not None and TRACEPARENT in conf:
         traceparent = conf.get(TRACEPARENT)
         trace_ctx = parse_traceparent(traceparent)
-        log.info(f"*** gen_trace_id for dag_run {dag_run.run_id}: {trace_ctx['trace_id']}")
         return trace_ctx['trace_id']
     else:
         dag_hash = dag_run.dag_hash
@@ -41,7 +40,6 @@ def gen_trace_id(dag_run)->str:
         start_date = dag_run.start_date.isoformat()
         hash_seed = f"{dag_hash}_{run_type}_{start_date}"
         hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
-        log.info(f"*** gen_trace_id for dag_run {dag_run.run_id}: {hash_hex}")
         return hash_hex
 
 
@@ -52,7 +50,6 @@ def gen_dag_span_id(dag_run):
     start_date = dag_run.start_date.isoformat()
     hash_seed = f"{dag_hash}_{run_type}_{start_date}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    log.info(f"*** gen_dag_span_id for dag_run {dag_run.run_id}: {hash_hex}")
     return hash_hex
 
 
@@ -65,7 +62,6 @@ def gen_span_id(ti):
     task_id = ti.task_id
     hash_seed = f"{dag_hash}_{run_type}_{start_date}_{task_id}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    log.info(f"*** gen_span_id from ti : {hash_hex}")
     return hash_hex
 
 
@@ -97,14 +93,14 @@ def parse_tracestate(tracestate_str:str) -> dict:
 
 
 def is_valid_trace_id(trace_id:str) -> bool:
-    if trace_id is not None and len(trace_id) == 32 and trace_id != "00000000000000000000000000000000":
+    if trace_id is not None and len(trace_id) == 32 and trace_id != "0x00000000000000000000000000000000":
         return True
     else:
         return False
 
 
 def is_valid_span_id(span_id:str) -> bool:
-    if span_id is not None and len(span_id) == 16 and span_id != "0000000000000000":
+    if span_id is not None and len(span_id) == 16 and span_id != "0x0000000000000000":
         return True
     else:
         return False

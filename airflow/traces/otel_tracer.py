@@ -126,7 +126,6 @@ class OtelTrace:
         span_id = int(gen_dag_span_id(dag_run=dagrun), 16)
 
         if conf is not None:
-            log.info(f"[DAG RUN] conf: {conf}")
             traceparent = conf.get(TRACEPARENT)
             tracestate = conf.get(TRACESTATE)
 
@@ -184,7 +183,6 @@ class OtelTrace:
         dagrun = ti.dag_run
         # check if any trace_id is found. if found, use it.
         if dagrun.conf is not None and 'trace_id' in dagrun.conf:
-            log.info(f"task {ti.task_id} dagrun conf: {dagrun.conf}")
             trace_id = int(dagrun.conf['trace_id'], 16)
         else:
             trace_id = int(gen_trace_id(dag_run=dagrun), 16)
@@ -248,22 +246,18 @@ class AirflowOtelIdGenerator(IdGenerator):
 
     def generate_span_id(self) -> int:
         if self.span_id is not None:
-            log.info(f">> using given for span_id: 0x{format_span_id(self.span_id)}")
             id = self.span_id
             self.span_id = None
             return id
         else:
             new_id = random.getrandbits(64)
-            log.info(f">> using random for span_id: 0x{format_span_id(new_id)}")
             return new_id
         
     def generate_trace_id(self) -> int:
         if self.trace_id is not None:
-            log.info(f">> using given for trace_id: 0x{format_trace_id(self.trace_id)}")
             id = self.trace_id
             return id
         else:
             new_id = random.getrandbits(128)
-            log.info(f">> using random for trace_id: {format_trace_id(new_id)}")
             return new_id
 
