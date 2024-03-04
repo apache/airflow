@@ -2374,7 +2374,7 @@ class TaskInstance(Base, LoggingMixin):
 
             try:
                 if not mark_success:
-                    self._execute_task_with_callbacks(context, test_mode, session=session)
+                    result = self._execute_task_with_callbacks(context, test_mode, session=session)
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 self.state = TaskInstanceState.SUCCESS
@@ -2462,7 +2462,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(Log(self.state, self))
                 session.merge(self).task = self.task
                 if self.state == TaskInstanceState.SUCCESS:
-                    self._register_dataset_changes(session=session)
+                    self._register_dataset_changes(result, session=session)
 
                 session.commit()
                 if self.state == TaskInstanceState.SUCCESS:
@@ -2472,7 +2472,7 @@ class TaskInstance(Base, LoggingMixin):
 
             return None
 
-    def _register_dataset_changes(self, *, session: Session) -> None:
+    def _register_dataset_changes(self, result: Any, *, session: Session) -> None:
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2480,10 +2480,13 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
+                    extra=obj.extra or result if isinstance(result, dict) else {self.task_id: result},
                     session=session,
                 )
 
-    def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
+    def _execute_task_with_callbacks(
+        self, context: Context, test_mode: bool = False, *, session: Session
+    ) -> Any:
         """Prepare Task for Execution."""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -2570,6 +2573,8 @@ class TaskInstance(Base, LoggingMixin):
         # Same metric with tagging
         Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
+
+        return result
 
     def _execute_task(self, context, task_orig):
         """
