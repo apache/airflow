@@ -51,18 +51,21 @@ automatically as they depend on datasets that do not get updated or are not prod
 """
 from __future__ import annotations
 
+import random
+
 import pendulum
 
 from airflow.datasets import Dataset
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
 # [START dataset_def]
 dag1_dataset = Dataset("s3://dag1/output_1.txt", extra={"hi": "bye"})
 # [END dataset_def]
-dag2_dataset = Dataset("s3://dag2/output_1.txt", extra={"hi": "bye"})
+dag2_dataset = Dataset("s3://dag2/output_1.txt")
 dag3_dataset = Dataset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
 with DAG(
@@ -83,7 +86,11 @@ with DAG(
     schedule=None,
     tags=["produces", "dataset-scheduled"],
 ) as dag2:
-    BashOperator(outlets=[dag2_dataset], task_id="producing_task_2", bash_command="sleep 5")
+
+    def some_python_callable():
+        return {"some_context": "dynamic data 123", "random_number": random.randint(1, 100)}
+
+    PythonOperator(python_callable=some_python_callable, outlets=[dag2_dataset], task_id="producing_task_2")
 
 # [START dag_dep]
 with DAG(

@@ -1284,9 +1284,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     events=dataset_events,
                 )
 
+                run_conf = {}
+                for item in dataset_events:
+                    event: DatasetEvent = item
+                    extra: dict | None = event.extra
+                    if extra:
+                        run_conf.update(extra)
+
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
                     run_type=DagRunType.DATASET_TRIGGERED,
+                    conf=run_conf,
                     execution_date=exec_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
