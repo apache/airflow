@@ -51,6 +51,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
+from airflow.traces.tracer import span, Trace
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -225,7 +226,9 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
         set_new_process_group()
-
+        span = Trace.get_current_span()
+        span.set_attribute('dag_directory', str(dag_directory))
+        span.set_attribute('dag_ids', str(dag_ids))
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
@@ -255,8 +258,10 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._heartbeat_manager()
 
     def _process_message(self, message):
+        span = Trace.get_current_span()
         self.log.debug("Received message of type %s", type(message).__name__)
         if isinstance(message, DagParsingStat):
+            span.set_attribute('all_files_processed', str(message.all_files_processed))
             self._sync_metadata(message)
         else:
             raise RuntimeError(f"Unexpected message received of type {type(message).__name__}")
@@ -462,6 +467,7 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
+
         self.register_exit_signals()
 
         set_new_process_group()
@@ -1059,6 +1065,7 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
+    @span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1082,6 +1089,12 @@ class DagFileProcessorManager(LoggingMixin):
 
             del self._callback_to_execute[file_path]
             Stats.incr("dag_processing.processes", tags={"file_path": file_path, "action": "start"})
+            span = Trace.get_current_span()
+            span.set_attribute('category', 'processing')
+            span.add_event(name='dag_processing processor started', attributes={
+                'file_path': file_path,
+                'action': 'start'
+            })
 
             processor.start()
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
@@ -1192,6 +1205,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_paths_to_queue(files_paths_to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
+    @span
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = timezone.utcnow()
@@ -1210,6 +1224,12 @@ class DagFileProcessorManager(LoggingMixin):
                 # Deprecated; may be removed in a future Airflow release.
                 Stats.incr("dag_file_processor_timeouts")
                 processor.kill()
+                span = Trace.get_current_span()
+                span.set_attribute('category', 'processing')
+                span.add_event(name='dag processing killed processor', attributes={
+                    'file_path': file_path,
+                    'action': 'timeout'
+                })
 
                 # Clean up processor references
                 self.waitables.pop(processor.waitable_handle)

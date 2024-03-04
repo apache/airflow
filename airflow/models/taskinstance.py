@@ -99,6 +99,7 @@ from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
+from airflow.traces.tracer import Trace
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -864,6 +865,25 @@ def _handle_failure(
     if not test_mode:
         TaskInstance.save_to_db(failure_context["ti"], session)
 
+    with Trace.start_span_from_taskinstance(ti=task_instance) as s:
+        # ---- error info ----
+        s.set_attribute('error', 'true')
+        s.set_attribute('error_msg', str(error))
+        s.set_attribute('context', context)
+        s.set_attribute('force_fail', force_fail)
+        # ---- common info ----
+        s.set_attribute('category', 'DAG runs')
+        s.set_attribute('task_id', task_instance.task_id)
+        s.set_attribute('dag_id', task_instance.dag_id)
+        s.set_attribute('state', task_instance.state)
+        s.set_attribute('start_date', str(task_instance.start_date))
+        s.set_attribute('end_date', str(task_instance.end_date))
+        s.set_attribute('duration', task_instance.duration)
+        s.set_attribute('executor_config', task_instance.executor_config)
+        s.set_attribute('execution_date', str(task_instance.execution_date))
+        s.set_attribute('hostname', task_instance.hostname)
+        s.set_attribute('log_url', task_instance.log_url)
+        s.set_attribute('operator', str(task_instance.operator))
 
 def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
     """

@@ -30,6 +30,7 @@ from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
+from airflow.traces.tracer import span, Trace
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -204,6 +205,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    @span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -250,6 +252,7 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
+    @span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -292,11 +295,17 @@ class BaseExecutor(LoggingMixin):
         if task_tuples:
             self._process_tasks(task_tuples)
 
+    @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
-            del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
-            self.running.add(key)
+            with Trace.start_span(span_name='execute_async', component='BaseExecutor') as s:
+                s.set_attribute('key', str(key))
+                s.set_attribute('command', str(command))
+                s.set_attribute('queue', str(queue))
+                s.set_attribute('executor_config', str(executor_config))
+                del self.queued_tasks[key]
+                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.running.add(key)
 
     def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         """
@@ -352,6 +361,7 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
+    @span
     def execute_async(
         self,
         key: TaskInstanceKey,

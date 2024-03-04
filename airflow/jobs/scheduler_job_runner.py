@@ -57,6 +57,7 @@ from airflow.models.dataset import (
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
+from airflow.traces.tracer import span, Trace
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
@@ -742,6 +743,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            with Trace.start_span_from_taskinstance(ti=ti) as s:
+                s.set_attribute('category', 'scheduler')
+                s.set_attribute('task_id', ti.task_id)
+                s.set_attribute('dag_id', ti.dag_id)
+                s.set_attribute('state', ti.state)
+                s.set_attribute('start_date', str(ti.start_date))
+                s.set_attribute('end_date', str(ti.end_date))
+                s.set_attribute('duration', ti.duration)
+                s.set_attribute('executor_config', ti.executor_config)
+                s.set_attribute('execution_date', str(ti.execution_date))
+                s.set_attribute('hostname', ti.hostname)
+                s.set_attribute('log_url', ti.log_url)
+                s.set_attribute('operator', str(ti.operator))
+                s.set_attribute('try_number', ti.try_number)
+                s.set_attribute('executor_state', state)
+                s.set_attribute('job_id', ti.job_id)
+                s.set_attribute('pool', ti.pool)
+                s.set_attribute('queue', ti.queue)
+                s.set_attribute('priority_weight', ti.priority_weight)
+                s.set_attribute('queued_dttm', str(ti.queued_dttm))
+                s.set_attribute('ququed_by_job_id', ti.queued_by_job_id)
+                s.set_attribute('pid', ti.pid)
+
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
@@ -964,55 +988,63 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                if self.using_sqlite and self.processor_agent:
-                    self.processor_agent.run_single_parsing_loop()
-                    # For the sqlite case w/ 1 thread, wait until the processor
-                    # is finished to avoid concurrent access to the DB.
-                    self.log.debug("Waiting for processors to finish since we're using sqlite")
-                    self.processor_agent.wait_until_finished()
+            with Trace.start_span(span_name='scheduler_loop', component='SchedulerJobRunner') as s:
+                s.set_attribute('category', 'scheduler')
+                with Stats.timer("scheduler.scheduler_loop_duration") as timer:
+                    if self.using_sqlite and self.processor_agent:
+                        self.processor_agent.run_single_parsing_loop()
+                        # For the sqlite case w/ 1 thread, wait until the processor
+                        # is finished to avoid concurrent access to the DB.
+                        self.log.debug("Waiting for processors to finish since we're using sqlite")
+                        self.processor_agent.wait_until_finished()
 
-                with create_session() as session:
-                    num_queued_tis = self._do_scheduling(session)
+                    with create_session() as session:
+                        num_queued_tis = self._do_scheduling(session)
 
-                    self.job.executor.heartbeat()
-                    session.expunge_all()
-                    num_finished_events = self._process_executor_events(session=session)
-                if self.processor_agent:
-                    self.processor_agent.heartbeat()
+                        self.job.executor.heartbeat()
+                        session.expunge_all()
+                        num_finished_events = self._process_executor_events(session=session)
+                    if self.processor_agent:
+                        self.processor_agent.heartbeat()
 
-                # Heartbeat the scheduler periodically
-                perform_heartbeat(
-                    job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
-                )
+                    # Heartbeat the scheduler periodically
+                    perform_heartbeat(
+                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
+                    )
 
-                # Run any pending timed events
-                next_event = timers.run(blocking=False)
-                self.log.debug("Next timed event is in %f", next_event)
+                    # Run any pending timed events
+                    next_event = timers.run(blocking=False)
+                    self.log.debug("Next timed event is in %f", next_event)
 
-            self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
+                self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
+                s.add_event(
+                    name=f"Ran scheduling loop", 
+                    attributes={'duration in seconds': timer.duration,
+                })
 
-            if not is_unit_test and not num_queued_tis and not num_finished_events:
-                # If the scheduler is doing things, don't sleep. This means when there is work to do, the
-                # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
-                # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
+                if not is_unit_test and not num_queued_tis and not num_finished_events:
+                    # If the scheduler is doing things, don't sleep. This means when there is work to do, the
+                    # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
+                    # usage when "idle"
+                    time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
-            if loop_count >= self.num_runs > 0:
-                self.log.info(
-                    "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
-                    self.num_runs,
-                    loop_count,
-                )
-                break
-            if self.processor_agent and self.processor_agent.done:
-                self.log.info(
-                    "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
-                    " scheduler loops",
-                    self.num_times_parse_dags,
-                    loop_count,
-                )
-                break
+                if loop_count >= self.num_runs > 0:
+                    self.log.info(
+                        "Exiting scheduler loop as requested number of runs (%d - got to %d) has been reached",
+                        self.num_runs,
+                        loop_count,
+                    )
+                    s.add_event(f"Exiting scheduler loop as requested number of runs has been reached")
+                    break
+                if self.processor_agent and self.processor_agent.done:
+                    self.log.info(
+                        "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
+                        " scheduler loops",
+                        self.num_times_parse_dags,
+                        loop_count,
+                    )
+                    s.add_event(f"Exiting scheduler loop as requested DAG parse count has been reached")
+                    break
 
     def _do_scheduling(self, session: Session) -> int:
         """
@@ -1129,6 +1161,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         # END: create dagruns
 
+    @span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
@@ -1337,6 +1370,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
         return True
 
+    @span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
@@ -1404,6 +1438,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         return callback_tuples
 
+    @span
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
@@ -1575,17 +1610,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        pools = Pool.slots_stats(session=session)
-        for pool_name, slot_stats in pools.items():
-            Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
-            Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
-            Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
-            Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
-            # Same metrics with tagging
-            Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
-            Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
-            Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
-            Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+        with Trace.start_span(span_name='emit_pool_metrics', component='SchedulerJobRunner') as s:
+            pools = Pool.slots_stats(session=session)
+            for pool_name, slot_stats in pools.items():
+                Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
+                Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
+                Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
+                Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+                # Same metrics with tagging
+                Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
+                Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
+                Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
+                Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
+
+                s.set_attribute('category', 'scheduler')
+                s.set_attribute(f'pool.open_slots.{pool_name}', slot_stats["open"])
+                s.set_attribute(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
+                s.set_attribute(f'pool.running_slots.{pool_name}', slot_stats["running"])
+                s.set_attribute(f'pool.deferred_slots.{pool_name}', slot_stats["deferred"])
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
