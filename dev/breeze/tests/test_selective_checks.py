@@ -710,6 +710,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "python-versions": "['3.8', '3.9', '3.10', '3.11']",
                     "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "kubernetes-versions": "['v1.25.16', 'v1.26.14', 'v1.27.11', 'v1.28.7', 'v1.29.2']",
+                    "kubernetes-versions-list-as-string": "v1.25.16 v1.26.14 v1.27.11 v1.28.7 v1.29.2",
+                    "kubernetes-combos-list-as-string": "3.8-v1.25.16 3.9-v1.26.14 3.10-v1.27.11 3.11-v1.28.7 3.8-v1.29.2",
                     "ci-image-build": "true",
                     "prod-image-build": "true",
                     "run-tests": "true",
@@ -723,6 +726,36 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
                 id="Everything should run including all providers when full tests are needed",
+            )
+        ),
+        (
+            pytest.param(
+                ("INTHEWILD.md",),
+                ("full tests needed", "default versions only"),
+                "main",
+                {
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "kubernetes-versions": "['v1.25.16']",
+                    "kubernetes-versions-list-as-string": "v1.25.16",
+                    "kubernetes-combos-list-as-string": "3.8-v1.25.16",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": "identity,mypy-core,mypy-dev,mypy-docs,mypy-providers",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                },
+                id="Everything should run including all providers when full tests are needed "
+                "but with single python and kubernetes if `default versions only` label is set",
             )
         ),
         (
