@@ -208,6 +208,14 @@ class AwsBatchExecutor(BaseExecutor):
 
         If an API failure occurs when running a Batch job, the job is rescheduled.
         """
+        # A failed job here refers to a job that has been marked Failed by AWS Batch, which is not
+        # necessarily the same as being marked Failed by Airflow. AWS Batch will mark a job Failed
+        # if the job fails before the Airflow process on the container has started. These failures
+        # can be caused by a Batch API failure, container misconfiguration etc.
+        # If the container is able to start up and run the Airflow process, any failures after that
+        # (i.e. DAG failures) will not be marked as Failed by AWS Batch, because Batch on assumes
+        # responsibility for ensuring the process started. Failures in the DAG will be caught by
+        # Airflow, which will be handled separately.
         job_info = self.active_workers.id_to_job_info[job.job_id]
         task_key = self.active_workers.id_to_key[job.job_id]
         task_cmd = job_info.cmd
@@ -401,8 +409,6 @@ class AwsBatchExecutor(BaseExecutor):
         from airflow.providers.amazon.aws.executors.batch.batch_executor_config import build_submit_kwargs
 
         submit_kwargs = build_submit_kwargs()
-        # Some checks with some helpful errors
-        assert isinstance(submit_kwargs, dict)
 
         if "containerOverrides" not in submit_kwargs or "command" not in submit_kwargs["containerOverrides"]:
             raise KeyError(
