@@ -56,6 +56,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         if kwargs.pop("multiple_outputs", None):
             warnings.warn(
                 f"`multiple_outputs=True` is not supported in {self.custom_operator_name} tasks. Ignoring.",
+                UserWarning,
                 stacklevel=3,
             )
 
