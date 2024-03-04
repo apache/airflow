@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove pid arg from celery option to fix duplicate pid issue, Move celery command to provider package (#36794)``
+* ``Change AirflowTaskTimeout to inherit BaseException (#35653)``
+
+Misc
+~~~~
+
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve G003: "Logging statement uses +" (#37848)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 3.6.0
 .....
 
