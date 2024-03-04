@@ -27,7 +27,7 @@ Prerequisite Tasks
 .. _howto/operator:ADLSCreateObjectOperator:
 
 ADLSCreateObjectOperator
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+----------------------------------
 
 :class:`~airflow.providers.microsoft.azure.operators.adls.ADLSCreateObjectOperator` allows you to
 upload data to ADL.
