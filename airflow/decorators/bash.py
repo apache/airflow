@@ -64,6 +64,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
             op_args=op_args,
             op_kwargs=op_kwargs,
             bash_command=NOTSET,
+            multiple_outputs=False,
             **kwargs,
         )
 
