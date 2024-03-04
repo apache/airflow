@@ -22,9 +22,10 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 state: ready
-source-date-epoch: 1707637063
+source-date-epoch: 1709555165
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.0.1
   - 8.0.0
   - 7.14.0
   - 7.13.0
@@ -224,6 +225,16 @@ config:
         type: string
         example: ~
         default: "False"
+      worker_pod_pending_fatal_container_state_reasons:
+        description: |
+          If the worker pods are in a pending state due to a fatal container
+          state reasons, then fail the task and delete the worker pod
+          if delete_worker_pods is True and delete_worker_pods_on_failure is True.
+        version_added: 8.1.0
+        type: string
+        example: ~
+        default: 'CreateContainerConfigError,ErrImagePull,CreateContainerError,ImageInspectError,
+        InvalidImageName'
       worker_pods_creation_batch_size:
         description: |
           Number of Kubernetes Worker Pod creation calls per scheduler loop.

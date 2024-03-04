@@ -103,7 +103,7 @@ class OnceTimetable(_TrivialTimetable):
             return None
         # "@once" always schedule to the start_date determined by the DAG and
         # tasks, regardless of catchup or not. This has been the case since 1.10
-        # and we're inheriting it. See AIRFLOW-1928.
+        # and we're inheriting it.
         run_after = restriction.earliest
         if restriction.latest is not None and run_after > restriction.latest:
             return None

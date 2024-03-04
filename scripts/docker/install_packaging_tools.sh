@@ -25,4 +25,4 @@ common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::show_packaging_tool_version_and_location
 
-common::install_packaging_tool
+common::install_packaging_tools

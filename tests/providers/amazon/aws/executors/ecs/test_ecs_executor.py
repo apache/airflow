@@ -825,7 +825,7 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers) == 0
         mock_failed_function.assert_called_once()
         assert (
-            "The ECS task failed due to the following containers failing: \ntest-container-arn1 - "
+            "The ECS task failed due to the following containers failing:\ntest-container-arn1 - "
             "test failure" in caplog.messages[0]
         )
 

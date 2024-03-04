@@ -53,6 +53,11 @@ maintainer.
   your fork. This will run the images as part of the `CI` workflow
   rather than using `Build images` workflow and use the same breeze
   version for building image and testing
+- When you want to test changes to workflows and CI scripts you can set
+  `default versions only` label to the PR. This will make the PR run
+  using the default versions of Python and Kubernetes. This is useful
+  when you want to test changes to the CI scripts and workflows and you
+  want to use far less resources than the full tests.
 - When you want to test changes to `build-images.yml` workflow you
   should push your branch as `main` branch in your local fork. This will
   run changed `build-images.yml` workflow as it will be in `main` branch

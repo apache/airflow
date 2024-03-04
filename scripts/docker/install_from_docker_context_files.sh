@@ -101,7 +101,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                --constraint "${HOME}/constraints.txt" \
                 ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
             set +x
         fi
@@ -115,7 +115,7 @@ function install_airflow_and_providers_from_docker_context_files(){
             ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
         set +x
     fi
-    common::install_packaging_tool
+    common::install_packaging_tools
     pip check
 }
 
@@ -135,7 +135,7 @@ function install_all_other_packages_from_docker_context_files() {
         set -x
         ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
-        common::install_packaging_tool
+        common::install_packaging_tools
         set +x
     fi
 }
