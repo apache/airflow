@@ -47,8 +47,8 @@ class SambaHook(BaseHook):
     conn_type = "samba"
     hook_name = "Samba"
 
-    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
+        super().__init__()
         conn = self.get_connection(samba_conn_id)
 
         if not conn.login:
@@ -252,7 +252,7 @@ class SambaHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["extra"],
             "relabeling": {"schema": "Share"},

@@ -88,7 +88,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
 
 def has_access_with_pk(f):
     """
-    This decorator is used to check permissions on views.
+    Check permissions on views.
 
     The implementation is very similar from
     https://github.com/dpgaspar/Flask-AppBuilder/blob/c6fecdc551629e15467fde5d06b4437379d90592/flask_appbuilder/security/decorators.py#L134
@@ -116,7 +116,7 @@ def has_access_with_pk(f):
         else:
             log.warning(LOGMSG_ERR_SEC_ACCESS_DENIED, permission_str, self.__class__.__name__)
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
 
     f._permission_name = permission_str
     return functools.update_wrapper(wraps, f)
@@ -173,7 +173,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
             403,
         )
     elif not get_auth_manager().is_logged_in():
-        return redirect(get_auth_manager().get_url_login(next=request.url))
+        return redirect(get_auth_manager().get_url_login(next_url=request.url))
     else:
         access_denied = get_access_denied_message()
         flash(access_denied, "danger")
@@ -345,5 +345,5 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
 
 
 def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
-    """Decorator that checks current user's permissions to access the website."""
+    """Check current user's permissions to access the website."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))

@@ -19,6 +19,9 @@
 name: 'Prepare breeze && current python image'
 description: 'Installs breeze and pulls current python image'
 inputs:
+  python-version:
+    description: 'Python version to use'
+    default: "3.8"
   pull-image-type:
     description: 'Which image to pull'
     default: CI
@@ -32,6 +35,8 @@ runs:
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze
+      with:
+        python-version: ${{ inputs.python-version }}
     - name: Pull CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG }}
       shell: bash
       run: breeze ci-image pull --tag-as-latest

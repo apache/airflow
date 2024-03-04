@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
+
+from deprecated import deprecated
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -53,6 +56,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     :param slack_initial_comment: The message text introducing the file in specified ``slack_channels``.
     :param slack_title: Title of file.
     :param slack_base_url: A string representing the Slack API base URL. Optional
+    :param slack_method_version: The version of the Slack SDK Client method to be used, either "v1" or "v2".
     :param df_kwargs: Keyword arguments forwarded to ``pandas.DataFrame.to_{format}()`` method.
     """
 
@@ -81,6 +85,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
         slack_base_url: str | None = None,
+        slack_method_version: Literal["v1", "v2"] = "v1",
         df_kwargs: dict | None = None,
         **kwargs,
     ):
@@ -93,7 +98,25 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         self.slack_initial_comment = slack_initial_comment
         self.slack_title = slack_title
         self.slack_base_url = slack_base_url
+        self.slack_method_version = slack_method_version
         self.df_kwargs = df_kwargs or {}
+
+    @cached_property
+    def slack_hook(self):
+        """Slack API Hook."""
+        return SlackHook(
+            slack_conn_id=self.slack_conn_id,
+            base_url=self.slack_base_url,
+            timeout=self.slack_timeout,
+            proxy=self.slack_proxy,
+            retry_handlers=self.slack_retry_handlers,
+        )
+
+    @property
+    def _method_resolver(self):
+        if self.slack_method_version == "v1":
+            return self.slack_hook.send_file
+        return self.slack_hook.send_file_v1_to_v2
 
     def execute(self, context: Context) -> None:
         # Parse file format from filename
@@ -102,13 +125,6 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             supported_file_formats=self.SUPPORTED_FILE_FORMATS,
         )
 
-        slack_hook = SlackHook(
-            slack_conn_id=self.slack_conn_id,
-            base_url=self.slack_base_url,
-            timeout=self.slack_timeout,
-            proxy=self.slack_proxy,
-            retry_handlers=self.slack_retry_handlers,
-        )
         with NamedTemporaryFile(mode="w+", suffix=f"_{self.slack_filename}") as fp:
             # tempfile.NamedTemporaryFile used only for create and remove temporary file,
             # pandas will open file in correct mode itself depend on file type.
@@ -129,7 +145,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
                 # if SUPPORTED_FILE_FORMATS extended and no actual implementation for specific format.
                 raise AirflowException(f"Unexpected output file format: {output_file_format}")
 
-            slack_hook.send_file(
+            self._method_resolver(
                 channels=self.slack_channels,
                 file=output_file_name,
                 filename=self.slack_filename,
@@ -138,6 +154,14 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             )
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` has been renamed "
+        "and moved `airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` "
+        "this operator deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SqlToSlackOperator(SqlToSlackWebhookOperator):
     """
     Executes an SQL statement in a given SQL connection and sends the results to Slack Incoming Webhook.
@@ -146,11 +170,4 @@ class SqlToSlackOperator(SqlToSlackWebhookOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` has been renamed "
-            "and moved `airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` "
-            "this operator deprecated and will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)

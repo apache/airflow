@@ -28,6 +28,14 @@ RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 
+RELEASE_HELM_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Helm release commands",
+    "commands": [
+        "prepare-helm-chart-tarball",
+        "prepare-helm-chart-package",
+    ],
+}
+
 RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
     "name": "Providers release commands",
     "commands": [
@@ -40,6 +48,7 @@ RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
         "clean-old-provider-artifacts",
     ],
 }
+
 
 RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "name": "Other release commands",
@@ -71,6 +80,27 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze release-management prepare-helm-chart-tarball": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--version",
+                "--version-suffix",
+                "--ignore-version-check",
+                "--override-tag",
+                "--skip-tagging",
+                "--skip-tag-signing",
+            ],
+        }
+    ],
+    "breeze release-management prepare-helm-chart-package": [
+        {
+            "name": "Package flags",
+            "options": [
+                "--sign-email",
+            ],
+        }
+    ],
     "breeze release-management verify-provider-packages": [
         {
             "name": "Provider verification flags",
@@ -88,6 +118,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",
@@ -150,6 +181,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-deleting-generated-files",
                 "--skip-tag-check",
                 "--version-suffix-for-pypi",
+                "--package-list",
             ],
         }
     ],
@@ -185,21 +217,22 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate constraints flags",
             "options": [
-                "--image-tag",
-                "--python",
                 "--airflow-constraints-mode",
                 "--chicken-egg-providers",
                 "--github-repository",
+                "--image-tag",
+                "--python",
+                "--use-uv",
             ],
         },
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
+                "--debug-resources",
                 "--parallelism",
                 "--python-versions",
+                "--run-in-parallel",
                 "--skip-cleanup",
-                "--debug-resources",
             ],
         },
     ],
@@ -208,13 +241,13 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Release PROD IMAGE flags",
             "options": [
                 "--airflow-version",
+                "--chicken-egg-providers",
+                "--commit-sha",
                 "--dockerhub-repo",
-                "--slim-images",
                 "--limit-python",
                 "--limit-platform",
                 "--skip-latest",
-                "--commit-sha",
-                "--chicken-egg-providers",
+                "--slim-images",
             ],
         }
     ],
@@ -227,16 +260,17 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--override-versioned",
                 "--package-filter",
+                "--package-list",
             ],
         },
         {
             "name": "Parallel running",
             "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
+                "--parallelism",
+                "--run-in-parallel",
+                "--skip-cleanup",
             ],
         },
     ],

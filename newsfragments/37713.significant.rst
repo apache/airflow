@@ -1,0 +1,1 @@
+The smtp provider is now pre-installed when you install Airflow.

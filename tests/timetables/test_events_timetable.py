@@ -49,17 +49,17 @@ NON_EVENT_DATE = pendulum.DateTime(2021, 10, 1, tzinfo=utc)
 MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=utc)
 
 
-@pytest.fixture()
+@pytest.fixture
 def restriction():
     return TimeRestriction(earliest=START_DATE, latest=None, catchup=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def unrestricted_timetable():
     return EventsTimetable(event_dates=EVENT_DATES)
 
 
-@pytest.fixture()
+@pytest.fixture
 def restricted_timetable():
     return EventsTimetable(event_dates=EVENT_DATES, restrict_to_events=True)
 

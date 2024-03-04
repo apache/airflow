@@ -106,7 +106,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         failed: set[TaskInstanceKey] = attr.ib(factory=set)
         not_ready: set[TaskInstanceKey] = attr.ib(factory=set)
         deadlocked: set[TaskInstance] = attr.ib(factory=set)
-        active_runs: list[DagRun] = attr.ib(factory=list)
+        active_runs: set[DagRun] = attr.ib(factory=set)
         executed_dag_run_dates: set[pendulum.DateTime] = attr.ib(factory=set)
         finished_runs: int = 0
         total_runs: int = 0
@@ -518,6 +518,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             ti_status.running.pop(key)
                         # Reset the failed task in backfill to scheduled state
                         ti.set_state(TaskInstanceState.SCHEDULED, session=session)
+                        if ti.dag_run not in ti_status.active_runs:
+                            ti_status.active_runs.add(ti.dag_run)
                 else:
                     # Default behaviour which works for subdag.
                     if ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED):
@@ -679,11 +681,10 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                             try:
                                 session.commit()
                             except OperationalError:
-                                self.log.error(
+                                self.log.exception(
                                     "Failed to commit task state due to operational error. "
                                     "The job will retry this operation so if your backfill succeeds, "
                                     "you can safely ignore this message.",
-                                    exc_info=True,
                                 )
                                 session.rollback()
                                 if i == max_attempts - 1:
@@ -738,7 +739,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             session.commit()
 
             # update dag run state
-            _dag_runs = ti_status.active_runs[:]
+            _dag_runs = ti_status.active_runs.copy()
             for run in _dag_runs:
                 run.update_state(session=session)
                 if run.state in State.finished_dr_states:
@@ -840,7 +841,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
                 if dag_run is not None:
                     tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
-                    ti_status.active_runs.append(dag_run)
+                    ti_status.active_runs.add(dag_run)
                     ti_status.to_run.update(tis_map or {})
 
         processed_dag_run_dates = self._process_backfill_task_instances(
@@ -984,10 +985,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             # state to failed.
             self._set_unfinished_dag_runs_to_failed(ti_status.active_runs)
         except OperationalError:
-            self.log.error(
+            self.log.exception(
                 "Backfill job dead-locked. The job will retry the job so it is likely "
                 "to heal itself. If your backfill succeeds you can ignore this exception.",
-                exc_info=True,
             )
             raise
         finally:

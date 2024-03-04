@@ -183,10 +183,9 @@ class BeamHook(BaseHook):
     def __init__(
         self,
         runner: str,
-        **kwargs,
     ) -> None:
         self.runner = runner
-        super().__init__(**kwargs)
+        super().__init__()
 
     def _start_pipeline(
         self,

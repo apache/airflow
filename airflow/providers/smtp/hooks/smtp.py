@@ -56,8 +56,8 @@ class SmtpHook(BaseHook):
     conn_type = "smtp"
     hook_name = "SMTP"
 
-    def __init__(self, smtp_conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
+        super().__init__()
         self.smtp_conn_id = smtp_conn_id
         self.smtp_connection: Connection | None = None
         self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
@@ -136,7 +136,7 @@ class SmtpHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -308,7 +308,7 @@ class SmtpHook(BaseHook):
 
     def _get_email_address_list(self, addresses: str | Iterable[str]) -> list[str]:
         """
-        Returns a list of email addresses from the provided input.
+        Return a list of email addresses from the provided input.
 
         :param addresses: A string or iterable of strings containing email addresses.
         :return: A list of email addresses.
@@ -380,7 +380,7 @@ class SmtpHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

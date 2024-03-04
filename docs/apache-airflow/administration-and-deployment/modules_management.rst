@@ -38,6 +38,7 @@ You can do it in one of those ways:
 The next chapter has a general description of how Python loads packages and modules, and dives
 deeper into the specifics of each of the three possibilities above.
 
+
 How package/modules loading in Python works
 -------------------------------------------
 
@@ -159,13 +160,32 @@ Airflow, when running dynamically adds three directories to the ``sys.path``:
    as safe because they are part of configuration of the Airflow installation and controlled by the
    people managing the installation.
 
-Best practices for module loading
----------------------------------
+Best practices for your code naming
+-----------------------------------
 
 There are a few gotchas you should be careful about when you import your code.
 
+Sometimes, you might see exceptions that ``module 'X' has no attribute 'Y'`` raised from Airflow or other
+library code that you use. This is usually caused by the fact that you have a module or packaged named 'X'
+in your ``PYTHONPATH`` at the top level and it is imported instead of the module that the original
+code expects.
+
+You should always use unique names for your packages and modules and there are ways how you can make
+sure that uniqueness is enforced described below.
+
+
 Use unique top package name
 ...........................
+
+Most importantly avoid using generic names for anything that you add directly at the top level of your
+``PYTHONPATH``. For example if you add ``airflow`` folder with ``__init__.py`` to your ``DAGS_FOLDER``,
+it will clash with the Airflow package and you will not be able to import anything from Airflow
+package. Similarly do not add ``airflow.py`` file directly there. Also common names used by standard
+library packages such as ``multiprocessing`` or ``logging`` etc. should not be used as top level - either
+as packages (i.e. folders with ``__init__.py``) or as modules (i.e. ``.py`` files).
+
+The same applies to ``config`` and ``plugins`` folders which are also at the ``PYTHONPATH`` and anything
+you add to your ``PYTHONPATH`` manually (see details in the following chapters).
 
 It is recommended that you always put your DAGs/common files in a subpackage which is unique to your
 deployment (``my_company`` in the example below). It is far too easy to use generic names for the

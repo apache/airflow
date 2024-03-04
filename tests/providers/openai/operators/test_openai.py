@@ -20,6 +20,8 @@ from unittest.mock import Mock
 
 import pytest
 
+openai = pytest.importorskip("openai")
+
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.utils.context import Context
 

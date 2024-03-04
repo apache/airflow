@@ -141,19 +141,11 @@ def is_core_commit(files: list[str]) -> bool:
         "clients",
         # non-released docs
         "COMMITTERS.rst",
-        "CONTRIBUTING.rst",
-        "CONTRIBUTORS_QUICK_START.rst",
-        "IMAGES.rst",
-        "LOCAL_VIRTUALENV.rst",
+        "contributing_docs/",
         "INTHEWILD.md",
         "INSTALL",
         "README.md",
-        "BREEZE.rst",
-        "CI.rst",
-        "CI_DIAGRAMS.md",
-        "STATIC_CODE_CHECKS.rst",
         "images/",
-        "TESTING.rst",
         "codecov.yml",
         "kubernetes_tests/",
         ".github/",
@@ -319,11 +311,15 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 @click.argument("previous_version")
 @click.argument("target_version")
 @click.argument("github-token", envvar="GITHUB_TOKEN")
-@click.option("--disable-progress", is_flag=True, help="Disable the progress bar")
-def changelog(previous_version, target_version, github_token, disable_progress):
+@click.option("--disable-progress-bar", is_flag=True, help="Disable the progress bar")
+def changelog(previous_version, target_version, github_token, disable_progress_bar):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
     log = get_commits_between(repo, previous_version, target_version)
+
+    if disable_progress_bar:
+        print(f"Processing {len(log)} commits")
+
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
@@ -336,7 +332,7 @@ def changelog(previous_version, target_version, github_token, disable_progress):
 
     console = Console(width=180)
 
-    with Progress(console=console, disable=disable_progress) as progress:
+    with Progress(console=console, disable=disable_progress_bar) as progress:
         task = progress.add_task("Processing commits from changelog", total=len(log))
         for commit in progress.track(log, description="Processing commits from changelog"):
             tickets = pr_title_re.findall(commit["subject"])

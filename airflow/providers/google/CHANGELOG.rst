@@ -27,6 +27,99 @@
 Changelog
 ---------
 
+10.15.0
+.......
+
+Features
+~~~~~~~~
+
+* ``add service_file support to GKEPodAsyncHook (#37081)``
+* ``Update GCP Dataproc ClusterGenerator to support GPU params (#37036)``
+* ``Create DataprocStartClusterOperator and DataprocStopClusterOperator (#36996)``
+* ``Implement deferrable mode for CreateHyperparameterTuningJobOperator (#36594)``
+* ``Enable '_enable_tcp_keepalive' functionality for GKEPodHook (#36999)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): fix how GKEPodAsyncHook.service_file_as_context is used (#37306)``
+* ``Fix metadata override for ComputeEngineSSHHook (#37192)``
+* ``Fix assignment of template field in '__init__' in 'custom_job' (#36789)``
+* ``Fix location requirement in DataflowTemplatedJobStartOperator (#37069)``
+* ``Fix assignment of template field in '__init__' in 'CloudDataTransferServiceCreateJobOperator' (#36909)``
+* ``Fixed the hardcoded default namespace value for GCP Data Fusion links. (#35379)``
+* ``Do not ignore the internal_ip_only if set to false in Dataproc cluster config (#37014)``
+
+Misc
+~~~~
+
+* ``Revert protection against back-compatibility issue with google-core-api (#37111)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 lint fixes for google provider (#37304)``
+   * ``D401 lint fixes for all hooks in google provider (#37296)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
+10.14.0
+.......
+
+.. note::
+  The default value of ``parquet_row_group_size`` in ``BaseSQLToGCSOperator`` has changed from 1 to
+  100000, in order to have a default that provides better compression efficiency and performance of
+  reading the data in the output Parquet files. In many cases, the previous value of 1 resulted in
+  very large files, long task durations and out of memory issues. A default value of 100000 may require
+  more memory to execute the operator, in which case users can override the ``parquet_row_group_size``
+  parameter in the operator. All operators that are derived from ``BaseSQLToGCSOperator`` are affected
+  when ``export_format`` is ``parquet``: ``MySQLToGCSOperator``, ``PrestoToGCSOperator``,
+  ``OracleToGCSOperator``, ``TrinoToGCSOperator``, ``MSSQLToGCSOperator`` and ``PostgresToGCSOperator``. Due to the above we treat this change as bug fix.
+
+
+Features
+~~~~~~~~
+
+* ``Add templated fields to 'BigQueryToSqlBaseOperator' from 'BigQueryToPostgresOperator' (#36663)``
+* ``Added Check for Cancel Workflow Invocation and added new Query Workflow Invocation operator (#36351)``
+* ``Implement Google Analytics Admin (GA4) operators (#36276)``
+* ``Add operator to diagnose cluster (#36899)``
+* ``Add scopes into a GCP token (#36974)``
+* ``feat: full support for google credentials in gcloud-aio clients (#36849)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix templating field to super constructor (#36934)``
+* ``fix: respect connection ID and impersonation in GKEStartPodOperator (#36861)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Fix deprecations into the GCP Dataproc links (#36834)``
+* ``fix assignment of templated field in constructor (#36603)``
+* ``Check cluster state before defer Dataproc operators to trigger (#36892)``
+* ``prevent templated field logic checks in operators __init__ (#36489)``
+* ``Preserve ASCII control characters directly through the BigQuery load API (#36533)``
+* ``Change default 'parquet_row_group_size' in 'BaseSQLToGCSOperator' (#36817)``
+* ``Fix google operators handling of impersonation chain (#36903)``
+
+Misc
+~~~~
+
+* ``style(providers/google): improve BigQueryInsertJobOperator type hinting (#36894)``
+* ``Deprecate AutoMLTrainModelOperator for Vision and Video (#36473)``
+* ``Remove backward compatibility check for KubernetesPodOperator module (#36724)``
+* ``Remove backward compatibility check for KubernetesPodTrigger module (#36721)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``remove unnecessary templated field (#36491)``
+* ``docs(providers/google): reword GoogleBaseHookAsync as GoogleBaseAsyncHook in docstring (#36946)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Run mypy checks for full packages in CI (#36638)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 10.13.1
 .......
 

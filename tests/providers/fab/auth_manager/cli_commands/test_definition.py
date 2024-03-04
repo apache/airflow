@@ -25,7 +25,7 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 
 class TestCliDefinition:
     def test_users_commands(self):
-        assert len(USERS_COMMANDS) == 7
+        assert len(USERS_COMMANDS) == 8
 
     def test_roles_commands(self):
         assert len(ROLES_COMMANDS) == 7

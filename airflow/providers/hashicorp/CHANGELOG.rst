@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hashicorp): Fix 'VAULT_TOKEN' support (#37337)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+3.6.2
+.....
+
+Misc
+~~~~
+
+* ``Explicitly passing 'raise_on_deleted_version=True' to 'read_secret_version' in Hashicorp operator (#36532)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 3.6.1
 .....
 

@@ -45,7 +45,7 @@ class PineconeHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -60,14 +60,13 @@ class PineconeHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
             "relabeling": {"login": "Pinecone Environment", "password": "Pinecone API key"},
         }
 
-    def __init__(self, conn_id: str = default_conn_name, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, conn_id: str = default_conn_name) -> None:
         self.conn_id = conn_id
         self.get_conn()
 
@@ -109,7 +108,7 @@ class PineconeHook(BaseHook):
         **kwargs: Any,
     ) -> UpsertResponse:
         """
-        The upsert operation writes vectors into a namespace.
+        Write vectors into a namespace.
 
         If a new value is upserted for an existing vector id, it will overwrite the previous value.
 
@@ -205,7 +204,7 @@ class PineconeHook(BaseHook):
     @staticmethod
     def configure_index(index_name: str, replicas: int | None = None, pod_type: str | None = "") -> None:
         """
-        Changes current configuration of the index.
+        Change the current configuration of the index.
 
         :param index_name: The name of the index to configure.
         :param replicas: The new number of replicas.
@@ -259,7 +258,7 @@ class PineconeHook(BaseHook):
         sparse_vector: SparseValues | dict[str, list[float] | list[int]] | None = None,
     ) -> QueryResponse:
         """
-        The Query operation searches a namespace, using a query vector.
+        Search a namespace using query vector.
 
         It retrieves the ids of the most similar items in a namespace, along with their similarity scores.
         API reference: https://docs.pinecone.io/reference/query
@@ -289,7 +288,7 @@ class PineconeHook(BaseHook):
 
     @staticmethod
     def _chunks(iterable: list[Any], batch_size: int = 100) -> Any:
-        """Helper function to break an iterable into chunks of size batch_size."""
+        """Break an iterable into chunks of size batch_size."""
         it = iter(iterable)
         chunk = tuple(itertools.islice(it, batch_size))
         while chunk:
@@ -330,7 +329,7 @@ class PineconeHook(BaseHook):
         **kwargs: Any,
     ) -> DescribeIndexStatsResponse:
         """
-        Describes the index statistics.
+        Describe the index statistics.
 
         Returns statistics about the index's contents. For example: The vector count per
         namespace and the number of dimensions.

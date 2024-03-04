@@ -33,7 +33,7 @@ class TestFileTrigger:
         assert classpath == "airflow.triggers.file.FileTrigger"
         assert kwargs == {
             "filepath": self.FILE_PATH,
-            "poll_interval": 5,
+            "poke_interval": 5,
             "recursive": False,
         }
 

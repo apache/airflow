@@ -29,6 +29,16 @@
     Changelog <changelog>
     Security <security>
 
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Executors
+
+    CeleryExecutor details <celery_executor>
+    CeleryKubernetesExecutor details <celery_kubernetes_executor>
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -51,26 +61,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-celery
+apache-airflow-providers-celery package
 ------------------------------------------------------
 
 `Celery <https://docs.celeryq.dev/en/stable/>`__
 
 
-Release: 3.5.1
+Release: 3.6.0
 
 Provider package
 ----------------
 
-This is a provider package for ``celery`` provider. All classes for this provider package
-are in ``airflow.providers.celery`` python package.
+This package is for the ``celery`` provider.
+All classes for this package are included in the ``airflow.providers.celery`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-celery``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-celery``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -111,5 +121,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-celery 3.5.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.5.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-celery 3.5.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.5.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-celery 3.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-celery 3.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.6.0-py3-none-any.whl.sha512>`__)

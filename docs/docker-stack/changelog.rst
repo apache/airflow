@@ -45,6 +45,13 @@ Airflow 2.9
      ``apache/airflow:slim-2.9.0-python-3.8`` images respectively so while the change is potentially
      breaking, it is very easy to switch to the previous behaviour.
 
+Airflow 2.9
+~~~~~~~~~~~
+
+The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+security vulnerabilities as it was linked against older go standard libraries.
+
 
 Airflow 2.8
 ~~~~~~~~~~~

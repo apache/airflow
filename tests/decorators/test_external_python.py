@@ -46,14 +46,14 @@ TI_CONTEXT_ENV_VARS = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def venv_python():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=False)
         yield Path(d) / "bin" / "python"
 
 
-@pytest.fixture()
+@pytest.fixture
 def venv_python_with_dill():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
@@ -139,7 +139,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker():
-            ret = f(datetime.datetime.utcnow())
+            ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 

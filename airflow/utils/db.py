@@ -90,6 +90,7 @@ _REVISION_HEADS_MAP = {
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
+    "2.9.0": "1fd565369930",
 }
 
 
@@ -134,6 +135,13 @@ def create_default_connections(session: Session = NEW_SESSION):
             login="root",
             password="",
             schema="airflow",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="athena_default",
+            conn_type="athena",
         ),
         session,
     )
@@ -536,6 +544,15 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="qdrant_default",
+            conn_type="qdrant",
+            host="qdrant",
+            port=6333,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="redis_default",
             conn_type="redis",
             host="redis",
@@ -630,6 +647,17 @@ def create_default_connections(session: Session = NEW_SESSION):
             conn_id="tabular_default",
             conn_type="tabular",
             host="https://api.tabulardata.io/ws/v1",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="teradata_default",
+            conn_type="teradata",
+            host="localhost",
+            login="user",
+            password="password",
+            schema="schema",
         ),
         session,
     )

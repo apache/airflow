@@ -37,8 +37,8 @@ airflow_version = "1.10.4"
 
 def upgrade():
     """
-    Increase column size from 50 to 256 characters, closing AIRFLOW-4737 caused
-    by broker backends that might use unusually large queue names.
+    Increase column size from 50 to 256 characters,
+    caused by broker backends that might use unusually large queue names.
     """
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:

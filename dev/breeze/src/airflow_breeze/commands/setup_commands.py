@@ -418,8 +418,9 @@ def backup(script_path_file: Path):
     shutil.copy(str(script_path_file), str(script_path_file) + ".bak")
 
 
-BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_ROOT / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+BREEZE_DOC_DIR = BREEZE_INSTALL_DIR / "doc"
+BREEZE_IMAGES_DIR = BREEZE_DOC_DIR / "images"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 
 

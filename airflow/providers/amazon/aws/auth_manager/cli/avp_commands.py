@@ -25,9 +25,17 @@ from typing import TYPE_CHECKING
 import boto3
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_REGION_NAME_KEY, CONF_SECTION_NAME
 from airflow.utils import cli as cli_utils
-from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+try:
+    from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import avp_commands. This feature is only available in Airflow "
+        "version >= 2.8.0 where Auth Managers are introduced."
+    )
 
 if TYPE_CHECKING:
     from botocore.client import BaseClient
@@ -47,7 +55,7 @@ def init_avp(args):
     if not is_new_policy_store:
         print(
             f"Since an existing policy store with description '{args.policy_store_description}' has been found in Amazon Verified Permissions, "
-            "the CLI nade no changes to this policy store for security reasons. "
+            "the CLI made no changes to this policy store for security reasons. "
             "Any modification to this policy store must be done manually.",
         )
     else:
@@ -72,7 +80,7 @@ def update_schema(args):
 
 
 def _get_client():
-    """Returns Amazon Verified Permissions client."""
+    """Return Amazon Verified Permissions client."""
     region_name = conf.get(CONF_SECTION_NAME, CONF_REGION_NAME_KEY)
     return boto3.client("verifiedpermissions", region_name=region_name)
 
@@ -107,7 +115,7 @@ def _create_policy_store(client: BaseClient, args) -> tuple[str | None, bool]:
         print(f"No policy store with description '{args.policy_store_description}' found, creating one.")
         if args.dry_run:
             print(
-                "Dry run, not creating the policy store with description '{args.policy_store_description}'."
+                f"Dry run, not creating the policy store with description '{args.policy_store_description}'."
             )
             return None, True
 

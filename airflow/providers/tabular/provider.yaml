@@ -22,7 +22,8 @@ description: |
     `Tabular <https://tabular.io/>`__
 
 state: ready
-source-date-epoch: 1703288178
+source-date-epoch: 1705912293
+# note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.4.1
   - 1.4.0

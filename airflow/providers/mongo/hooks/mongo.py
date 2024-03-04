@@ -18,13 +18,14 @@
 """Hook for Mongo DB."""
 from __future__ import annotations
 
-from ssl import CERT_NONE
-from typing import TYPE_CHECKING, Any, overload
+import warnings
+from typing import TYPE_CHECKING, Any, Iterable, overload
 from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -35,9 +36,8 @@ if TYPE_CHECKING:
 
 class MongoHook(BaseHook):
     """
-    Interact with Mongo. This hook uses the Mongo conn_id.
+    PyMongo wrapper to interact with MongoDB.
 
-    PyMongo Wrapper to Interact With Mongo Database
     Mongo Connection Documentation
     https://docs.mongodb.com/manual/reference/connection-string/index.html
     You can specify connection string options in extra field of your connection
@@ -48,22 +48,74 @@ class MongoHook(BaseHook):
     ex.
         {"srv": true, "replicaSet": "test", "ssl": true, "connectTimeoutMS": 30000}
 
+    For enabling SSL, the `"ssl": true` option can be used within the connection string options, under extra.
+    In scenarios where SSL is enabled, `allow_insecure` option is not included by default in the connection
+    unless specified. This is so that we ensure a secure medium while handling connections to MongoDB.
+
+    The `allow_insecure` only makes sense in ssl context and is configurable and can be used in one of
+    the following scenarios:
+
+    HTTP (ssl = False)
+    Here, `ssl` is disabled and using `allow_insecure` doesn't make sense.
+    Example connection extra: {"ssl": false}
+
+    HTTPS, but insecure (ssl = True, allow_insecure = True)
+    Here, `ssl` is enabled, and the connection allows insecure connections.
+    Example connection extra: {"ssl": true, "allow_insecure": true}
+
+    HTTPS, but secure (ssl = True, allow_insecure = False - default when SSL enabled):
+    Here, `ssl` is enabled, and the connection does not allow insecure connections (default behavior when
+    SSL is enabled). Example connection extra: {"ssl": true} or {"ssl": true, "allow_insecure": false}
+
+    Note: `tls` is an alias to `ssl` and can be used in place of `ssl`. Example: {"ssl": false} or
+    {"tls": false}.
+
     :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
     """
 
-    conn_name_attr = "conn_id"
+    conn_name_attr = "mongo_conn_id"
     default_conn_name = "mongo_default"
     conn_type = "mongo"
     hook_name = "MongoDB"
 
-    def __init__(self, conn_id: str = default_conn_name, *args, **kwargs) -> None:
-        super().__init__(logger_name=kwargs.pop("logger_name", None))
-        self.mongo_conn_id = conn_id
-        self.connection = self.get_connection(conn_id)
+    def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+        super().__init__()
+        if conn_id := kwargs.pop("conn_id", None):
+            warnings.warn(
+                "Parameter `conn_id` is deprecated and will be removed in a future releases. "
+                "Please use `mongo_conn_id` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            mongo_conn_id = conn_id
+
+        self.mongo_conn_id = mongo_conn_id
+        self.connection = self.get_connection(self.mongo_conn_id)
         self.extras = self.connection.extra_dejson.copy()
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
+
+        self.allow_insecure = self.extras.pop("allow_insecure", "false").lower() == "true"
+        self.ssl_enabled = (
+            self.extras.get("ssl", "false").lower() == "true"
+            or self.extras.get("tls", "false").lower() == "true"
+        )
+
+        if self.ssl_enabled and not self.allow_insecure:
+            # Case: HTTPS
+            self.allow_insecure = False
+        elif self.ssl_enabled and self.allow_insecure:
+            # Case: HTTPS + allow_insecure
+            self.allow_insecure = True
+            self.extras.pop("ssl", None)
+        elif not self.ssl_enabled and "allow_insecure" in self.extras:
+            # Case: HTTP (ssl=False) with allow_insecure specified
+            self.log.warning("allow_insecure is only applicable when ssl is set")
+            self.extras.pop("allow_insecure", None)
+        elif not self.ssl_enabled:
+            # Case: HTTP (ssl=False) with allow_insecure not specified
+            self.allow_insecure = False
 
     def __enter__(self):
         return self
@@ -79,21 +131,16 @@ class MongoHook(BaseHook):
             self.client = None
 
     def get_conn(self) -> MongoClient:
-        """Fetches PyMongo Client."""
+        """Fetch PyMongo Client."""
         if self.client is not None:
             return self.client
 
         # Mongo Connection Options dict that is unpacked when passed to MongoClient
         options = self.extras
 
-        # If we are using SSL disable requiring certs from specific hostname
-        if options.get("ssl", False):
-            if pymongo.__version__ >= "4.0.0":
-                # In pymongo 4.0.0+ `tlsAllowInvalidCertificates=True`
-                # replaces `ssl_cert_reqs=CERT_NONE`
-                options.update({"tlsAllowInvalidCertificates": True})
-            else:
-                options.update({"ssl_cert_reqs": CERT_NONE})
+        # Set tlsAllowInvalidCertificates based on allow_insecure
+        if self.allow_insecure:
+            options["tlsAllowInvalidCertificates"] = True
 
         self.client = MongoClient(self.uri, **options)
         return self.client
@@ -120,7 +167,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, mongo_db: str | None = None
     ) -> pymongo.collection.Collection:
         """
-        Fetches a mongo collection object for querying.
+        Fetch a mongo collection object for querying.
 
         Uses connection schema as DB unless specified.
         """
@@ -133,7 +180,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
     ) -> pymongo.command_cursor.CommandCursor:
         """
-        Runs an aggregation pipeline and returns the results.
+        Run an aggregation pipeline and returns the results.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.aggregate
         https://pymongo.readthedocs.io/en/stable/examples/aggregation.html
@@ -176,7 +223,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.cursor.Cursor | Any | None:
         """
-        Runs a mongo find query and returns the results.
+        Run a mongo find query and returns the results.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find
         """
@@ -191,7 +238,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.InsertOneResult:
         """
-        Inserts a single document into a mongo collection.
+        Insert a single document into a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_one
         """
@@ -200,10 +247,10 @@ class MongoHook(BaseHook):
         return collection.insert_one(doc, **kwargs)
 
     def insert_many(
-        self, mongo_collection: str, docs: dict, mongo_db: str | None = None, **kwargs
+        self, mongo_collection: str, docs: Iterable[dict], mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.InsertManyResult:
         """
-        Inserts many docs into a mongo collection.
+        Insert many docs into a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.insert_many
         """
@@ -220,7 +267,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Updates a single document in a mongo collection.
+        Update a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_one
 
@@ -244,7 +291,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Updates one or more documents in a mongo collection.
+        Update one or more documents in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.update_many
 
@@ -267,7 +314,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.UpdateResult:
         """
-        Replaces a single document in a mongo collection.
+        Replace a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.replace_one
 
@@ -300,7 +347,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> pymongo.results.BulkWriteResult:
         """
-        Replaces many documents in a mongo collection.
+        Replace many documents in a mongo collection.
 
         Uses bulk_write with multiple ReplaceOne operations
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.bulk_write
@@ -337,7 +384,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.DeleteResult:
         """
-        Deletes a single document in a mongo collection.
+        Delete a single document in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_one
 
@@ -354,7 +401,7 @@ class MongoHook(BaseHook):
         self, mongo_collection: str, filter_doc: dict, mongo_db: str | None = None, **kwargs
     ) -> pymongo.results.DeleteResult:
         """
-        Deletes one or more documents in a mongo collection.
+        Delete one or more documents in a mongo collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.delete_many
 
@@ -376,7 +423,7 @@ class MongoHook(BaseHook):
         **kwargs,
     ) -> list[Any]:
         """
-        Returns a list of distinct values for the given key across a collection.
+        Return a list of distinct values for the given key across a collection.
 
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.distinct
 

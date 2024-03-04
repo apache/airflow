@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import uuid
+from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 import yaml
@@ -26,6 +27,7 @@ from openlineage.client.facet import (
     BaseFacet,
     DocumentationJobFacet,
     ErrorMessageRunFacet,
+    JobTypeJobFacet,
     NominalTimeRunFacet,
     OwnershipJobFacet,
     OwnershipJobFacetOwners,
@@ -55,6 +57,12 @@ _DAG_NAMESPACE = conf.get(
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 set_producer(_PRODUCER)
+
+# https://openlineage.io/docs/spec/facets/job-facets/job-type
+# They must be set after the `set_producer(_PRODUCER)`
+# otherwise the `JobTypeJobFacet._producer` will be set with the default value
+_JOB_TYPE_DAG = JobTypeJobFacet(jobType="DAG", integration="AIRFLOW", processingType="BATCH")
+_JOB_TYPE_TASK = JobTypeJobFacet(jobType="TASK", integration="AIRFLOW", processingType="BATCH")
 
 
 class OpenLineageAdapter(LoggingMixin):
@@ -111,16 +119,28 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
+        """Emit OpenLineage event.
+
+        :param event: Event to be emitted.
+        :return: Redacted Event.
+        """
         if not self._client:
             self._client = self.get_or_create_openlineage_client()
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
+        event_type = event.eventType.value.lower()
+        transport_type = f"{self._client.transport.kind}".lower()
+
         try:
-            with Stats.timer("ol.emit.attempts"):
-                return self._client.emit(redacted_event)
+            with ExitStack() as stack:
+                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                self._client.emit(redacted_event)
         except Exception as e:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
             self.log.debug("OpenLineage emission failure: %s", e)
+
+        return redacted_event
 
     def start_task(
         self,
@@ -136,9 +156,9 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str],
         task: OperatorLineage | None,
         run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets
-    ):
+    ) -> RunEvent:
         """
-        Emits openlineage event of type START.
+        Emit openlineage event of type START.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task in dag
@@ -181,6 +201,7 @@ class OpenLineageAdapter(LoggingMixin):
             ),
             job=self._build_job(
                 job_name=job_name,
+                job_type=_JOB_TYPE_TASK,
                 job_description=job_description,
                 code_location=code_location,
                 owners=owners,
@@ -190,7 +211,7 @@ class OpenLineageAdapter(LoggingMixin):
             outputs=task.outputs if task else [],
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def complete_task(
         self,
@@ -200,9 +221,9 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
-        Emits openlineage event of type COMPLETE.
+        Emit openlineage event of type COMPLETE.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
@@ -222,12 +243,12 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=task.run_facets,
             ),
-            job=self._build_job(job_name, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def fail_task(
         self,
@@ -237,9 +258,9 @@ class OpenLineageAdapter(LoggingMixin):
         parent_run_id: str | None,
         end_time: str,
         task: OperatorLineage,
-    ):
+    ) -> RunEvent:
         """
-        Emits openlineage event of type FAIL.
+        Emit openlineage event of type FAIL.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
@@ -259,12 +280,12 @@ class OpenLineageAdapter(LoggingMixin):
                 parent_run_id=parent_run_id,
                 run_facets=task.run_facets,
             ),
-            job=self._build_job(job_name, job_facets=task.job_facets),
+            job=self._build_job(job_name, job_type=_JOB_TYPE_TASK, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
             producer=_PRODUCER,
         )
-        self.emit(event)
+        return self.emit(event)
 
     def dag_started(
         self,
@@ -276,7 +297,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.START,
             eventTime=dag_run.start_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=self._build_run(
                 run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 job_name=dag_run.dag_id,
@@ -293,7 +314,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id)),
             inputs=[],
             outputs=[],
@@ -305,7 +326,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=dag_run.end_date.isoformat(),
-            job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
+            job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
             run=Run(
                 runId=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
                 facets={"errorMessage": ErrorMessageRunFacet(message=msg, programmingLanguage="python")},
@@ -350,6 +371,7 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_job(
         job_name: str,
+        job_type: JobTypeJobFacet,
         job_description: str | None = None,
         code_location: str | None = None,
         owners: list[str] | None = None,
@@ -371,5 +393,7 @@ class OpenLineageAdapter(LoggingMixin):
             )
         if job_facets:
             facets = {**facets, **job_facets}
+
+        facets.update({"jobType": job_type})
 
         return Job(_DAG_NAMESPACE, job_name, facets)

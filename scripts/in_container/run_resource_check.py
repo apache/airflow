@@ -93,7 +93,7 @@ def resoure_validate():
         console.print("[yellow]WARNING!!!: You have not enough resources to run Airflow (see above)!")
         print("Please follow the instructions to increase amount of resources available:")
         console.print(
-            " Please check https://github.com/apache/airflow/blob/main/BREEZE.rst#resources-required"
+            " Please check https://github.com/apache/airflow/blob/main/dev/breeze/doc/01_installation.rst#resources-required"
             " for details"
         )
     else:

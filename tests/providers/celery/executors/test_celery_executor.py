@@ -22,7 +22,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -183,7 +183,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):
-        start_date = datetime.utcnow() - timedelta(days=2)
+        start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_try_adopt_task_instances_none"):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
@@ -358,3 +358,12 @@ def test_sentinel_kwargs_loaded_from_string():
     assert default_celery.DEFAULT_CELERY_CONFIG["broker_transport_options"]["sentinel_kwargs"] == {
         "service_name": "mymaster"
     }
+
+
+@conf_vars({("celery", "task_acks_late"): "False"})
+def test_celery_task_acks_late_loaded_from_string():
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    assert default_celery.DEFAULT_CELERY_CONFIG["task_acks_late"] is False

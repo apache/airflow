@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from typing import Any, AsyncIterator, Sequence
 
@@ -26,6 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, ClusterStatus, JobStatus
 
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook
+from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -180,7 +182,7 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
         self.batch_id = batch_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DataprocBatchTrigger arguments and classpath."""
+        """Serialize DataprocBatchTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger",
             {
@@ -242,7 +244,7 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         self.metadata = metadata
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DataprocDeleteClusterTrigger arguments and classpath."""
+        """Serialize DataprocDeleteClusterTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger",
             {
@@ -281,22 +283,24 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
             yield TriggerEvent({"status": "error", "message": "Timeout"})
 
 
-class DataprocWorkflowTrigger(DataprocBaseTrigger):
+class DataprocOperationTrigger(DataprocBaseTrigger):
     """
-    Trigger that periodically polls information from Dataproc API to verify status.
+    Trigger that periodically polls information on a long running operation from Dataproc API to verify status.
 
     Implementation leverages asynchronous transport.
     """
 
-    def __init__(self, name: str, **kwargs: Any):
+    def __init__(self, name: str, operation_type: str | None = None, **kwargs: Any):
         super().__init__(**kwargs)
         self.name = name
+        self.operation_type = operation_type
 
     def serialize(self):
         return (
-            "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger",
+            "airflow.providers.google.cloud.triggers.dataproc.DataprocOperationTrigger",
             {
                 "name": self.name,
+                "operation_type": self.operation_type,
                 "project_id": self.project_id,
                 "region": self.region,
                 "gcp_conn_id": self.gcp_conn_id,
@@ -317,14 +321,30 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                     else:
                         status = "success"
                         message = "Operation is successfully ended."
-                    yield TriggerEvent(
-                        {
-                            "operation_name": operation.name,
-                            "operation_done": operation.done,
-                            "status": status,
-                            "message": message,
-                        }
-                    )
+                    if self.operation_type == DataprocOperationType.DIAGNOSE.value:
+                        gcs_regex = rb"gs:\/\/[a-z0-9][a-z0-9_-]{1,61}[a-z0-9_\-\/]*"
+                        gcs_uri_value = operation.response.value
+                        match = re.search(gcs_regex, gcs_uri_value)
+                        if match:
+                            output_uri = match.group(0).decode("utf-8", "ignore")
+                        else:
+                            output_uri = gcs_uri_value
+                        yield TriggerEvent(
+                            {
+                                "status": status,
+                                "message": message,
+                                "output_uri": output_uri,
+                            }
+                        )
+                    else:
+                        yield TriggerEvent(
+                            {
+                                "operation_name": operation.name,
+                                "operation_done": operation.done,
+                                "status": status,
+                                "message": message,
+                            }
+                        )
                     return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)

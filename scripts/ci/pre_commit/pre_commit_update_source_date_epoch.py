@@ -28,18 +28,35 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 
 from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH
 
-RELEASE_NOTES_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "RELEASE_NOTES.rst"
-REPRODUCIBLE_BUILD_FILE = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "reproducible_build.yaml"
+CHART_DIR = AIRFLOW_SOURCES_ROOT_PATH / "chart"
 
-if __name__ == "__main__":
+AIRFLOW_RELEASE_NOTES_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "RELEASE_NOTES.rst"
+AIRFLOW_REPRODUCIBLE_BUILD_FILE = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "reproducible_build.yaml"
+
+CHART_RELEASE_NOTES_FILE_PATH = CHART_DIR / "RELEASE_NOTES.rst"
+CHART_REPRODUCIBLE_BUILD_FILE = CHART_DIR / "reproducible_build.yaml"
+
+
+def write_reproducible_build_file(release_notes_path: Path, reproducible_build_path: Path):
     hash_md5 = md5()
-    hash_md5.update(RELEASE_NOTES_FILE_PATH.read_bytes())
+    hash_md5.update(release_notes_path.read_bytes())
     release_notes_hash = hash_md5.hexdigest()
-    reproducible_build_text = REPRODUCIBLE_BUILD_FILE.read_text()
+    reproducible_build_text = reproducible_build_path.read_text()
     reproducible_build = yaml.safe_load(reproducible_build_text)
     old_hash = reproducible_build["release-notes-hash"]
     if release_notes_hash != old_hash:
         # Replace the hash in the file
         reproducible_build["release-notes-hash"] = release_notes_hash
         reproducible_build["source-date-epoch"] = int(time())
-    REPRODUCIBLE_BUILD_FILE.write_text(yaml.dump(reproducible_build))
+    reproducible_build_path.write_text(yaml.dump(reproducible_build))
+
+
+if __name__ == "__main__":
+    write_reproducible_build_file(
+        release_notes_path=AIRFLOW_RELEASE_NOTES_FILE_PATH,
+        reproducible_build_path=AIRFLOW_REPRODUCIBLE_BUILD_FILE,
+    )
+    write_reproducible_build_file(
+        release_notes_path=CHART_RELEASE_NOTES_FILE_PATH,
+        reproducible_build_path=CHART_REPRODUCIBLE_BUILD_FILE,
+    )

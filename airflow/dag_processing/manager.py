@@ -63,7 +63,7 @@ from airflow.utils.process_utils import (
 )
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
 
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -681,9 +681,7 @@ class DagFileProcessorManager(LoggingMixin):
                     DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                 )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
-            query = with_row_locks(
-                query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
-            )
+            query = with_row_locks(query, of=DbCallbackRequest, session=session, skip_locked=True)
             callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
@@ -851,7 +849,7 @@ class DagFileProcessorManager(LoggingMixin):
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[3] or 0.0)
+        rows.sort(key=lambda x: x[5] or 0.0, reverse=True)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:

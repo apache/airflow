@@ -26,6 +26,92 @@
 Changelog
 ---------
 
+8.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``ECS Executor - Add backoff on failed task retry (#37109)``
+* ``SqlToS3Operator: feat/ add max_rows_per_file parameter (#37055)``
+* ``Adding Amazon Neptune Hook and Operators (#37000)``
+* ``Add retry configuration in 'EmrContainerOperator' (#37426)``
+* ``Create CLI commands for AWS auth manager to create AWS Identity Center related resources (#37407)``
+* ``Add extra operator links for EMR Serverless (#34225)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'log_query' to format SQL statement correctly in 'AthenaOperator' (#36962)``
+* ``check sagemaker training job status before deferring 'SageMakerTrainingOperator' (#36685)``
+
+Misc
+~~~~
+
+* ``Merge all ECS executor configs following recursive python dict update (#37137)``
+* ``Update default value for 'BatchSensor' (#37234)``
+* ``remove info log from download_file (#37211)``
+* ``S3ToRedshiftOperator templating aws_conn_id (#37195)``
+* ``Updates to ECS Docs (#37125)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+* ``add type annotations to Amazon provider "execute_coplete" methods (#36330)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 support in amazon provider (#37275)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+   * ``Make Amazon Provider tests compatible with 'moto>=5' (#37060)``
+   * ``Limit moto to version below 5.0.0 (#37054)``
+   * ``docs: Add doc page with providers deprecations (#37075)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+
+8.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``add deferrable mode to RedshiftDataOperator (#36586)``
+* ``Adds support for capacity providers to ECS Executor (#36722)``
+* ``Add use_regex argument for allowing 'S3KeySensor' to check s3 keys with regular expression (#36578)``
+* ``Add deferrable mode to RedshiftClusterSensor (#36550)``
+* ``AthenaSqlHook implementation (#36171)``
+* ``Create CLI commands for AWS auth manager to create Amazon Verified Permissions related resources (#36799)``
+* ``Implement 'is_authorized_dag' in AWS auth manager (#36619)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``EC2 'CreateInstance': terminate instances in on_kill (#36828)``
+* ``Fallback to default value if '[aws] cloudwatch_task_handler_json_serializer' not set (#36851)``
+* ``AWS auth manager: raise AirflowOptionalProviderfeature exception for AVP command (#36824)``
+* ``check transform job status before deferring SageMakerTransformOperator (#36680)``
+* ``check sagemaker processing job status before deferring (#36658)``
+* ``check job_status before BatchOperator execute in deferrable mode (#36523)``
+* ``Update the redshift hostname check to avoid possible bugs (#36703)``
+* ``Refresh credentials in 'AwsEcsExecutor' (#36179)``
+
+Misc
+~~~~
+
+* ``Fix docstring for apply_wildcard parameter in 'S3ListOperator'. Changed the order of docstring for fix (#36679)``
+* ``Use base aws classes in AWS DMS Operators/Sensors (#36772)``
+* ``Use base aws classes in AWS Redshift Data API Operators (#36764)``
+* ``Use base aws classes in Amazon EventBridge Operators (#36765)``
+* ``Use base aws classes in Amazon QuickSight Operators/Sensors (#36776)``
+* ``Use base aws classes in AWS Datasync Operators (#36766)``
+* ``Use base aws classes in Amazon DynamoDB Sensors (#36770)``
+* ``Use base aws classes in AWS CloudFormation Operators/Sensors (#36771)``
+* ``Set min pandas dependency to 1.2.5 for all providers and airflow (#36698)``
+* ``Bump min version of amazon-provider related dependencies (#36660)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 8.16.0
 ......
 

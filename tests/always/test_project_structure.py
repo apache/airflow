@@ -158,9 +158,7 @@ class TestProjectStructure:
             "tests/providers/microsoft/azure/fs/test_adls.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
-            "tests/providers/microsoft/azure/triggers/test_wasb.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/openlineage/extractors/test_manager.py",
             "tests/providers/openlineage/plugins/test_adapter.py",
             "tests/providers/openlineage/plugins/test_facets.py",
             "tests/providers/openlineage/test_sqlparser.py",
@@ -404,6 +402,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
+        "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
     }

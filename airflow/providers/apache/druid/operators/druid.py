@@ -37,6 +37,8 @@ class DruidOperator(BaseOperator):
         of the ingestion job. Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :param ingestion_type: The ingestion type of the job. Could be IngestionType.Batch or IngestionType.MSQ
+    :param verify_ssl: Whether to use SSL encryption to submit indexing job. If set to False then checks
+                       connection information for path to a CA bundle to use. Defaults to True
     """
 
     template_fields: Sequence[str] = ("json_index_file",)
@@ -51,6 +53,7 @@ class DruidOperator(BaseOperator):
         timeout: int = 1,
         max_ingestion_time: int | None = None,
         ingestion_type: IngestionType = IngestionType.BATCH,
+        verify_ssl: bool = True,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -59,12 +62,14 @@ class DruidOperator(BaseOperator):
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
         self.ingestion_type = ingestion_type
+        self.verify_ssl = verify_ssl
 
     def execute(self, context: Context) -> None:
         hook = DruidHook(
             druid_ingest_conn_id=self.conn_id,
             timeout=self.timeout,
             max_ingestion_time=self.max_ingestion_time,
+            verify_ssl=self.verify_ssl,
         )
         self.log.info("Submitting %s", self.json_index_file)
         hook.submit_indexing_job(self.json_index_file, self.ingestion_type)

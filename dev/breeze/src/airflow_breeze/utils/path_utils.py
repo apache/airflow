@@ -263,7 +263,17 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         # only print warning and sleep if not producing complete results
         reinstall_if_different_sources(airflow_sources)
         reinstall_if_setup_changed()
-    os.chdir(str(airflow_sources))
+    os.chdir(airflow_sources.as_posix())
+    airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", (Path.home() / "airflow").resolve().as_posix()))
+    if airflow_sources.resolve() == airflow_home_dir.resolve():
+        get_console().print(
+            f"\n[error]Your Airflow sources are checked out in {airflow_home_dir} which "
+            f"is your also your AIRFLOW_HOME where airflow writes logs and database. \n"
+            f"This is a bad idea because Airflow might override and cleanup your checked out "
+            f"sources and .git repository.[/]\n"
+        )
+        get_console().print("\nPlease check out your Airflow code elsewhere.\n")
+        sys.exit(1)
     return airflow_sources
 
 
@@ -293,6 +303,8 @@ HOOKS_DIR = AIRFLOW_SOURCES_ROOT / "hooks"
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / "logs"
 DIST_DIR = AIRFLOW_SOURCES_ROOT / "dist"
+OUT_DIR = AIRFLOW_SOURCES_ROOT / "out"
+REPRODUCIBLE_DIR = OUT_DIR / "reproducible"
 GENERATED_PROVIDER_PACKAGES_DIR = DIST_DIR / "provider_packages"
 DOCS_DIR = AIRFLOW_SOURCES_ROOT / "docs"
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / "scripts" / "ci"
@@ -306,6 +318,7 @@ DOCKER_CONTEXT_DIR = AIRFLOW_SOURCES_ROOT / "docker-context-files"
 CACHE_TMP_FILE_DIR = tempfile.TemporaryDirectory()
 OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, "out.log")
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
+AIRFLOW_HOME_DIR = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
 
 
 def create_volume_if_missing(volume_name: str):

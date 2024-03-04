@@ -45,7 +45,7 @@ def make_initialization_workspace_flow(
     without_installation: bool = False,
 ) -> tuple:
     """
-    Creates flow which simulates the initialization of the default project.
+    Create flow which simulates the initialization of the default project.
 
     :param project_id: Required. The ID of the Google Cloud project where workspace located.
     :param region: Required. The ID of the Google Cloud region where workspace located.

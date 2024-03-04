@@ -27,31 +27,34 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_precommit_utils import console, initialize_breeze_precommit
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
-BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
+BREEZE_DOC_DIR = BREEZE_INSTALL_DIR / "doc"
+BREEZE_IMAGES_DIR = BREEZE_DOC_DIR / "images"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 FORCE = os.environ.get("FORCE", "false")[0].lower() == "t"
 
 
 def verify_all_commands_described_in_docs():
     errors = []
-    doc_content = (AIRFLOW_SOURCES_DIR / "BREEZE.rst").read_text()
+    doc_content = ""
+    for file in BREEZE_DOC_DIR.glob("*.rst"):
+        doc_content += file.read_text()
     for file_path in BREEZE_IMAGES_DIR.glob("output_*.svg"):
         command = file_path.stem[len("output_") :]
         if command != "breeze-commands":
             if file_path.name in doc_content:
-                console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE.rst.")
+                console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE documentation.")
             else:
                 errors.append(command)
     if errors:
-        console.print("[red]Some of Breeze commands are not described in BREEZE.rst:[/]")
+        console.print("[red]Some of Breeze commands are not described in BREEZE documentation :[/]")
         for command in errors:
             console.print(f"  * [red]{command}[/]")
         console.print()
         console.print(
             "[bright_yellow]Make sure you describe it and embed "
             "./images/breeze/output_<COMMAND>[_<SUBCOMMAND>].svg "
-            "screenshot as image in the BREEZE.rst file.[/]"
+            f"screenshot as image in one of the .rst docs in {BREEZE_DOC_DIR}.[/]"
         )
         sys.exit(1)
 

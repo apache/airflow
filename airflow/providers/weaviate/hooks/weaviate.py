@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import contextlib
 import json
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence, cast
 
 import requests
 import weaviate.exceptions
+from deprecated import deprecated
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
 from weaviate import Client as WeaviateClient
 from weaviate.auth import AuthApiKey, AuthBearerToken, AuthClientCredentials, AuthClientPassword
@@ -85,7 +85,7 @@ class WeaviateHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField
@@ -96,7 +96,7 @@ class WeaviateHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema"],
             "relabeling": {
@@ -139,14 +139,13 @@ class WeaviateHook(BaseHook):
         """Returns a Weaviate client."""
         return self.get_conn()
 
+    @deprecated(
+        reason="The `get_client` method has been renamed to `get_conn`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_client(self) -> WeaviateClient:
-        """Returns a Weaviate client."""
+        """Return a Weaviate client."""
         # Keeping this for backwards compatibility
-        warnings.warn(
-            "The `get_client` method has been renamed to `get_conn`",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.conn
 
     def test_connection(self) -> tuple[bool, str]:
@@ -183,8 +182,8 @@ class WeaviateHook(BaseHook):
         client.schema.create(schema_json)
 
     @staticmethod
-    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame) -> list[dict[str, Any]]:
-        """Helper function to convert dataframe to list of dicts.
+    def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:
+        """Convert dataframe to list of dicts.
 
         In scenario where Pandas isn't installed and we pass data as a list of dictionaries, importing
         Pandas will fail, which is invalid. This function handles this scenario.
@@ -214,7 +213,7 @@ class WeaviateHook(BaseHook):
         return client.schema.get(class_name)
 
     def delete_classes(self, class_names: list[str] | str, if_error: str = "stop") -> list[str] | None:
-        """Deletes all or specific classes if class_names are provided.
+        """Delete all or specific classes if class_names are provided.
 
         :param class_names: list of class names to be deleted.
         :param if_error: define the actions to be taken if there is an error while deleting a class, possible
@@ -335,7 +334,7 @@ class WeaviateHook(BaseHook):
     @staticmethod
     def _convert_properties_to_dict(classes_objects, key_property: str = "name"):
         """
-        Helper function to convert list of class properties into dict by using a `key_property` as key.
+        Convert list of class properties into dict by using a `key_property` as key.
 
         This is done to avoid class properties comparison as list of properties.
 
@@ -382,7 +381,7 @@ class WeaviateHook(BaseHook):
     def batch_data(
         self,
         class_name: str,
-        data: list[dict[str, Any]] | pd.DataFrame,
+        data: list[dict[str, Any]] | pd.DataFrame | None,
         batch_config_params: dict[str, Any] | None = None,
         vector_col: str = "Vector",
         uuid_col: str = "id",
@@ -401,7 +400,7 @@ class WeaviateHook(BaseHook):
         :param retry_attempts_per_object: number of time to try in case of failure before giving up.
         :param tenant: The tenant to which the object will be added.
         """
-        data = self._convert_dataframe_to_list(data)
+        converted_data = self._convert_dataframe_to_list(data)
         total_results = 0
         error_results = 0
         insertion_errors: list = []
@@ -411,7 +410,7 @@ class WeaviateHook(BaseHook):
             verbose: bool = True,
         ) -> None:
             """
-            Helper function to processes the results from insert or delete batch operation and collects any errors.
+            Process the results from insert or delete batch operation and collects any errors.
 
             :param results: Results from the batch operation.
             :param verbose: Flag to enable verbose logging.
@@ -437,7 +436,7 @@ class WeaviateHook(BaseHook):
 
                 self.log.info(
                     "Total Objects %s / Objects %s successfully inserted and Objects %s had errors.",
-                    len(data),
+                    len(converted_data),
                     total_results,
                     error_results,
                 )
@@ -460,7 +459,7 @@ class WeaviateHook(BaseHook):
         client.batch.configure(**batch_config_params)
         with client.batch as batch:
             # Batch import all data
-            for index, data_obj in enumerate(data):
+            for index, data_obj in enumerate(converted_data):
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
                     retry=(
@@ -675,7 +674,8 @@ class WeaviateHook(BaseHook):
         return client.data_object.exists(uuid, **kwargs)
 
     def _delete_objects(self, uuids: Collection, class_name: str, retry_attempts_per_object: int = 5):
-        """
+        """Delete multiple objects.
+
         Helper function for `create_or_replace_objects()` to delete multiple objects.
 
         :param uuids: Collection of uuids.
@@ -712,7 +712,7 @@ class WeaviateHook(BaseHook):
         uuid_column: str | None = None,
     ) -> tuple[pd.DataFrame, str]:
         """
-        Adds UUIDs to a DataFrame, useful for replace operations where UUIDs must be known before ingestion.
+        Add UUIDs to a DataFrame, useful for replace operations where UUIDs must be known before ingestion.
 
         By default, UUIDs are generated using a custom function if 'uuid_column' is not specified.
         The function can potentially ingest the same data multiple times with different UUIDs.
@@ -763,7 +763,7 @@ class WeaviateHook(BaseHook):
         offset: int = 0,
         limit: int = 2000,
     ) -> dict[str, set]:
-        """Helper function to get the document to uuid map of existing objects in db.
+        """Get the document to uuid map of existing objects in db.
 
         :param data: A single pandas DataFrame.
         :param document_column: The name of the property to query.
@@ -807,7 +807,7 @@ class WeaviateHook(BaseHook):
     def _prepare_document_to_uuid_map(
         data: list[dict], group_key: str, get_value: Callable[[dict], str]
     ) -> dict[str, set]:
-        """Helper function to prepare the map of grouped_key to set."""
+        """Prepare the map of grouped_key to set."""
         grouped_key_to_set: dict = {}
         for item in data:
             document_url = item[group_key]

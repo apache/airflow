@@ -30,7 +30,7 @@ import warnings
 from collections import defaultdict
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
 import dill
@@ -76,6 +76,7 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTerminated,
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
@@ -410,6 +411,17 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
+
+    def _execute_callable(context, **execute_callable_kwargs):
+        try:
+            return execute_callable(context=context, **execute_callable_kwargs)
+        except SystemExit as e:
+            # Handle only successful cases here. Failure cases will be handled upper
+            # in the exception chain.
+            if e.code is not None and e.code != 0:
+                raise
+            return None
+
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
     if task_to_execute.execution_timeout:
@@ -427,18 +439,32 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute_callable(context=context, **execute_callable_kwargs)
+                result = _execute_callable(context=context, **execute_callable_kwargs)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = execute_callable(context=context, **execute_callable_kwargs)
+        result = _execute_callable(context=context, **execute_callable_kwargs)
     with create_session() as session:
         if task_to_execute.do_xcom_push:
             xcom_value = result
         else:
             xcom_value = None
         if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
+            if task_to_execute.multiple_outputs:
+                if not isinstance(xcom_value, Mapping):
+                    raise AirflowException(
+                        f"Returned output was type {type(xcom_value)} "
+                        "expected dictionary for multiple_outputs"
+                    )
+                for key in xcom_value.keys():
+                    if not isinstance(key, str):
+                        raise AirflowException(
+                            "Returned dictionary keys must be strings when using "
+                            f"multiple_outputs, found {key} ({type(key)}) instead"
+                        )
+                for key, value in xcom_value.items():
+                    task_instance.xcom_push(key=key, value=value, session=session)
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
         _record_task_map_for_downstreams(
             task_instance=task_instance, task=task_orig, value=xcom_value, session=session
@@ -450,7 +476,7 @@ def _refresh_from_db(
     *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
-    Refreshes the task instance from the database based on the primary key.
+    Refresh the task instance from the database based on the primary key.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -520,7 +546,7 @@ def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None
 
 def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
-    Returns task instance tags.
+    Return task instance tags.
 
     :param task_instance: the task instance
 
@@ -724,6 +750,7 @@ def _get_template_context(
         "inlets": task.inlets,
         "logical_date": logical_date,
         "macros": macros,
+        "map_index_template": task.map_index_template,
         "next_ds": get_next_ds(),
         "next_ds_nodash": get_next_ds_nodash(),
         "next_execution_date": get_next_execution_date(),
@@ -787,7 +814,7 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
 def _handle_failure(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    error: None | str | Exception | KeyboardInterrupt,
+    error: None | str | BaseException,
     session: Session,
     test_mode: bool | None = None,
     context: Context | None = None,
@@ -932,7 +959,7 @@ def _get_previous_dagrun(
     session: Session | None = None,
 ) -> DagRun | None:
     """
-    The DagRun that ran before this task instance's DagRun.
+    Return the DagRun that ran prior to this task instance's DagRun.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -972,7 +999,7 @@ def _get_previous_execution_date(
     session: Session,
 ) -> pendulum.DateTime | None:
     """
-    The execution date from property previous_ti_success.
+    Get execution date from property previous_ti_success.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -1138,8 +1165,9 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
+    message += "execution_date=%s, start_date=%s, end_date=%s"
     log.info(
-        message + "execution_date=%s, start_date=%s, end_date=%s",
+        message,
         *params,
         _date_or_empty(task_instance=task_instance, attr="execution_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
@@ -1167,7 +1195,7 @@ def _get_previous_ti(
     state: DagRunState | None = None,
 ) -> TaskInstance | TaskInstancePydantic | None:
     """
-    The task instance for the task that ran before this task instance.
+    Get task instance for the task that ran before this task instance.
 
     :param task_instance: the task instance
     :param state: If passed, it only take into account instances of a specific state.
@@ -1226,6 +1254,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index = Column(String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1305,6 +1334,7 @@ class TaskInstance(Base, LoggingMixin):
 
     :meta private:
     """
+    _logger_name = "airflow.task"
 
     def __init__(
         self,
@@ -1406,8 +1436,6 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
-        # correctly config the ti log
-        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @hybrid_property
@@ -1421,6 +1449,18 @@ class TaskInstance(Base, LoggingMixin):
         This is designed so that task logs end up in the right file.
         """
         return _get_try_number(task_instance=self)
+
+    @try_number.expression
+    def try_number(cls):
+        """
+        Return the expression to be used by SQLAlchemy when filtering on try_number.
+
+        This is required because the override in the get_try_number function causes
+        try_number values to be off by one when listing tasks in the UI.
+
+        :meta private:
+        """
+        return cls._try_number
 
     @try_number.setter
     def try_number(self, value: int) -> None:
@@ -1439,7 +1479,6 @@ class TaskInstance(Base, LoggingMixin):
         Expose this for the Task Tries and Gantt graph views.
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
-        https://issues.apache.org/jira/browse/AIRFLOW-2143
         """
         return self._try_number
 
@@ -2176,7 +2215,10 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.state = TaskInstanceState.RUNNING
         ti.emit_state_change_metric(TaskInstanceState.RUNNING)
-        ti.external_executor_id = external_executor_id
+
+        if external_executor_id:
+            ti.external_executor_id = external_executor_id
+
         ti.end_date = None
         if not test_mode:
             session.merge(ti).task = task
@@ -2341,7 +2383,7 @@ class TaskInstance(Base, LoggingMixin):
                 # a trigger.
                 if raise_on_defer:
                     raise
-                self._defer_task(defer=defer, session=session)
+                self.defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
                     self.dag_id,
@@ -2374,7 +2416,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.handle_failure(e, test_mode, context, force_fail=True, session=session)
                 session.commit()
                 raise
-            except AirflowException as e:
+            except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
                 if not test_mode:
                     self.refresh_from_db(lock_for_update=True, session=session)
                 # for case when task is marked as success/failed externally
@@ -2389,7 +2431,14 @@ class TaskInstance(Base, LoggingMixin):
                     self.handle_failure(e, test_mode, context, session=session)
                     session.commit()
                     raise
-            except (Exception, KeyboardInterrupt) as e:
+            except SystemExit as e:
+                # We have already handled SystemExit with success codes (0 and None) in the `_execute_task`.
+                # Therefore, here we must handle only error codes.
+                msg = f"Task failed due to SystemExit({e.code})"
+                self.handle_failure(msg, test_mode, context, session=session)
+                session.commit()
+                raise Exception(msg)
+            except BaseException as e:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
@@ -2452,7 +2501,7 @@ class TaskInstance(Base, LoggingMixin):
                 return
             self.log.error("Received SIGTERM. Terminating subprocesses.")
             self.task.on_kill()
-            raise AirflowException("Task received SIGTERM signal")
+            raise AirflowTaskTerminated("Task received SIGTERM signal")
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -2467,7 +2516,12 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context["params"]
 
             with set_current_context(context):
-                task_orig = self.render_templates(context=context)
+                dag = self.task.get_dag()
+                if dag is not None:
+                    jinja_env = dag.get_template_env()
+                else:
+                    jinja_env = None
+                task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
@@ -2502,9 +2556,15 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
+
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+
+            # DAG authors define map_index_template at the task level
+            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
+                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
+                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
@@ -2521,8 +2581,11 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     @provide_session
-    def _defer_task(self, session: Session, defer: TaskDeferred) -> None:
-        """Mark the task as deferred and sets up the trigger that is needed to resume it."""
+    def defer_task(self, session: Session, defer: TaskDeferred) -> None:
+        """Mark the task as deferred and sets up the trigger that is needed to resume it.
+
+        :meta: private
+        """
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
@@ -2581,6 +2644,7 @@ class TaskInstance(Base, LoggingMixin):
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
+        raise_on_defer: bool = False,
     ) -> None:
         """Run TaskInstance."""
         res = self.check_and_change_state_before_execution(
@@ -2600,7 +2664,12 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         self._run_raw_task(
-            mark_success=mark_success, test_mode=test_mode, job_id=job_id, pool=pool, session=session
+            mark_success=mark_success,
+            test_mode=test_mode,
+            job_id=job_id,
+            pool=pool,
+            session=session,
+            raise_on_defer=raise_on_defer,
         )
 
     def dry_run(self) -> None:
@@ -2690,7 +2759,7 @@ class TaskInstance(Base, LoggingMixin):
     def fetch_handle_failure_context(
         cls,
         ti: TaskInstance | TaskInstancePydantic,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
@@ -2785,7 +2854,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: None | str | Exception | KeyboardInterrupt,
+        error: None | str | BaseException,
         test_mode: bool | None = None,
         context: Context | None = None,
         force_fail: bool = False,
@@ -2868,7 +2937,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Context | None = None) -> Operator:
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> Operator:
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
@@ -2883,7 +2954,7 @@ class TaskInstance(Base, LoggingMixin):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context)
+        original_task.render_template_fields(context, jinja_env)
 
         return original_task
 
@@ -3227,7 +3298,6 @@ class TaskInstance(Base, LoggingMixin):
 
     @classmethod
     @internal_api_call
-    @Sentry.enrich_errors
     @provide_session
     def _schedule_downstream_tasks(
         cls,

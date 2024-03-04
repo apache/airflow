@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+8.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In the case of Kube API exceeded quota errors, we have introduced the ``task_publish_max_retries``
+flag to control the re-queuing task behavior. Changed the default behavior from unlimited
+retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
+unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
+``task_publish_max_retries`` to any positive integer.
+
+* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
+
+Features
+~~~~~~~~
+
+* ``Add logging_interval in KubernetesPodOperator to log container log periodically (#37279)``
+* ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
+* ``Fix hanging KPO on deferrable task with do_xcom_push (#37300)``
+* ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
+* ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
+* ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37454)``
+* ``Fix KPO task hanging when pod fails to start within specified timeout (#37514)``
+* ``Fix KeyError when KPO exits too soon (#37508)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Kubernetes version bump (#37040)``
+* ``Add GKEStartKueueInsideClusterOperator (#37072)``
+* ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add d401 support to kubernetes provider (#37301)``
+   * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
+   * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
+7.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SparkKubernetesOperator crd implementation (#22253)``
+* ``Template field support for configmaps in the KubernetesPodOperator (#36922)``
+* ``Create a generic callbacks class for KubernetesPodOperator (#35714)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Avoid retrying after KubernetesPodOperator has been marked as failed (#36749)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Increase tenacity wait in read_pod_logs (#36955)``
+* ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
+
+Misc
+~~~~
+
+* ``Change field type for kube_config (#36752)``
+* ``Changing wording in docstring for CNCF provider (#36547)``
+* ``Add support of Pendulum 3 (#36281)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
 7.13.0
 ......
 

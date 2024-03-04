@@ -24,7 +24,7 @@ from unittest import mock
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_glue, mock_iam
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -38,7 +38,7 @@ class TestGlueJobHook:
     def setup_method(self):
         self.some_aws_region = "us-west-2"
 
-    @mock_iam
+    @mock_aws
     @pytest.mark.parametrize("role_path", ["/", "/custom-path/"])
     def test_get_iam_execution_role(self, role_path):
         expected_role = "my_test_role"
@@ -308,7 +308,7 @@ class TestGlueJobHook:
         )
         assert result == job_name
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     def test_create_or_update_glue_job_worker_type(self, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}

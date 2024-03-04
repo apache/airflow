@@ -109,7 +109,7 @@ they define the extensions properly. See :doc:`apache-airflow:cli-and-env-variab
 sub-commands.
 
 When you write your own provider, consider following the
-`Naming conventions for provider packages <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#naming-conventions-for-provider-packages>`_
+`Naming conventions for provider packages <https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_packages.rst#naming-conventions-for-provider-packages>`_
 
 Special considerations
 ''''''''''''''''''''''

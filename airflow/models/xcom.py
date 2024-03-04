@@ -29,6 +29,7 @@ from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
+from deprecated import deprecated
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
@@ -368,6 +369,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     @staticmethod
     @provide_session
     @internal_api_call
+    @deprecated
     def get_one(
         execution_date: datetime.datetime | None = None,
         key: str | None = None,
@@ -418,7 +420,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         result = query.with_entities(BaseXCom.value).first()
         if result:
-            return BaseXCom.deserialize_value(result)
+            return XCom.deserialize_value(result)
         return None
 
     @overload
@@ -556,8 +558,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
                 raise TypeError(f"Expected XCom; received {xcom.__class__.__name__}")
+            XCom.purge(xcom, session)
             session.delete(xcom)
         session.commit()
+
+    @staticmethod
+    def purge(xcom: XCom, session: Session) -> None:
+        """Purge an XCom entry from underlying storage implementations."""
+        pass
 
     @overload
     @staticmethod
@@ -641,7 +649,13 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
             query = query.filter_by(map_index=map_index)
-        query.delete()
+
+        for xcom in query:
+            # print(f"Clearing XCOM {xcom} with value {xcom.value}")
+            XCom.purge(xcom, session)
+            session.delete(xcom)
+
+        session.commit()
 
     @staticmethod
     def serialize_value(

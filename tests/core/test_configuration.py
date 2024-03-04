@@ -41,6 +41,7 @@ from airflow.configuration import (
     run_command,
     write_default_airflow_configuration_if_needed,
 )
+from airflow.providers_manager import ProvidersManager
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 from tests.utils.test_config import (
@@ -596,26 +597,27 @@ AIRFLOW_HOME = /root/airflow
         assert isinstance(section_dict[key], type)
 
     def test_auth_backends_adds_session(self):
-        test_conf = AirflowConfigParser(default_config="")
-        # Guarantee we have deprecated settings, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        test_conf.deprecated_values = {
-            "api": {
-                "auth_backends": (
-                    re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
-                    "airflow.api.auth.backend.session",
-                    "3.0",
-                ),
-            },
-        }
-        test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
+        with patch("os.environ", {"AIRFLOW__API__AUTH_BACKEND": None}):
+            test_conf = AirflowConfigParser(default_config="")
+            # Guarantee we have deprecated settings, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_values = {
+                "api": {
+                    "auth_backends": (
+                        re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
+                        "airflow.api.auth.backend.session",
+                        "3.0",
+                    ),
+                },
+            }
+            test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
 
-        with pytest.warns(FutureWarning):
-            test_conf.validate()
-            assert (
-                test_conf.get("api", "auth_backends")
-                == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
-            )
+            with pytest.warns(FutureWarning):
+                test_conf.validate()
+                assert (
+                    test_conf.get("api", "auth_backends")
+                    == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                )
 
     def test_command_from_env(self):
         test_cmdenv_config = """[testcmdenv]
@@ -1652,6 +1654,9 @@ def test_error_when_contributing_to_existing_section():
         assert conf.get("celery", "celery_app_name") == "test"
 
 
+# Technically it's not a DB test, but we want to make sure it's not interfering with xdist non-db tests
+# Because the `_cleanup` method might cause side-effect for parallel-run tests
+@pytest.mark.db_test
 class TestWriteDefaultAirflowConfigurationIfNeeded:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, tmp_path_factory):
@@ -1664,6 +1669,8 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
             self.patch_airflow_home(self.test_airflow_home)
             self.patch_airflow_config(self.test_airflow_config)
             yield
+            # make sure any side effects of "write_default_airflow_configuration_if_needed" are removed
+            ProvidersManager()._cleanup()
 
     def patch_airflow_home(self, airflow_home):
         self.monkeypatch.setattr("airflow.configuration.AIRFLOW_HOME", os.fspath(airflow_home))
@@ -1674,8 +1681,11 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
     def test_default(self):
         """Test write default config in `${AIRFLOW_HOME}/airflow.cfg`."""
         assert not self.test_airflow_config.exists()
-        write_default_airflow_configuration_if_needed()
-        assert self.test_airflow_config.exists()
+        try:
+            write_default_airflow_configuration_if_needed()
+            assert self.test_airflow_config.exists()
+        finally:
+            self.test_airflow_config.unlink()
 
     @pytest.mark.parametrize(
         "relative_to_airflow_home",

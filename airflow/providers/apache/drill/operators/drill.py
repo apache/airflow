@@ -17,13 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
+@deprecated(
+    reason="Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DrillOperator(SQLExecuteQueryOperator):
     """
     Executes the provided SQL in the identified Drill environment.
@@ -51,9 +56,3 @@ class DrillOperator(SQLExecuteQueryOperator):
 
     def __init__(self, *, drill_conn_id: str = "drill_default", **kwargs) -> None:
         super().__init__(conn_id=drill_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )

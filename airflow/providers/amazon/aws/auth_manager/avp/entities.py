@@ -57,9 +57,9 @@ def get_action_id(resource_type: AvpEntities, method: ResourceMethod):
     """
     Return action id.
 
-    Convention for action ID is <resource_type>::<method>. Example: Variable::GET.
+    Convention for action ID is <resource_type>.<method>. Example: Variable.GET.
 
     :param resource_type: Resource type.
     :param method: Resource method.
     """
-    return f"{resource_type.value}::{method}"
+    return f"{resource_type.value}.{method}"

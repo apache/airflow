@@ -781,6 +781,8 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         context: Context,
     ) -> list:
         """
+        Act as a default message callback.
+
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
 
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.

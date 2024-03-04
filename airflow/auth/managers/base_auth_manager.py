@@ -28,11 +28,13 @@ from airflow.auth.managers.models.resource_details import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.security.permissions import ACTION_CAN_ACCESS_MENU
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Blueprint
+    from flask_appbuilder.menu import MenuItem
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -252,6 +254,24 @@ class BaseAuthManager(LoggingMixin):
         """
         raise AirflowException(f"The resource `{fab_resource_name}` does not exist in the environment.")
 
+    def batch_is_authorized_connection(
+        self,
+        requests: Sequence[IsAuthorizedConnectionRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_connection``.
+
+        By default, calls individually the ``is_authorized_connection`` API on each item in the list of
+        requests, which can lead to some poor performance. It is recommended to override this method in the auth
+        manager implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
+        """
+        return all(
+            self.is_authorized_connection(method=request["method"], details=request.get("details"))
+            for request in requests
+        )
+
     def batch_is_authorized_dag(
         self,
         requests: Sequence[IsAuthorizedDagRequest],
@@ -270,27 +290,6 @@ class BaseAuthManager(LoggingMixin):
                 method=request["method"],
                 access_entity=request.get("access_entity"),
                 details=request.get("details"),
-                user=request.get("user"),
-            )
-            for request in requests
-        )
-
-    def batch_is_authorized_connection(
-        self,
-        requests: Sequence[IsAuthorizedConnectionRequest],
-    ) -> bool:
-        """
-        Batch version of ``is_authorized_connection``.
-
-        By default, calls individually the ``is_authorized_connection`` API on each item in the list of
-        requests. Can lead to some poor performance. It is recommended to override this method in the auth
-        manager implementation to provide a more efficient implementation.
-
-        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
-        """
-        return all(
-            self.is_authorized_connection(
-                method=request["method"], details=request.get("details"), user=request.get("user")
             )
             for request in requests
         )
@@ -309,9 +308,7 @@ class BaseAuthManager(LoggingMixin):
         :param requests: a list of requests containing the parameters for ``is_authorized_pool``
         """
         return all(
-            self.is_authorized_pool(
-                method=request["method"], details=request.get("details"), user=request.get("user")
-            )
+            self.is_authorized_pool(method=request["method"], details=request.get("details"))
             for request in requests
         )
 
@@ -329,9 +326,7 @@ class BaseAuthManager(LoggingMixin):
         :param requests: a list of requests containing the parameters for ``is_authorized_variable``
         """
         return all(
-            self.is_authorized_variable(
-                method=request["method"], details=request.get("details"), user=request.get("user")
-            )
+            self.is_authorized_variable(method=request["method"], details=request.get("details"))
             for request in requests
         )
 
@@ -371,6 +366,26 @@ class BaseAuthManager(LoggingMixin):
             for dag_id in dag_ids
             if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
+
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+        """
+        Filter menu items based on user permissions.
+
+        :param menu_items: list of all menu items
+        """
+        items = filter(
+            lambda item: self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, item.name), menu_items
+        )
+        accessible_items = []
+        for menu_item in items:
+            if menu_item.childs:
+                accessible_children = []
+                for child in menu_item.childs:
+                    if self.security_manager.has_access(ACTION_CAN_ACCESS_MENU, child.name):
+                        accessible_children.append(child)
+                menu_item.childs = accessible_children
+            accessible_items.append(menu_item)
+        return accessible_items
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

@@ -18,20 +18,20 @@ from __future__ import annotations
 
 import boto3
 import pytest
-from moto import mock_ses
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.ses import SesHook
 
 boto3.setup_default_session()
 
 
-@mock_ses
+@mock_aws
 def test_get_conn():
     hook = SesHook(aws_conn_id="aws_default")
     assert hook.get_conn() is not None
 
 
-@mock_ses
+@mock_aws
 @pytest.mark.parametrize(
     "to", ["to@domain.com", ["to1@domain.com", "to2@domain.com"], "to1@domain.com,to2@domain.com"]
 )

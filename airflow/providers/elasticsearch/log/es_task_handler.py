@@ -171,6 +171,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
         self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.

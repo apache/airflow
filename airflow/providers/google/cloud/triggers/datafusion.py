@@ -71,7 +71,7 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         self.success_states = success_states
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DataFusionStartPipelineTrigger arguments and classpath."""
+        """Serialize DataFusionStartPipelineTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger",
             {
@@ -86,7 +86,7 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pipeline status and yields a TriggerEvent."""
+        """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
             while True:

@@ -48,12 +48,15 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
         mysql_table: str | None = None,
         target_table_name: str | None = None,
         mysql_conn_id: str = "mysql_default",
+        dataset_id: str | None = None,
+        table_id: str | None = None,
         **kwargs,
     ) -> None:
         if mysql_table is not None:
             warnings.warn(
                 "The `mysql_table` parameter has been deprecated. Use `target_table_name` instead.",
                 AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
             if target_table_name is not None:
@@ -64,7 +67,9 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
 
             target_table_name = mysql_table
 
-        super().__init__(target_table_name=target_table_name, **kwargs)
+        super().__init__(
+            target_table_name=target_table_name, dataset_id=dataset_id, table_id=table_id, **kwargs
+        )
         self.mysql_conn_id = mysql_conn_id
 
     def get_sql_hook(self) -> MySqlHook:

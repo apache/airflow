@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         ConnectionDetails,
         DagAccessEntity,
@@ -36,7 +35,6 @@ class IsAuthorizedConnectionRequest(TypedDict, total=False):
 
     method: ResourceMethod
     details: ConnectionDetails | None
-    user: BaseUser | None
 
 
 class IsAuthorizedDagRequest(TypedDict, total=False):
@@ -45,7 +43,6 @@ class IsAuthorizedDagRequest(TypedDict, total=False):
     method: ResourceMethod
     access_entity: DagAccessEntity | None
     details: DagDetails | None
-    user: BaseUser | None
 
 
 class IsAuthorizedPoolRequest(TypedDict, total=False):
@@ -53,7 +50,6 @@ class IsAuthorizedPoolRequest(TypedDict, total=False):
 
     method: ResourceMethod
     details: PoolDetails | None
-    user: BaseUser | None
 
 
 class IsAuthorizedVariableRequest(TypedDict, total=False):
@@ -61,4 +57,3 @@ class IsAuthorizedVariableRequest(TypedDict, total=False):
 
     method: ResourceMethod
     details: VariableDetails | None
-    user: BaseUser | None

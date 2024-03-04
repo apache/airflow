@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from airflow.sensors.base import BaseSensorOperator
 
+# Ignore missing docstring
+
 _EXCEPTION_MESSAGE = """The old HDFS Sensors have been removed in 4.0.0 version of the apache.hdfs provider.
 Please convert your DAGs to use the WebHdfsSensor or downgrade the provider to below 4.*
 if you want to continue using it.

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from contextlib import suppress
-from datetime import datetime
 from importlib import import_module
 from io import StringIO
 from pathlib import Path
@@ -34,6 +33,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
+from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -354,13 +354,13 @@ class TestDBCleanup:
         Ensure every table we have configured (and that is present in the db) can be cleaned successfully.
         For example, this checks that the recency column is actually a column.
         """
-        run_cleanup(clean_before_timestamp=datetime.utcnow(), dry_run=True)
+        run_cleanup(clean_before_timestamp=timezone.utcnow(), dry_run=True)
         assert "Encountered error when attempting to clean table" not in caplog.text
 
         # Lets check we have the right error message just in case
         caplog.clear()
         with patch("airflow.utils.db_cleanup._cleanup_table", side_effect=OperationalError("oops", {}, None)):
-            run_cleanup(clean_before_timestamp=datetime.utcnow(), table_names=["task_instance"], dry_run=True)
+            run_cleanup(clean_before_timestamp=timezone.utcnow(), table_names=["task_instance"], dry_run=True)
         assert "Encountered error when attempting to clean table" in caplog.text
 
     @pytest.mark.parametrize(
