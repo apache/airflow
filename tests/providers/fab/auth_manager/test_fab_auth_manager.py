@@ -39,6 +39,7 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -344,6 +345,18 @@ class TestFabAuthManager:
             (
                 AccessView.WEBSITE,
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
+                False,
+            ),
+            # Docs (positive)
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DOCS)],
+                True,
+            ),
+            # Without permission
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_READ, RESOURCE_DOCS)],
                 False,
             ),
         ],
