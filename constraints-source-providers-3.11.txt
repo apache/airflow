@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-04T06:17:43.570039
+# This constraints file was automatically generated on 2024-03-04T08:52:04.595391
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -74,7 +74,7 @@ anyascii==0.3.2
 anyio==4.3.0
 apache-beam==2.54.0
 apispec==6.5.0
-apprise==1.7.2
+apprise==1.7.3
 argcomplete==3.2.2
 asana==3.2.2
 asgiref==3.7.2
@@ -99,7 +99,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.4.0
-azure-mgmt-datafactory==5.0.0
+azure-mgmt-datafactory==6.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -400,7 +400,7 @@ pinecone-client==2.2.4
 pinotdb==5.1.3
 pipdeptree==2.16.0
 pipx==1.4.3
-pkginfo==1.9.6
+pkginfo==1.10.0
 platformdirs==3.11.0
 pluggy==1.4.0
 ply==3.11
@@ -555,7 +555,7 @@ termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.13.0
+time-machine==2.14.0
 tomli_w==1.0.0
 tomlkit==0.12.4
 tornado==6.4
@@ -563,7 +563,7 @@ towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.1
 trino==0.328.0
-trove-classifiers==2024.2.23
+trove-classifiers==2024.3.3
 twine==5.0.0
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
@@ -572,7 +572,7 @@ types-PyYAML==6.0.12.12
 types-aiofiles==23.2.0.20240106
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
-types-docutils==0.20.0.20240302
+types-docutils==0.20.0.20240304
 types-paramiko==3.4.0.20240205
 types-protobuf==4.24.0.20240302
 types-pyOpenSSL==24.0.0.20240228
