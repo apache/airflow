@@ -22,9 +22,10 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 state: ready
-source-date-epoch: 1705912238
+source-date-epoch: 1709556225
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.3
   - 5.6.2
   - 5.6.1
   - 5.6.0
