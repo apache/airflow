@@ -30,7 +30,7 @@ ADLSCreateObjectOperator
 ----------------------------------
 
 :class:`~airflow.providers.microsoft.azure.operators.adls.ADLSCreateObjectOperator` allows you to
-upload data to ADL.
+upload data to Azure DataLake Storage
 
 
 Below is an example of using this operator to upload data to ADL.
