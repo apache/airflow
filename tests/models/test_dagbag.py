@@ -163,7 +163,7 @@ class TestDagBag:
             def my_flow():
                 pass
 
-            my_dag = my_flow()  # noqa
+            my_dag = my_flow()  # noqa: F841
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
         path1 = tmp_path / "testfile1"

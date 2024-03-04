@@ -21,9 +21,9 @@ from __future__ import annotations
 import warnings
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.common.sql.hooks.sql import (
-    ConnectorProtocol,  # noqa
-    DbApiHook,  # noqa
+from airflow.providers.common.sql.hooks.sql import (  # noqa: F401
+    ConnectorProtocol,
+    DbApiHook,
 )
 
 warnings.warn(
