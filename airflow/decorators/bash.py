@@ -53,7 +53,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.pop("multiple_outputs", None) is True:
+        if kwargs.pop("multiple_outputs", None):
             warnings.warn(
                 f"`multiple_outputs=True` is not supported in {self.custom_operator_name} tasks. Ignoring.",
                 stacklevel=3,
