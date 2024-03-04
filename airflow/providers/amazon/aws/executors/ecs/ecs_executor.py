@@ -287,18 +287,21 @@ class AwsEcsExecutor(BaseExecutor):
 
     def __handle_failed_task(self, task_arn: str, reason: str, increment: bool = True):
         """If an API failure occurs, the task is rescheduled."""
+
+        def _get_failure_count(_task_key):
+            return self.active_workers.failure_count_by_key(_task_key)
+
         task_key = self.active_workers.arn_to_key[task_arn]
         task_info = self.active_workers.info_by_key(task_key)
         task_cmd = task_info.cmd
         queue = task_info.queue
         exec_info = task_info.config
-        failure_count = self.active_workers.failure_count_by_key(task_key)
-        if int(failure_count) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+        if int(_get_failure_count(task_key)) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
             self.log.warning(
                 "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 reason,
-                failure_count,
+                _get_failure_count(task_key),
                 self.__class__.MAX_RUN_TASK_ATTEMPTS,
                 task_arn,
             )
@@ -310,15 +313,15 @@ class AwsEcsExecutor(BaseExecutor):
                     task_cmd,
                     queue,
                     exec_info,
-                    failure_count + 1 if increment else failure_count,
-                    timezone.utcnow() + calculate_next_attempt_delay(failure_count),
+                    _get_failure_count(task_key),
+                    timezone.utcnow() + calculate_next_attempt_delay(_get_failure_count(task_key)),
                 )
             )
         else:
             self.log.error(
                 "Airflow task %s has failed a maximum of %s times. Marking as failed",
                 task_key,
-                failure_count,
+                _get_failure_count(task_key),
             )
             self.active_workers.pop_by_key(task_key)
             self.fail(task_key)
