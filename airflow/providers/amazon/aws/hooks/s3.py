@@ -189,7 +189,7 @@ class S3Hook(AwsBaseHook):
     def resource(self):
         return self.get_session().resource(
             "s3",
-            endpoint_url=self.conn_config.endpoint_url,
+            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=service_name)
             config=self.config,
             verify=self.verify,
         )
