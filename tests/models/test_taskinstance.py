@@ -1782,7 +1782,11 @@ class TestTaskInstance:
             ti.run()
 
     def test_check_and_change_state_before_execution(self, create_task_instance):
-        ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
+        expected_external_executor_id = "banana"
+        ti = create_task_instance(
+            dag_id="test_check_and_change_state_before_execution",
+            external_executor_id=expected_external_executor_id,
+        )
         SerializedDagModel.write_dag(ti.task.dag)
 
         serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
@@ -1791,6 +1795,46 @@ class TestTaskInstance:
         assert ti_from_deserialized_task._try_number == 0
         assert ti_from_deserialized_task.check_and_change_state_before_execution()
         # State should be running, and try_number column should be incremented
+        assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
+        assert ti_from_deserialized_task.state == State.RUNNING
+        assert ti_from_deserialized_task._try_number == 1
+
+    def test_check_and_change_state_before_execution_provided_id_overrides(self, create_task_instance):
+        expected_external_executor_id = "banana"
+        ti = create_task_instance(
+            dag_id="test_check_and_change_state_before_execution",
+            external_executor_id="apple",
+        )
+        assert ti.external_executor_id == "apple"
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+
+        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.check_and_change_state_before_execution(
+            external_executor_id=expected_external_executor_id
+        )
+        # State should be running, and try_number column should be incremented
+        assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
+        assert ti_from_deserialized_task.state == State.RUNNING
+        assert ti_from_deserialized_task._try_number == 1
+
+    def test_check_and_change_state_before_execution_with_exec_id(self, create_task_instance):
+        expected_external_executor_id = "minions"
+        ti = create_task_instance(dag_id="test_check_and_change_state_before_execution")
+        assert ti.external_executor_id is None
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+
+        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.check_and_change_state_before_execution(
+            external_executor_id=expected_external_executor_id
+        )
+        # State should be running, and try_number column should be incremented
+        assert ti_from_deserialized_task.external_executor_id == expected_external_executor_id
         assert ti_from_deserialized_task.state == State.RUNNING
         assert ti_from_deserialized_task._try_number == 1
 
@@ -1817,6 +1861,7 @@ class TestTaskInstance:
 
         assert not ti_from_deserialized_task.check_and_change_state_before_execution()
         assert ti_from_deserialized_task.state == State.RUNNING
+        assert ti_from_deserialized_task.external_executor_id is None
 
     def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
         self, create_task_instance
