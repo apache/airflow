@@ -528,7 +528,7 @@ class BaseSerialization:
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
-            if isinstance(var, Job):
+            if isinstance(var, (Job, JobPydantic)):
                 return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
             elif isinstance(var, (TaskInstance, TaskInstancePydantic)):
                 return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
@@ -536,9 +536,9 @@ class BaseSerialization:
                 return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
                 return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
-            elif isinstance(var, DagModel):
+            elif isinstance(var, (DagModel, DagModelPydantic)):
                 return cls._encode(_pydantic_model_dump(DagModelPydantic, var), type_=DAT.DAG_MODEL)
-            elif isinstance(var, LogTemplate):
+            elif isinstance(var, (LogTemplate, LogTemplatePydantic)):
                 return cls._encode(_pydantic_model_dump(LogTemplatePydantic, var), type_=DAT.LOG_TEMPLATE)
             else:
                 return cls.default_serialization(strict, var)

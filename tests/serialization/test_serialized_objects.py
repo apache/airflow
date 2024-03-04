@@ -304,6 +304,12 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
     assert isinstance(deserialized, pydantic_class)
     assert cmp_func(input, deserialized)
 
+    # verify that when we round trip a pydantic model we get the same thing
+    reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
+    dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
+    assert isinstance(dereserialized, pydantic_class)
+    assert dereserialized == deserialized
+
     # Verify recursive behavior
     obj = [[input]]
     BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
