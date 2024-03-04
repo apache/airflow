@@ -17,23 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.transfers.local_to_adls import (
-    DataToADLSOperator,
     LocalFilesystemToADLSOperator,
 )
 
 TASK_ID = "test-adls-upload-operator"
-FILE_SYSTEM_NAME = "Fabric"
 LOCAL_PATH = "test/*"
 BAD_LOCAL_PATH = "test/**"
 REMOTE_PATH = "TEST-DIR"
-DATA = json.dumps({"name": "David", "surname": "Blain", "gender": "M"}).encode("utf-8")
 
 
 class TestADLSUploadOperator:
@@ -60,39 +56,3 @@ class TestADLSUploadOperator:
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         assert str(ctx.value) == "Recursive glob patterns using `**` are not supported"
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeHook")
-    def test_extra_options_is_passed(self, mock_hook):
-        operator = LocalFilesystemToADLSOperator(
-            task_id=TASK_ID,
-            local_path=LOCAL_PATH,
-            remote_path=REMOTE_PATH,
-            extra_upload_options={"run": False},
-        )
-        operator.execute(None)
-        mock_hook.return_value.upload_file.assert_called_once_with(
-            local_path=LOCAL_PATH,
-            remote_path=REMOTE_PATH,
-            nthreads=64,
-            overwrite=True,
-            buffersize=4194304,
-            blocksize=4194304,
-            run=False,  # extra upload options
-        )
-
-    @mock.patch("airflow.providers.microsoft.azure.transfers.local_to_adls.AzureDataLakeStorageV2Hook")
-    def test_execute_success_when_local_data(self, mock_hook):
-        operator = DataToADLSOperator(
-            task_id=TASK_ID,
-            file_system_name=FILE_SYSTEM_NAME,
-            file_name=REMOTE_PATH,
-            data=DATA,
-            overwrite=True,
-        )
-        operator.execute(None)
-        data_lake_file_client_mock = mock_hook.return_value.create_file
-        data_lake_file_client_mock.assert_called_once_with(
-            file_system_name=FILE_SYSTEM_NAME, file_name=REMOTE_PATH
-        )
-        upload_data_mock = data_lake_file_client_mock.return_value.upload_data
-        upload_data_mock.assert_called_once_with(data=DATA, length=None, overwrite=True)

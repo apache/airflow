@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import IO, TYPE_CHECKING, Any, AnyStr, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook, AzureDataLakeStorageV2Hook
+from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -95,54 +95,4 @@ class LocalFilesystemToADLSOperator(BaseOperator):
             buffersize=self.buffersize,
             blocksize=self.blocksize,
             **self.extra_upload_options,
-        )
-
-
-class DataToADLSOperator(BaseOperator):
-    """
-    Upload data to Azure Data Lake.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DataToADLSOperator`
-
-    :param file_system_name: Name of the file system or instance of FileSystemProperties.
-    :param file_name: Name of the file which needs to be created in the file system.
-    :param data: The data that will be uploaded
-    :param length: Size of the data in bytes (optional).
-    :param overwrite: Whether to forcibly overwrite existing files/directories.
-            If False and remote path is a directory, will quit regardless if any files
-            would be overwritten or not. If True, only matching filenames are actually
-            overwritten
-    :param azure_data_lake_conn_id: Reference to the Azure Data Lake connection
-    """
-
-    template_fields: Sequence[str] = ("file_system_name", "file_name", "data")
-    ui_color = "#e4f0e8"
-
-    def __init__(
-        self,
-        *,
-        file_system_name: str,
-        file_name: str,
-        data: bytes | str | Iterable[AnyStr] | IO[AnyStr],
-        length: int | None = None,
-        overwrite: bool = False,
-        azure_data_lake_conn_id: str = "azure_data_lake_default",
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-
-        self.file_system_name = file_system_name
-        self.file_name = file_name
-        self.overwrite = overwrite
-        self.data = data  # type: ignore[var-annotated]
-        self.length = length
-        self.azure_data_lake_conn_id = azure_data_lake_conn_id
-
-    def execute(self, context: Context) -> dict[str, Any]:
-        self.log.info("Uploading %s to %s", self.data, self.file_name)
-        hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.azure_data_lake_conn_id)
-        return hook.create_file(file_system_name=self.file_system_name, file_name=self.file_name).upload_data(
-            data=self.data, length=self.length, overwrite=self.overwrite
         )

@@ -20,11 +20,10 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.microsoft.azure.operators.adls import ADLSDeleteOperator
-from airflow.providers.microsoft.azure.transfers.local_to_adls import DataToADLSOperator
+from airflow.providers.microsoft.azure.operators.adls import ADLSCreateObjectOperator, ADLSDeleteOperator
 
 REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", "remote.txt")
-DAG_ID = "example_local_to_adls"
+DAG_ID = "example_adls_create"
 
 with models.DAG(
     DAG_ID,
@@ -33,15 +32,15 @@ with models.DAG(
     schedule=None,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_data_to_adls]
-    upload_data = DataToADLSOperator(
+    # [START howto_operator_adls_create]
+    upload_data = ADLSCreateObjectOperator(
         task_id="upload_data",
         file_system_name="Fabric",
         file_name=REMOTE_FILE_PATH,
         data="Hello world",
-        overwrite=True,
+        replace=True,
     )
-    # [END howto_operator_data_to_adls]
+    # [END howto_operator_adls_create]
 
     delete_file = ADLSDeleteOperator(task_id="remove_task", path=REMOTE_FILE_PATH, recursive=True)
 

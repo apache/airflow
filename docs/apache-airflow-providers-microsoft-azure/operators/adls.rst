@@ -24,6 +24,23 @@ Prerequisite Tasks
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
+.. _howto/operator:ADLSCreateObjectOperator:
+
+ADLSCreateObjectOperator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:class:`~airflow.providers.microsoft.azure.operators.adls.ADLSCreateObjectOperator` allows you to
+upload data to ADL.
+
+
+Below is an example of using this operator to upload data to ADL.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_create.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_adls_create]
+    :end-before: [END howto_operator_adls_create]
+
 .. _howto/operator:ADLSDeleteOperator:
 
 ADLSDeleteOperator
