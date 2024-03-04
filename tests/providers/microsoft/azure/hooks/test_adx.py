@@ -270,7 +270,7 @@ class TestAzureDataExplorerHook:
         hook.run_query("Database", "Logs | schema", options={"option1": "option_value"})
         properties = ClientRequestProperties()
         properties.set_option("option1", "option_value")
-        mock_execute.assert_called_with(  # (fixme: expected call not found)
+        assert mock_execute.called_with(  # noqa: PGH005 (fixme: expected call not found)
             "Database", "Logs | schema", properties=properties
         )
 
