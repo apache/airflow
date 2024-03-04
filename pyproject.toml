@@ -1467,7 +1467,6 @@ combine-as-imports = true
 "airflow/providers/databricks/hooks/databricks.py" = ["D105"]
 "airflow/providers/databricks/hooks/databricks_base.py" = ["D105"]
 "airflow/providers/databricks/operators/databricks_repos.py" = ["D105"]
-"airflow/providers/elasticsearch/log/es_response.py" = ["D105"]
 "airflow/providers/fab/auth_manager/models/__init__.py" = ["D105"]
 "airflow/providers/ftp/hooks/ftp.py" = ["D105"]
 "airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
