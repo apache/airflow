@@ -134,7 +134,7 @@ class ExecutorLoader:
         unique_modules = set([exec_name.module_path for exec_name in executor_names])
         if len(unique_modules) < len(executor_names):
             msg = (
-                "At least one executor was configured twice. Duplicate executors is not yet supported. "
+                "At least one executor was configured twice. Duplicate executors are not yet supported. "
                 "Please check your configuration again to correct the issue."
             )
             raise AirflowConfigException(msg)
