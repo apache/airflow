@@ -27,8 +27,9 @@ from opentelemetry.context import create_key, get_value, set_value
 from opentelemetry.trace import (
     format_span_id,
     format_trace_id,
-    Link
+    Link,
 )
+from opentelemetry.sdk.trace import Event
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 from airflow.traces import (
@@ -149,7 +150,7 @@ class OtelTrace:
 
         if span_name is None:
             span_name = dagrun.dag_id
-        
+
         if traceparent is not None:
             span_ctx = SpanContext(
                 trace_id = trace_id,
@@ -158,7 +159,7 @@ class OtelTrace:
                 trace_flags = TraceFlags(0x01)
             )
             ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(dagrun.start_date.timestamp() * 1000000000), attributes=kvs)
+            span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
         else:
             span_ctx = SpanContext(
                 trace_id = INVALID_TRACE_ID,
@@ -173,7 +174,7 @@ class OtelTrace:
                 },
             )
             ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, links=[a_link], start_time=int(dagrun.start_date.timestamp() * 1000000000), attributes=kvs)
+            span = tracer.start_as_current_span(name=span_name, context=ctx, links=[a_link], start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
         return span
 
     def start_span_from_taskinstance(self, ti, span_name:str=None, component:str='taskinstance', child:bool=False) -> Span:
@@ -208,7 +209,7 @@ class OtelTrace:
             tracer = self.get_tracer(component=component)
 
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(ti.start_date.timestamp() * 1000000000))
+        span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(ti.queued_dttm.timestamp() * 1000000000))
         return span
 
 

@@ -84,6 +84,14 @@ class Tracer(Protocol):
 
 class DummySpan(object):
     """If no Tracer is configured, DummySpan is used as a fallback"""
+    def __init__(self):
+        pass
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self):
+        pass
 
     def __call__(self, obj):
         return obj
@@ -132,7 +140,7 @@ class DummyTrace:
     @classmethod
     def use_span(cls, span) -> DummySpan:
         """use span"""
-        return DummySpan
+        return DummySpan()
     
     @classmethod
     def get_current_span(self) -> DummySpan:

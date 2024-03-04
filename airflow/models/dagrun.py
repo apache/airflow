@@ -865,6 +865,7 @@ class DagRun(Base, LoggingMixin):
                     'dag_id': str(self.dag_id),
                     'execution_date': str(self.execution_date),
                     'run_id': str(self.run_id),
+                    'queued_at': str(self.queued_at),
                     'run_start_date': str(self.start_date),
                     'run_end_date': str(self.end_date),
                     'run_duration': str((self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0),
@@ -874,11 +875,21 @@ class DagRun(Base, LoggingMixin):
                     'data_interval_start': str(self.data_interval_start),
                     'data_interval_end': str(self.data_interval_end),
                     'dag_hash': str(self.dag_hash),
+                    'conf': str(self.conf)
                 }
                 s.add_event(
-                    name='run_info',
-                    attributes=attributes
+                    name='queued',
+                    timestamp=int(self.queued_at.timestamp() * 1000000000)
                 )
+                s.add_event(
+                    name='started',
+                    timestamp=int(self.start_date.timestamp() * 1000000000)
+                )
+                s.add_event(
+                    name='ended',
+                    timestamp=int(self.end_date.timestamp() * 1000000000)
+                )
+                s.set_attributes(attributes)
             session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)

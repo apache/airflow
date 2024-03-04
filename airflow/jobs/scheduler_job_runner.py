@@ -765,6 +765,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 s.set_attribute('queued_dttm', str(ti.queued_dttm))
                 s.set_attribute('ququed_by_job_id', ti.queued_by_job_id)
                 s.set_attribute('pid', ti.pid)
+                s.add_event(
+                    name='queued',
+                    timestamp=int(ti.queued_dttm.timestamp() * 1000000000)
+                )
+                s.add_event(
+                    name='started',
+                    timestamp=int(ti.start_date.timestamp() * 1000000000)
+                )
+                s.add_event(
+                    name='ended',
+                    timestamp=int(ti.end_date.timestamp() * 1000000000)
+                )
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:

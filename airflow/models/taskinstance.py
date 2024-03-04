@@ -879,7 +879,7 @@ def _handle_failure(
         s.set_attribute('start_date', str(task_instance.start_date))
         s.set_attribute('end_date', str(task_instance.end_date))
         s.set_attribute('duration', task_instance.duration)
-        s.set_attribute('executor_config', task_instance.executor_config)
+        s.set_attribute('executor_config', str(task_instance.executor_config))
         s.set_attribute('execution_date', str(task_instance.execution_date))
         s.set_attribute('hostname', task_instance.hostname)
         s.set_attribute('log_url', task_instance.log_url)
