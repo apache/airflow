@@ -54,8 +54,6 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.security import permissions
 from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -463,18 +461,11 @@ class FabAuthManager(BaseAuthManager):
         """
         Return the user permissions.
 
-        ACTION_CAN_READ and ACTION_CAN_ACCESS_MENU are merged into because they are very similar.
-        We can assume that if a user has permissions to read variables, they also have permissions to access
-        the menu "Variables".
-
         :param user: the user to get permissions for
 
         :meta private:
         """
-        perms = getattr(user, "perms") or []
-        return [
-            (ACTION_CAN_READ if perm[0] == ACTION_CAN_ACCESS_MENU else perm[0], perm[1]) for perm in perms
-        ]
+        return getattr(user, "perms") or []
 
     def _get_root_dag_id(self, dag_id: str) -> str:
         """

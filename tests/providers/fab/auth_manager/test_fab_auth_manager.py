@@ -140,10 +140,10 @@ class TestFabAuthManager:
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    # With permission
                     (
                         api_name,
-                        "GET",
+                        "MENU",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
