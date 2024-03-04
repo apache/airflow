@@ -46,7 +46,7 @@ Below is an example of using this operator to upload data to ADL.
 ADLSDeleteOperator
 ----------------------------------
 Use the
-:class:`~airflow.providers.microsoft.azure.operators.adls_delete.ADLSDeleteOperator` to remove
+:class:`~airflow.providers.microsoft.azure.operators.adls.ADLSDeleteOperator` to remove
 file(s) from Azure DataLake Storage
 
 
