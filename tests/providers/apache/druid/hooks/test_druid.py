@@ -182,9 +182,9 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
+        assert status_check.called
         # PGH005: false positive on ``requests_mock`` argument `called_once`
         assert task_post.call_count == 1
-        assert status_check.call_count == 1
         assert shutdown_post.call_count == 1
 
 
