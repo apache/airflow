@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-04T21:26:19.883265
+# This constraints file was automatically generated on 2024-03-04T22:22:27.179545
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -41,14 +41,14 @@ PyYAML==6.0.1
 Pygments==2.17.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.51
+SQLAlchemy==1.4.52
 SecretStorage==3.3.3
 Sphinx==5.3.0
 WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.2.0
-aiobotocore==2.12.0
+aiobotocore==2.12.1
 aiofiles==23.2.1
 aiohttp==3.9.3
 aioitertools==0.11.0
@@ -74,7 +74,7 @@ anyascii==0.3.2
 anyio==4.3.0
 apache-beam==2.54.0
 apispec==6.5.0
-apprise==1.7.2
+apprise==1.7.3
 argcomplete==3.2.2
 asana==3.2.2
 asgiref==3.7.2
@@ -100,7 +100,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.4.0
-azure-mgmt-datafactory==5.0.0
+azure-mgmt-datafactory==6.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -130,7 +130,7 @@ celery==5.3.6
 certifi==2024.2.2
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.85.3
+cfn-lint==0.86.0
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -143,7 +143,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.51
+cohere==4.52
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.1
@@ -209,14 +209,14 @@ google-cloud-aiplatform==1.43.0
 google-cloud-appengine-logging==1.4.2
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.2
-google-cloud-batch==0.17.12
+google-cloud-batch==0.17.13
 google-cloud-bigquery-datatransfer==3.15.0
 google-cloud-bigquery-storage==2.24.0
-google-cloud-bigquery==3.17.2
+google-cloud-bigquery==3.18.0
 google-cloud-bigtable==2.23.0
 google-cloud-build==3.23.2
 google-cloud-compute==1.17.0
-google-cloud-container==2.41.0
+google-cloud-container==2.42.0
 google-cloud-core==2.4.1
 google-cloud-datacatalog==3.18.2
 google-cloud-dataflow-client==0.8.9
@@ -240,7 +240,7 @@ google-cloud-secret-manager==2.18.2
 google-cloud-spanner==3.42.0
 google-cloud-speech==2.25.0
 google-cloud-storage-transfer==1.11.2
-google-cloud-storage==2.14.0
+google-cloud-storage==2.15.0
 google-cloud-tasks==2.16.2
 google-cloud-texttospeech==2.16.2
 google-cloud-translate==3.15.2
@@ -329,7 +329,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.21.0
+marshmallow==3.21.1
 matplotlib-inline==0.1.6
 mdit-py-plugins==0.4.0
 mdurl==0.1.2
@@ -400,9 +400,9 @@ pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
 pinotdb==5.1.3
-pipdeptree==2.16.0
+pipdeptree==2.16.1
 pipx==1.4.3
-pkginfo==1.9.6
+pkginfo==1.10.0
 platformdirs==3.11.0
 pluggy==1.4.0
 ply==3.11
@@ -557,7 +557,7 @@ termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.13.0
+time-machine==2.14.0
 tomli==2.0.1
 tomli_w==1.0.0
 tomlkit==0.12.4
@@ -566,7 +566,7 @@ towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.1
 trino==0.328.0
-trove-classifiers==2024.2.23
+trove-classifiers==2024.3.3
 twine==5.0.0
 types-Deprecated==1.2.9.20240106
 types-Markdown==3.5.0.20240129
@@ -575,7 +575,7 @@ types-PyYAML==6.0.12.12
 types-aiofiles==23.2.0.20240106
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
-types-docutils==0.20.0.20240302
+types-docutils==0.20.0.20240304
 types-paramiko==3.4.0.20240205
 types-protobuf==4.24.0.20240302
 types-pyOpenSSL==24.0.0.20240228
