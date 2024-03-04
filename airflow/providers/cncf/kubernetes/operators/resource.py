@@ -18,12 +18,14 @@
 
 from __future__ import annotations
 
+import os
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 import yaml
 from kubernetes.utils import create_from_yaml
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
@@ -40,6 +42,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
     Abstract base class for all Kubernetes Resource operators.
 
     :param yaml_conf: string. Contains the kubernetes resources to Create or Delete
+    :param yaml_conf_file: path to the kubernetes resources file (templated)
     :param namespace: string. Contains the namespace to create all resources inside.
         The namespace must preexist otherwise the resource creation will fail.
         If the API object in the yaml file already contains a namespace definition then
@@ -50,13 +53,14 @@ class KubernetesResourceBaseOperator(BaseOperator):
         This parameter works only when custom_resource_definition parameter is True.
     """
 
-    template_fields: Sequence[str] = ("yaml_conf",)
+    template_fields: Sequence[str] = ("yaml_conf", "yaml_conf_file")
     template_fields_renderers = {"yaml_conf": "yaml"}
 
     def __init__(
         self,
         *,
-        yaml_conf: str,
+        yaml_conf: str | None = None,
+        yaml_conf_file: str | None = None,
         namespace: str | None = None,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         custom_resource_definition: bool = False,
@@ -68,9 +72,13 @@ class KubernetesResourceBaseOperator(BaseOperator):
         self._namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.yaml_conf = yaml_conf
+        self.yaml_conf_file = yaml_conf_file
         self.custom_resource_definition = custom_resource_definition
         self.namespaced = namespaced
         self.config_file = config_file
+
+        if not any([self.yaml_conf, self.yaml_conf_file]):
+            raise AirflowException("One of `yaml_conf` or `yaml_conf_file` arguments must be provided")
 
     @cached_property
     def client(self) -> ApiClient:
@@ -118,16 +126,24 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
         else:
             self.custom_object_client.create_cluster_custom_object(group, version, plural, body)
 
-    def execute(self, context) -> None:
-        resources = yaml.safe_load_all(self.yaml_conf)
+    def _create_objects(self, objects):
         if not self.custom_resource_definition:
             create_from_yaml(
                 k8s_client=self.client,
-                yaml_objects=resources,
+                yaml_objects=objects,
                 namespace=self.get_namespace(),
             )
         else:
-            k8s_resource_iterator(self.create_custom_from_yaml_object, resources)
+            k8s_resource_iterator(self.create_custom_from_yaml_object, objects)
+
+    def execute(self, context) -> None:
+        if self.yaml_conf:
+            self._create_objects(yaml.safe_load_all(self.yaml_conf))
+        elif self.yaml_conf_file and os.path.exists(self.yaml_conf_file):
+            with open(self.yaml_conf_file) as stream:
+                self._create_objects(yaml.safe_load_all(stream))
+        else:
+            raise AirflowException("File %s not found", self.yaml_conf_file)
 
 
 class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
@@ -141,13 +157,21 @@ class KubernetesDeleteResourceOperator(KubernetesResourceBaseOperator):
         else:
             self.custom_object_client.delete_cluster_custom_object(group, version, plural, name)
 
-    def execute(self, context) -> None:
-        resources = yaml.safe_load_all(self.yaml_conf)
+    def _delete_objects(self, objects):
         if not self.custom_resource_definition:
             delete_from_yaml(
                 k8s_client=self.client,
-                yaml_objects=resources,
+                yaml_objects=objects,
                 namespace=self.get_namespace(),
             )
         else:
-            k8s_resource_iterator(self.delete_custom_from_yaml_object, resources)
+            k8s_resource_iterator(self.delete_custom_from_yaml_object, objects)
+
+    def execute(self, context) -> None:
+        if self.yaml_conf:
+            self._delete_objects(yaml.safe_load_all(self.yaml_conf))
+        elif self.yaml_conf_file and os.path.exists(self.yaml_conf_file):
+            with open(self.yaml_conf_file) as stream:
+                self._delete_objects(yaml.safe_load_all(stream))
+        else:
+            raise AirflowException("File %s not found", self.yaml_conf_file)
