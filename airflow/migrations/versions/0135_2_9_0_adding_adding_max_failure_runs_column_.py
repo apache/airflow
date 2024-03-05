@@ -19,7 +19,7 @@
 """Adding max_consecutive_failed_dag_runs column to dag_model table
 
 Revision ID: 8e1c784a4fc7
-Revises: 88344c1d9134
+Revises: 1fd565369930
 Create Date: 2024-01-18 15:02:24.587206
 
 """
