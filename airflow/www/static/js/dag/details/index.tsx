@@ -43,7 +43,6 @@ import {
   MdSyncAlt,
   MdHourglassBottom,
   MdPlagiarism,
-  MdCalendarMonth,
   MdEvent,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";

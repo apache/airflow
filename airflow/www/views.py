@@ -2939,7 +2939,7 @@ class Airflow(AirflowBaseView):
             root=root,
             dag_model=dag_model,
         )
-    
+
     @expose("/object/calendar_data")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @gzipped
@@ -3014,7 +3014,7 @@ class Airflow(AirflowBaseView):
                     if curr_info.logical_date.year != year:
                         break  # Crossed the year boundary.
                     last_automated_data_interval = curr_info.data_interval
-                    dates[curr_info.logical_date] += 1
+                    dates[curr_info.logical_date.date()] += 1
                     prev_logical_date = curr_info.logical_date
 
             data_dag_states.extend(
@@ -3025,7 +3025,7 @@ class Airflow(AirflowBaseView):
         data = {
             "dag_states": data_dag_states,
         }
-    
+
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},

@@ -23,7 +23,7 @@ import React from "react";
 import type { EChartsOption } from "echarts";
 import { Spinner } from "@chakra-ui/react";
 
-import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
+import ReactECharts from "src/components/ReactECharts";
 import { useCalendarData } from "src/api";
 
 const Calendar = () => {
@@ -45,27 +45,30 @@ const Calendar = () => {
   const seriesOption: EChartsOption["series"] = [];
 
   const flatDates: Record<string, any> = {};
-  dagStates
-    .filter((ds) => ds.state !== "planned")
-    .forEach((ds) => {
+  const plannedDates: Record<string, any> = {};
+  dagStates.forEach((ds) => {
+    if (ds.state !== "planned") {
       flatDates[ds.date] = {
         ...flatDates[ds.date],
         [ds.state]: ds.count,
       };
-    });
+    } else {
+      plannedDates[ds.date] = {
+        [ds.state]: ds.count,
+      };
+    }
+  });
+
   const proportions = Object.keys(flatDates).map((key) => {
     const date = key;
     const states = flatDates[key];
     const total =
-      (states["failed"] || 0) +
-      (states["success"] || 0) +
-      (states["running"] || 0);
-    const percent =
-      ((states["success"] || 0) + (states["running"] || 0)) / total;
-    return [date, (percent * 100).toFixed()];
+      (states.failed || 0) + (states.success || 0) + (states.running || 0);
+    const percent = ((states.success || 0) + (states.running || 0)) / total;
+    return [date, Math.round(percent * 100)];
   });
-  // const plannedDates =
 
+  // We need to split the data into multiple years of calendars
   if (startYear !== endYear) {
     for (let y = startYear; y <= endYear; y += 1) {
       const index = y - startYear;
@@ -81,11 +84,9 @@ const Calendar = () => {
         calendarIndex: index,
         type: "heatmap",
         coordinateSystem: "calendar",
-        data: dagStates
-          .filter(
-            (ds) => ds.date.startsWith(y.toString()) && ds.state !== "planned"
-          )
-          .map((ds) => [ds.date, ds.count]),
+        data: proportions.filter(
+          (p) => typeof p[0] === "string" && p[0].startsWith(y.toString())
+        ),
       });
       seriesOption.push({
         calendarIndex: index,
@@ -132,23 +133,29 @@ const Calendar = () => {
   const option: EChartsOption = {
     tooltip: {
       formatter: (p: any) => {
-        console.log(p);
-        // TODO: get full data into tooltip to render correctly
-        return `${p.data[0]} | Planned ${p.data[1]}`;
+        const date = p.data[0];
+        const states = flatDates[date];
+        const plannedCount =
+          p.componentSubType === "scatter"
+            ? p.data[1]
+            : plannedDates[date]?.planned || 0;
+        // @ts-ignore
+        const formattedDate = moment(date).format("ddd YYYY-MM-DD");
+
+        return `
+          <strong>${formattedDate}</strong> <br>
+          ${plannedCount ? `Planned ${plannedCount} <br>` : ""}
+          ${states?.failed ? `Failed ${states.failed} <br>` : ""}
+          ${states?.running ? `Running ${states.running} <br>` : ""}
+          ${states?.success ? `Success ${states.success} <br>` : ""}
+        `;
       },
     },
     visualMap: [
       {
-        seriesIndex: scatterIndexes,
-        inRange: {
-          color: "gray",
-          opacity: 0.6,
-        },
-      },
-      {
         min: 0,
         max: 100,
-        text: ["Success", "Failed"],
+        text: ["% Success", "Failed"],
         calculable: true,
         orient: "vertical",
         left: "0",
@@ -160,6 +167,13 @@ const Calendar = () => {
             stateColors.up_for_retry,
             stateColors.success,
           ],
+        },
+      },
+      {
+        seriesIndex: scatterIndexes,
+        inRange: {
+          color: "gray",
+          opacity: 0.6,
         },
       },
     ],
