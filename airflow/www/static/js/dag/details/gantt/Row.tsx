@@ -18,13 +18,17 @@
  */
 
 import React from "react";
-import { Box, Tooltip, Flex } from "@chakra-ui/react";
+import { Box, Tooltip, Flex, Text } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
 import { getDuration } from "src/datetime_utils";
-import { SimpleStatus } from "src/dag/StatusBox";
+import { SimpleStatus, boxSize } from "src/dag/StatusBox";
 import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
 import type { Task } from "src/types";
+import { useTaskFails } from "src/api";
+import Time from "src/components/Time";
+
 import GanttTooltip from "./GanttTooltip";
 
 interface Props {
@@ -59,6 +63,17 @@ const Row = ({
       : true);
   const isOpen = openGroupIds.includes(task.id || "");
 
+  const { data: taskFails } = useTaskFails({
+    taskId: task.id || undefined,
+    runId: runId || undefined,
+    enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task fails if it even has a try number > 1
+  });
+
+  const pastFails = (taskFails || []).filter(
+    (tf) =>
+      instance?.startDate && tf?.startDate && tf.startDate < instance?.startDate
+  );
+
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
   const queuedDuration = hasValidQueuedDttm
@@ -84,10 +99,12 @@ const Row = ({
   return (
     <div>
       <Box
-        py="4px"
         borderBottomWidth={1}
         borderBottomColor={!!task.children && isOpen ? "gray.400" : "gray.200"}
         bg={isSelected ? "blue.100" : "inherit"}
+        position="relative"
+        width={ganttWidth}
+        height={`${boxSize + 9}px`}
       >
         {instance ? (
           <Tooltip
@@ -99,9 +116,11 @@ const Row = ({
           >
             <Flex
               width={`${width + queuedWidth}px`}
+              position="absolute"
               cursor="pointer"
               pointerEvents="auto"
-              marginLeft={`${offsetMargin}px`}
+              top="4px"
+              left={`${offsetMargin}px`}
               onClick={() => {
                 onSelect({
                   runId: instance.runId,
@@ -132,6 +151,49 @@ const Row = ({
         ) : (
           <Box height="10px" />
         )}
+        {pastFails.map((tf) => {
+          const duration = getDuration(tf?.startDate, tf?.endDate);
+          const percent = duration / runDuration;
+          const failWidth = ganttWidth * percent;
+
+          const startOffset = getDuration(ganttStartDate, tf?.startDate);
+          const offsetLeft = (startOffset / runDuration) * ganttWidth;
+
+          return (
+            <Tooltip
+              label={
+                <Box>
+                  <Text>Task Fail</Text>
+                  {tf?.startDate && (
+                    <Text>
+                      Start: <Time dateTime={tf?.startDate} />
+                    </Text>
+                  )}
+                  {instance?.endDate && (
+                    <Text>
+                      End: <Time dateTime={tf?.endDate} />
+                    </Text>
+                  )}
+                </Box>
+              }
+              hasArrow
+              portalProps={{ containerRef }}
+              placement="top"
+              openDelay={hoverDelay}
+              key={`${tf.taskId}-${tf.startDate}`}
+              top="4px"
+            >
+              <Box
+                position="absolute"
+                left={`${offsetLeft}px`}
+                cursor="pointer"
+                top="4px"
+              >
+                <SimpleStatus state="failed" width={`${failWidth}px`} />
+              </Box>
+            </Tooltip>
+          );
+        })}
       </Box>
       {isOpen &&
         !!task.children &&
