@@ -261,7 +261,7 @@ class FabAuthManager(BaseAuthManager):
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
     def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
-        # Docs are just links the menu and not pages
+        # "Docs" are only links in the menu, there is no page associated
         method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
             method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
