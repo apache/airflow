@@ -26,6 +26,40 @@
 Changelog
 ---------
 
+8.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Implement 'filter_permitted_menu_items' in AWS auth manager (#37627)``
+* ``Implement 'batch_is_authorized_*' APIs in AWS auth manager (#37430)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix init checks for aws 'eks' (#37674)``
+* ``Fix init checks for aws gcs_to_s3 (#37662)``
+
+
+Misc
+~~~~
+
+* ``Use named loggers instead of root logger (#37801)``
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+* ``Bump min versions of openapi validators (#37691)``
+* ``Update action names in AWS auth manager (#37572)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_emr' system test (#37667)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Resolve G003: "Logging statement uses +" (#37848)``
+   * ``D105 Check on Amazon (#37764)``
+
 8.18.0
 ......
 

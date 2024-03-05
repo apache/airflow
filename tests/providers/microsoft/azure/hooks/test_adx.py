@@ -97,7 +97,7 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_creds(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
+        assert mock_init.called_with(  # noqa: PGH005 (fixme: expected call not found)
             KustoConnectionStringBuilder.with_aad_user_password_authentication(
                 "https://help.kusto.windows.net", "client_id", "client secret", "tenant"
             )
@@ -166,7 +166,7 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_app(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
+        assert mock_init.called_with(  # noqa: PGH005 (fixme: expected call not found)
             KustoConnectionStringBuilder.with_aad_application_key_authentication(
                 "https://help.kusto.windows.net", "app_id", "app key", "tenant"
             )
@@ -193,7 +193,7 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_app_cert(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
+        assert mock_init.called_with(  # noqa: PGH005 (fixme: expected call not found)
             KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
                 "https://help.kusto.windows.net", "client_id", "PEM", "thumbprint", "tenant"
             )
@@ -215,7 +215,7 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_device(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
+        assert mock_init.called_with(  # noqa: PGH005 (fixme: expected call not found)
             KustoConnectionStringBuilder.with_aad_device_authentication("https://help.kusto.windows.net")
         )
 
@@ -240,8 +240,11 @@ class TestAzureDataExplorerHook:
     def test_conn_method_azure_token_cred(self, mock_init, mock_default_azure_credential, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_default_azure_credential.called_with("test_id", "test_tenant_id")
-        assert mock_init.called_with(
+        assert mock_default_azure_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
+            "test_id",
+            "test_tenant_id",
+        )
+        assert mock_init.called_with(  # noqa: PGH005 (fixme: expected call not found)
             KustoConnectionStringBuilder.with_azure_token_credential(
                 connection_string="https://help.kusto.windows.net",
                 credential=mock_default_azure_credential,
@@ -267,7 +270,9 @@ class TestAzureDataExplorerHook:
         hook.run_query("Database", "Logs | schema", options={"option1": "option_value"})
         properties = ClientRequestProperties()
         properties.set_option("option1", "option_value")
-        assert mock_execute.called_with("Database", "Logs | schema", properties=properties)
+        assert mock_execute.called_with(  # noqa: PGH005 (fixme: expected call not found)
+            "Database", "Logs | schema", properties=properties
+        )
 
     @pytest.mark.parametrize(
         "mocked_connection",

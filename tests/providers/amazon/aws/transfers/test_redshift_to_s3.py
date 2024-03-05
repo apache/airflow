@@ -375,7 +375,7 @@ class TestRedshiftToS3Transfer:
         Test passing invalid param in RS Data API kwargs raises an error
         """
         with pytest.raises(AirflowException):
-            RedshiftToS3Operator(
+            redshift_operator = RedshiftToS3Operator(
                 s3_bucket="s3_bucket",
                 s3_key="s3_key",
                 select_query="select_query",
@@ -383,6 +383,7 @@ class TestRedshiftToS3Transfer:
                 dag=None,
                 redshift_data_api_kwargs={param: "param"},
             )
+            redshift_operator.execute(None)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
