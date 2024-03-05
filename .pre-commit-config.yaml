@@ -773,6 +773,14 @@ repos:
         files: ^chart
         require_serial: true
         additional_dependencies: ['rich>=12.4.4','requests']
+      - id: kubeconform
+        name: Kubeconform check on our helm chart
+        entry: ./scripts/ci/pre_commit/pre_commit_kubeconform.py
+        language: python
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
       - id: shellcheck
         name: Check Shell scripts syntax correctness
         language: docker_image
