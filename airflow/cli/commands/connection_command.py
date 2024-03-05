@@ -314,7 +314,7 @@ def connections_delete(args):
 def connections_import(args):
     """Import connections from a file."""
     if os.path.exists(args.file):
-        _import_helper(args.file, args.replace)
+        _import_helper(args.file, args.overwrite)
     else:
         raise SystemExit("Missing connections file.")
 
