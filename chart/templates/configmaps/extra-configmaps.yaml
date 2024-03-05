@@ -43,7 +43,7 @@ metadata:
     {{- $_ := set $annotations "helm.sh/hook-weight" "0" }}
     {{- $_ := set $annotations "helm.sh/hook-delete-policy" "before-hook-creation" }}
   {{- end }}
-  {{- with $annotations := merge $annotations $configMapContent.annotations }}
+  {{- with $annotations := merge $annotations (default dict $configMapContent.annotations) }}
   annotations: {{- $annotations | toYaml | nindent 4 }}
   {{- end }}
 {{- if $configMapContent.data }}
