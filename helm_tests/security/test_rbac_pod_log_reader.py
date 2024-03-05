@@ -97,14 +97,14 @@ class TestPodReader:
             show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
         )
 
-        actualRoleBinding = jmespath.search("metadata.name", docs[0]) if docs else []
+        actualRoleBinding = jmespath.search("metadata.name", docs[0])
         assert actualRoleBinding == expectedRoleBinding
 
-        actualRoleRef = jmespath.search("roleRef.name", docs[0]) if docs else []
+        actualRoleRef = jmespath.search("roleRef.name", docs[0])
         assert actualRoleRef == expectedRole
 
-        actualKind = jmespath.search("kind", docs[0]) if docs else []
-        actualRoleRefKind = jmespath.search("roleRef.kind", docs[0]) if docs else []
+        actualKind = jmespath.search("kind", docs[0])
+        actualRoleRefKind = jmespath.search("roleRef.kind", docs[0])
         if multiNamespaceMode:
             assert actualKind == "ClusterRoleBinding"
             assert actualRoleRefKind == "ClusterRole"
@@ -127,10 +127,10 @@ class TestPodReader:
             show_only=["templates/rbac/pod-log-reader-role.yaml"],
         )
 
-        actualRole = jmespath.search("metadata.name", docs[0]) if docs else []
+        actualRole = jmespath.search("metadata.name", docs[0])
         assert actualRole == expectedRole
 
-        actualKind = jmespath.search("kind", docs[0]) if docs else []
+        actualKind = jmespath.search("kind", docs[0])
         if multiNamespaceMode:
             assert actualKind == "ClusterRole"
         else:
