@@ -329,8 +329,11 @@ extraSecrets: {}
 # extraSecrets:
 #   '{{ .Release.Name }}-airflow-connections':
 #     type: 'Opaque'
+#     useHelmHooks: true
 #     labels:
 #       my.custom.label/v1: my_custom_label_value_1
+#     annotations:
+#       my.custom.annotation: my_custom_annotation_value
 #     data: |
 #       AIRFLOW_CONN_GCP: 'base64_encoded_gcp_conn_string'
 #       AIRFLOW_CONN_AWS: 'base64_encoded_aws_conn_string'
@@ -350,8 +353,11 @@ extraConfigMaps: {}
 # eg:
 # extraConfigMaps:
 #   '{{ .Release.Name }}-airflow-variables':
+#     useHelmHooks: true
 #     labels:
 #       my.custom.label/v2: my_custom_label_value_2
+#     annotations:
+#       my.custom.annotation: my_custom_annotation_value
 #     data: |
 #       AIRFLOW_VAR_HELLO_MESSAGE: "Hi!"
 #       AIRFLOW_VAR_KUBERNETES_NAMESPACE: "{{ .Release.Namespace }}"

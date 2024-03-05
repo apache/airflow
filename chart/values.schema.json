@@ -1030,6 +1030,11 @@
                     "stringData": {
                         "description": "Content **as string** for the 'stringData' item of the secret (can be templated)",
                         "type": "string"
+                    },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
                     }
                 }
             },
@@ -1072,6 +1077,11 @@
                     "data": {
                         "description": "Content **as string** for the 'data' item of the configmap (can be templated)",
                         "type": "string"
+                    },
+                    "useHelmHooks": {
+                        "description": "Specify if you want to use the default Helm Hook annotations",
+                        "type": "boolean",
+                        "default": true
                     }
                 }
             },
