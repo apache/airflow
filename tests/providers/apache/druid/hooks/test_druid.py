@@ -59,8 +59,9 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_ok(self, requests_mock):
         task_post = requests_mock.post(
@@ -76,8 +77,9 @@ class TestDruidSubmitHook:
         # Exists just as it should
         self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_sql_based_ingestion_ok(self, requests_mock):
         task_post = requests_mock.post(
@@ -93,8 +95,9 @@ class TestDruidSubmitHook:
         # Exists just as it should
         self.db_hook.submit_indexing_job("Long json file", IngestionType.MSQ)
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_with_correct_ssl_arg(self, requests_mock):
         self.db_hook.verify_ssl = False
@@ -109,8 +112,9 @@ class TestDruidSubmitHook:
 
         self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
         if task_post.called_once:
             verify_ssl = task_post.request_history[0].verify
             assert False is verify_ssl
@@ -132,8 +136,9 @@ class TestDruidSubmitHook:
         """
         self.db_hook.submit_indexing_job(json_ingestion_string)
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
         if task_post.called_once:
             req_body = task_post.request_history[0].json()
             assert req_body["task"] == "9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"
@@ -152,8 +157,9 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
-        assert status_check.called_once
+        # PGH005: false positive on requests_mock arguments
+        assert task_post.call_count == 1
+        assert status_check.call_count == 1
 
     def test_submit_timeout(self, requests_mock):
         self.db_hook.timeout = 1
@@ -176,9 +182,10 @@ class TestDruidSubmitHook:
         with pytest.raises(AirflowException):
             self.db_hook.submit_indexing_job("Long json file")
 
-        assert task_post.called_once
         assert status_check.called
-        assert shutdown_post.called_once
+        # PGH005: false positive on ``requests_mock`` argument `called_once`
+        assert task_post.call_count == 1
+        assert shutdown_post.call_count == 1
 
 
 class TestDruidHook:
