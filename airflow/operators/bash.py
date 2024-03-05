@@ -59,8 +59,10 @@ class BashOperator(BaseOperator):
     :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
-    :param cwd: Working directory to execute the command in.
+    :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
+        For use current DAG folder as the working directory,
+        you might set template ``{{ dag_run.dag.folder }}``.
 
     Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
     task failure and zero will result in task success.
@@ -130,7 +132,7 @@ class BashOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ("bash_command", "env")
+    template_fields: Sequence[str] = ("bash_command", "env", "cwd")
     template_fields_renderers = {"bash_command": "bash", "env": "json"}
     template_ext: Sequence[str] = (".sh", ".bash")
     ui_color = "#f0ede4"
