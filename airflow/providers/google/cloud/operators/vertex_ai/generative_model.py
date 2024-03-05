@@ -250,7 +250,7 @@ class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
         tasks, multi-turn text and code chat, and code generation. It can
         output text and code.
     :param media_gcs_path: A GCS path to a media file such as an image or a video.
-        Can be passed to the multimodal model as part of the prompt. Used with vision models.
+        Can be passed to the multi-modal model as part of the prompt. Used with vision models.
     :param mime_type: Validates the media type presented by the file in the media_gcs_path.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term

@@ -183,7 +183,7 @@ class GenerativeModelHook(GoogleBaseHook):
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
         :param media_gcs_path: A GCS path to a content file such as an image or a video.
-            Can be passed to the multimodal model as part of the prompt. Used with vision models.
+            Can be passed to the multi-modal model as part of the prompt. Used with vision models.
         :param mime_type: Validates the media type presented by the file in the media_gcs_path.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
