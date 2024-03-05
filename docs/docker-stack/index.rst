@@ -120,7 +120,7 @@ including the need to provide reproducible scenarios and submitting ONE issue pe
 vulnerabilities in one email - those are rejected immediately, as they make the process of handling the issue
 way harder for everyone, including the reporters.
 
-Also DO NOT open aa GitHub Issue with the scan results and asking what to do. The GitHub Issues are for
+Also DO NOT open a GitHub Issue with the scan results and asking what to do. The GitHub Issues are for
 reporting bugs and feature requests to Airflow itself, not for asking for help with the security scans on
 3rd party components.
 
@@ -156,7 +156,7 @@ You have four options:
    vulnerability, it does not mean that it can be exploited in Airflow (or specifically in the way you are
    using Airflow). If you do have a reproducible scenario how a vulnerability can be exploited in Airflow, you should -
    of course - privately report it to the security team. But if you do not have reproducible
-   scenario, please make a research and try to understand the impact of the vulnerability on Airflow. That
+   scenario, please do some research and try to understand the impact of the vulnerability on Airflow. That
    research might result in a  public GitHub Discussion where you can discuss the impact of the
    vulnerability if you research will indicate Airflow might not be impacted or private security email if
    you find a reproducible scenario on how to exploit it.
@@ -175,7 +175,7 @@ security researchers to help the community to understand the impact of the vulne
 could be a fantastic contribution to the community and way to give back to the project that your company uses
 for free.
 
-You are free to discuss it publicly, open a `Github Discussion <https://github.com/apache/airflow/discussions>`_
+You are free to discuss it publicly, open a `GitHub Discussion <https://github.com/apache/airflow/discussions>`_
 mentioning your findings and research you've done so far. Ideally (as a way to contribute to Airflow) you
 should explain the findings of your own security team in your company to help to research and understand
 the impact of the vulnerability on Airflow (and your way of using it).

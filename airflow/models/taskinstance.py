@@ -750,6 +750,7 @@ def _get_template_context(
         "inlets": task.inlets,
         "logical_date": logical_date,
         "macros": macros,
+        "map_index_template": task.map_index_template,
         "next_ds": get_next_ds(),
         "next_ds_nodash": get_next_ds_nodash(),
         "next_execution_date": get_next_execution_date(),
@@ -1164,8 +1165,9 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
+    message += "execution_date=%s, start_date=%s, end_date=%s"
     log.info(
-        message + "execution_date=%s, start_date=%s, end_date=%s",
+        message,
         *params,
         _date_or_empty(task_instance=task_instance, attr="execution_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
@@ -1252,6 +1254,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    rendered_map_index = Column(String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1331,6 +1334,7 @@ class TaskInstance(Base, LoggingMixin):
 
     :meta private:
     """
+    _logger_name = "airflow.task"
 
     def __init__(
         self,
@@ -1432,8 +1436,6 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
-        # correctly config the ti log
-        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @hybrid_property
@@ -1477,7 +1479,6 @@ class TaskInstance(Base, LoggingMixin):
         Expose this for the Task Tries and Gantt graph views.
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
-        https://issues.apache.org/jira/browse/AIRFLOW-2143
         """
         return self._try_number
 
@@ -2512,7 +2513,12 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context["params"]
 
             with set_current_context(context):
-                task_orig = self.render_templates(context=context)
+                dag = self.task.get_dag()
+                if dag is not None:
+                    jinja_env = dag.get_template_env()
+                else:
+                    jinja_env = None
+                task_orig = self.render_templates(context=context, jinja_env=jinja_env)
 
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
@@ -2547,9 +2553,15 @@ class TaskInstance(Base, LoggingMixin):
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
+
             # Run post_execute callback
             # Is never MappedOperator at this point
             self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
+
+            # DAG authors define map_index_template at the task level
+            if jinja_env is not None and (template := context.get("map_index_template")) is not None:
+                rendered_map_index = self.rendered_map_index = jinja_env.from_string(template).render(context)
+                self.log.info("Map index rendered as %s", rendered_map_index)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
@@ -2922,7 +2934,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
-    def render_templates(self, context: Context | None = None) -> Operator:
+    def render_templates(
+        self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
+    ) -> Operator:
         """Render templates in the operator fields.
 
         If the task was originally mapped, this may replace ``self.task`` with
@@ -2937,7 +2951,7 @@ class TaskInstance(Base, LoggingMixin):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
-        original_task.render_template_fields(context)
+        original_task.render_template_fields(context, jinja_env)
 
         return original_task
 

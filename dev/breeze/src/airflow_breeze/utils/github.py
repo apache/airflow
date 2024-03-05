@@ -68,16 +68,17 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions(confirm: bool = True) -> list[str]:
+def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
-    :return: list of active Airflow versions
+    :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
     from packaging.version import Version
 
+    airflow_release_dates: dict[str, str] = {}
     get_console().print(
         "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
@@ -103,15 +104,23 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=Version)
+    for version in airflow_versions:
+        date = get_tag_date(version)
+        if not date:
+            get_console().print("[error]Error fetching tag date for Airflow {version}")
+            sys.exit(1)
+        airflow_release_dates[version] = date
+    get_console().print("[info]All Airflow 2 versions")
+    for version in airflow_versions:
+        get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
     if confirm:
-        get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
         if answer == Answer.NO:
             get_console().print("[red]Aborting[/]")
             sys.exit(1)
-    return airflow_versions
+    return airflow_versions, airflow_release_dates
 
 
 def download_constraints_file(

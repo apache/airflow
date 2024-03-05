@@ -519,6 +519,7 @@ Currently, **officially** using Airflow:
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]
 1. [Xoom](https://www.xoom.com/)
 1. [Yahoo!](https://www.yahoo.com/)
+1. [Yektanet!](https://yektanet.com/)
 1. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
 1. [Zalando](https://tech.zalando.com) [[@zalando](https://github.com/zalando) & [@zalando-incubator](https://github.com/zalando-incubator)]
 1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]

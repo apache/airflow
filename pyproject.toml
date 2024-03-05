@@ -31,7 +31,7 @@ requires = [
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.2.22",
+    "trove-classifiers==2024.2.23",
 ]
 build-backend = "hatchling.build"
 
@@ -214,7 +214,11 @@ otel = [
     "opentelemetry-exporter-prometheus",
 ]
 pandas = [
-    "pandas>=1.2.5",
+    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+    # In addition FAB also limit sqlalchemy to < 2.0
+    "pandas>=1.2.5,<2.2",
 ]
 password = [
     "bcrypt>=2.0.0",
@@ -565,6 +569,8 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "openapi-schema-validator>=0.6.2",
+  "openapi-spec-validator>=0.7.1",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "apache-beam>=2.53.0;python_version != \"3.12\"",
@@ -591,7 +597,7 @@ apache-hdfs = [ # source: airflow/providers/apache/hdfs/provider.yaml
 apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyhive[hive_pure_sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
@@ -613,7 +619,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
 apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
+  "pinotdb>=5.1.0",
 ]
 apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
@@ -688,7 +694,7 @@ elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
 ]
 exasol = [ # source: airflow/providers/exasol/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
@@ -759,7 +765,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "json-merge-patch>=0.2",
   "looker-sdk>=22.2.0",
   "pandas-gbq",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
@@ -884,7 +890,7 @@ postgres = [ # source: airflow/providers/postgres/provider.yaml
 ]
 presto = [ # source: airflow/providers/presto/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "presto-python-client>=0.8.4",
 ]
 qdrant = [ # source: airflow/providers/qdrant/provider.yaml
@@ -894,7 +900,7 @@ redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "simple-salesforce>=1.0.0",
 ]
 samba = [ # source: airflow/providers/samba/provider.yaml
@@ -948,7 +954,7 @@ teradata = [ # source: airflow/providers/teradata/provider.yaml
 ]
 trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "trino>=0.318.0",
 ]
 vertica = [ # source: airflow/providers/vertica/provider.yaml
@@ -956,7 +962,7 @@ vertica = [ # source: airflow/providers/vertica/provider.yaml
   "vertica-python>=0.5.1",
 ]
 weaviate = [ # source: airflow/providers/weaviate/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
@@ -1255,7 +1261,7 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1297,8 +1303,15 @@ namespace-packages = ["airflow/providers"]
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 extend-select = [
+    # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "TCH", # Rules around TYPE_CHECKING blocks
+    "G", # flake8-logging-format rules
+    "LOG", # flake8-logging rules, most of them autofixable
+    "PT", # flake8-pytest-style rules
+    # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
@@ -1315,14 +1328,13 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TCH",  # Rules around TYPE_CHECKING blocks
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "PGH004",  # Use specific rule codes when using noqa
     "B006", # Checks for uses of mutable objects as function argument defaults.
-    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
 ]
 ignore = [
+    "G004", # Logging statement uses f-string (not fixed yet)
     "D203",
     "D212",
     "D213",
@@ -1330,6 +1342,21 @@ ignore = [
     "D215",
     "E731",
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
+    "PT004", # Fixture does not return anything, add leading underscore
+    "PT005", # Fixture returns a value, remove leading underscore
+    "PT006", # Wrong type of names in @pytest.mark.parametrize
+    "PT007", # Wrong type of values in @pytest.mark.parametrize
+    "PT008", # Use return_value= instead of patching with lambda
+    "PT011", # pytest.raises() is too broad, set the match parameter
+    "PT012", # [controversial rule] pytest.raises() block should contain a single simple statement.
+    "PT015", # assertion always fails, replace with pytest.fail()
+    "PT018", # assertion should be broken down into multiple parts
+    "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
+]
+unfixable = [
+    # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
+    # In addition, it can't do anything with invalid typing annotations, protected by mypy.
+    "PT022",
 ]
 
 [tool.ruff.format]
@@ -1434,10 +1461,6 @@ combine-as-imports = true
 "airflow/utils/trigger_rule.py" = ["D105"]
 "airflow/utils/types.py" = ["D105"]
 "airflow/utils/weight_rule.py" = ["D105"]
-"airflow/providers/amazon/aws/exceptions.py" = ["D105"]
-"airflow/providers/amazon/aws/executors/ecs/utils.py" = ["D105"]
-"airflow/providers/amazon/aws/hooks/ecr.py" = ["D105"]
-"airflow/providers/amazon/aws/utils/connection_wrapper.py" = ["D105"]
 "airflow/providers/apache/hive/hooks/hive.py" = ["D105"]
 "airflow/providers/cncf/kubernetes/secret.py" = ["D105"]
 "airflow/providers/cncf/kubernetes/utils/delete_from.py" = ["D105"]
@@ -1491,9 +1514,25 @@ banned-module-level-imports = ["numpy", "pandas"]
 "flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
+# Use root logger by a mistake / IDE autosuggestion
+# If for some reason root logger required it could obtained by logging.getLogger("root")
+"logging.debug".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.info".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.warning".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.error".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.exception".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+# Some specific cases
+"unittest.TestCase".msg = "Use pytest compatible classes"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
+
+[tool.ruff.lint.flake8-pytest-style]
+mark-parentheses = false
+fixture-parentheses = false
 
 ## pytest settings ##
 [tool.pytest.ini_options]

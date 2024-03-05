@@ -248,6 +248,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_user_perms]
 
@@ -275,6 +276,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 
@@ -1247,8 +1249,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
-                Permission.action == None,  # noqa
-                Permission.resource == None,  # noqa
+                Permission.action == None,  # noqa: E711
+                Permission.resource == None,  # noqa: E711
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need

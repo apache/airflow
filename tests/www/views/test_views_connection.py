@@ -389,7 +389,7 @@ def test_duplicate_connection_error(admin_client):
     assert expected_connections_ids == connections_ids
 
 
-@pytest.fixture()
+@pytest.fixture
 def connection():
     connection = Connection(
         conn_id="conn1",

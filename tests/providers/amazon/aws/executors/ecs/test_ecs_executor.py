@@ -825,13 +825,13 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers) == 0
         mock_failed_function.assert_called_once()
         assert (
-            "The ECS task failed due to the following containers failing: \ntest-container-arn1 - "
+            "The ECS task failed due to the following containers failing:\ntest-container-arn1 - "
             "test failure" in caplog.messages[0]
         )
 
 
 class TestEcsExecutorConfig:
-    @pytest.fixture()
+    @pytest.fixture
     def assign_subnets(self):
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 

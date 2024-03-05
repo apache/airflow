@@ -403,7 +403,12 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     """
 
     def apply_version_suffix(install_clause: str) -> str:
-        if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix != "":
+        if (
+            install_clause.startswith("apache-airflow")
+            and ">=" in install_clause
+            and version_suffix != ""
+            and not install_clause.endswith(version_suffix)
+        ):
             # This is workaround for `pip` way of handling `--pre` installation switch. It apparently does
             # not modify the meaning of `install_requires` to include also pre-releases, so we need to
             # modify our internal provider and airflow package version references to include all pre-releases

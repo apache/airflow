@@ -59,7 +59,7 @@ def _compare_xcom_collections(collection1: dict, collection_2: dict):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_xcom(create_task_instance, session):
     def maker(dag_id, task_id, execution_date, key, map_index=-1, value=None):
         ti = create_task_instance(

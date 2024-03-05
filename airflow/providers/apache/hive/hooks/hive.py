@@ -478,8 +478,7 @@ class HiveCliHook(BaseHook):
             pvals = ", ".join(f"{k}='{v}'" for k, v in partition.items())
             hql += f"PARTITION ({pvals})"
 
-        # As a workaround for HIVE-10541, add a newline character
-        # at the end of hql (AIRFLOW-2412).
+        # Add a newline character as a workaround for https://issues.apache.org/jira/browse/HIVE-10541,
         hql += ";\n"
 
         self.log.info(hql)
@@ -907,10 +906,8 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            # not all query services (e.g. impala AIRFLOW-4434) support the set command
-
             db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
-
+            # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
                 if hive_conf:

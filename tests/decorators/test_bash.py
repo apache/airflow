@@ -35,7 +35,7 @@ DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
 @pytest.mark.db_test
 class TestBashDecorator:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 

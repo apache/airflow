@@ -684,31 +684,8 @@ export interface paths {
   "/datasets/events": {
     /** Get dataset events */
     get: operations["get_dataset_events"];
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-        /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
-         *
-         * *New in version 2.1.0*
-         */
-        order_by?: components["parameters"]["OrderBy"];
-        /** The Dataset ID that updated the dataset. */
-        dataset_id?: components["parameters"]["FilterDatasetID"];
-        /** The DAG ID that updated the dataset. */
-        source_dag_id?: components["parameters"]["FilterSourceDAGID"];
-        /** The task ID that updated the dataset. */
-        source_task_id?: components["parameters"]["FilterSourceTaskID"];
-        /** The DAG run ID that updated the dataset. */
-        source_run_id?: components["parameters"]["FilterSourceRunID"];
-        /** The map index that updated the dataset. */
-        source_map_index?: components["parameters"]["FilterSourceMapIndex"];
-      };
-    };
+    /** Create dataset event */
+    post: operations["create_dataset_event"];
   };
   "/config": {
     get: operations["get_config"];
@@ -1444,6 +1421,12 @@ export interface components {
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
       /**
+       * @description Rendered name of an expanded task instance, if the task is mapped.
+       *
+       * *New in version 2.9.0*
+       */
+      rendered_map_index?: string | null;
+      /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*
@@ -1818,6 +1801,12 @@ export interface components {
       created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
+    };
+    CreateDatasetEvent: {
+      /** @description The URI of the dataset */
+      dataset_uri: string;
+      /** @description The dataset event extra */
+      extra?: { [key: string]: unknown } | null;
     };
     QueuedEvent: {
       /** @description The datata uri. */
@@ -4592,6 +4581,26 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  /** Create dataset event */
+  create_dataset_event: {
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetEvent"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDatasetEvent"];
+      };
+    };
+  };
   get_config: {
     parameters: {
       query: {
@@ -5161,6 +5170,9 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
+export type CreateDatasetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["CreateDatasetEvent"]
+>;
 export type QueuedEvent = CamelCasedPropertiesDeep<
   components["schemas"]["QueuedEvent"]
 >;
@@ -5474,6 +5486,9 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
+  operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]
