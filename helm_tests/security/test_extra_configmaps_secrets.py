@@ -194,12 +194,14 @@ class TestExtraConfigMapsSecrets:
             values={
                 "extraSecrets": {
                     "{{ .Release.Name }}-extra-secret-1": {
+                        "useHelmHooks": True,
                         "annotations": {"test_annotation": "test_annotation_value"},
                         "stringData": "data: secretData",
                     }
                 },
                 "extraConfigMaps": {
                     "{{ .Release.Name }}-extra-configmap-1": {
+                        "useHelmHooks": True,
                         "annotations": {"test_annotation": "test_annotation_value"},
                         "data": "data: configData",
                     }
