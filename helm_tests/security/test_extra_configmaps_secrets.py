@@ -228,17 +228,23 @@ class TestExtraConfigMapsSecrets:
                     "{{ .Release.Name }}-extra-secret-1": {
                         "useHelmHooks": False,
                         "stringData": "data: secretData",
+                        "annotations": {"test_annotation": "test_annotation_value"}
                     }
                 },
                 "extraConfigMaps": {
                     "{{ .Release.Name }}-extra-configmap-1": {
                         "useHelmHooks": False,
                         "data": "data: configData",
+                        "annotations": {"test_annotation": "test_annotation_value"},
                     }
                 },
             },
             show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
         )
 
+        expected_annotations = {
+            "test_annotation": "test_annotation_value"
+        }
+
         for k8s_object in k8s_objects:
-            assert k8s_object["metadata"]["annotations"] is None
+            assert k8s_object["metadata"]["annotations"] == expected_annotations
