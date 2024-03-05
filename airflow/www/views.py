@@ -116,6 +116,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
@@ -2975,7 +2976,13 @@ class Airflow(AirflowBaseView):
             for dr in dag_states
         ]
 
-        if dag_states and dag_states[-1].data_interval_start and dag_states[-1].data_interval_end:
+        # Interpret the schedule and show planned dag runs in calendar
+        if (
+            dag_states
+            and dag_states[-1].data_interval_start
+            and dag_states[-1].data_interval_end
+            and not isinstance(dag.timetable, ContinuousTimetable)
+        ):
             last_automated_data_interval = DataInterval(
                 timezone.coerce_datetime(dag_states[-1].data_interval_start),
                 timezone.coerce_datetime(dag_states[-1].data_interval_end),
