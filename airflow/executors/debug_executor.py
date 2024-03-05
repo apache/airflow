@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import TaskInstanceState
+from airflow.traces.tracer import span, Trace
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance

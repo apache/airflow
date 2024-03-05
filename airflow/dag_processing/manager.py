@@ -1065,7 +1065,6 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
-    @span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1205,7 +1204,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._add_paths_to_queue(files_paths_to_queue, False)
         Stats.incr("dag_processing.file_path_queue_update_count")
 
-    @span
     def _kill_timed_out_processors(self):
         """Kill any file processors that timeout to defend against process hangs."""
         now = timezone.utcnow()

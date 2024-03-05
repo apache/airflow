@@ -259,6 +259,7 @@ class BaseExecutor(LoggingMixin):
 
         :param open_slots: Number of open slots
         """
+        s = Trace.get_current_span()
         sorted_queue = self.order_queued_tasks_by_priority()
         task_tuples = []
 
@@ -291,15 +292,26 @@ class BaseExecutor(LoggingMixin):
                 if key in self.attempts:
                     del self.attempts[key]
                 task_tuples.append((key, command, queue, ti.executor_config))
+                s.add_event(name='task to trigger', attributes={
+                    'command': str(command),
+                    'conf': str(ti.executor_config)
+                })
 
         if task_tuples:
             self._process_tasks(task_tuples)
 
     @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+        from airflow.traces.utils import gen_trace_id_from_ti_key, gen_span_id_from_ti_key
         for key, command, queue, executor_config in task_tuples:
-            with Trace.start_span(span_name='execute_async', component='BaseExecutor') as s:
-                s.set_attribute('key', str(key))
+            trace_id = gen_trace_id_from_ti_key(key)
+            span_id = gen_span_id_from_ti_key(key)
+            links = [{'trace_id': trace_id, 'span_id': span_id}]
+            with Trace.start_span(span_name='start_execute', component='BaseExecutor', links=links) as s:
+                s.set_attribute('dag_id', key.dag_id)
+                s.set_attribute('run_id', key.run_id)
+                s.set_attribute('task_id', key.task_id)
+                s.set_attribute('try_number', key.try_number)
                 s.set_attribute('command', str(command))
                 s.set_attribute('queue', str(queue))
                 s.set_attribute('executor_config', str(executor_config))
@@ -361,7 +373,6 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    @span
     def execute_async(
         self,
         key: TaskInstanceKey,

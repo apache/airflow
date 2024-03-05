@@ -195,7 +195,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
                 result_channel.close()
 
-    @span
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
         if conf.getboolean("scheduler", "parsing_pre_import_modules", fallback=True):

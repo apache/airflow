@@ -25,30 +25,39 @@ from airflow.traces import (
 
 log = logging.getLogger(__name__)
 
+
 def gen_trace_id(dag_run)->str:
-    """generate trace id using dag_run as input
-       if traceparent exists inside dag_run's conf,
-       use it instead"""
-    conf = dag_run.conf
-    if conf is not None and TRACEPARENT in conf:
-        traceparent = conf.get(TRACEPARENT)
-        trace_ctx = parse_traceparent(traceparent)
-        return trace_ctx['trace_id']
-    else:
-        dag_hash = dag_run.dag_hash
-        run_type = dag_run.run_type
-        start_date = dag_run.start_date.isoformat()
-        hash_seed = f"{dag_hash}_{run_type}_{start_date}"
-        hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
-        return hash_hex
+    dag_id = dag_run.dag_id
+    run_id = dag_run.run_id
+    hash_seed = f"{dag_id}_{run_id}"
+    hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
+    return hash_hex
+
+
+def gen_trace_id_from_ti_key(ti_key)->str:
+    """generate trace id from TI key"""
+    dag_id = ti_key.dag_id
+    run_id = ti_key.run_id
+    hash_seed = f"{dag_id}_{run_id}"
+    hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
+    return hash_hex
+
+
+def gen_span_id_from_ti_key(ti_key)->str:
+    """generate span id from TI key"""
+    dag_id = ti_key.dag_id
+    run_id = ti_key.run_id
+    task_id = ti_key.task_id
+    hash_seed = f"{dag_id}_{run_id}_{task_id}"
+    hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    return hash_hex
 
 
 def gen_dag_span_id(dag_run):
     """generate dag's root span id using dag_run"""
-    dag_hash = dag_run.dag_hash
-    run_type = dag_run.run_type
-    start_date = dag_run.start_date.isoformat()
-    hash_seed = f"{dag_hash}_{run_type}_{start_date}"
+    dag_id = dag_run.dag_id
+    run_id = dag_run.run_id
+    hash_seed = f"{dag_id}_{run_id}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
     return hash_hex
 
@@ -56,11 +65,10 @@ def gen_dag_span_id(dag_run):
 def gen_span_id(ti):
     """generate span id from the task instance"""
     dag_run = ti.dag_run
-    dag_hash = dag_run.dag_hash
-    run_type = dag_run.run_type
-    start_date = dag_run.start_date.isoformat()
+    dag_id = dag_run.dag_id
+    run_id = dag_run.run_id
     task_id = ti.task_id
-    hash_seed = f"{dag_hash}_{run_type}_{start_date}_{task_id}"
+    hash_seed = f"{dag_id}_{run_id}_{task_id}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
     return hash_hex
 

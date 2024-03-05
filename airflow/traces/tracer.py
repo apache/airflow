@@ -32,6 +32,14 @@ from airflow.typing_compat import Protocol
 
 log = logging.getLogger(__name__)
 
+def gen_context(trace_id, span_id):
+    """function that generate span context from trace_id and span_id"""
+    from airflow.traces.otel_tracer import gen_context as otel_gen_context
+    return otel_gen_context(trace_id, span_id)
+
+def gen_links_from_kv_list(list):
+    from airflow.traces.otel_tracer import gen_links_from_kv_list
+    return gen_links_from_kv_list(list)
 
 def span(func):
     """decorator that can be used to generate trace spans"""
@@ -58,7 +66,7 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None):
+    def start_span(cls, span_name:str, component:str=None, links=None):
         """start span"""
         raise NotImplementedError()
     
@@ -72,12 +80,12 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component):
+    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component, links=None):
         """start span from dagrun"""
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name, component, child=False):
+    def start_span_from_taskinstance(cls, ti, span_name, component, child=False, links=None):
         """start span from taskinstance"""
         raise NotImplementedError()
 
@@ -133,7 +141,7 @@ class DummyTrace:
         """get tracer"""
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None) -> DummySpan:
+    def start_span(cls, span_name:str, component:str=None, links=None) -> DummySpan:
         """start span"""
         return DummySpan()
     
@@ -148,12 +156,12 @@ class DummyTrace:
         return DummySpan()
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component) -> DummySpan:
+    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component, links=None) -> DummySpan:
         """start span from dagrun"""
         return DummySpan()
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name, component, child=False) -> DummySpan:
+    def start_span_from_taskinstance(cls, ti, span_name, component, child=False, links=None) -> DummySpan:
         """start span from taskinstance"""
         return DummySpan()
 
@@ -187,7 +195,6 @@ class _Trace(type):
         if not tags_in_string:
             return None
         return tags_in_string
-
 
 if TYPE_CHECKING:
     Trace: DummyTrace

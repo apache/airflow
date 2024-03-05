@@ -59,7 +59,7 @@ from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace
+from airflow.traces.tracer import span, Trace
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.utils import timezone
@@ -860,6 +860,8 @@ class DagRun(Base, LoggingMixin):
             )
             
             with Trace.start_span_from_dagrun(dagrun=self) as s:
+                if self._state is DagRunState.FAILED:
+                    s.set_attribute('error', True)
                 attributes = {
                     'category': 'DAG runs',
                     'dag_id': str(self.dag_id),
@@ -890,6 +892,7 @@ class DagRun(Base, LoggingMixin):
                     timestamp=int(self.end_date.timestamp() * 1000000000)
                 )
                 s.set_attributes(attributes)
+
             session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)

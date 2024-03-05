@@ -58,6 +58,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.traces.tracer import span, Trace
+from airflow.traces import utils as trace_utils
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
@@ -748,10 +749,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 s.set_attribute('task_id', ti.task_id)
                 s.set_attribute('dag_id', ti.dag_id)
                 s.set_attribute('state', ti.state)
+                if ti.state == TaskInstanceState.FAILED:
+                    s.set_attribute('error', True)
                 s.set_attribute('start_date', str(ti.start_date))
                 s.set_attribute('end_date', str(ti.end_date))
                 s.set_attribute('duration', ti.duration)
-                s.set_attribute('executor_config', ti.executor_config)
+                s.set_attribute('executor_config', str(ti.executor_config))
                 s.set_attribute('execution_date', str(ti.execution_date))
                 s.set_attribute('hostname', ti.hostname)
                 s.set_attribute('log_url', ti.log_url)
@@ -1000,8 +1003,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name='scheduler_loop', component='SchedulerJobRunner') as s:
+            with Trace.start_span(span_name='scheduler_job_loop', component='SchedulerJobRunner') as s:
                 s.set_attribute('category', 'scheduler')
+                s.set_attribute('loop_count', loop_count)
                 with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                     if self.using_sqlite and self.processor_agent:
                         self.processor_agent.run_single_parsing_loop()
@@ -1392,7 +1396,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
+        @span
         def _update_state(dag: DAG, dag_run: DagRun):
+            s = Trace.get_current_span()
+            s.set_attribute('state', str(DagRunState.RUNNING))
+            s.set_attribute('run_id', dag_run.run_id)
+            s.set_attribute('type', dag_run.run_type)
+            s.set_attribute('dag_id', dag_run.dag_id)
+
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
             if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
@@ -1412,12 +1423,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
+                s.add_event(name='schedule_delay', attributes={
+                    'dag_id': dag.dag_id,
+                    'schedule_delay': str(schedule_delay)
+                })
 
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
             partial(self.dagbag.get_dag, session=session)
         )
 
+        s = Trace.get_current_span()
         for dag_run in dag_runs:
             dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
 
@@ -1434,6 +1450,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.execution_date,
                 )
             else:
+                s.add_event(name='dag_run', attributes={
+                    'run_id': dag_run.run_id,
+                    'dag_id': dag_run.dag_id,
+                    'conf': str(dag_run.conf),
+                })
                 active_runs_of_dags[dag_run.dag_id] += 1
                 _update_state(dag, dag_run)
                 dag_run.notify_dagrun_state_changed()
@@ -1450,7 +1471,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         return callback_tuples
 
-    @span
     def _schedule_dag_run(
         self,
         dag_run: DagRun,
@@ -1462,70 +1482,93 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        callback: DagCallbackRequest | None = None
+        trace_id = trace_utils.gen_trace_id(dag_run=dag_run)
+        span_id = trace_utils.gen_dag_span_id(dag_run=dag_run)
+        from airflow.traces.tracer import gen_links_from_kv_list
+        links = [{'trace_id':trace_id, 'span_id':span_id}]
 
-        dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        with Trace.start_span(span_name='_schedule_dag_run', component='SchedulerJobRunner', links=links) as s:
+            s.set_attribute('dag_id', dag_run.dag_id)
+            s.set_attribute('run_id', dag_run.run_id)
+            s.set_attribute('run_type', dag_run.run_type)
 
-        if not dag or not dag_model:
-            self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
-            return callback
+            callback: DagCallbackRequest | None = None
 
-        if (
-            dag_run.start_date
-            and dag.dagrun_timeout
-            and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
-        ):
-            dag_run.set_state(DagRunState.FAILED)
-            unfinished_task_instances = session.scalars(
-                select(TI)
-                .where(TI.dag_id == dag_run.dag_id)
-                .where(TI.run_id == dag_run.run_id)
-                .where(TI.state.in_(State.unfinished))
-            )
-            for task_instance in unfinished_task_instances:
-                task_instance.state = TaskInstanceState.SKIPPED
-                session.merge(task_instance)
-            session.flush()
-            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+
+            if not dag or not dag_model:
+                self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+                return callback
+
+            if (
+                dag_run.start_date
+                and dag.dagrun_timeout
+                and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+            ):
+                dag_run.set_state(DagRunState.FAILED)
+                unfinished_task_instances = session.scalars(
+                    select(TI)
+                    .where(TI.dag_id == dag_run.dag_id)
+                    .where(TI.run_id == dag_run.run_id)
+                    .where(TI.state.in_(State.unfinished))
+                )
+                for task_instance in unfinished_task_instances:
+                    task_instance.state = TaskInstanceState.SKIPPED
+                    session.merge(task_instance)
+                session.flush()
+                self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+
+                if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
+                    dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+
+                callback_to_execute = DagCallbackRequest(
+                    full_filepath=dag.fileloc,
+                    dag_id=dag.dag_id,
+                    run_id=dag_run.run_id,
+                    is_failure_callback=True,
+                    processor_subdir=dag_model.processor_subdir,
+                    msg="timed_out",
+                )
+
+                dag_run.notify_dagrun_state_changed()
+                duration = dag_run.end_date - dag_run.start_date
+                Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
+                Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
+
+                s.set_attribute('error', True)
+                s.add_event(name='error', attributes={
+                    'message': f'Run {dag_run.run_id} of {dag_run.dag_id} has timed-out',
+                    'duration': str(duration)
+                })
+                return callback_to_execute
+
+            if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+                self.log.error("Execution date is in future: %s", dag_run.execution_date)
+                return callback
+
+            if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
+                self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
+                return callback
+            # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
+            schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
             if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+            # This will do one query per dag run. We "could" build up a complex
+            # query to update all the TIs across all the execution dates and dag
+            # IDs in a single query, but it turns out that can be _very very slow_
+            # see #11147/commit ee90807ac for more details
+            _schedulable_ti_ids = []
+            for _ti in schedulable_tis:
+                _schedulable_ti_ids.append(_ti.task_id)
+            s.add_event(name='schedule_tis', attributes={
+                'message': 'dag_run scheduling its tis',
+                'schedulable_tis': _schedulable_ti_ids
+            })
+            dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
-            callback_to_execute = DagCallbackRequest(
-                full_filepath=dag.fileloc,
-                dag_id=dag.dag_id,
-                run_id=dag_run.run_id,
-                is_failure_callback=True,
-                processor_subdir=dag_model.processor_subdir,
-                msg="timed_out",
-            )
-
-            dag_run.notify_dagrun_state_changed()
-            duration = dag_run.end_date - dag_run.start_date
-            Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
-            return callback_to_execute
-
-        if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
-            self.log.error("Execution date is in future: %s", dag_run.execution_date)
-            return callback
-
-        if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
-            self.log.warning("The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id)
-            return callback
-        # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-        schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
-
-        if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
-            dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-        # This will do one query per dag run. We "could" build up a complex
-        # query to update all the TIs across all the execution dates and dag
-        # IDs in a single query, but it turns out that can be _very very slow_
-        # see #11147/commit ee90807ac for more details
-        dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
-
-        return callback_to_run
+            return callback_to_run
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
         """

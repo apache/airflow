@@ -101,7 +101,7 @@ class OtelTrace:
     def use_span(self, span:Span) -> Span:
         return trace.use_span(span=span)
 
-    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None) -> Span:
+    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, links=None) -> Span:
         """start a span. if service_name is not given, otel_service is used"""
         if component is None:
             tracer = self.get_tracer(self.otel_service)
@@ -111,14 +111,19 @@ class OtelTrace:
         if self.tags is not None:
             kvs = parse_tracestate(self.tags)
 
+        if links is not None:
+            _links = gen_links_from_kv_list(links)
+        else:
+            _links = []
+
         if parent_sc is not None:
             ctx = trace.set_span_in_context(NonRecordingSpan(parent_sc))
-            span = tracer.start_as_current_span(span_name, context=ctx, attributes=kvs)
+            span = tracer.start_as_current_span(span_name, context=ctx, attributes=kvs, links=_links)
         else:
-            span = tracer.start_as_current_span(span_name, attributes=kvs)
+            span = tracer.start_as_current_span(span_name, attributes=kvs, links=_links)
         return span
 
-    def start_span_from_dagrun(self, dagrun, span_name:str=None, component:str='dagrun') -> Span:
+    def start_span_from_dagrun(self, dagrun, span_name:str=None, component:str='dagrun', links=None) -> Span:
         """Produce a span from dag run"""
         # check if dagrun has configs
         conf = dagrun.conf
@@ -128,11 +133,6 @@ class OtelTrace:
         if conf is not None:
             traceparent = conf.get(TRACEPARENT)
             tracestate = conf.get(TRACESTATE)
-
-        if traceparent is not None:
-            trace_ctx = parse_traceparent(traceparent)
-            trace_id = int(trace_ctx['trace_id'], 16)
-            parent_id = int(trace_ctx['parent_id'], 16)
 
         tracer = self.get_tracer_with_id(component=component, span_id=span_id, trace_id=trace_id)
 
@@ -150,7 +150,25 @@ class OtelTrace:
         if span_name is None:
             span_name = dagrun.dag_id
 
+        if links is not None:
+            _links = gen_links_from_kv_list(links)
+        else:
+            _links = []
+
+        a_link = Link(
+            context=trace.get_current_span().get_span_context(),
+            attributes={
+                'meta.annotation_type': 'link',
+                'from': 'parenttrace'
+            },
+        )
+        _links.append(a_link)
+
         if traceparent is not None:
+            # add the trace parent as linkages
+            tp_link = gen_link_from_traceparent(traceparent)
+            _links.append(tp_link)
+            parent_id = tp_link.span_id
             span_ctx = SpanContext(
                 trace_id = trace_id,
                 span_id = parent_id,
@@ -158,7 +176,7 @@ class OtelTrace:
                 trace_flags = TraceFlags(0x01)
             )
             ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
+            span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
         else:
             span_ctx = SpanContext(
                 trace_id = INVALID_TRACE_ID,
@@ -166,17 +184,11 @@ class OtelTrace:
                 is_remote = True,
                 trace_flags = TraceFlags(0x01)
             )
-            a_link = Link(
-                context=trace.get_current_span().get_span_context(),
-                attributes={
-                    'meta.annotation_type': 'link'
-                },
-            )
             ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, links=[a_link], start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
+            span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
         return span
 
-    def start_span_from_taskinstance(self, ti, span_name:str=None, component:str='taskinstance', child:bool=False) -> Span:
+    def start_span_from_taskinstance(self, ti, span_name:str=None, component:str='taskinstance', child:bool=False, links=None) -> Span:
         """create and start span from given task instance. essentially the span represents the ti itself
            if child == True, it will create a 'child' span under the given span
         """
@@ -201,15 +213,67 @@ class OtelTrace:
             trace_flags = TraceFlags(0x01)
         )
 
+        if links is not None:
+            _links = gen_links_from_kv_list(links)
+        else:
+            _links = []
+
+        a_link = Link(
+            context=trace.get_current_span().get_span_context(),
+            attributes={
+                'meta.annotation_type': 'link',
+                'from': 'parenttrace'
+            },
+        )
+        _links.append(a_link)
+
         if child is False:
             tracer = self.get_tracer_with_id(component=component, span_id=span_id, trace_id=trace_id)
         else:
             tracer = self.get_tracer(component=component)
 
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(ti.queued_dttm.timestamp() * 1000000000))
+        span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(ti.queued_dttm.timestamp() * 1000000000), links=_links)
         return span
 
+def gen_context(trace_id, span_id):
+    span_ctx = SpanContext(
+        trace_id = int(trace_id, 16),
+        span_id = int(span_id, 16),
+        is_remote = True,
+        trace_flags = TraceFlags(0x01)
+    )
+    return span_ctx
+
+def gen_links_from_kv_list(kv_list):
+    """convert list of kv dic of trace_id and span_id and generate list of SpanContext"""
+    result = []
+    for a in kv_list:
+        trace_id = a['trace_id']    # string of hexa
+        span_id = a['span_id']      # string of hexa
+        span_ctx = gen_context(trace_id, span_id)
+        a_link = Link(
+            context=span_ctx,
+            attributes={
+                'meta.annotation_type': 'link'
+            },
+        )
+        result.append(a_link)
+    return result
+
+def gen_link_from_traceparent(traceparent):
+    if traceparent is not None:
+        trace_ctx = parse_traceparent(traceparent)
+        trace_id = trace_ctx['trace_id']
+        span_id = trace_ctx['parent_id']
+        span_ctx = gen_context(trace_id, span_id)
+        a_link = Link(
+            context=span_ctx,
+            attributes={
+                'meta.annotation_type': 'link',
+                'from': 'traceparent'
+            }
+        )
 
 def get_otel_tracer(cls) -> OtelTrace:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import(

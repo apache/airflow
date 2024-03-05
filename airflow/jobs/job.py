@@ -34,6 +34,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
+from airflow.traces.tracer import span, Trace
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -181,48 +182,48 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
+        with Trace.start_span(span_name='heartbeat', component='Job') as s:
+            try:
+                # This will cause it to load from the db
+                self._merge_from(Job._fetch_from_db(self, session))
+                previous_heartbeat = self.latest_heartbeat
 
-        try:
-            # This will cause it to load from the db
-            self._merge_from(Job._fetch_from_db(self, session))
-            previous_heartbeat = self.latest_heartbeat
+                if self.state == JobState.RESTARTING:
+                    self.kill()
 
-            if self.state == JobState.RESTARTING:
-                self.kill()
+                # Figure out how long to sleep for
+                sleep_for = 0
+                if self.latest_heartbeat:
+                    seconds_remaining = (
+                        self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
+                    )
+                    sleep_for = max(0, seconds_remaining)
+                sleep(sleep_for)
 
-            # Figure out how long to sleep for
-            sleep_for = 0
-            if self.latest_heartbeat:
-                seconds_remaining = (
-                    self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-                )
-                sleep_for = max(0, seconds_remaining)
-            sleep(sleep_for)
+                job = Job._update_heartbeat(job=self, session=session)
+                self._merge_from(job)
 
-            job = Job._update_heartbeat(job=self, session=session)
-            self._merge_from(job)
+                # At this point, the DB has updated.
+                previous_heartbeat = self.latest_heartbeat
 
-            # At this point, the DB has updated.
-            previous_heartbeat = self.latest_heartbeat
-
-            heartbeat_callback(session)
-            self.log.debug("[heartbeat]")
-        except OperationalError:
-            Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-            if not self.heartbeat_failed:
-                self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
-                self.heartbeat_failed = True
-            if self.is_alive():
-                self.log.error(
-                    "%s heartbeat failed with error. Scheduler may go into unhealthy state",
-                    self.__class__.__name__,
-                )
-            else:
-                self.log.error(
-                    "%s heartbeat failed with error. Scheduler is in unhealthy state", self.__class__.__name__
-                )
-            # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
-            self.latest_heartbeat = previous_heartbeat
+                heartbeat_callback(session)
+                self.log.debug("[heartbeat]")
+            except OperationalError:
+                Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+                if not self.heartbeat_failed:
+                    self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+                    self.heartbeat_failed = True
+                if self.is_alive():
+                    self.log.error(
+                        "%s heartbeat failed with error. Scheduler may go into unhealthy state",
+                        self.__class__.__name__,
+                    )
+                else:
+                    self.log.error(
+                        "%s heartbeat failed with error. Scheduler is in unhealthy state", self.__class__.__name__
+                    )
+                # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
+                self.latest_heartbeat = previous_heartbeat
 
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
@@ -431,6 +432,7 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
+@span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:
