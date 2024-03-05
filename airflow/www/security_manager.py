@@ -335,11 +335,11 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # least one dropdown child
             return self._is_authorized_category_menu(fab_resource_name)
         else:
-            # This means the page the user is trying to access is specific to the auth manager used
-            # Example: the user list view in FabAuthManager
+            # The user is trying to access a page specific to the auth manager
+            # (e.g. the user list view in FabAuthManager) or a page defined in a plugin
             return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
-                fab_action_name=action,
-                fab_resource_name=fab_resource_name,
+                method=get_method_from_fab_action_map()[action],
+                resource_name=fab_resource_name,
                 user=user,
             )
 

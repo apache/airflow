@@ -24,7 +24,7 @@ from flask import session, url_for
 
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
     AwsAuthManagerAmazonVerifiedPermissionsFacade,
@@ -98,7 +98,7 @@ if TYPE_CHECKING:
 
 _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
     RESOURCE_AUDIT_LOG: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -107,24 +107,24 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_CLUSTER_ACTIVITY: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.CLUSTER_ACTIVITY.value,
     },
     RESOURCE_CONFIG: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.CONFIGURATION,
     },
     RESOURCE_CONNECTION: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.CONNECTION,
     },
     RESOURCE_DAG: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
     },
     RESOURCE_DAG_CODE: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -133,7 +133,7 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_DAG_DEPENDENCIES: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -142,7 +142,7 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_DAG_RUN: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -151,35 +151,35 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_DATASET: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DATASET,
     },
     RESOURCE_DOCS: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.DOCS.value,
     },
     RESOURCE_PLUGIN: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.PLUGINS.value,
     },
     RESOURCE_JOB: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.JOBS.value,
     },
     RESOURCE_POOL: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.POOL,
     },
     RESOURCE_PROVIDER: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.PROVIDERS.value,
     },
     RESOURCE_SLA_MISS: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -188,7 +188,7 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_TASK_INSTANCE: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -197,7 +197,7 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_TASK_RESCHEDULE: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -206,16 +206,16 @@ _MENU_ITEM_REQUESTS: dict[str, IsAuthorizedRequest] = {
         },
     },
     RESOURCE_TRIGGER: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VIEW,
         "entity_id": AccessView.TRIGGERS.value,
     },
     RESOURCE_VARIABLE: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.VARIABLE,
     },
     RESOURCE_XCOM: {
-        "method": "GET",
+        "method": "MENU",
         "entity_type": AvpEntities.DAG,
         "context": {
             "dag_entity": {
@@ -354,6 +354,16 @@ class AwsAuthManager(BaseAuthManager):
             entity_type=AvpEntities.VIEW,
             user=user or self.get_user(),
             entity_id=access_view.value,
+        )
+
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+    ):
+        return self.avp_facade.is_authorized(
+            method=method,
+            entity_type=AvpEntities.CUSTOM,
+            user=user or self.get_user(),
+            entity_id=resource_name,
         )
 
     def batch_is_authorized_connection(
@@ -503,13 +513,17 @@ class AwsAuthManager(BaseAuthManager):
             ),
         ]
 
-    @staticmethod
-    def _get_menu_item_request(fab_resource_name: str) -> IsAuthorizedRequest:
-        menu_item_request = _MENU_ITEM_REQUESTS.get(fab_resource_name)
+    def _get_menu_item_request(self, resource_name: str) -> IsAuthorizedRequest:
+        menu_item_request = _MENU_ITEM_REQUESTS.get(resource_name)
         if menu_item_request:
             return menu_item_request
         else:
-            raise AirflowException(f"Unknown resource name {fab_resource_name}")
+            self.log.info("The menu item '%s' is unknown. It must come from a plugin", resource_name)
+            return {
+                "method": "MENU",
+                "entity_type": AvpEntities.CUSTOM,
+                "entity_id": resource_name,
+            }
 
     def _has_access_to_menu_item(
         self, batch_is_authorized_results: list[dict], request: IsAuthorizedRequest, user: AwsAuthManagerUser
