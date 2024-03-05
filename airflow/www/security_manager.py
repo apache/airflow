@@ -40,8 +40,6 @@ from airflow.auth.managers.utils.fab import (
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_READ,
     RESOURCE_ADMIN_MENU,
     RESOURCE_AUDIT_LOG,
     RESOURCE_BROWSE_MENU,
@@ -335,7 +333,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
             # This means the page the user is trying to access is specific to the auth manager used
             # Example: the user list view in FabAuthManager
             return lambda action, resource_pk, user: get_auth_manager().is_authorized_custom_view(
-                fab_action_name=ACTION_CAN_READ if action == ACTION_CAN_ACCESS_MENU else action,
+                fab_action_name=action,
                 fab_resource_name=fab_resource_name,
                 user=user,
             )
