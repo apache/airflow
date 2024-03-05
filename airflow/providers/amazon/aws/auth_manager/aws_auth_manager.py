@@ -513,17 +513,13 @@ class AwsAuthManager(BaseAuthManager):
             ),
         ]
 
-    def _get_menu_item_request(self, resource_name: str) -> IsAuthorizedRequest:
-        menu_item_request = _MENU_ITEM_REQUESTS.get(resource_name)
-        if menu_item_request:
-            return menu_item_request
-        else:
-            self.log.info("The menu item '%s' is unknown. It must come from a plugin", resource_name)
-            return {
-                "method": "MENU",
-                "entity_type": AvpEntities.CUSTOM,
-                "entity_id": resource_name,
-            }
+    @staticmethod
+    def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:
+        return {
+            "method": "MENU",
+            "entity_type": AvpEntities.MENU,
+            "entity_id": resource_name,
+        }
 
     def _has_access_to_menu_item(
         self, batch_is_authorized_results: list[dict], request: IsAuthorizedRequest, user: AwsAuthManagerUser

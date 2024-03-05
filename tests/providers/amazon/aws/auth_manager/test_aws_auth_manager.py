@@ -523,55 +523,48 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Connection.MENU"},
-                    "resource": {"entityType": "Airflow::Connection", "entityId": "*"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "Connections"},
                 },
                 "decision": "DENY",
             },
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Variable.MENU"},
-                    "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "Variables"},
                 },
                 "decision": "ALLOW",
             },
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Dataset.MENU"},
-                    "resource": {"entityType": "Airflow::Dataset", "entityId": "*"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "Datasets"},
                 },
                 "decision": "DENY",
             },
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "View.MENU"},
-                    "resource": {"entityType": "Airflow::View", "entityId": "CLUSTER_ACTIVITY"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "Cluster Activity"},
                 },
                 "decision": "DENY",
             },
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.MENU"},
-                    "resource": {"entityType": "Airflow::Dag", "entityId": "*"},
-                    "context": {
-                        "contextMap": {
-                            "dag_entity": {
-                                "string": "AUDIT_LOG",
-                            }
-                        }
-                    },
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "Audit Logs"},
                 },
                 "decision": "ALLOW",
             },
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Custom.MENU"},
-                    "resource": {"entityType": "Airflow::Custom", "entityId": "CustomPage"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": "CustomPage"},
                 },
                 "decision": "ALLOW",
             },
@@ -592,37 +585,36 @@ class TestAwsAuthManager:
             ]
         )
 
+        """
+        return {
+            "method": "MENU",
+            "entity_type": AvpEntities.MENU,
+            "entity_id": resource_name,
+        }
+        """
+
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once_with(
             requests=[
                 {
                     "method": "MENU",
-                    "entity_type": AvpEntities.CONNECTION,
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": "Connections",
                 },
                 {
                     "method": "MENU",
-                    "entity_type": AvpEntities.VARIABLE,
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": "Variables",
                 },
                 {
                     "method": "MENU",
-                    "entity_type": AvpEntities.DATASET,
+                    "entity_type": AvpEntities.MENU,
+                    "entity_id": "Datasets",
                 },
+                {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Cluster Activity"},
+                {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Audit Logs"},
                 {
                     "method": "MENU",
-                    "entity_type": AvpEntities.VIEW,
-                    "entity_id": AccessView.CLUSTER_ACTIVITY.value,
-                },
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.DAG,
-                    "context": {
-                        "dag_entity": {
-                            "string": DagAccessEntity.AUDIT_LOG.value,
-                        },
-                    },
-                },
-                {
-                    "method": "MENU",
-                    "entity_type": AvpEntities.CUSTOM,
+                    "entity_type": AvpEntities.MENU,
                     "entity_id": "CustomPage",
                 },
             ],
