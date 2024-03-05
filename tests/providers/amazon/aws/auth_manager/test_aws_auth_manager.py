@@ -33,7 +33,6 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
@@ -524,7 +523,7 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Connection.GET"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Connection.MENU"},
                     "resource": {"entityType": "Airflow::Connection", "entityId": "*"},
                 },
                 "decision": "DENY",
@@ -532,7 +531,7 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Variable.MENU"},
                     "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
                 },
                 "decision": "ALLOW",
@@ -540,7 +539,7 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Dataset.GET"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dataset.MENU"},
                     "resource": {"entityType": "Airflow::Dataset", "entityId": "*"},
                 },
                 "decision": "DENY",
@@ -548,7 +547,7 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "View.GET"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "View.MENU"},
                     "resource": {"entityType": "Airflow::View", "entityId": "CLUSTER_ACTIVITY"},
                 },
                 "decision": "DENY",
@@ -556,7 +555,7 @@ class TestAwsAuthManager:
             {
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
-                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.GET"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Dag.MENU"},
                     "resource": {"entityType": "Airflow::Dag", "entityId": "*"},
                     "context": {
                         "contextMap": {
@@ -565,6 +564,14 @@ class TestAwsAuthManager:
                             }
                         }
                     },
+                },
+                "decision": "ALLOW",
+            },
+            {
+                "request": {
+                    "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
+                    "action": {"actionType": "Airflow::Action", "actionId": "Custom.MENU"},
+                    "resource": {"entityType": "Airflow::Custom", "entityId": "CustomPage"},
                 },
                 "decision": "ALLOW",
             },
@@ -581,30 +588,31 @@ class TestAwsAuthManager:
                 MenuItem("Category2", childs=[MenuItem(RESOURCE_DATASET)]),
                 MenuItem(RESOURCE_CLUSTER_ACTIVITY),
                 MenuItem(RESOURCE_AUDIT_LOG),
+                MenuItem("CustomPage"),
             ]
         )
 
         auth_manager.avp_facade.get_batch_is_authorized_results.assert_called_once_with(
             requests=[
                 {
-                    "method": "GET",
+                    "method": "MENU",
                     "entity_type": AvpEntities.CONNECTION,
                 },
                 {
-                    "method": "GET",
+                    "method": "MENU",
                     "entity_type": AvpEntities.VARIABLE,
                 },
                 {
-                    "method": "GET",
+                    "method": "MENU",
                     "entity_type": AvpEntities.DATASET,
                 },
                 {
-                    "method": "GET",
+                    "method": "MENU",
                     "entity_type": AvpEntities.VIEW,
                     "entity_id": AccessView.CLUSTER_ACTIVITY.value,
                 },
                 {
-                    "method": "GET",
+                    "method": "MENU",
                     "entity_type": AvpEntities.DAG,
                     "context": {
                         "dag_entity": {
@@ -612,14 +620,20 @@ class TestAwsAuthManager:
                         },
                     },
                 },
+                {
+                    "method": "MENU",
+                    "entity_type": AvpEntities.CUSTOM,
+                    "entity_id": "CustomPage",
+                },
             ],
             user=test_user,
         )
-        assert len(result) == 2
+        assert len(result) == 3
         assert result[0].name == "Category1"
         assert len(result[0].childs) == 1
         assert result[0].childs[0].name == RESOURCE_VARIABLE
         assert result[1].name == RESOURCE_AUDIT_LOG
+        assert result[2].name == "CustomPage"
 
     @patch.object(AwsAuthManager, "get_user")
     def test_filter_permitted_menu_items_logged_out(self, mock_get_user, auth_manager):
@@ -631,16 +645,6 @@ class TestAwsAuthManager:
         )
 
         assert result == []
-
-    @patch.object(AwsAuthManager, "get_user")
-    def test_filter_permitted_menu_items_wrong_menu_item(self, mock_get_user, auth_manager, test_user):
-        mock_get_user.return_value = test_user
-        with pytest.raises(AirflowException, match="Unknown resource name"):
-            auth_manager.filter_permitted_menu_items(
-                [
-                    MenuItem("Test"),
-                ]
-            )
 
     @patch("airflow.providers.amazon.aws.auth_manager.aws_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):
