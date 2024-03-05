@@ -25,8 +25,10 @@ import { Spinner } from "@chakra-ui/react";
 
 import ReactECharts from "src/components/ReactECharts";
 import { useCalendarData } from "src/api";
+import useFilters from "src/dag/useFilters";
 
 const Calendar = () => {
+  const { onBaseDateChange } = useFilters();
   const { data: calendarData, isLoading } = useCalendarData();
 
   if (isLoading) return <Spinner />;
@@ -181,7 +183,13 @@ const Calendar = () => {
     series: seriesOption,
   };
 
-  return <ReactECharts option={option} />;
+  const events = {
+    click(p: any) {
+      onBaseDateChange(p.data[0]);
+    },
+  };
+
+  return <ReactECharts option={option} events={events} />;
 };
 
 export default Calendar;
