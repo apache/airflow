@@ -185,7 +185,7 @@ executed in the context of the scheduler.
 
     When DAG file is changed there can be cases where the scheduler and the worker will see different
     versions of the DAG until both components catch up. You can avoid the issue by making sure dag is
-    diactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
+    deactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
     of DAG folder can be configured. Please make sure you really know what you are doing if you change
     the configurations.
 
