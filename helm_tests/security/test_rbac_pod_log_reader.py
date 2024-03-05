@@ -71,14 +71,14 @@ class TestPodReader:
             (
                 True,
                 "namespace",
-                "release-name-namespace-pod-log-reader-role",
-                "release-name-namespace-pod-log-reader-rolebinding",
+                "namespace-release-name-pod-log-reader-role",
+                "namespace-release-name-pod-log-reader-rolebinding",
             ),
             (
                 True,
                 "other-ns",
-                "release-name-other-ns-pod-log-reader-role",
-                "release-name-other-ns-pod-log-reader-rolebinding",
+                "other-ns-release-name-pod-log-reader-role",
+                "other-ns-release-name-pod-log-reader-rolebinding",
             ),
             (
                 False,
@@ -115,8 +115,8 @@ class TestPodReader:
     @pytest.mark.parametrize(
         "multiNamespaceMode, namespace, expectedRole",
         [
-            (True, "namespace", "release-name-namespace-pod-log-reader-role"),
-            (True, "other-ns", "release-name-other-ns-pod-log-reader-role"),
+            (True, "namespace", "namespace-release-name-pod-log-reader-role"),
+            (True, "other-ns", "other-ns-release-name-pod-log-reader-role"),
             (False, "namespace", "release-name-pod-log-reader-role"),
         ],
     )

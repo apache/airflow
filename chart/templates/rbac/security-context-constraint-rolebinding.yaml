@@ -33,7 +33,7 @@ metadata:
   name: {{ include "airflow.fullname" . }}-scc-rolebinding
   namespace: "{{ .Release.Namespace }}"
   {{- else }}
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-scc-rolebinding
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-scc-rolebinding
   {{- end }}
   labels:
     tier: airflow

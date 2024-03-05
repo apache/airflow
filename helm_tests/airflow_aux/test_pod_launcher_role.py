@@ -56,14 +56,14 @@ class TestPodLauncher:
             (
                 True,
                 "namespace",
-                "release-name-namespace-pod-launcher-role",
-                "release-name-namespace-pod-launcher-rolebinding",
+                "namespace-release-name-pod-launcher-role",
+                "namespace-release-name-pod-launcher-rolebinding",
             ),
             (
                 True,
                 "other-ns",
-                "release-name-other-ns-pod-launcher-role",
-                "release-name-other-ns-pod-launcher-rolebinding",
+                "other-ns-release-name-pod-launcher-role",
+                "other-ns-release-name-pod-launcher-rolebinding",
             ),
             (False, "namespace", "release-name-pod-launcher-role", "release-name-pod-launcher-rolebinding"),
         ],
@@ -95,8 +95,8 @@ class TestPodLauncher:
     @pytest.mark.parametrize(
         "multiNamespaceMode, namespace, expectedRole",
         [
-            (True, "namespace", "release-name-namespace-pod-launcher-role"),
-            (True, "other-ns", "release-name-other-ns-pod-launcher-role"),
+            (True, "namespace", "namespace-release-name-pod-launcher-role"),
+            (True, "other-ns", "other-ns-release-name-pod-launcher-role"),
             (False, "namespace", "release-name-pod-launcher-role"),
         ],
     )

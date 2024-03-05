@@ -32,7 +32,7 @@ metadata:
   namespace: "{{ .Release.Namespace }}"
   name: {{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
   {{- else }}
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-pod-log-reader-rolebinding
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-rolebinding
   {{- end }}
   labels:
     tier: airflow
@@ -49,7 +49,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-pod-log-reader-role
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- else }}
   kind: Role
   name: {{ include "airflow.fullname" . }}-pod-log-reader-role

@@ -32,7 +32,7 @@ metadata:
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
   namespace: "{{ .Release.Namespace }}"
   {{- else }}
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-pod-launcher-role
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role
   {{- end }}
   labels:
     tier: airflow

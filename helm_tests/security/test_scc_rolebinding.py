@@ -65,8 +65,8 @@ class TestSCCActivation:
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
         [
-            (True, True, True, "default", "release-name-default-scc-rolebinding"),
-            (True, True, True, "other-ns", "release-name-other-ns-scc-rolebinding"),
+            (True, True, True, "default", "default-release-name-scc-rolebinding"),
+            (True, True, True, "other-ns", "other-ns-release-name-scc-rolebinding"),
         ],
     )
     def test_create_scc_multinamespace(self, rbac_enabled, scc_enabled, created, namespace, expected_name):

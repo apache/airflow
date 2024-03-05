@@ -34,7 +34,7 @@ metadata:
   namespace: "{{ .Release.Namespace }}"
   name: {{ include "airflow.fullname" . }}-pod-launcher-rolebinding
   {{- else }}
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-pod-launcher-rolebinding
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding
   {{- end }}
   labels:
     tier: airflow
@@ -51,7 +51,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
-  name: {{ include "airflow.fullname" . }}-{{ .Release.Namespace }}-pod-launcher-role
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role
   {{- else }}
   kind: Role
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
