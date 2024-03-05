@@ -459,8 +459,6 @@ class CeleryExecutor(BaseExecutor):
             readable_tis.append(repr(ti))
             task_instance_key = ti.key
             self.fail(task_instance_key, None)
-            print("rom")
-            print(self.tasks)
             celery_async_result = self.tasks.pop(task_instance_key, None)
             if celery_async_result:
                 try:
