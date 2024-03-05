@@ -295,6 +295,7 @@ NODE_BUILD_IMAGE_TAG = f"node:{NODE_VERSION}-bookworm-slim"
 
 AIRFLOW_BUILD_DOCKERFILE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile"
 AIRFLOW_BUILD_DOCKERFILE_IGNORE_PATH = AIRFLOW_SOURCES_ROOT / "airflow-build-dockerfile.dockerignore"
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 
 class DistributionPackageInfo(NamedTuple):
@@ -1986,6 +1987,7 @@ def generate_issue_content_providers(
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
+        linked_issues: dict[int, list[Issue.Issue]] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
             for pr_number in all_prs:
@@ -2000,6 +2002,25 @@ def generate_issue_content_providers(
                         pull_requests[pr_number] = repo.get_issue(pr_number)  # (same fields as PR)
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                # Retrieve linked issues
+                if pull_requests[pr_number].body:
+                    body = " ".join(pull_requests[pr_number].body.splitlines())
+                    linked_issue_numbers = {
+                        int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                    }
+                    for linked_issue_number in linked_issue_numbers:
+                        progress.console.print(
+                            f"Retrieving Linked issue PR#{linked_issue_number}: "
+                            f"https://github.com/apache/airflow/issues/{linked_issue_number}"
+                        )
+                        try:
+                            if pr_number not in linked_issues:
+                                linked_issues[pr_number] = []
+                            linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
+                        except UnknownObjectException:
+                            progress.console.print(
+                                f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
+                            )
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
@@ -2025,7 +2046,7 @@ def generate_issue_content_providers(
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
-        issue_content = template.render(providers=providers, date=datetime.now())
+        issue_content = template.render(providers=providers, linked_issues=linked_issues, date=datetime.now())
         get_console().print()
         get_console().print(
             "[green]Below you can find the issue content that you can use "
