@@ -109,6 +109,7 @@ __lazy_imports = {
     "Variable": "airflow.models.variable",
     "XCom": "airflow.models.xcom",
     "clear_task_instances": "airflow.models.taskinstance",
+    "DagRunStateModel": "airflow.models.state",
 }
 
 if TYPE_CHECKING:
@@ -133,6 +134,7 @@ if TYPE_CHECKING:
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
     from airflow.models.slamiss import SlaMiss
+    from airflow.models.state import DagRunStateModel
     from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
     from airflow.models.taskreschedule import TaskReschedule

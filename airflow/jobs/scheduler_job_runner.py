@@ -1347,7 +1347,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         def _update_state(dag: DAG, dag_run: DagRun):
-            dag_run.state = DagRunState.RUNNING
+            # dag_run.state = DagRunState.RUNNING
+            dag_run.set_state(DagRunState.RUNNING, session=session)
             dag_run.start_date = timezone.utcnow()
             if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the

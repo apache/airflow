@@ -56,6 +56,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.state import DagRunStateModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
@@ -122,6 +123,9 @@ class DagRun(Base, LoggingMixin):
     execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
+    dag_run_states = relationship(
+        "DagRunStateModel", back_populates="dag_run", cascade="all, delete, delete-orphan"
+    )
     _state = Column("state", String(50), default=DagRunState.QUEUED)
     run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
@@ -230,6 +234,9 @@ class DagRun(Base, LoggingMixin):
         self.conf = conf or {}
         if state is not None:
             self.state = state
+            self.dag_run_states.append(
+                DagRunStateModel.add_state(type=state, name=state, message="Dagrun created", dagrun=self)
+            )
         if queued_at is NOTSET:
             self.queued_at = timezone.utcnow() if state == DagRunState.QUEUED else None
         else:
@@ -268,7 +275,8 @@ class DagRun(Base, LoggingMixin):
     def get_state(self):
         return self._state
 
-    def set_state(self, state: DagRunState) -> None:
+    @provide_session
+    def set_state(self, state: DagRunState, session) -> None:
         """Change the state of the DagRan.
 
         Changes to attributes are implemented in accordance with the following table
@@ -322,6 +330,16 @@ class DagRun(Base, LoggingMixin):
         """
         if state not in State.dag_states:
             raise ValueError(f"invalid DagRun state: {state}")
+        if (
+            not session.query(DagRunStateModel)
+            .filter(DagRunStateModel.type == state, DagRunStateModel.dag_run_id == self.id)
+            .count()
+        ):
+            self.dag_run_states.append(
+                DagRunStateModel.add_state(
+                    type=state, name=state, message="Dagrun state changed", dagrun=self, session=session
+                )
+            )
         if self._state != state:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
@@ -769,7 +787,7 @@ class DagRun(Base, LoggingMixin):
         # if all tasks finished and at least one failed, the run failed
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.error("Marking run %s failed", self)
-            self.set_state(DagRunState.FAILED)
+            self.set_state(DagRunState.FAILED, session=session)
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if execute_callbacks:
@@ -790,7 +808,7 @@ class DagRun(Base, LoggingMixin):
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s successful", self)
-            self.set_state(DagRunState.SUCCESS)
+            self.set_state(DagRunState.SUCCESS, session=session)
             self.notify_dagrun_state_changed(msg="success")
 
             if execute_callbacks:
@@ -811,7 +829,7 @@ class DagRun(Base, LoggingMixin):
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
-            self.set_state(DagRunState.FAILED)
+            self.set_state(DagRunState.FAILED, session=session)
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks:
@@ -831,7 +849,7 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the leaves aren't done, the dag is still running
         else:
-            self.set_state(DagRunState.RUNNING)
+            self.set_state(DagRunState.RUNNING, session=session)
 
         if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
             msg = (
