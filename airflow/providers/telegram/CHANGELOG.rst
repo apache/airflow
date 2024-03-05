@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add telegram connection with documnetation (#37515)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Fix remaining D401 checks (#37434)``
+
 4.3.1
 .....
 

@@ -50,6 +50,7 @@ import useDags from "./useDags";
 import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
 import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
+import useEventLogs from "./useEventLogs";
 
 axios.interceptors.request.use((config) => {
   config.paramsSerializer = {
@@ -96,4 +97,5 @@ export {
   useHistoricalMetricsData,
   useTaskXcomEntry,
   useTaskXcomCollection,
+  useEventLogs,
 };

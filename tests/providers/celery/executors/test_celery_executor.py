@@ -258,8 +258,8 @@ class TestCeleryExecutor:
             executor.cleanup_stuck_queued_tasks(tis)
             executor.sync()
         assert executor.tasks == {}
-        assert app.control.revoke.called_with("231")
-        assert mock_fail.called_once()
+        assert app.control.revoke.called_with("231")  # noqa: PGH005 (fixme: called 0 times)
+        mock_fail.assert_called_once()
 
     @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
     @mock.patch("celery.Celery")

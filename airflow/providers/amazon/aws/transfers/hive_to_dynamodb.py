@@ -70,7 +70,7 @@ class HiveToDynamoDBOperator(BaseOperator):
         region_name: str | None = None,
         schema: str = "default",
         hiveserver2_conn_id: str = "hiveserver2_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

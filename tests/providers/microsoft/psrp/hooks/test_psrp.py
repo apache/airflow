@@ -146,7 +146,7 @@ class TestPsrpHook:
             on_output_callback=on_output_callback,
             **options,
         ) as hook, patch.object(type(hook), "log") as logger:
-            try:
+            with pytest.raises(AirflowException, match="Process had one or more errors"):
                 with hook.invoke() as ps:
                     assert ps.state == PSInvocationState.NOT_STARTED
 
@@ -154,10 +154,6 @@ class TestPsrpHook:
                     # handling as well as the logging of error exception
                     # details.
                     ps.had_errors = True
-            except AirflowException as exc:
-                assert str(exc) == "Process had one or more errors"
-            else:
-                self.fail("Expected an error")
             assert ps.state == PSInvocationState.COMPLETED
 
         assert on_output_callback.mock_calls == [call("output")]

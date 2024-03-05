@@ -51,7 +51,6 @@ def patch_hook(monkeypatch, aws_region):
     """Patch hook object by dummy boto3 Batch client."""
     batch_client = boto3.client("batch", region_name=aws_region)
     monkeypatch.setattr(BatchWaitersHook, "conn", batch_client)
-    yield
 
 
 def test_batch_waiters(aws_region):

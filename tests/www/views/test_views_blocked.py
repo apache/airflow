@@ -32,7 +32,7 @@ from tests.test_utils.db import clear_db_runs
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def running_subdag(admin_client, dag_maker):
     with dag_maker(dag_id="running_dag.subdag") as subdag:
         EmptyOperator(task_id="empty")

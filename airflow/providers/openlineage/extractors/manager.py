@@ -34,6 +34,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from openlineage.client.run import Dataset
+
+    from airflow.lineage.entities import Table
     from airflow.models import Operator
 
 
@@ -178,19 +181,86 @@ class ExtractorManager(LoggingMixin):
                 task_metadata.outputs.append(d)
 
     @staticmethod
-    def convert_to_ol_dataset(obj):
+    def convert_to_ol_dataset_from_object_storage_uri(uri: str) -> Dataset | None:
+        from urllib.parse import urlparse
+
         from openlineage.client.run import Dataset
 
-        from airflow.lineage.entities import Table
+        if "/" not in uri:
+            return None
+
+        try:
+            scheme, netloc, path, params, _, _ = urlparse(uri)
+        except Exception:
+            return None
+
+        common_schemas = {
+            "s3": "s3",
+            "gs": "gs",
+            "gcs": "gs",
+            "hdfs": "hdfs",
+            "file": "file",
+        }
+        for found, final in common_schemas.items():
+            if scheme.startswith(found):
+                return Dataset(namespace=f"{final}://{netloc}", name=path.lstrip("/"))
+        return Dataset(namespace=scheme, name=f"{netloc}{path}")
+
+    @staticmethod
+    def convert_to_ol_dataset_from_table(table: Table) -> Dataset:
+        from openlineage.client.facet import (
+            BaseFacet,
+            OwnershipDatasetFacet,
+            OwnershipDatasetFacetOwners,
+            SchemaDatasetFacet,
+            SchemaField,
+        )
+        from openlineage.client.run import Dataset
+
+        facets: dict[str, BaseFacet] = {}
+        if table.columns:
+            facets["schema"] = SchemaDatasetFacet(
+                fields=[
+                    SchemaField(
+                        name=column.name,
+                        type=column.data_type,
+                        description=column.description,
+                    )
+                    for column in table.columns
+                ]
+            )
+        if table.owners:
+            facets["ownership"] = OwnershipDatasetFacet(
+                owners=[
+                    OwnershipDatasetFacetOwners(
+                        # f.e. "user:John Doe <jdoe@company.com>" or just "user:<jdoe@company.com>"
+                        name=f"user:"
+                        f"{user.first_name + ' ' if user.first_name else ''}"
+                        f"{user.last_name + ' ' if user.last_name else ''}"
+                        f"<{user.email}>",
+                        type="",
+                    )
+                    for user in table.owners
+                ]
+            )
+        return Dataset(
+            namespace=f"{table.cluster}",
+            name=f"{table.database}.{table.name}",
+            facets=facets,
+        )
+
+    @staticmethod
+    def convert_to_ol_dataset(obj) -> Dataset | None:
+        from openlineage.client.run import Dataset
+
+        from airflow.lineage.entities import File, Table
 
         if isinstance(obj, Dataset):
             return obj
         elif isinstance(obj, Table):
-            return Dataset(
-                namespace=f"{obj.cluster}",
-                name=f"{obj.database}.{obj.name}",
-                facets={},
-            )
+            return ExtractorManager.convert_to_ol_dataset_from_table(obj)
+        elif isinstance(obj, File):
+            return ExtractorManager.convert_to_ol_dataset_from_object_storage_uri(obj.url)
         else:
             return None
 

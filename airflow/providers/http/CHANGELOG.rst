@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Change the URL building in HttpHookAsync to match the behavior of HttpHook (#37696)``
+
+Misc
+~~~~
+
+* ``Return back removed public HttpHook's method (#37738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 4.9.1
 .....
 

@@ -57,7 +57,7 @@ class DeprecationRemovalRequired(AirflowException):
 DEFAULT_CONN_ID = "kubernetes_default"
 
 
-@pytest.fixture()
+@pytest.fixture
 def remove_default_conn(session):
     before_conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).one_or_none()
     if before_conn:

@@ -150,6 +150,9 @@ export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
   const gridUrl = getMetaValue("grid_url");
   const dagId = getMetaValue("dag_id");
+  if (!value || !sourceRunId || !sourceDagId || !gridUrl) {
+    return null;
+  }
   const stringToReplace = dagId || "__DAG_ID__";
   const url = `${gridUrl?.replace(
     stringToReplace,

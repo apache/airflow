@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-
 # Details: https://github.com/kaxil/boring-cyborg
 
 labelPRBasedOnFilePath:
@@ -154,8 +153,6 @@ labelPRBasedOnFilePath:
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/providers/cncf/kubernetes/**/*
     - airflow/providers/celery/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
-    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
     - docs/apache-airflow-providers-cncf-kubernetes/**/*
     - kubernetes_tests/**/*
     - tests/providers/cncf/kubernetes/**/*

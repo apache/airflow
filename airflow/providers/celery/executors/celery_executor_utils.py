@@ -321,7 +321,8 @@ class BulkStateFetcher(LoggingMixin):
             for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
                     self.log.error(
-                        CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
+                        "%s:%s\n%s\n",
+                        CELERY_FETCH_ERR_MSG_HEADER,
                         state_or_exception.exception,
                         state_or_exception.traceback,
                     )

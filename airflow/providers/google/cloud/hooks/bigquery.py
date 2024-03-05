@@ -49,7 +49,7 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterato
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import GbqConnector  # noqa
+from pandas_gbq.gbq import GbqConnector  # noqa: F401 Used in ``airflow.contrib.hooks.bigquery``
 from requests import Session
 from sqlalchemy import create_engine
 
@@ -232,8 +232,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         target_fields: Any = None,
         commit_every: Any = 1000,
         replace: Any = False,
-        *,
-        executemany=False,
         **kwargs,
     ) -> None:
         """Insert rows.
