@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 
 class BaseAuthManager(LoggingMixin):
@@ -367,7 +367,7 @@ class BaseAuthManager(LoggingMixin):
             if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
 
-    def get_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
+    def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         """
         Filter menu items based on user permissions.
 

@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1707636119
+source-date-epoch: 1709554658
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.19.0
   - 8.18.0
   - 8.17.0
   - 8.16.0
@@ -100,7 +101,11 @@ dependencies:
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=1.2.5
+      # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+      # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+      # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+      # In addition FAB also limit sqlalchemy to < 2.0
+      - pandas>=1.2.5,<2.2
   # There is conflict between boto3 and aiobotocore dependency botocore.
   # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
   # boto3 have native async support and we move away from aio aiobotocore
@@ -126,6 +131,8 @@ devel-dependencies:
   - mypy-boto3-redshift-data>=1.33.0
   - mypy-boto3-s3>=1.33.0
   - s3fs>=2023.10.0
+  - openapi-schema-validator>=0.6.2
+  - openapi-spec-validator>=0.7.1
 
 integrations:
   - integration-name: Amazon Athena
@@ -494,6 +501,10 @@ sensors:
   - integration-name: Amazon QuickSight
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
+
+dataset-uris:
+  - schemes: [s3]
+    handler: null
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

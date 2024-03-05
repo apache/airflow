@@ -458,24 +458,27 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-tarball --version ${VERSION}
 breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The last - build step - by default will use Dockerized build and building of Python client packages
+The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
 breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-This is generally faster and requires less resources/network bandwidth.
-
-The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
+This is generally faster and requires less resources/network bandwidth. Note that you have to
+do it before preparing the tarball as preparing packages cleans up dist folder from
+apache-airflow artifacts as it uses hatch's `-c` build flag.
 
 The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
+
+The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
 
 Change to the directory where you have the packages from svn:
 
@@ -486,7 +489,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
-cd asf-dist/dev/airflow/X.Y.Zrc1
+cd asf-dist/dev/airflow/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"

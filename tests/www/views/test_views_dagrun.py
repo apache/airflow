@@ -123,7 +123,7 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
     check_content_in_response("Access is Denied", resp)
 
 
-@pytest.fixture()
+@pytest.fixture
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)
@@ -144,7 +144,7 @@ def running_dag_run(session):
     return dr
 
 
-@pytest.fixture()
+@pytest.fixture
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
     execution_date = timezone.datetime(2016, 1, 9)

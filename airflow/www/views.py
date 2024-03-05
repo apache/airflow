@@ -163,6 +163,8 @@ LINECHART_X_AXIS_TICKFORMAT = (
 
 SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 
+logger = logging.getLogger(__name__)
+
 
 def sanitize_args(args: dict[str, str]) -> dict[str, str]:
     """
@@ -1325,8 +1327,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/dags/<string:dag_id>/code")
     @auth.has_access_dag("GET", DagAccessEntity.CODE)
-    @provide_session
-    def code(self, dag_id, session: Session = NEW_SESSION):
+    def code(self, dag_id):
         """Dag Code."""
         kwargs = {
             **sanitize_args(request.args),
@@ -1348,7 +1349,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/rendered-templates")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def rendered_templates(self, session):
         """Get rendered Dag."""
@@ -1360,9 +1360,9 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
 
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
+        dag_run = dag.get_dagrun(execution_date=dttm)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
@@ -1467,7 +1467,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/rendered-k8s")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def rendered_k8s(self, *, session: Session = NEW_SESSION):
         """Get rendered k8s yaml."""
@@ -1480,14 +1479,14 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get("dag_id")
         task_id = request.args.get("task_id")
         if task_id is None:
-            logging.warning("Task id not passed in the request")
+            logger.warning("Task id not passed in the request")
             abort(400)
         execution_date = request.args.get("execution_date")
         dttm = _safe_parse_datetime(execution_date)
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1533,7 +1532,6 @@ class Airflow(AirflowBaseView):
     @expose("/get_logs_with_metadata")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def get_logs_with_metadata(self, session: Session = NEW_SESSION):
         """Retrieve logs including metadata."""
@@ -1556,7 +1554,7 @@ class Airflow(AirflowBaseView):
             execution_date = timezone.parse(execution_date_str, strict=True)
         except ValueError:
             error_message = (
-                f"Given execution date, {execution_date}, could not be identified as a date. "
+                f"Given execution date {execution_date_str!r} could not be identified as a date. "
                 "Example date format: 2015-11-16T14:34:15+00:00"
             )
             return {"error": error_message}, 400
@@ -1614,7 +1612,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/log")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def log(self, session: Session = NEW_SESSION):
         """Retrieve log."""
@@ -1659,7 +1656,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/redirect_to_external_log")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_LOGS)
-    @action_logging
     @provide_session
     def redirect_to_external_log(self, session: Session = NEW_SESSION):
         """Redirects to external log."""
@@ -1691,7 +1687,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/task")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def task(self, session: Session = NEW_SESSION):
         """Retrieve task."""
@@ -1817,7 +1812,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/xcom")
     @auth.has_access_dag("GET", DagAccessEntity.XCOM)
-    @action_logging
     @provide_session
     def xcom(self, session: Session = NEW_SESSION):
         """Retrieve XCOM."""
@@ -2160,6 +2154,7 @@ class Airflow(AirflowBaseView):
                 form_fields=form_fields,
                 **render_params,
                 conf=request_conf,
+                form=form,
             )
 
         flash(f"Triggered {dag_id}, it should start any moment now.")
@@ -2346,6 +2341,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/blocked", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
+    @action_logging
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
         """Mark Dag Blocked."""
@@ -2491,7 +2487,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/dagrun_details")
     def dagrun_details(self):
-        """Redirect to the GRID DAGRun page. This is avoids breaking links."""
+        """Redirect to the Grid DagRun page. This is avoids breaking links."""
         dag_id = request.args.get("dag_id")
         run_id = request.args.get("run_id")
         return redirect(url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id))
@@ -2762,16 +2758,12 @@ class Airflow(AirflowBaseView):
             )
 
     @expose("/dags/<string:dag_id>")
-    @gzipped
-    @action_logging
     def dag(self, dag_id):
         """Redirect to default DAG view."""
         kwargs = {**sanitize_args(request.args), "dag_id": dag_id}
         return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/tree")
-    @gzipped
-    @action_logging
     def legacy_tree(self):
         """Redirect to the replacement - grid view. Kept for backwards compatibility."""
         return redirect(url_for("Airflow.grid", **sanitize_args(request.args)))
@@ -2779,7 +2771,6 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/grid")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @gzipped
-    @action_logging
     @provide_session
     def grid(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag's grid view."""
@@ -2838,8 +2829,6 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/calendar")
-    @gzipped
-    @action_logging
     def legacy_calendar(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.calendar", **sanitize_args(request.args)))
@@ -2847,7 +2836,6 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/calendar")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @gzipped
-    @action_logging
     @provide_session
     def calendar(self, dag_id: str, session: Session = NEW_SESSION):
         """Get DAG runs as calendar."""
@@ -2953,15 +2941,12 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/graph")
-    @gzipped
-    @action_logging
     def legacy_graph(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.graph", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/graph")
     @gzipped
-    @action_logging
     @provide_session
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
@@ -2984,14 +2969,12 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/duration")
-    @action_logging
     def legacy_duration(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.duration", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/duration")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def duration(self, dag_id: str, session: Session = NEW_SESSION):
         """Get Dag as duration graph."""
@@ -3137,14 +3120,12 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/tries")
-    @action_logging
     def legacy_tries(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.tries", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/tries")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def tries(self, dag_id: str, session: Session = NEW_SESSION):
         """Show all tries."""
@@ -3220,14 +3201,12 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/landing_times")
-    @action_logging
     def legacy_landing_times(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.landing_times", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def landing_times(self, dag_id: str, session: Session = NEW_SESSION):
         """Show landing times."""
@@ -3326,14 +3305,12 @@ class Airflow(AirflowBaseView):
         return "OK"
 
     @expose("/gantt")
-    @action_logging
     def legacy_gantt(self):
         """Redirect from url param."""
         return redirect(url_for("Airflow.gantt", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/gantt")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def gantt(self, dag_id: str, session: Session = NEW_SESSION):
         """Redirect to the replacement - grid + gantt. Kept for backwards compatibility."""
@@ -3349,7 +3326,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/extra_links")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     @provide_session
     def extra_links(self, *, session: Session = NEW_SESSION):
         """
@@ -3406,12 +3382,10 @@ class Airflow(AirflowBaseView):
     @expose("/object/graph_data")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @gzipped
-    @action_logging
-    @provide_session
-    def graph_data(self, session: Session = NEW_SESSION):
+    def graph_data(self):
         """Get Graph Data."""
         dag_id = request.args.get("dag_id")
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
         root = request.args.get("root")
         if root:
             filter_upstream = request.args.get("filter_upstream") == "true"
@@ -3435,7 +3409,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/task_instances")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @action_logging
     def task_instances(self):
         """Show task instances."""
         dag_id = request.args.get("dag_id")
@@ -4035,7 +4008,7 @@ class AirflowModelView(ModelView):
         # Maintains compatibility but refuses to delete on GET methods if CSRF is enabled
         if not self.is_get_mutation_allowed():
             self.update_redirect()
-            logging.warning("CSRF is enabled and a delete using GET was invoked")
+            logger.warning("CSRF is enabled and a delete using GET was invoked")
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
             return self.post_delete_redirect()
         pk = self._deserialize_pk_if_composite(pk)
@@ -4536,7 +4509,7 @@ class ConnectionModelView(AirflowModelView):
             extra_dictionary = {}
 
         if not isinstance(extra_dictionary, dict):
-            logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
+            logger.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
         for field_key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
@@ -4923,20 +4896,20 @@ class VariableModelView(AirflowModelView):
             if action_on_existing == "fail" and existing_keys:
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logger.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
                 self.update_redirect()
                 return redirect(self.get_redirect())
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
                 if action_on_existing == "skip" and k in existing_keys:
-                    logging.warning("Variable: %s already exists, skipping.", k)
+                    logger.warning("Variable: %s already exists, skipping.", k)
                     skipped.add(k)
                     continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
-                    logging.info("Variable import failed: %r", exc)
+                    logger.info("Variable import failed: %r", exc)
                     fail_count += 1
                 else:
                     suc_count += 1
@@ -5267,6 +5240,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5277,6 +5251,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5798,7 +5773,6 @@ class DagDependenciesView(AirflowBaseView):
     @expose("/dag-dependencies")
     @auth.has_access_dag("GET", DagAccessEntity.DEPENDENCIES)
     @gzipped
-    @action_logging
     def list(self):
         """Display DAG dependencies."""
         title = "DAG Dependencies"
@@ -5871,7 +5845,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 def restrict_to_dev(f):
     def wrapper(*args, **kwargs):
         if not os.environ.get("AIRFLOW_ENV", None) == "development":
-            logging.error(
+            logger.error(
                 "You can only access this view in development mode. Set AIRFLOW_ENV=development to view it."
             )
             return abort(404)

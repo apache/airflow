@@ -22,9 +22,10 @@ description: |
     `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 state: ready
-source-date-epoch: 1707636407
+source-date-epoch: 1709555804
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.10.0
   - 4.9.1
   - 4.9.0
   - 4.8.0

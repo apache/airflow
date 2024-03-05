@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.1
+.....
+
+Latest change: 2024-03-02
+
+=================================================================================================  ===========  ==================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================================
+`a7d13315e1 <https://github.com/apache/airflow/commit/a7d13315e11bcf76d02493b874ca5f0690ddd5e1>`_  2024-03-02   ``Resolve G003: "Logging statement uses +" (#37848)``
+`cd33c2a6a7 <https://github.com/apache/airflow/commit/cd33c2a6a73ca902daa234cf60dd0b7b9782bdc6>`_  2024-02-27   ``Migrate executor docs to respective providers (#37728)``
+`8d74ee8dcd <https://github.com/apache/airflow/commit/8d74ee8dcd1b3ad0291ef666835edcffb24265ae>`_  2024-02-25   ``Remove pid arg from celery option to fix duplicate pid issue, Move celery command to provider package (#36794)``
+`581e2e42e9 <https://github.com/apache/airflow/commit/581e2e42e947fc8f23ecccb89fbabccec9e8e26b>`_  2024-02-21   ``Change AirflowTaskTimeout to inherit BaseException (#35653)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  ==================================================================================================================
+
 3.6.0
 .....
 
-Latest change: 2024-02-06
+Latest change: 2024-02-12
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `6c72223f86 <https://github.com/apache/airflow/commit/6c72223f8653abf421fa4443b337c0ffb33af29b>`_  2024-02-06   ``Add 'task_acks_late' configuration to Celery Executor (#37066)``
 `4fa8e45c92 <https://github.com/apache/airflow/commit/4fa8e45c9222f05cabef543c8fd33f737826ebe3>`_  2024-01-28   ``prevent celery command autoscale misconfig (#36576)``
 =================================================================================================  ===========  ==================================================================

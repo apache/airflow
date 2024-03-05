@@ -193,6 +193,16 @@ repos:
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
+      - id: update-installers
+        name: Update installers to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_installers.py
+        stages: ['manual']
+        language: python
+        language_version: python38
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_installers.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
       - id: update-chart-dependencies
         name: Update chart dependencies to latest (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
@@ -320,19 +330,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
-        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
-        #       https://github.com/apache/airflow/issues/36484
-        exclude: |
-          (?x)^(
-              ^.*__init__\.py$|
-              ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
-              ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
-              ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
-          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -369,7 +366,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator>=0.6.0']
+        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -758,7 +755,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^dev/.*_installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
@@ -1102,6 +1099,24 @@ repos:
           - "B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: pylint
+        name: pylint
+        description: "Pylint is a static code analyser for Python 2 or 3."
+        entry: pylint
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['pylint==3.1.0']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          # Use pylint only for the specific check, which are not available into the ruff
+          - "--disable=all"
+          # W0133: "Exception statement has no effect"
+          # see: https://github.com/astral-sh/ruff/issues/10145
+          - "--enable=W0133"
       - id: check-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table

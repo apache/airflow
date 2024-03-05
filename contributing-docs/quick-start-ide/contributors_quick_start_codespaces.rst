@@ -28,7 +28,7 @@ Setup and develop using GitHub Codespaces
    .. raw:: html
 
      <div align="center" style="padding-bottom:10px">
-       <img src="images/quick_start/airflow_fork.png"
+       <img src="images/airflow_fork.png"
             alt="Forking Apache Airflow project">
      </div>
 
@@ -42,4 +42,4 @@ Setup and develop using GitHub Codespaces
    as Codespaces use Visual Studio Code as interface.
 
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

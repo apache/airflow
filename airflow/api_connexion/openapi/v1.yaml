@@ -1156,10 +1156,27 @@ paths:
         - $ref: "#/components/parameters/OrderBy"
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/FilterRunID"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
         - $ref: "#/components/parameters/After"
+        - name: included_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events matching this pattern.
+            *New in version 2.9.0*
+        - name: excluded_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events that do not match this pattern.
+            *New in version 2.9.0*
       responses:
         "200":
           description: Success.
@@ -2113,21 +2130,21 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /datasets/events:
-    parameters:
-      - $ref: "#/components/parameters/PageLimit"
-      - $ref: "#/components/parameters/PageOffset"
-      - $ref: "#/components/parameters/OrderBy"
-      - $ref: "#/components/parameters/FilterDatasetID"
-      - $ref: "#/components/parameters/FilterSourceDAGID"
-      - $ref: "#/components/parameters/FilterSourceTaskID"
-      - $ref: "#/components/parameters/FilterSourceRunID"
-      - $ref: "#/components/parameters/FilterSourceMapIndex"
     get:
       summary: Get dataset events
       description: Get dataset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: get_dataset_events
       tags: [Dataset]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterSourceDAGID"
+        - $ref: "#/components/parameters/FilterSourceTaskID"
+        - $ref: "#/components/parameters/FilterSourceRunID"
+        - $ref: "#/components/parameters/FilterSourceMapIndex"
       responses:
         "200":
           description: Success.
@@ -2141,6 +2158,33 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create dataset event
+      description: Create dataset event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: create_dataset_event
+      tags: [Dataset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetEvent'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEvent'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /config:
     get:
@@ -3199,7 +3243,12 @@ components:
           readOnly: true
           nullable: true
         task_id:
-          description: The DAG ID
+          description: The Task ID
+          type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          description: The DAG Run ID
           type: string
           readOnly: true
           nullable: true
@@ -3582,6 +3631,13 @@ components:
           type: string
         sla_miss:
           $ref: "#/components/schemas/SLAMiss"
+        rendered_map_index:
+          description: |
+            Rendered name of an expanded task instance, if the task is mapped.
+
+            *New in version 2.9.0*
+          type: string
+          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -4266,6 +4322,20 @@ components:
           type: string
           description: The dataset event creation time
           nullable: false
+
+    CreateDatasetEvent:
+      type: object
+      required:
+        - dataset_uri
+      properties:
+        dataset_uri:
+          type: string
+          description: The URI of the dataset
+          nullable: false
+        extra:
+          type: object
+          description: The dataset event extra
+          nullable: true
 
     QueuedEvent:
       type: object
@@ -5439,6 +5509,14 @@ components:
         type: string
       required: false
       description: Returns objects matched by the Task ID.
+
+    FilterRunID:
+      in: query
+      name: run_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Run ID.
 
     # Other parameters
     FileToken:

@@ -108,7 +108,7 @@ class TestCeleryStopCommand:
         assert mock_celery_app.worker_main.call_args
         args, _ = mock_celery_app.worker_main.call_args
         args_str = " ".join(map(str, args[0]))
-        assert f"--pidfile {pid_file}" in args_str
+        assert f"--pidfile {pid_file}" not in args_str
 
         # Call stop
         stop_args = self.parser.parse_args(["celery", "stop"])
@@ -136,7 +136,7 @@ class TestCeleryStopCommand:
         assert mock_celery_app.worker_main.call_args
         args, _ = mock_celery_app.worker_main.call_args
         args_str = " ".join(map(str, args[0]))
-        assert f"--pidfile {pid_file}" in args_str
+        assert f"--pidfile {pid_file}" not in args_str
 
         stop_args = self.parser.parse_args(["celery", "stop", "--pid", pid_file])
         celery_command.stop_worker(stop_args)
@@ -197,8 +197,6 @@ class TestWorkerStart:
                 celery_hostname,
                 "--loglevel",
                 conf.get("logging", "CELERY_LOGGING_LEVEL"),
-                "--pidfile",
-                pid_file,
                 "--autoscale",
                 autoscale,
                 "--without-mingle",

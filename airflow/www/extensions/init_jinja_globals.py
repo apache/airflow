@@ -27,6 +27,8 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+logger = logging.getLogger(__name__)
+
 
 def init_jinja_globals(app):
     """Add extra globals variable to Jinja context."""
@@ -51,7 +53,7 @@ def init_jinja_globals(app):
         airflow_version = airflow.__version__
     except Exception as e:
         airflow_version = None
-        logging.error(e)
+        logger.error(e)
 
     git_version = get_airflow_git_version()
 

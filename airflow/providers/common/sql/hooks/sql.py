@@ -516,7 +516,15 @@ class DbApiHook(BaseHook):
         return self._replace_statement_format.format(table, target_fields, ",".join(placeholders))
 
     def insert_rows(
-        self, table, rows, target_fields=None, commit_every=1000, replace=False, executemany=False, **kwargs
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=False,
+        **kwargs,
     ):
         """Insert a collection of tuples into a table.
 
