@@ -565,7 +565,7 @@ class TestEksDeleteClusterOperator:
 
         self.delete_cluster_operator.execute({})
 
-        mock_list_nodegroups.assert_called_once
+        mock_list_nodegroups.assert_called_once  # noqa: PGH005 (fixme: called 0 times)
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
         mock_waiter.assert_called_with(mock.ANY, name=CLUSTER_NAME)
         assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
