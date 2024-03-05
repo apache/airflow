@@ -100,7 +100,7 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=22.1.0
+  - google-ads>=23.1.0
   - google-analytics-admin
   # Google-api-core 2.16.0 back-compat issue: https://github.com/googleapis/python-api-core/issues/576
   - google-api-core>=2.11.0,!=2.16.0
