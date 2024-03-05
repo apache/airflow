@@ -66,7 +66,7 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None, links=None):
+    def start_span(cls, span_name:str, component:str=None, links=None, start_time=None):
         """start span"""
         raise NotImplementedError()
     
@@ -141,7 +141,7 @@ class DummyTrace:
         """get tracer"""
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None, links=None) -> DummySpan:
+    def start_span(cls, span_name:str, component:str=None, links=None, start_time=None) -> DummySpan:
         """start span"""
         return DummySpan()
     

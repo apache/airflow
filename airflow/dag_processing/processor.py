@@ -47,7 +47,6 @@ from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
-from airflow.traces.tracer import span, Trace
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
 from airflow.utils.file import iter_airflow_imports, might_contain_dag
@@ -141,59 +140,57 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         """
         # This helper runs in the newly created process
         log: logging.Logger = logging.getLogger("airflow.processor")
-        with Trace.start_span(span_name='_run_file_processor', component='DagFileProcessorProcess') as s:
-            s.set_attribute('category', 'processing')
 
-            # Since we share all open FDs from the parent, we need to close the parent side of the pipe here in
-            # the child, else it won't get closed properly until we exit.
-            parent_channel.close()
-            del parent_channel
+        # Since we share all open FDs from the parent, we need to close the parent side of the pipe here in
+        # the child, else it won't get closed properly until we exit.
+        parent_channel.close()
+        del parent_channel
 
-            set_context(log, file_path)
-            setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
+        set_context(log, file_path)
+        setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
 
-            def _handle_dag_file_processing():
-                # Re-configure the ORM engine as there are issues with multiple processes
-                settings.configure_orm()
+        def _handle_dag_file_processing():
+            # Re-configure the ORM engine as there are issues with multiple processes
+            settings.configure_orm()
 
-                # Change the thread name to differentiate log lines. This is
-                # really a separate process, but changing the name of the
-                # process doesn't work, so changing the thread name instead.
-                threading.current_thread().name = thread_name
+            # Change the thread name to differentiate log lines. This is
+            # really a separate process, but changing the name of the
+            # process doesn't work, so changing the thread name instead.
+            threading.current_thread().name = thread_name
 
-                log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
-                dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
-                result: tuple[int, int] = dag_file_processor.process_file(
-                    file_path=file_path,
-                    pickle_dags=pickle_dags,
-                    callback_requests=callback_requests,
-                )
-                result_channel.send(result)
+            log.info("Started process (PID=%s) to work on %s", os.getpid(), file_path)
+            dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
+            result: tuple[int, int] = dag_file_processor.process_file(
+                file_path=file_path,
+                pickle_dags=pickle_dags,
+                callback_requests=callback_requests,
+            )
+            result_channel.send(result)
 
-            try:
-                DAG_PROCESSOR_LOG_TARGET = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
-                if DAG_PROCESSOR_LOG_TARGET == "stdout":
-                    with Stats.timer() as timer:
-                        _handle_dag_file_processing()
-                else:
-                    # The following line ensures that stdout goes to the same destination as the logs. If stdout
-                    # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
-                    # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
-                    with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                        StreamLogWriter(log, logging.WARN)
-                    ), Stats.timer() as timer:
-                        _handle_dag_file_processing()
-                log.info("Processing %s took %.3f seconds", file_path, timer.duration)
-            except Exception:
-                # Log exceptions through the logging framework.
-                log.exception("Got an exception! Propagating...")
-                raise
-            finally:
-                # We re-initialized the ORM within this Process above so we need to
-                # tear it down manually here
-                settings.dispose_orm()
+        try:
+            DAG_PROCESSOR_LOG_TARGET = conf.get_mandatory_value("logging", "DAG_PROCESSOR_LOG_TARGET")
+            if DAG_PROCESSOR_LOG_TARGET == "stdout":
+                with Stats.timer() as timer:
+                    _handle_dag_file_processing()
+            else:
+                # The following line ensures that stdout goes to the same destination as the logs. If stdout
+                # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
+                # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
+                with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
+                    StreamLogWriter(log, logging.WARN)
+                ), Stats.timer() as timer:
+                    _handle_dag_file_processing()
+            log.info("Processing %s took %.3f seconds", file_path, timer.duration)
+        except Exception:
+            # Log exceptions through the logging framework.
+            log.exception("Got an exception! Propagating...")
+            raise
+        finally:
+            # We re-initialized the ORM within this Process above so we need to
+            # tear it down manually here
+            settings.dispose_orm()
 
-                result_channel.close()
+            result_channel.close()
 
     def start(self) -> None:
         """Launch the process and start processing the DAG."""
@@ -796,15 +793,12 @@ class DagFileProcessor(LoggingMixin):
 
     @classmethod
     def _get_dagbag(cls, file_path: str):
-        with Trace.start_span(span_name='_get_dagbag', component='DagFileProcessor') as s:
-            s.set_attribute('category', 'processing')
-            s.set_attribute('file_path', str(file_path))
-            try:
-                return DagBag(file_path, include_examples=False)
-            except Exception:
-                cls.logger().exception("Failed at reloading the DAG file %s", file_path)
-                Stats.incr("dag_file_refresh_error", tags={"file_path": file_path})
-                raise
+        try:
+            return DagBag(file_path, include_examples=False)
+        except Exception:
+            cls.logger().exception("Failed at reloading the DAG file %s", file_path)
+            Stats.incr("dag_file_refresh_error", tags={"file_path": file_path})
+            raise
 
     @provide_session
     def process_file(
@@ -834,63 +828,60 @@ class DagFileProcessor(LoggingMixin):
         :return: number of dags found, count of import errors
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
-        with Trace.start_span(span_name='process_file', component='DagFileProcessor') as s:
-            s.set_attribute('cateogry', 'processing')
-            s.set_attribute('file_path', file_path)
 
-            try:
-                dagbag = DagFileProcessor._get_dagbag(file_path)
-            except Exception:
-                self.log.exception("Failed at reloading the DAG file %s", file_path)
-                Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
-                return 0, 0
+        try:
+            dagbag = DagFileProcessor._get_dagbag(file_path)
+        except Exception:
+            self.log.exception("Failed at reloading the DAG file %s", file_path)
+            Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
+            return 0, 0
 
-            if dagbag.dags:
-                self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
-            else:
-                self.log.warning("No viable dags retrieved from %s", file_path)
-                DagFileProcessor.update_import_errors(
-                    file_last_changed=dagbag.file_last_changed,
-                    import_errors=dagbag.import_errors,
-                    processor_subdir=self._dag_directory,
-                    session=session,
-                )
-                if callback_requests:
-                    # If there were callback requests for this file but there was a
-                    # parse error we still need to progress the state of TIs,
-                    # otherwise they might be stuck in queued/running for ever!
-                    self.execute_callbacks_without_dag(callback_requests, session)
-                return 0, len(dagbag.import_errors)
-
-            self.execute_callbacks(dagbag, callback_requests, session)
-            session.commit()
-
-            serialize_errors = DagFileProcessor.save_dag_to_db(
-                dags=dagbag.dags,
-                dag_directory=self._dag_directory,
-                pickle_dags=pickle_dags,
+        if dagbag.dags:
+            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
+        else:
+            self.log.warning("No viable dags retrieved from %s", file_path)
+            DagFileProcessor.update_import_errors(
+                file_last_changed=dagbag.file_last_changed,
+                import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
+                session=session,
             )
+            if callback_requests:
+                # If there were callback requests for this file but there was a
+                # parse error we still need to progress the state of TIs,
+                # otherwise they might be stuck in queued/running for ever!
+                self.execute_callbacks_without_dag(callback_requests, session)
+            return 0, len(dagbag.import_errors)
 
-            dagbag.import_errors.update(dict(serialize_errors))
+        self.execute_callbacks(dagbag, callback_requests, session)
+        session.commit()
 
-            # Record import errors into the ORM
-            try:
-                DagFileProcessor.update_import_errors(
-                    file_last_changed=dagbag.file_last_changed,
-                    import_errors=dagbag.import_errors,
-                    processor_subdir=self._dag_directory,
-                    session=session,
-                )
-            except Exception:
-                self.log.exception("Error logging import errors!")
+        serialize_errors = DagFileProcessor.save_dag_to_db(
+            dags=dagbag.dags,
+            dag_directory=self._dag_directory,
+            pickle_dags=pickle_dags,
+        )
 
-            # Record DAG warnings in the metadatabase.
-            try:
-                self.update_dag_warnings(session=session, dagbag=dagbag)
-            except Exception:
-                self.log.exception("Error logging DAG warnings.")
+        dagbag.import_errors.update(dict(serialize_errors))
 
-            return len(dagbag.dags), len(dagbag.import_errors)
+        # Record import errors into the ORM
+        try:
+            DagFileProcessor.update_import_errors(
+                file_last_changed=dagbag.file_last_changed,
+                import_errors=dagbag.import_errors,
+                processor_subdir=self._dag_directory,
+                session=session,
+            )
+        except Exception:
+            self.log.exception("Error logging import errors!")
+
+        # Record DAG warnings in the metadatabase.
+        try:
+            self.update_dag_warnings(session=session, dagbag=dagbag)
+        except Exception:
+            self.log.exception("Error logging DAG warnings.")
+
+        return len(dagbag.dags), len(dagbag.import_errors)
 
     @staticmethod
     @internal_api_call

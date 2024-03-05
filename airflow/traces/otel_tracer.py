@@ -101,7 +101,7 @@ class OtelTrace:
     def use_span(self, span:Span) -> Span:
         return trace.use_span(span=span)
 
-    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, links=None) -> Span:
+    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, links=None, start_time=None) -> Span:
         """start a span. if service_name is not given, otel_service is used"""
         if component is None:
             tracer = self.get_tracer(self.otel_service)
@@ -116,11 +116,14 @@ class OtelTrace:
         else:
             _links = []
 
+        if start_time is not None:
+            start_time = int(start_time.timestamp() * 1000000000)
+
         if parent_sc is not None:
             ctx = trace.set_span_in_context(NonRecordingSpan(parent_sc))
-            span = tracer.start_as_current_span(span_name, context=ctx, attributes=kvs, links=_links)
+            span = tracer.start_as_current_span(span_name, context=ctx, attributes=kvs, links=_links, start_time=start_time)
         else:
-            span = tracer.start_as_current_span(span_name, attributes=kvs, links=_links)
+            span = tracer.start_as_current_span(span_name, attributes=kvs, links=_links, start_time=start_time)
         return span
 
     def start_span_from_dagrun(self, dagrun, span_name:str=None, component:str='dagrun', links=None) -> Span:
