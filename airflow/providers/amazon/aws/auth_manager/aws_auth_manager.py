@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 from functools import cached_property
 from typing import TYPE_CHECKING, Container, Sequence, cast
 
@@ -463,7 +464,7 @@ class AwsAuthManager(BaseAuthManager):
         if not user:
             user = self.get_user()
 
-        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = {}
+        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
         requests_list: list[IsAuthorizedRequest] = []
         for dag_id in dag_ids:
             for method in ["GET", "PUT"]:
@@ -473,8 +474,6 @@ class AwsAuthManager(BaseAuthManager):
                         "entity_type": AvpEntities.DAG,
                         "entity_id": dag_id,
                     }
-                    if dag_id not in requests:
-                        requests[dag_id] = {}
                     requests[dag_id][cast(ResourceMethod, method)] = request
                     requests_list.append(request)
 
