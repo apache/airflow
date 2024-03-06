@@ -62,6 +62,10 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    def test_resource(self):
+        hook = S3Hook()
+        assert hook.resource is not None
+
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True

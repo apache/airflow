@@ -179,7 +179,7 @@ class AwsBatchExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
@@ -293,7 +293,8 @@ class AwsBatchExecutor(BaseExecutor):
 
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
                     self.log.error(
-                        f"This job has been unsuccessfully attempted too many times ({attempt_number}). Dropping the task."
+                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task.",
+                        attempt_number,
                     )
                     self.fail(key=key)
                 else:
