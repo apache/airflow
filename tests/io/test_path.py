@@ -395,3 +395,11 @@ class TestFs:
             s.add(ObjectStoragePath(file_uri_1))
             s.add(ObjectStoragePath(file_uri_2))
         assert len(s) == 2
+
+    def test_lazy_load(self):
+        o = ObjectStoragePath("file:///tmp/foo")
+        with pytest.raises(AttributeError):
+            assert o._fs_cached
+
+        assert o.fs is not None
+        assert o._fs_cached
