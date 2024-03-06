@@ -59,7 +59,7 @@ class FakeLocalFileSystem(MemoryFileSystem):
         if "::" in path or "://" in path:
             return path.rstrip("/")
         path = path.lstrip("/").rstrip("/")
-        return "/" + path if path else ""
+        return path
 
 
 class FakeRemoteFileSystem(MemoryFileSystem):
@@ -80,7 +80,7 @@ class FakeRemoteFileSystem(MemoryFileSystem):
         if "::" in path or "://" in path:
             return path.rstrip("/")
         path = path.lstrip("/").rstrip("/")
-        return "/" + path if path else ""
+        return path
 
 
 def get_fs_no_storage_options(_: str):

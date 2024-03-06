@@ -71,14 +71,6 @@ class ObjectStoragePath(CloudPath):
         return args, protocol, storage_options
 
     @classmethod
-    def _parse_storage_options(
-        cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
-    ) -> dict[str, Any]:
-        fs = attach(protocol or "file", conn_id=storage_options.get("conn_id")).fs
-        pth_storage_options = type(fs)._get_kwargs_from_urls(urlpath)
-        return {**pth_storage_options, **storage_options}
-
-    @classmethod
     def _fs_factory(
         cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
     ) -> AbstractFileSystem:
