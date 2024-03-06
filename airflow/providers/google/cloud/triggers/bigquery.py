@@ -681,7 +681,9 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                 await asyncio.sleep(self.poll_interval)
 
             else:
-                job_id = await hook.create_job_for_partition_get(self.dataset_id, project_id=self.project_id)
+                job_id = await hook.create_job_for_partition_get(
+                    self.dataset_id, table_id=self.table_id, project_id=self.project_id
+                )
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
 
