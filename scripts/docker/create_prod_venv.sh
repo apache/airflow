@@ -15,27 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# shellcheck shell=bash disable=SC2086
+# shellcheck source=scripts/docker/common.sh
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-# This is an example docker build script. It is not intended for PRODUCTION use
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-TEMP_DOCKER_DIR=$(mktemp -d)
-pushd "${TEMP_DOCKER_DIR}"
+function create_prod_venv() {
+    echo
+    echo "${COLOR_BLUE}Removing ${HOME}/.local and re-creating it as virtual environment.${COLOR_RESET}"
+    rm -rf ~/.local
+    python -m venv ~/.local
+    echo "${COLOR_BLUE}The ${HOME}/.local virtualenv created.${COLOR_RESET}"
+}
 
-cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
-# [START build]
-mkdir -p docker-context-files
-
-cat <<EOF >./docker-context-files/pip.conf
-[global]
-verbose = 2
-EOF
-
-export DOCKER_BUILDKIT=1
-docker build . \
-    --build-arg DOCKER_CONTEXT_FILES=./docker-context-files \
-    --tag "my-custom-pip-verbose-airflow:0.0.1"
-# [END build]
-docker rmi --force "my-custom-pip-verbose-airflow:0.0.1"
-popd
-rm -rf "${TEMP_DOCKER_DIR}"
+common::get_colors
+common::get_packaging_tool
+common::show_packaging_tool_version_and_location
+create_prod_venv
+common::install_packaging_tools

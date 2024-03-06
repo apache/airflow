@@ -248,6 +248,9 @@ sentry = [
 statsd = [
     "statsd>=3.3.0",
 ]
+uv = [
+    "uv>=0.1.13",
+]
 virtualenv = [
     "virtualenv",
 ]
@@ -992,6 +995,7 @@ all = [
     "apache-airflow[saml]",
     "apache-airflow[sentry]",
     "apache-airflow[statsd]",
+    "apache-airflow[uv]",
     "apache-airflow[virtualenv]",
     # Apache no provider extras
     "apache-airflow[apache-atlas]",
