@@ -41,6 +41,7 @@ from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.security import permissions
+from airflow.security.permissions import ACTION_CAN_READ
 from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -547,7 +548,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
 
 def test_has_access(security_manager):
     user = mock.MagicMock()
-    action_name = "action"
+    action_name = ACTION_CAN_READ
     resource_name = "resource"
     user.perms = [(action_name, resource_name)]
     assert security_manager.has_access(action_name, resource_name, user)
