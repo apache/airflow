@@ -28,7 +28,9 @@ import contextlib
 import copy
 import functools
 import logging
+import os
 import sys
+import traceback
 import warnings
 from datetime import datetime, timedelta
 from inspect import signature
@@ -77,7 +79,7 @@ from airflow.models.abstractoperator import (
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances, _execute_task
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -361,6 +363,23 @@ def partial(
     )
 
 
+def executor_safeguard():
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            unit_test_mode = os.getenv("AIRFLOW__CORE__UNIT_TEST_MODE", "False").casefold() == "true"
+            if unit_test_mode:
+                return func(*args, **kwargs)
+            caller_frame = traceback.extract_stack()[-3]  # Get the caller frame excluding the current frame
+            filename = _execute_task.__module__.replace(".", os.path.sep)
+            if caller_frame.name == _execute_task.__name__ and filename in caller_frame.filename:
+                return func(*args, **kwargs)
+            raise AirflowException(f"Method {func.__name__} cannot be called from {caller_frame.name}!")
+
+        return wrapper
+
+    return decorator
+
+
 class BaseOperatorMeta(abc.ABCMeta):
     """Metaclass of BaseOperator."""
 
@@ -460,6 +479,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
+        execute_method = namespace.get("execute")
+        if callable(execute_method) and not getattr(execute_method, '__isabstractmethod__', False):
+            namespace["execute"] = executor_safeguard()(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
