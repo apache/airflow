@@ -196,7 +196,8 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS = {
+_PARTIAL_DEFAULTS: dict[str, Any] = {
+    "map_index_template": None,
     "owner": DEFAULT_OWNER,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "depends_on_past": False,

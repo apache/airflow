@@ -349,13 +349,13 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             for processing_input in processing_inputs:
                 inputs.append(self.path_to_s3_dataset(processing_input["S3Input"]["S3Uri"]))
         except KeyError:
-            self.log.exception("Cannot find S3 input details", exc_info=True)
+            self.log.exception("Cannot find S3 input details")
 
         try:
             for processing_output in processing_outputs:
                 outputs.append(self.path_to_s3_dataset(processing_output["S3Output"]["S3Uri"]))
         except KeyError:
-            self.log.exception("Cannot find S3 output details.", exc_info=True)
+            self.log.exception("Cannot find S3 output details.")
         return inputs, outputs
 
 
@@ -777,7 +777,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         try:
             model_package_arn = self.serialized_model["PrimaryContainer"]["ModelPackageName"]
         except KeyError:
-            self.log.error("Cannot find Model Package Name.", exc_info=True)
+            self.log.exception("Cannot find Model Package Name.")
 
         try:
             transform_input = self.serialized_transform["TransformInput"]["DataSource"]["S3DataSource"][
@@ -785,7 +785,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             ]
             transform_output = self.serialized_transform["TransformOutput"]["S3OutputPath"]
         except KeyError:
-            self.log.error("Cannot find some required input/output details.", exc_info=True)
+            self.log.exception("Cannot find some required input/output details.")
 
         inputs = []
 
@@ -813,7 +813,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             for container in model_containers:
                 model_data_urls.append(container["ModelDataUrl"])
         except KeyError:
-            self.log.exception("Cannot retrieve model details.", exc_info=True)
+            self.log.exception("Cannot retrieve model details.")
 
         return model_data_urls
 

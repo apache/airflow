@@ -39,7 +39,7 @@ INTERVAL = timedelta(hours=12)
 
 @pytest.fixture
 def context():
-    yield {"ti": mock.Mock()}
+    return {"ti": mock.Mock()}
 
 
 class TestBashOperator:

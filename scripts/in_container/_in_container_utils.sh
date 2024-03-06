@@ -63,25 +63,23 @@ function in_container_go_to_airflow_sources() {
 function in_container_get_packaging_tool() {
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
     ## `scripts/docker/common.sh`
+    local PYTHON_BIN
+    PYTHON_BIN=$(which python)
     if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
         echo
         echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
         echo
         export PACKAGING_TOOL=""
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS=""
-        export EXTRA_UNINSTALL_FLAGS=""
-        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
-        # We need to lie about VIRTUAL_ENV to make uv works
-        # Until https://github.com/astral-sh/uv/issues/1396 is fixed
-        # In case we are running user installation, we need to set VIRTUAL_ENV to user's home + .local
-        if [[ ${PIP_USER=} == "true" ]]; then
-            VIRTUAL_ENV="${HOME}/.local"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
         else
-            VIRTUAL_ENV=$(python -c "import sys; print(sys.prefix)")
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
         fi
-        export VIRTUAL_ENV
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade --resolution lowest-direct"
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -90,8 +88,8 @@ function in_container_get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+        export UPGRADE_EAGERLY="--upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
 

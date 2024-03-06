@@ -599,9 +599,7 @@ def new_id_example_bash_operator():
 
 
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
-    # Test for JIRA AIRFLOW-3233 (PR 4069):
-    # The delete-dag URL should be generated correctly for DAGs
-    # that exist on the scheduler (DB) but not the webserver DagBag
+    # The delete-dag URL should be generated correctly
     test_dag_id = new_id_example_bash_operator
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response(f"/delete?dag_id={test_dag_id}", resp)
@@ -682,13 +680,13 @@ def one_dag_perm_user_client(app):
 
 def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
     resp = per_dag_perm_user_client.post(
-        f"delete?dag_id={new_dag_to_delete.dag_id}&next_url=/home", follow_redirects=True
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
     )
     check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
 
 
 def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
-    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next_url=/home", follow_redirects=True)
+    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
     check_content_in_response(f"Deleting DAG with id {new_dag_to_delete.dag_id}.", resp)
 
 

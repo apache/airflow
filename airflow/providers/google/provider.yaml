@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1707636385
+source-date-epoch: 1709555588
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.16.0
   - 10.15.0
   - 10.14.0
   - 10.13.1
@@ -99,14 +100,14 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=22.1.0
+  - google-ads>=23.1.0
   - google-analytics-admin
   # Google-api-core 2.16.0 back-compat issue: https://github.com/googleapis/python-api-core/issues/576
   - google-api-core>=2.11.0,!=2.16.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.22.1
+  - google-cloud-aiplatform>=1.42.1
   - google-cloud-automl>=2.12.0
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
@@ -1220,6 +1221,7 @@ extra-links:
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineJobLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineWorkloadsLink
   - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
   - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.cloud.links.cloud_memorystore.MemcachedInstanceDetailsLink

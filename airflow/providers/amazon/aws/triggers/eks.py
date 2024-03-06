@@ -214,7 +214,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
                 )
             self.log.info("All Fargate profiles deleted")
         else:
-            self.log.info(f"No Fargate profiles associated with cluster {self.cluster_name}")
+            self.log.info("No Fargate profiles associated with cluster %s", self.cluster_name)
 
 
 class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):

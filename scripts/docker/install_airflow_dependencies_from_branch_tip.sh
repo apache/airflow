@@ -52,22 +52,26 @@ function install_airflow_dependencies_from_branch_tip() {
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
       ${ADDITIONAL_PIP_INSTALL_FLAGS} \
       "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
-    common::install_packaging_tool
+    set +x
+    common::install_packaging_tools
+    set -x
+    echo "${COLOR_BLUE}Uninstalling providers. Dependencies remain${COLOR_RESET}"
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
+    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
     echo
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow || true
+    set +x
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
+    set -x
 }
 
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 

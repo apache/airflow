@@ -163,6 +163,8 @@ LINECHART_X_AXIS_TICKFORMAT = (
 
 SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 
+logger = logging.getLogger(__name__)
+
 
 def sanitize_args(args: dict[str, str]) -> dict[str, str]:
     """
@@ -1358,7 +1360,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
 
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm)
         raw_task = dag.get_task(task_id).prepare_for_execution()
@@ -1477,14 +1479,14 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get("dag_id")
         task_id = request.args.get("task_id")
         if task_id is None:
-            logging.warning("Task id not passed in the request")
+            logger.warning("Task id not passed in the request")
             abort(400)
         execution_date = request.args.get("execution_date")
         dttm = _safe_parse_datetime(execution_date)
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -4006,7 +4008,7 @@ class AirflowModelView(ModelView):
         # Maintains compatibility but refuses to delete on GET methods if CSRF is enabled
         if not self.is_get_mutation_allowed():
             self.update_redirect()
-            logging.warning("CSRF is enabled and a delete using GET was invoked")
+            logger.warning("CSRF is enabled and a delete using GET was invoked")
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
             return self.post_delete_redirect()
         pk = self._deserialize_pk_if_composite(pk)
@@ -4507,7 +4509,7 @@ class ConnectionModelView(AirflowModelView):
             extra_dictionary = {}
 
         if not isinstance(extra_dictionary, dict):
-            logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
+            logger.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
         for field_key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
@@ -4894,20 +4896,20 @@ class VariableModelView(AirflowModelView):
             if action_on_existing == "fail" and existing_keys:
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logger.error("Failed. The variables with these keys: %s already exists.", failed_repr)
                 self.update_redirect()
                 return redirect(self.get_redirect())
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
                 if action_on_existing == "skip" and k in existing_keys:
-                    logging.warning("Variable: %s already exists, skipping.", k)
+                    logger.warning("Variable: %s already exists, skipping.", k)
                     skipped.add(k)
                     continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
-                    logging.info("Variable import failed: %r", exc)
+                    logger.info("Variable import failed: %r", exc)
                     fail_count += 1
                 else:
                     suc_count += 1
@@ -5238,6 +5240,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5248,6 +5251,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5841,7 +5845,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 def restrict_to_dev(f):
     def wrapper(*args, **kwargs):
         if not os.environ.get("AIRFLOW_ENV", None) == "development":
-            logging.error(
+            logger.error(
                 "You can only access this view in development mode. Set AIRFLOW_ENV=development to view it."
             )
             return abort(404)

@@ -79,10 +79,15 @@ def sanitize_conn_id(conn_id: str | None, max_length=CONN_ID_MAX_LEN) -> str | N
     return res.group(0)
 
 
-# Python automatically converts all letters to lowercase in hostname
-# See: https://issues.apache.org/jira/browse/AIRFLOW-3615
 def _parse_netloc_to_hostname(uri_parts):
-    """Parse a URI string to get the correct Hostname."""
+    """
+    Parse a URI string to get the correct Hostname.
+
+    ``urlparse(...).hostname`` or ``urlsplit(...).hostname`` returns value into the lowercase in most cases,
+    there are some exclusion exists for specific cases such as https://bugs.python.org/issue32323
+    In case if expected to get a path as part of hostname path,
+    then default behavior ``urlparse``/``urlsplit`` is unexpected.
+    """
     hostname = unquote(uri_parts.hostname or "")
     if "/" in hostname:
         hostname = uri_parts.netloc
