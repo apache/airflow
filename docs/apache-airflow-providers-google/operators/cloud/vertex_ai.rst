@@ -548,6 +548,49 @@ To get a pipeline job list you can use
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
+Prompting a Generative Model
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To prompt a language model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptLanguageModelOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_language_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_language_model_operator]
+
+To generate text embeddings you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+    :end-before: [END how_to_cloud_vertex_ai_generate_text_embeddings_operator]
+
+To prompt a multi-modal model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_multimodal_model_operator]
+
+To prompt a multi-modal model with media you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``prompt_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
+    :end-before: [END how_to_cloud_vertex_ai_prompt_multimodal_model_with_media_operator]
+
 Reference
 ^^^^^^^^^
 
