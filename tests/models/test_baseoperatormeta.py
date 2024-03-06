@@ -1,9 +1,8 @@
-import os
 from typing import Any
-from unittest import TestCase
 from unittest.mock import Mock, patch, MagicMock
 
 import pendulum
+from pytest import raises
 from sqlalchemy.orm import Session
 
 from airflow import DAG
@@ -12,6 +11,7 @@ from airflow.models import TaskInstance, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.context import Context
 from airflow.utils.state import DagRunState
+from tests.test_utils.config import conf_vars
 
 
 class HelloWorldOperator(BaseOperator):
@@ -27,18 +27,18 @@ class IterableSession(Session):
         pass
 
 
-class BaseOperatorMetaTestCase(TestCase):
+class TestBaseOperatorMeta:
 
-    @patch.dict(os.environ, {'AIRFLOW__CORE__UNIT_TEST_MODE': 'False'})
+    @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_safeguard_when_unauthorized(self):
-        with self.assertRaises(AirflowException):
+        with raises(AirflowException, match="Some pattern of the exception message here"):
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
             HelloWorldOperator(task_id="task_id", dag=dag).execute(context=context)
 
     @patch("sqlalchemy.orm.Session.__init__")
-    @patch.dict(os.environ, {'AIRFLOW__CORE__UNIT_TEST_MODE': 'False'})
+    @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_safeguard_when_authorized(self, mock_session: MagicMock):
         session = MagicMock(spec=IterableSession)
         mock_session.return_value = session
