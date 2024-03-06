@@ -377,10 +377,7 @@ COPY <<"EOF" /install_packaging_tools.sh
 
 common::get_colors
 common::get_packaging_tool
-common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::show_packaging_tool_version_and_location
-
 common::install_packaging_tools
 EOF
 
@@ -415,23 +412,23 @@ function install_airflow_dependencies_from_branch_tip() {
     set +x
     common::install_packaging_tools
     set -x
+    echo "${COLOR_BLUE}Uninstalling providers. Dependencies remain${COLOR_RESET}"
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
+    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
     echo
     set +x
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
     set -x
 }
 
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -471,10 +468,15 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
+        fi
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade --resolution lowest-direct"
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -483,8 +485,8 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+        export UPGRADE_EAGERLY="--upgrade --upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
 
@@ -493,14 +495,6 @@ function common::get_airflow_version_specification() {
         && -n ${AIRFLOW_VERSION}
         && ${AIRFLOW_INSTALLATION_METHOD} != "." ]]; then
         AIRFLOW_VERSION_SPECIFICATION="==${AIRFLOW_VERSION}"
-    fi
-}
-
-function common::override_pip_version_if_needed() {
-    if [[ -n ${AIRFLOW_VERSION} ]]; then
-        if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION=24.0
-        fi
     fi
 }
 
@@ -550,6 +544,15 @@ function common::show_packaging_tool_version_and_location() {
 }
 
 function common::install_packaging_tools() {
+    if [[ "${VIRTUAL_ENV=}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools in venv: ${VIRTUAL_ENV}${COLOR_RESET}"
+        echo
+    else
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
+        echo
+    fi
     if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
@@ -655,12 +658,21 @@ COPY <<"EOF" /install_airflow.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
-    # Coherence check for editable installation mode.
-    if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
-          ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
+    # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
+    local installation_command_flags
+    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # When installing from sources - we always use `--editable` mode
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
+    else
         echo
-        echo "${COLOR_RED}ERROR! You can only use --editable flag when installing airflow from sources!${COLOR_RESET}"
-        echo "${COLOR_RED}       Current installation method is '${AIRFLOW_INSTALLATION_METHOD} and should be '.'${COLOR_RESET}"
+        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo
         exit 1
     fi
     # Remove mysql from extras if client is not going to be installed
@@ -681,14 +693,10 @@ function install_airflow() {
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
         set +x
         echo
-        echo "${COLOR_BLUE}Installing all packages with eager upgrade with ${AIRFLOW_INSTALL_EDITABLE_FLAG} mode${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages in eager upgrade mode. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
         common::install_packaging_tools
         echo
@@ -697,14 +705,11 @@ function install_airflow() {
         pip check
     else
         echo
-        echo "${COLOR_BLUE}Installing all packages with constraints${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
         # Install all packages with constraints
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            --constraint "${HOME}/constraints.txt"; then
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
@@ -712,10 +717,7 @@ function install_airflow() {
             echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
             echo
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
-                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
         fi
         set +x
         common::install_packaging_tools
@@ -730,7 +732,6 @@ function install_airflow() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -753,7 +754,7 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
@@ -767,7 +768,7 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "${RESOLUTION_LOWEST_DIRECT_FLAG}" \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
@@ -782,7 +783,6 @@ function install_additional_dependencies() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -1203,7 +1203,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.13
+ARG AIRFLOW_UV_VERSION=0.1.15
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1226,7 +1226,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.13
+ARG AIRFLOW_UV_VERSION=0.1.15
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
@@ -1243,18 +1243,11 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
-# In the CI image we always:
-# * install MySQL, MsSQL
-# * install airflow from current sources, not from PyPI package
-# * install airflow without `--user` flag
-# * install airflow in editable mode
-# * install always current version of airflow
     INSTALL_MYSQL_CLIENT="true" \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
     INSTALL_POSTGRES_CLIENT="true" \
     AIRFLOW_INSTALLATION_METHOD="." \
-    AIRFLOW_INSTALL_EDITABLE_FLAG="--editable" \
     AIRFLOW_VERSION_SPECIFICATION="" \
     PIP_NO_CACHE_DIR=${PIP_NO_CACHE_DIR} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \

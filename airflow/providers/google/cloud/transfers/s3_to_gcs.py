@@ -319,14 +319,11 @@ class S3ToGCSOperator(S3ListOperator):
             body[TRANSFER_SPEC][OBJECT_CONDITIONS][INCLUDE_PREFIXES] = files_chunk
             job = transfer_hook.create_transfer_job(body=body)
 
-            s = "s" if len(files_chunk) > 1 else ""
-            self.log.info(f"Submitted job {job['name']} to transfer {len(files_chunk)} file{s}")
+            self.log.info("Submitted job %s to transfer %s file(s).", job["name"], len(files_chunk))
             job_names.append(job["name"])
 
         if len(files) > chunk_size:
-            js = "s" if len(job_names) > 1 else ""
-            fs = "s" if len(files) > 1 else ""
-            self.log.info(f"Overall submitted {len(job_names)} job{js} to transfer {len(files)} file{fs}")
+            self.log.info("Overall submitted %s job(s) to transfer %s file(s).", len(job_names), len(files))
 
         return job_names
 

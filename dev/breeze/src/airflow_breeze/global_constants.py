@@ -441,6 +441,7 @@ DEFAULT_EXTRAS = [
     "snowflake",
     "ssh",
     "statsd",
+    "uv",
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]

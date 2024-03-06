@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 from inflection import camelize
 
+from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -69,14 +70,6 @@ class EcsTaskInfo:
     cmd: CommandType
     queue: str
     config: ExecutorConfigType
-
-
-class BaseConfigKeys:
-    """Base Implementation of the Config Keys class. Implements iteration for child classes to inherit."""
-
-    def __iter__(self):
-        """Return an iterator of values of non dunder attributes of Config Keys."""
-        return iter({value for (key, value) in self.__class__.__dict__.items() if not key.startswith("__")})
 
 
 class RunTaskKwargsConfigKeys(BaseConfigKeys):

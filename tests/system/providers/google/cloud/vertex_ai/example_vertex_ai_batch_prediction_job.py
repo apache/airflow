@@ -161,6 +161,21 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+    create_batch_prediction_job_def = CreateBatchPredictionJobOperator(
+        task_id="create_batch_prediction_job_def",
+        job_display_name=JOB_DISPLAY_NAME,
+        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
+        predictions_format="csv",
+        bigquery_source=BIGQUERY_SOURCE,
+        gcs_destination_prefix=GCS_DESTINATION_PREFIX,
+        model_parameters=MODEL_PARAMETERS,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+
     # [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
     list_batch_prediction_job = ListBatchPredictionJobsOperator(
         task_id="list_batch_prediction_jobs",
@@ -178,6 +193,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+
+    delete_batch_prediction_job_def = DeleteBatchPredictionJobOperator(
+        task_id="delete_batch_prediction_job_def",
+        batch_prediction_job_id=create_batch_prediction_job_def.output["batch_prediction_job_id"],
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
@@ -207,10 +230,10 @@ with DAG(
         >> create_forecast_dataset
         >> create_auto_ml_forecasting_training_job
         # TEST BODY
-        >> create_batch_prediction_job
+        >> [create_batch_prediction_job, create_batch_prediction_job_def]
         >> list_batch_prediction_job
         # TEST TEARDOWN
-        >> delete_batch_prediction_job
+        >> [delete_batch_prediction_job, delete_batch_prediction_job_def]
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket

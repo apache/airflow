@@ -61,8 +61,10 @@ class OpenLineageListener:
     ):
         if not hasattr(task_instance, "task"):
             self.log.warning(
-                f"No task set for TI object task_id: {task_instance.task_id} - "
-                f"dag_id: {task_instance.dag_id} - run_id {task_instance.run_id}"
+                "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
+                task_instance.task_id,
+                task_instance.dag_id,
+                task_instance.run_id,
             )
             return
 

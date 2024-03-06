@@ -208,7 +208,7 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
 
         except Exception:

@@ -210,7 +210,9 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
+                "Failed to resolve local hostname. "
+                "Using the hostname got by socket.gethostbyname() without resolution. %s",
+                e,
                 exc_info=True,
             )
 
@@ -225,7 +227,8 @@ class SFTPOperator(BaseOperator):
             remote_host = socket.gethostbyname(remote_host)
         except OSError as e:
             self.log.warning(
-                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",
+                "Failed to resolve remote hostname. Using the provided hostname without resolution. %s",
+                e,
                 exc_info=True,
             )
 
