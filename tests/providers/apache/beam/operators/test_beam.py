@@ -36,7 +36,6 @@ from airflow.version import version
 
 TASK_ID = "test-beam-operator"
 DEFAULT_RUNNER = "DirectRunner"
-JOB_NAME = "test-dataflow-pipeline-name"
 JOB_ID = "test-dataflow-pipeline-id"
 JAR_FILE = "gs://my-bucket/example/test.jar"
 JOB_CLASS = "com.test.NotMain"
