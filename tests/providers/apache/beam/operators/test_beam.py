@@ -43,7 +43,6 @@ JOB_CLASS = "com.test.NotMain"
 PY_FILE = "gs://my-bucket/my-object.py"
 REQURIEMENTS_FILE = "gs://my-bucket/my-requirements.txt"
 PY_INTERPRETER = "python3"
-# PY_OPTIONS = ["-m"]
 GO_FILE = "gs://my-bucket/example/main.go"
 LAUNCHER_BINARY = "gs://my-bucket/example/launcher"
 WORKER_BINARY = "gs://my-bucket/example/worker"
