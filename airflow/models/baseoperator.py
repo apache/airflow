@@ -369,7 +369,7 @@ def partial(
 def executor_safeguard():
     def decorator(func):
         def wrapper(*args, **kwargs):
-            unit_test_mode = os.getenv("AIRFLOW__CORE__UNIT_TEST_MODE", "False").casefold() == "true"
+            unit_test_mode = conf.getboolean("core", "unit_test_mode")
             if unit_test_mode:
                 return func(*args, **kwargs)
             caller_frame = traceback.extract_stack()[-3]  # Get the caller frame excluding the current frame
