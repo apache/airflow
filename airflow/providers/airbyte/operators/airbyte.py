@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -62,6 +62,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         asynchronous: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         api_version: str = "v1",
+        api_type: Literal["config_api", "cloud_api"] = "config_api",
         wait_seconds: float = 3,
         timeout: float = 3600,
         **kwargs,
@@ -71,16 +72,23 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.connection_id = connection_id
         self.timeout = timeout
         self.api_version = api_version
+        self.api_type = api_type
         self.wait_seconds = wait_seconds
         self.asynchronous = asynchronous
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> None:
         """Create Airbyte Job and wait to finish."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        hook = AirbyteHook(
+            airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
+        )
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        self.job_id = job_object.json()["job"]["id"]
-        state = job_object.json()["job"]["status"]
+        if self.api_type == "config_api":
+            self.job_id = job_object.json()["job"]["id"]
+            state = job_object.json()["job"]["status"]
+        else:
+            self.job_id = job_object.json()["jobId"]
+            state = job_object.json()["status"]
         end_time = time.time() + self.timeout
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
@@ -92,6 +100,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
                         timeout=self.execution_timeout,
                         trigger=AirbyteSyncTrigger(
                             conn_id=self.airbyte_conn_id,
+                            api_type=self.api_type,
                             job_id=self.job_id,
                             end_time=end_time,
                             poll_interval=60,

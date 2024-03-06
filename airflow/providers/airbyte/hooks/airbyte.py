@@ -20,7 +20,7 @@ from __future__ import annotations
 import base64
 import json
 import time
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import aiohttp
 from aiohttp import ClientResponseError
@@ -57,23 +57,37 @@ class AirbyteHook(HttpHook):
     ERROR = "error"
     INCOMPLETE = "incomplete"
 
-    def __init__(self, airbyte_conn_id: str = "airbyte_default", api_version: str = "v1") -> None:
+    # add an api_type parameter should either be config_api or cloud_api
+
+    def __init__(
+        self,
+        airbyte_conn_id: str = "airbyte_default",
+        api_version: str = "v1",
+        api_type: Literal["config_api", "cloud_api"] = "config_api",
+    ) -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
+        self.api_type: str = api_type
 
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
         connection: Connection = await sync_to_async(self.get_connection)(self.http_conn_id)
         base_url = connection.host
 
-        credentials = f"{connection.login}:{connection.password}"
-        credentials_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
-
-        authorized_headers = {
-            "accept": "application/json",
-            "content-type": "application/json",
-            "authorization": f"Basic {credentials_base64}",
-        }
+        if self.api_type == "config_api":
+            credentials = f"{connection.login}:{connection.password}"
+            credentials_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
+            authorized_headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "authorization": f"Basic {credentials_base64}",
+            }
+        else:
+            authorized_headers = {
+                "accept": "application/json",
+                "content-type": "application/json",
+                "authorization": f"Bearer {connection.password}",
+            }
 
         return authorized_headers, base_url
 
@@ -84,16 +98,28 @@ class AirbyteHook(HttpHook):
         :param job_id: The ID of an Airbyte Sync Job.
         """
         headers, base_url = await self.get_headers_tenants_from_connection()
-        url = f"{base_url}/api/{self.api_version}/jobs/get"
-        self.log.info("URL for api request: %s", url)
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.post(url=url, data=json.dumps({"id": job_id})) as response:
-                try:
-                    response.raise_for_status()
-                    return await response.json()
-                except ClientResponseError as e:
-                    msg = f"{e.status}: {e.message} - {e.request_info}"
-                    raise AirflowException(msg)
+        if self.api_type == "config_api":
+            url = f"{base_url}/api/{self.api_version}/jobs/get"
+            self.log.info("URL for api request: %s", url)
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.post(url=url, data=json.dumps({"id": job_id})) as response:
+                    try:
+                        response.raise_for_status()
+                        return await response.json()
+                    except ClientResponseError as e:
+                        msg = f"{e.status}: {e.message} - {e.request_info}"
+                        raise AirflowException(msg)
+        else:
+            url = f"{base_url}/{self.api_version}/jobs/{job_id}"
+            self.log.info("URL for api request: %s", url)
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.get(url=url) as response:
+                    try:
+                        response.raise_for_status()
+                        return await response.json()
+                    except ClientResponseError as e:
+                        msg = f"{e.status}: {e.message} - {e.request_info}"
+                        raise AirflowException(msg)
 
     async def get_job_status(self, job_id: int) -> str:
         """
@@ -103,8 +129,10 @@ class AirbyteHook(HttpHook):
         """
         self.log.info("Getting the status of job run %s.", job_id)
         response = await self.get_job_details(job_id=job_id)
-        job_run_status: str = response["job"]["status"]
-        return job_run_status
+        if self.api_type == "config_api":
+            return str(response["job"]["status"])
+        else:
+            return str(response["status"])
 
     def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
         """
@@ -124,7 +152,10 @@ class AirbyteHook(HttpHook):
             time.sleep(wait_seconds)
             try:
                 job = self.get_job(job_id=(int(job_id)))
-                state = job.json()["job"]["status"]
+                if self.api_type == "config_api":
+                    state = job.json()["job"]["status"]
+                else:
+                    state = job.json()["status"]
             except AirflowException as err:
                 self.log.info("Retrying. Airbyte API returned server error when waiting for job: %s", err)
                 continue
@@ -146,11 +177,23 @@ class AirbyteHook(HttpHook):
 
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         """
-        return self.run(
-            endpoint=f"api/{self.api_version}/connections/sync",
-            json={"connectionId": connection_id},
-            headers={"accept": "application/json"},
-        )
+        if self.api_type == "config_api":
+            return self.run(
+                endpoint=f"api/{self.api_version}/connections/sync",
+                json={"connectionId": connection_id},
+                headers={"accept": "application/json"},
+            )
+        else:
+            conn = self.get_connection(self.http_conn_id)
+            self.method = "POST"
+            return self.run(
+                endpoint=f"{self.api_version}/jobs",
+                headers={"accept": "application/json", "authorization": f"Bearer {conn.password}"},
+                json={
+                    "jobType": "sync",
+                    "connectionId": connection_id,
+                },  # TODO: add an option to pass jobType = reset
+            )
 
     def get_job(self, job_id: int) -> Any:
         """
@@ -158,11 +201,19 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
-        return self.run(
-            endpoint=f"api/{self.api_version}/jobs/get",
-            json={"id": job_id},
-            headers={"accept": "application/json"},
-        )
+        if self.api_type == "config_api":
+            return self.run(
+                endpoint=f"api/{self.api_version}/jobs/get",
+                json={"id": job_id},
+                headers={"accept": "application/json"},
+            )
+        else:
+            self.method = "GET"
+            conn = self.get_connection(self.http_conn_id)
+            return self.run(
+                endpoint=f"{self.api_version}/jobs/{job_id}",
+                headers={"accept": "application/json", "authorization": f"Bearer {conn.password}"},
+            )
 
     def cancel_job(self, job_id: int) -> Any:
         """
@@ -170,11 +221,19 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
-        return self.run(
-            endpoint=f"api/{self.api_version}/jobs/cancel",
-            json={"id": job_id},
-            headers={"accept": "application/json"},
-        )
+        if self.api_type == "config_api":
+            return self.run(
+                endpoint=f"api/{self.api_version}/jobs/cancel",
+                json={"id": job_id},
+                headers={"accept": "application/json"},
+            )
+        else:
+            self.method = "DELETE"
+            conn = self.get_connection(self.http_conn_id)
+            return self.run(
+                endpoint=f"{self.api_version}/jobs/{job_id}",
+                headers={"accept": "application/json", "authorization": f"Bearer {conn.password}"},
+            )
 
     def test_connection(self):
         """Tests the Airbyte connection by hitting the health API."""
