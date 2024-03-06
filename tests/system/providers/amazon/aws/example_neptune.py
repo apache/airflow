@@ -37,7 +37,6 @@ sys_test_context_task = SystemTestContextBuilder().build()
 def create_cluster(cluster_id):
     hook = NeptuneHook()
     hook.conn.create_db_cluster(DBClusterIdentifier=cluster_id, Engine="neptune", DeletionProtection=False)
-
     hook.wait_for_cluster_availability(cluster_id=cluster_id)
 
 
