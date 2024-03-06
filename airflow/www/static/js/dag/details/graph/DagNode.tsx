@@ -80,7 +80,7 @@ const DagNode = ({
 
   const nodeBorderColor =
     instance?.state && stateColors[instance.state]
-      ? `${stateColors[instance.state]}.400`
+      ? `${stateColors[instance.state]}`
       : "gray.400";
 
   return (
@@ -99,12 +99,7 @@ const DagNode = ({
         borderRadius={isZoomedOut ? 10 : 5}
         borderWidth={(isSelected ? 4 : 2) * (isZoomedOut ? 3 : 1)}
         borderColor={nodeBorderColor}
-        bg={
-          !task.children?.length && operatorBG
-            ? // Fade the operator color to clash less with the task instance status
-              `color-mix(in srgb, ${operatorBG.replace(";", "")} 80%, white)`
-            : bg
-        }
+        bg={bg}
         height={`${height}px`}
         width={`${width}px`}
         cursor={latestDagRunId ? "cursor" : "default"}
@@ -152,7 +147,11 @@ const DagNode = ({
                 maxWidth={`calc(${width}px - 12px)`}
                 fontWeight={400}
                 fontSize="md"
-                color={operatorTextColor}
+                bg={operatorBG}
+                width="fit-content"
+                color={operatorTextColor || "gray.500"}
+                borderRadius={5}
+                px={2}
               >
                 {task.operator}
               </Text>
