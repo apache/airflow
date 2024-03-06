@@ -183,6 +183,21 @@ class TestGoogleCloudStorageObjectSensor:
             task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
 
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    # @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor")
+    def test_xcom_value_when_poke_success(self, mock_hook):
+        mock_hook.return_value.exists.return_value = True
+        task = GCSObjectExistenceSensor(
+            task_id="task-id",
+            bucket=TEST_BUCKET,
+            object=TEST_OBJECT,
+            google_cloud_conn_id=TEST_GCP_CONN_ID,
+            deferrable=True,
+        )
+        # repsonses = task.execute(mock.MagicMock())
+        responses = task.execute(None)  # oh wait ma
+        assert responses == "success"
+
 
 class TestGoogleCloudStorageObjectAsyncSensor:
     depcrecation_message = (
