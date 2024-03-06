@@ -23,6 +23,7 @@ import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -724,6 +725,11 @@ class SelectiveChecks:
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
 
+        for file in self._files:
+            if file.endswith("bash.py") and Path(file).parent.name == "operators":
+                candidate_test_types.add("Serialization")
+                candidate_test_types.add("Core")
+                break
         if count_remaining_files > 0:
             get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "
