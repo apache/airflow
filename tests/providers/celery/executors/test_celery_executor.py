@@ -22,7 +22,7 @@ import logging
 import os
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest import mock
 
 # leave this it is used by the test worker
@@ -75,7 +75,7 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor.app", test_app)
+    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor_utils.app", test_app)
     patch_execute = mock.patch(
         "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
     )
@@ -183,7 +183,7 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_try_adopt_task_instances_none(self):
-        start_date = datetime.utcnow() - timedelta(days=2)
+        start_date = timezone.utcnow() - timedelta(days=2)
 
         with DAG("test_try_adopt_task_instances_none"):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
@@ -250,7 +250,6 @@ class TestCeleryExecutor:
         tis = [ti]
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
-
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
@@ -258,8 +257,8 @@ class TestCeleryExecutor:
             executor.cleanup_stuck_queued_tasks(tis)
             executor.sync()
         assert executor.tasks == {}
-        assert app.control.revoke.called_with("231")
-        assert mock_fail.called_once()
+        app.control.revoke.assert_called_once_with("231")
+        mock_fail.assert_called_once()
 
     @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
     @mock.patch("celery.Celery")

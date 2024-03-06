@@ -68,7 +68,7 @@ class AzureDataLakeHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -82,7 +82,7 @@ class AzureDataLakeHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -277,7 +277,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -293,7 +293,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -348,7 +348,11 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            credential = ClientSecretCredential(tenant, app_id, app_secret)
+            proxies = extra.get("proxies", {})
+
+            credential = ClientSecretCredential(
+                tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
+            )
         elif conn.password:
             credential = conn.password
         else:
@@ -359,8 +363,12 @@ class AzureDataLakeStorageV2Hook(BaseHook):
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
+        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
+
+        self.log.info("account_url: %s", account_url)
+
         return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            account_url=account_url,
             credential=credential,  # type: ignore[arg-type]
             **extra,
         )

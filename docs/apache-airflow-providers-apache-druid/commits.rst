@@ -35,6 +35,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.0
+.....
+
+Latest change: 2024-03-03
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`479ec87166 <https://github.com/apache/airflow/commit/479ec87166bfb7059ed1763580feb80c75ce7cd8>`_  2024-03-03   ``Fix SSL verification in druid operator (#37673)``
+`d2ba126404 <https://github.com/apache/airflow/commit/d2ba126404ceb7fbbfca64317086c8058c897f68>`_  2024-02-23   ``Adding optional SSL verification for druid operator (#37629)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  ==================================================================
+
+3.8.1
+.....
+
+Latest change: 2024-02-12
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+=================================================================================================  ===========  ==================================================================================
+
 3.8.0
 .....
 
@@ -43,6 +68,7 @@ Latest change: 2024-01-26
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `5c4364aafe <https://github.com/apache/airflow/commit/5c4364aafe57f089746a833d96a76c68c8869e20>`_  2024-01-24   ``Fix successful Apache Druid task submissions reported as failed (#36813)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``

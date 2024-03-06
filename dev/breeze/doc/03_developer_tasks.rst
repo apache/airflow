@@ -75,24 +75,26 @@ Port Forwarding
 
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
-* 12322 -> forwarded to Airflow ssh server -> airflow:22
-* 28080 -> forwarded to Airflow webserver -> airflow:8080
-* 25555 -> forwarded to Flower dashboard -> airflow:5555
-* 25433 -> forwarded to Postgres database -> postgres:5432
-* 23306 -> forwarded to MySQL database  -> mysql:3306
-* 21433 -> forwarded to MSSQL database  -> mssql:1443
-* 26379 -> forwarded to Redis broker -> redis:6379
+.. code-block::
+
+    * 12322 -> forwarded to Airflow ssh server -> airflow:22
+    * 28080 -> forwarded to Airflow webserver -> airflow:8080
+    * 25555 -> forwarded to Flower dashboard -> airflow:5555
+    * 25433 -> forwarded to Postgres database -> postgres:5432
+    * 23306 -> forwarded to MySQL database  -> mysql:3306
+    * 26379 -> forwarded to Redis broker -> redis:6379
 
 
 You can connect to these ports/databases using:
 
-* ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-* Webserver: http://127.0.0.1:28080
-* Flower:    http://127.0.0.1:25555
-* Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-* Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-* MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
-* Redis:     redis://127.0.0.1:26379/0
+.. code-block::
+
+    * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+    * Webserver: http://127.0.0.1:28080
+    * Flower:    http://127.0.0.1:25555
+    * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+    * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+    * Redis:     redis://127.0.0.1:26379/0
 
 If you do not use ``start-airflow`` command, you can start the webserver manually with
 the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
@@ -111,8 +113,7 @@ database client:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/database_view.png" width="640"
-             alt="Airflow Breeze - Database view">
+        <img src="images/database_view.png" width="640" alt="Airflow Breeze - Database view">
     </div>
 
 You can change the used host port numbers by setting appropriate environment variables:
@@ -151,15 +152,15 @@ extra ``--`` flag.
 
     breeze build-docs --spellcheck-only
 
-This process can take some time, so in order to make it shorter you can filter by package, using the flag
-``--package-filter <PACKAGE-NAME>``. The package name has to be one of the providers or ``apache-airflow``. For
-instance, for using it with Amazon, the command would be:
+This process can take some time, so in order to make it shorter you can filter by package, using package
+short ``provider id`` (might be multiple of them).
 
 .. code-block:: bash
 
-     breeze build-docs provider_id provider id
+     breeze build-docs <provider id> <provider id>
 
-or you can us package filter:
+or you can use package filter. The filters are glob pattern matching full
+package names and can be used to select more than one package with single filter.
 
 .. code-block:: bash
 

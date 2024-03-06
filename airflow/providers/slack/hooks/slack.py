@@ -169,7 +169,7 @@ class SlackHook(BaseHook):
 
     def call(self, api_method: str, **kwargs) -> SlackResponse:
         """
-        Calls Slack WebClient `WebClient.api_call` with given arguments.
+        Call Slack WebClient `WebClient.api_call` with given arguments.
 
         :param api_method: The target Slack API method. e.g. 'chat.postMessage'. Required.
         :param http_verb: HTTP Verb. Optional (defaults to 'POST')
@@ -244,7 +244,7 @@ class SlackHook(BaseHook):
         initial_comment: str | None = None,
     ) -> SlackResponse:
         """
-        Sends one or more files to a Slack channel using the Slack SDK Client method `files_upload_v2`.
+        Send one or more files to a Slack channel using the Slack SDK Client method `files_upload_v2`.
 
         :param channel_id: The ID of the channel to send the file to.
             If omitting this parameter, then file will send to workspace.
@@ -329,7 +329,7 @@ class SlackHook(BaseHook):
 
     def get_channel_id(self, channel_name: str) -> str:
         """
-        Retrieves a Slack channel id by a channel name.
+        Retrieve a Slack channel id by a channel name.
 
         It continuously iterates over all Slack channels (public and private)
         until it finds the desired channel name in addition cache results for further usage.
@@ -383,7 +383,7 @@ class SlackHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns dictionary of widgets to be added for the hook to handle extra values."""
+        """Return dictionary of widgets to be added for the hook to handle extra values."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, StringField
@@ -411,7 +411,7 @@ class SlackHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["login", "port", "host", "schema", "extra"],
             "relabeling": {

@@ -39,6 +39,7 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -81,7 +82,6 @@ class TestFabAuthManager:
             (1, "First", "Last", None, None, "First Last"),
             (1, "First", None, "user", None, "First"),
             (1, None, "Last", "user", "email", "Last"),
-            (1, None, None, None, "email", ""),
             (1, None, None, None, "email", ""),
         ],
     )
@@ -141,10 +141,10 @@ class TestFabAuthManager:
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    # With permission
                     (
                         api_name,
-                        "GET",
+                        "MENU",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
@@ -345,6 +345,18 @@ class TestFabAuthManager:
             (
                 AccessView.WEBSITE,
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
+                False,
+            ),
+            # Docs (positive)
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DOCS)],
+                True,
+            ),
+            # Without permission
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_READ, RESOURCE_DOCS)],
                 False,
             ),
         ],

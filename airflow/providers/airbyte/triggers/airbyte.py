@@ -51,7 +51,7 @@ class AirbyteSyncTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes AirbyteSyncTrigger arguments and classpath."""
+        """Serialize AirbyteSyncTrigger arguments and classpath."""
         return (
             "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger",
             {

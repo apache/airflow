@@ -38,6 +38,13 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 
+def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+    """Combine base url with endpoint."""
+    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+        return f"{base_url}/{endpoint}"
+    return (base_url or "") + (endpoint or "")
+
+
 class HttpHook(BaseHook):
     """Interact with HTTP servers.
 
@@ -158,7 +165,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.url_from_endpoint(endpoint)
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -258,13 +265,12 @@ class HttpHook(BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        return self._retry_obj(self.run, *args, **kwargs)
+        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
+        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return self.base_url + "/" + endpoint
-        return (self.base_url or "") + (endpoint or "")
+        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -356,9 +362,7 @@ class HttpAsyncHook(BaseHook):
         if headers:
             _headers.update(headers)
 
-        base_url = (self.base_url or "").rstrip("/")
-        endpoint = (endpoint or "").lstrip("/")
-        url = f"{base_url}/{endpoint}"
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":

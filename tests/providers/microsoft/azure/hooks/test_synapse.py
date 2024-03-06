@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from azure.synapse.spark import SparkClient
 
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
 
@@ -115,7 +116,10 @@ def test_get_conn_by_default_azure_credential(mock_credential):
 
         connection = hook.get_conn()
         assert connection is not None
-        assert mock_credential.called_with(None, None)
+        assert mock_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
+            None,
+            None,
+        )
         mock_create_client.assert_called_with(
             mock_credential(),
             "https://testsynapse.dev.azuresynapse.net",
@@ -172,7 +176,7 @@ def test_wait_for_job_run_status(hook, job_run_status, expected_status, expected
         if expected_output != "timeout":
             assert hook.wait_for_job_run_status(**config) == expected_output
         else:
-            with pytest.raises(Exception):
+            with pytest.raises(AirflowTaskTimeout):
                 hook.wait_for_job_run_status(**config)
 
 

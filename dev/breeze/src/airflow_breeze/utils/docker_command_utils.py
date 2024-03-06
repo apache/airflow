@@ -98,6 +98,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
+    ("hatch_build.py", "/opt/airflow/hatch_build.py"),
 ]
 
 
@@ -556,7 +557,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         "docker",
         "run",
         "-v",
-        "./scripts/in_container:/opt/airflow/scripts/in_container",
+        f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/",
         "-e",
         f"HOST_OS={get_host_os()}",
         "-e",
@@ -565,8 +566,7 @@ def fix_ownership_using_docker(quiet: bool = False):
         f"HOST_GROUP_ID={get_host_group_id()}",
         "-e",
         f"DOCKER_IS_ROOTLESS={is_docker_rootless()}",
-        "-e",
-        f"VERBOSE_COMMANDS={str(not quiet).lower()}",
+        "--rm",
         "-t",
         OWNERSHIP_CLEANUP_DOCKER_TAG,
         "/opt/airflow/scripts/in_container/run_fix_ownership.py",

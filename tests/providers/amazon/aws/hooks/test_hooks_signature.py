@@ -72,7 +72,7 @@ def get_aws_hooks_modules():
     elif not hooks_dir.is_dir():
         raise NotADirectoryError(hooks_dir.__fspath__())
 
-    for module in hooks_dir.glob("*.py"):
+    for module in sorted(hooks_dir.glob("*.py")):
         name = module.stem
         if name.startswith("_"):
             continue
@@ -99,7 +99,7 @@ def get_aws_hooks_from_module(hook_module: str) -> list[tuple[type[AwsGenericHoo
 
 def validate_hook(hook: type[AwsGenericHook], hook_name: str, hook_module: str) -> tuple[bool, str | None]:
     hook_extra_parameters = set()
-    for k, v in inspect.signature(hook).parameters.items():
+    for k, v in inspect.signature(hook.__init__).parameters.items():
         if v.kind == inspect.Parameter.VAR_POSITIONAL:
             k = "*args"
         elif v.kind == inspect.Parameter.VAR_KEYWORD:

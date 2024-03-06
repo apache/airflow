@@ -305,7 +305,7 @@ class MetricsMap:
         else:
             counter = self.meter.create_counter(name=otel_safe_name)
 
-        logging.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
@@ -400,7 +400,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
-    logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(

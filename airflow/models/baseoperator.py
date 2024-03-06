@@ -198,7 +198,8 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS = {
+_PARTIAL_DEFAULTS: dict[str, Any] = {
+    "map_index_template": None,
     "owner": DEFAULT_OWNER,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "depends_on_past": False,
@@ -247,6 +248,7 @@ def partial(
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
+    map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -291,6 +293,7 @@ def partial(
         "dag": dag,
         "task_group": task_group,
         "task_id": task_id,
+        "map_index_template": map_index_template,
         "start_date": start_date,
         "end_date": end_date,
         "owner": owner,
@@ -665,6 +668,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
+    :param multiple_outputs: if True and do_xcom_push is True, pushes multiple XComs, one for each
+        key in the returned dictionary result. If False and do_xcom_push is True, pushes a single XCom.
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
     :param doc: Add documentation or notes to your Task objects that is visible in
@@ -735,6 +740,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_retry_callback",
         "on_skipped_callback",
         "do_xcom_push",
+        "multiple_outputs",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -800,10 +806,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
+        map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
+        multiple_outputs: bool = False,
         inlets: Any | None = None,
         outlets: Any | None = None,
         task_group: TaskGroup | None = None,
@@ -951,6 +959,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.map_index_template: str | None = map_index_template
+        self.multiple_outputs: bool = multiple_outputs
 
         self.doc_md = doc_md
         self.doc_json = doc_json
@@ -1589,6 +1599,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_setup",
                     "is_teardown",
                     "on_failure_fail_dagrun",
+                    "map_index_template",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1624,7 +1635,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """This method is called when a deferred task is resumed."""
+        """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == "__fail__":

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
@@ -31,7 +30,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSObjectCreateAclEntryOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -39,9 +38,10 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "gcs_acl"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 FILE_NAME = "example_upload.txt"
-UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
 GCS_ACL_ENTITY = "allUsers"
 GCS_ACL_BUCKET_ROLE = "OWNER"
@@ -62,11 +62,13 @@ with DAG(
         resource={"predefined_acl": "public_read_write"},
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=UPLOAD_FILE_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
+    copy_file = GCSToGCSOperator(
+        task_id="copy_example_gcs_file",
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=UPLOAD_FILE_PATH,
+        destination_bucket=BUCKET_NAME,
+        destination_object=FILE_NAME,
+        exact_match=True,
     )
 
     # [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -95,7 +97,7 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> upload_file
+        >> copy_file
         # TEST BODY
         >> gcs_bucket_create_acl_entry_task
         >> gcs_object_create_acl_entry_task

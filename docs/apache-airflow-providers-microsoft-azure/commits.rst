@@ -35,6 +35,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+9.0.1
+.....
+
+Latest change: 2024-03-01
+
+=================================================================================================  ===========  =====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================================
+`87a249a02f <https://github.com/apache/airflow/commit/87a249a02f3665746d05b7a309c288bfda2d4cc2>`_  2024-03-01   ``fix: Pass proxies config when using ClientSecretCredential in AzureDataLakeStorageV2Hook (#37103)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`9d91bb435d <https://github.com/apache/airflow/commit/9d91bb435d7d67f77162dc694a8329f090c4f95f>`_  2024-02-12   ``D401 Support in Microsoft providers (#37327)``
+=================================================================================================  ===========  =====================================================================================================
+
 9.0.0
 .....
 
@@ -43,6 +56,7 @@ Latest change: 2024-01-30
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`ba053f79ed <https://github.com/apache/airflow/commit/ba053f79edab54366208aad9d88877a95b789eca>`_  2024-01-30   ``Prepare docs for ad-hoc release of microsoft.azure provider (#37099)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 `cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``

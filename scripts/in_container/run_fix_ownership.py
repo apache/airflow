@@ -44,7 +44,6 @@ def change_ownership_of_files(path: Path) -> None:
         sys.exit(1)
     count_files = 0
     root_uid = pwd.getpwnam("root").pw_uid
-    print("Attempting to see if there are files that need to be changed to host user ownership")
     for file in path.rglob("*"):
         try:
             if file.is_symlink() and file.lstat().st_uid == root_uid:
@@ -66,8 +65,6 @@ def change_ownership_of_files(path: Path) -> None:
                 print(f"Could not change ownership of {file}")
     if count_files:
         print(f"Changed ownership of {count_files} files back to {host_user_id}:{host_group_id}.")
-    else:
-        print("No files needed to change ownership")
 
 
 if __name__ == "__main__":

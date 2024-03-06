@@ -32,17 +32,17 @@ from airflow.security.permissions import (
 from airflow.www import app as application
 
 
-@pytest.fixture()
+@pytest.fixture
 def app():
     return application.create_app(testing=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def app_builder(app):
     return app.appbuilder
 
 
-@pytest.fixture()
+@pytest.fixture
 def security_manager(app_builder):
     return app_builder.sm
 

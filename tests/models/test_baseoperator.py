@@ -192,25 +192,11 @@ class TestBaseOperator:
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
-        try:
-            BaseOperator(
-                task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE
-            )
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"BaseOperator raises exception with fail-stop dag & default trigger rule: {exception}"
-
+        BaseOperator(task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE)
         # An operator with non default trigger rule and a non fail-stop dag should be allowed
-        try:
-            BaseOperator(
-                task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.DUMMY
-            )
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"BaseOperator raises exception with non fail-stop dag & non-default trigger rule: {exception}"
-
+        BaseOperator(
+            task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
+        )
         # An operator with non default trigger rule and a fail stop dag should not be allowed
         with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(

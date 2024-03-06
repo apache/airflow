@@ -21,6 +21,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -54,7 +55,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 
@@ -82,6 +83,9 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
+        shutil.rmtree(AIRFLOW_HOME_DIR, ignore_errors=True)
+        AIRFLOW_HOME_DIR.mkdir(exist_ok=True, parents=True)
+        run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")
@@ -322,6 +326,8 @@ class WorkflowInfo(NamedTuple):
             and self.ref_name
             and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
         ):
+            return "true"
+        if "canary" in self.pull_request_labels and self.head_repo == "apache/airflow":
             return "true"
         return "false"
 

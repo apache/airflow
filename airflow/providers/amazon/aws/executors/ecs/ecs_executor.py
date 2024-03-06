@@ -48,6 +48,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils import timezone
+from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -111,7 +112,7 @@ class AwsEcsExecutor(BaseExecutor):
         self.run_task_kwargs = self._load_run_kwargs()
 
     def start(self):
-        """This is called by the scheduler when the Executor is being run for the first time."""
+        """Call this when the Executor is run for the first time by the scheduler."""
         check_health = conf.getboolean(
             CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
         )
@@ -207,7 +208,7 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
 
         except Exception:
@@ -216,7 +217,7 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
     def sync_running_tasks(self):
-        """Checks and update state on all running tasks."""
+        """Check and update state on all running tasks."""
         all_task_arns = self.active_workers.get_all_arns()
         if not all_task_arns:
             self.log.debug("No active Airflow tasks, skipping sync.")
@@ -271,7 +272,6 @@ class AwsEcsExecutor(BaseExecutor):
 
     def __log_container_failures(self, task_arn: str):
         """Check if the task failed due to issues with the containers."""
-        message = "The ECS task failed due to the following containers failing: \n"
         containers = self.active_workers.task_by_arn(task_arn).containers
         has_exit_codes = all(["exit_code" in x for x in containers])
         if not has_exit_codes:
@@ -281,8 +281,10 @@ class AwsEcsExecutor(BaseExecutor):
             for container in containers
             if "reason" in container
         ]
-
-        self.log.warning(message + "\n".join(reasons)) if reasons else ""
+        if reasons:
+            self.log.warning(
+                "The ECS task failed due to the following containers failing:\n%s", "\n".join(reasons)
+            )
 
     def __handle_failed_task(self, task_arn: str, reason: str):
         """If an API failure occurs, the task is rescheduled."""
@@ -323,7 +325,7 @@ class AwsEcsExecutor(BaseExecutor):
 
     def attempt_task_runs(self):
         """
-        Takes tasks from the pending_tasks queue, and attempts to find an instance to run it on.
+        Take tasks from the pending_tasks queue, and attempts to find an instance to run it on.
 
         If the launch type is EC2, this will attempt to place tasks on empty EC2 instances.  If
             there are no EC2 instances available, no task is placed and this function will be
@@ -408,8 +410,8 @@ class AwsEcsExecutor(BaseExecutor):
         The command and executor config will be placed in the container-override
         section of the JSON request before calling Boto3's "run_task" function.
         """
-        run_task_api = self._run_task_kwargs(task_id, cmd, queue, exec_config)
-        boto_run_task = self.ecs.run_task(**run_task_api)
+        run_task_kwargs = self._run_task_kwargs(task_id, cmd, queue, exec_config)
+        boto_run_task = self.ecs.run_task(**run_task_kwargs)
         run_task_response = BotoRunTaskSchema().load(boto_run_task)
         return run_task_response
 
@@ -417,21 +419,21 @@ class AwsEcsExecutor(BaseExecutor):
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> dict:
         """
-        Overrides the Airflow command to update the container overrides so kwargs are specific to this task.
+        Update the Airflow command by modifying container overrides for task-specific kwargs.
 
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
-        run_task_api = deepcopy(self.run_task_kwargs)
-        container_override = self.get_container(run_task_api["overrides"]["containerOverrides"])
+        run_task_kwargs = deepcopy(self.run_task_kwargs)
+        run_task_kwargs = merge_dicts(run_task_kwargs, exec_config)
+        container_override = self.get_container(run_task_kwargs["overrides"]["containerOverrides"])
         container_override["command"] = cmd
-        container_override.update(exec_config)
 
         # Inject the env variable to configure logging for containerized execution environment
         if "environment" not in container_override:
             container_override["environment"] = []
         container_override["environment"].append({"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"})
 
-        return run_task_api
+        return run_task_kwargs
 
     def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
@@ -442,7 +444,7 @@ class AwsEcsExecutor(BaseExecutor):
         )
 
     def end(self, heartbeat_interval=10):
-        """Waits for all currently running tasks to end, and doesn't launch any tasks."""
+        """Wait for all currently running tasks to end, and don't launch any tasks."""
         try:
             while True:
                 self.sync()
@@ -482,8 +484,13 @@ class AwsEcsExecutor(BaseExecutor):
         return ecs_executor_run_task_kwargs
 
     def get_container(self, container_list):
-        """Searches task list for core Airflow container."""
+        """Search task list for core Airflow container."""
         for container in container_list:
-            if container["name"] == self.container_name:
-                return container
+            try:
+                if container["name"] == self.container_name:
+                    return container
+            except KeyError:
+                raise EcsExecutorException(
+                    'container "name" must be provided in "containerOverrides" configuration'
+                )
         raise KeyError(f"No such container found by container name: {self.container_name}")

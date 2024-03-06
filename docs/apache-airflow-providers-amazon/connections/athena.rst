@@ -24,12 +24,12 @@ The Athena connection type enables DB API 2.0 integrations with Athena.
 
 .. note::
    This connection type is meant to be used with ``AthenaSqlHook``.
-   For ``AthenaHook`` use the `Amazon Web Services Connection <./aws.rst>`_ Type instead.
+   For ``AthenaHook`` use the `Amazon Web Services Connection <./aws.html>`_ Type instead.
 
 Authenticating to Amazon Athena
 ---------------------------------
 
-Authentication may be performed using any of the authentication methods supported by `Amazon Web Services Connection <./aws.rst>`_.
+Authentication may be performed using any of the authentication methods supported by `Amazon Web Services Connection <./aws.html>`_.
 
 Default Connection IDs
 ----------------------
@@ -59,5 +59,5 @@ please see the `documentation <https://github.com/laughingman7743/PyAthena/>`_
 for PyAthena supported parameters.
 
 Since this connection type uses authentication methods from the
-`Amazon Web Services Connection <./aws.rst>`_ documentation, please refer to that
+`Amazon Web Services Connection <./aws.html>`_ documentation, please refer to that
 for additional information about configuring the connection.

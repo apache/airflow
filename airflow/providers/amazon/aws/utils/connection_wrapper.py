@@ -166,7 +166,8 @@ class AwsConnectionWrapper(LoggingMixin):
 
         return service_config.get("endpoint_url", global_endpoint_url)
 
-    def __post_init__(self, conn: Connection):
+    def __post_init__(self, conn: Connection | AwsConnectionWrapper | _ConnectionMetadata | None) -> None:
+        """Initialize the AwsConnectionWrapper object after instantiation."""
         if isinstance(conn, type(self)):
             # For every field with init=False we copy reference value from original wrapper
             # For every field with init=True we use init values if it not equal default
@@ -192,6 +193,9 @@ class AwsConnectionWrapper(LoggingMixin):
             return
         elif not conn:
             return
+
+        if TYPE_CHECKING:
+            assert isinstance(conn, (Connection, _ConnectionMetadata))
 
         # Assign attributes from AWS Connection
         self.conn_id = conn.conn_id
@@ -343,6 +347,7 @@ class AwsConnectionWrapper(LoggingMixin):
         )
 
     def __bool__(self):
+        """Return the truth value of the AwsConnectionWrapper instance."""
         return self.conn_id is not NOTSET
 
     def _get_credentials(

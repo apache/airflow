@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.api.common.trigger_dag import *  # noqa
+from airflow.api.common.trigger_dag import *  # noqa: F403
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.api.common.trigger_dag` instead.",

@@ -259,8 +259,10 @@ class AirflowConfigParser(ConfigParser):
                 if not self.is_template(section, key) and "{" in value:
                     errors = True
                     log.error(
-                        f"The {section}.{key} value {value} read from string contains "
-                        "variable. This is not supported"
+                        "The %s.%s value %s read from string contains variable. This is not supported",
+                        section,
+                        key,
+                        value,
                     )
                 self._default_values.set(section, key, value)
             if errors:
@@ -1871,7 +1873,8 @@ class AirflowConfigParser(ConfigParser):
                 stacklevel=4 + extra_stacklevel,
             )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, Any]:
+        """Return the state of the object as a dictionary for pickling."""
         return {
             name: getattr(self, name)
             for name in [
@@ -1883,8 +1886,9 @@ class AirflowConfigParser(ConfigParser):
             ]
         }
 
-    def __setstate__(self, state):
-        self.__init__()
+    def __setstate__(self, state) -> None:
+        """Restore the state of the object from a dictionary representation."""
+        self.__init__()  # type: ignore[misc]
         config = state.pop("_sections")
         self.read_dict(config)
         self.__dict__.update(state)
