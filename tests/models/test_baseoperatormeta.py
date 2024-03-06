@@ -6,7 +6,8 @@ from unittest.mock import Mock, patch, MagicMock
 import pendulum
 from sqlalchemy.orm import Session
 
-from airflow import AirflowException, DAG
+from airflow import DAG
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.context import Context
