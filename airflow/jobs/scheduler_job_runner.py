@@ -1570,9 +1570,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ti in tasks_stuck_in_queued:
                 if repr(ti) in cleaned_up_task_instances:
                     self._task_context_logger.warning(
-                        "Marking task instance %s stuck in queued as failed. "
+                        "Marking task instance %s stuck in queued for {} seconds as failed. "
                         "If the task instance has available retries, it will be retried.",
-                        ti,
+                        self._task_queued_timeout,
                         ti=ti,
                     )
         except NotImplementedError:
