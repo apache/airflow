@@ -61,7 +61,7 @@ class BashOperator(BaseOperator):
         exit code will be treated as a failure.
     :param cwd: Working directory to execute the command in (templated).
         If None (default), the command is run in a temporary directory.
-        For use current DAG folder as the working directory,
+        To use current DAG folder as the working directory,
         you might set template ``{{ dag_run.dag.folder }}``.
 
     Airflow will evaluate the exit code of the Bash command. In general, a non-zero exit code will result in
