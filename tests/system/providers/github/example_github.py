@@ -31,6 +31,7 @@ from airflow.providers.github.sensors.github import GithubSensor, GithubTagSenso
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_github_operator"
 
+logger = logging.getLogger(__name__)
 
 with DAG(
     DAG_ID,
@@ -81,7 +82,7 @@ with DAG(
     github_list_repos = GithubOperator(
         task_id="github_list_repos",
         github_method="get_user",
-        result_processor=lambda user: logging.info(list(user.get_repos())),
+        result_processor=lambda user: logger.info(list(user.get_repos())),
     )
 
     # [END howto_operator_list_repos_github]
@@ -92,7 +93,7 @@ with DAG(
         task_id="list_repo_tags",
         github_method="get_repo",
         github_method_args={"full_name_or_id": "apache/airflow"},
-        result_processor=lambda repo: logging.info(list(repo.get_tags())),
+        result_processor=lambda repo: logger.info(list(repo.get_tags())),
     )
 
     # [END howto_operator_list_tags_github]

@@ -22,9 +22,10 @@ description: |
     `Telegram <https://telegram.org/>`__
 
 state: ready
-source-date-epoch: 1705912297
+source-date-epoch: 1709556330
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.4.0
   - 4.3.1
   - 4.3.0
   - 4.2.0

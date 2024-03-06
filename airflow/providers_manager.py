@@ -657,7 +657,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     seen.add(path)
                     self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
-                log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
+                log.warning("Error when loading 'provider.yaml' files from %s airflow sources: %s", path, e)
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """

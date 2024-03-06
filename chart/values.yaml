@@ -1086,6 +1086,9 @@ migrateDatabaseJob:
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
 
+  # Labels specific to migrate database job objects and pods
+  labels: {}
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000

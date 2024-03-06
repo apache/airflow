@@ -53,7 +53,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa
+    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)

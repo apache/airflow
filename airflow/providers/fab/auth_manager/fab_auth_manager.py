@@ -54,8 +54,6 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.security import permissions
 from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -263,8 +261,10 @@ class FabAuthManager(BaseAuthManager):
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
     def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+        # "Docs" are only links in the menu, there is no page associated
+        method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
-            method="GET", resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
+            method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
         )
 
     def is_authorized_custom_view(
@@ -350,7 +350,7 @@ class FabAuthManager(BaseAuthManager):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next_url=kwargs["next_url"])
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
@@ -463,18 +463,11 @@ class FabAuthManager(BaseAuthManager):
         """
         Return the user permissions.
 
-        ACTION_CAN_READ and ACTION_CAN_ACCESS_MENU are merged into because they are very similar.
-        We can assume that if a user has permissions to read variables, they also have permissions to access
-        the menu "Variables".
-
         :param user: the user to get permissions for
 
         :meta private:
         """
-        perms = getattr(user, "perms") or []
-        return [
-            (ACTION_CAN_READ if perm[0] == ACTION_CAN_ACCESS_MENU else perm[0], perm[1]) for perm in perms
-        ]
+        return getattr(user, "perms") or []
 
     def _get_root_dag_id(self, dag_id: str) -> str:
         """

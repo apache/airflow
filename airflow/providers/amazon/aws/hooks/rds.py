@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_rds import RDSClient  # noqa
+    from mypy_boto3_rds import RDSClient  # noqa: F401
 
 
 class RdsHook(AwsGenericHook["RDSClient"]):

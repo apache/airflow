@@ -789,7 +789,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -s SIGINT 1")
+            self._exec_pod_command(resp, "kill -2 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""

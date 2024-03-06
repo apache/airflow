@@ -71,6 +71,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_uv,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -252,14 +253,6 @@ option_eager_upgrade_additional_requirements = click.option(
     "(see `breeze ci find-backtracking-candidates`).",
 )
 
-option_use_uv_ci = click.option(
-    "--use-uv/--no-use-uv",
-    is_flag=True,
-    default=True,
-    help="Use uv instead of pip as packaging tool.",
-    envvar="USE_UV",
-)
-
 option_upgrade_to_newer_dependencies = click.option(
     "-u",
     "--upgrade-to-newer-dependencies",
@@ -327,7 +320,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_tag_as_latest
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
-@option_use_uv_ci
+@option_use_uv
 @option_verbose
 @option_version_suffix_for_pypi_ci
 def build(

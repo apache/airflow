@@ -32,7 +32,7 @@ from tests.listeners import dataset_listener
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_task_instance():
     mock_ti = mock.Mock()
     mock_ti.task_id = "5"

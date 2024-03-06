@@ -45,7 +45,7 @@ class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
         step_ids: list[str],
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__(
             serialized_fields={"job_flow_id": job_flow_id, "step_ids": step_ids},
@@ -180,7 +180,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         self,
         virtual_cluster_id: str,
         job_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         poll_interval: int | None = None,  # deprecated
         waiter_delay: int = 30,
         waiter_max_attempts: int = 600,
@@ -227,7 +227,7 @@ class EmrStepSensorTrigger(AwsBaseWaiterTrigger):
         step_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__(
             serialized_fields={"job_flow_id": job_flow_id, "step_id": step_id},
@@ -265,7 +265,7 @@ class EmrServerlessCreateApplicationTrigger(AwsBaseWaiterTrigger):
         application_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
@@ -300,7 +300,7 @@ class EmrServerlessStartApplicationTrigger(AwsBaseWaiterTrigger):
         application_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
@@ -335,7 +335,7 @@ class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
         application_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
@@ -372,7 +372,7 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
         job_id: str | None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id, "job_id": job_id},
@@ -407,7 +407,7 @@ class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
         application_id: str,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
@@ -440,7 +440,7 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         application_id: str,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         waiter_delay: int,
         waiter_max_attempts: int,
     ) -> None:

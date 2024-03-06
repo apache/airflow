@@ -157,7 +157,7 @@ class GoogleDisplayVideo360RunQuerySensor(BaseSensorOperator):
 
         response = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = response.get("metadata", {}).get("status", {}).get("state")
-        self.log.info(f"STATUS OF THE REPORT {self.report_id} FOR QUERY {self.query_id}: {status}")
+        self.log.info("STATUS OF THE REPORT %s FOR QUERY %s: %s", self.report_id, self.query_id, status)
         if response and status in ["DONE", "FAILED"]:
             return True
         return False

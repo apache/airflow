@@ -24,7 +24,6 @@ import os
 from contextlib import suppress
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable
-from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import attrs
 from attrs import asdict
@@ -42,99 +41,17 @@ from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 
 if TYPE_CHECKING:
-    from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
+    from airflow.models import DAG, BaseOperator, DagRun, TaskInstance
 
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
-def openlineage_job_name(dag_id: str, task_id: str) -> str:
-    return f"{dag_id}.{task_id}"
-
-
 def get_operator_class(task: BaseOperator) -> type:
     if task.__class__.__name__ in ("DecoratedMappedOperator", "MappedOperator"):
         return task.operator_class
     return task.__class__
-
-
-def to_json_encodable(task: BaseOperator) -> dict[str, object]:
-    def _task_encoder(obj):
-        from airflow.models import DAG
-
-        if isinstance(obj, datetime.datetime):
-            return obj.isoformat()
-        elif isinstance(obj, DAG):
-            return {
-                "dag_id": obj.dag_id,
-                "tags": obj.tags,
-                "schedule_interval": obj.schedule_interval,
-                "timetable": obj.timetable.serialize(),
-            }
-        else:
-            return str(obj)
-
-    return json.loads(json.dumps(task.__dict__, default=_task_encoder))
-
-
-def url_to_https(url) -> str | None:
-    # Ensure URL exists
-    if not url:
-        return None
-
-    base_url = None
-    if url.startswith("git@"):
-        part = url.split("git@")[1:2]
-        if part:
-            base_url = f'https://{part[0].replace(":", "/", 1)}'
-    elif url.startswith("https://"):
-        base_url = url
-
-    if not base_url:
-        raise ValueError(f"Unable to extract location from: {url}")
-
-    if base_url.endswith(".git"):
-        base_url = base_url[:-4]
-    return base_url
-
-
-def redacted_connection_uri(conn: Connection, filtered_params=None, filtered_prefixes=None):
-    """
-    Return the connection URI for the given Connection.
-
-    This method additionally filters URI by removing query parameters that are known to carry sensitive data
-    like username, password, access key.
-    """
-    if filtered_prefixes is None:
-        filtered_prefixes = []
-    if filtered_params is None:
-        filtered_params = []
-
-    def filter_key_params(k: str):
-        return k not in filtered_params and any(substr in k for substr in filtered_prefixes)
-
-    conn_uri = conn.get_uri()
-    parsed = urlparse(conn_uri)
-
-    # Remove username and password
-    netloc = f"{parsed.hostname}" + (f":{parsed.port}" if parsed.port else "")
-    parsed = parsed._replace(netloc=netloc)
-    if parsed.query:
-        query_dict = dict(parse_qsl(parsed.query))
-        if conn.EXTRA_KEY in query_dict:
-            query_dict = json.loads(query_dict[conn.EXTRA_KEY])
-        filtered_qs = {k: v for k, v in query_dict.items() if not filter_key_params(k)}
-        parsed = parsed._replace(query=urlencode(filtered_qs))
-    return urlunparse(parsed)
-
-
-def get_connection(conn_id) -> Connection | None:
-    from airflow.hooks.base import BaseHook
-
-    with suppress(Exception):
-        return BaseHook.get_connection(conn_id=conn_id)
-    return None
 
 
 def get_job_name(task):

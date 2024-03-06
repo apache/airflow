@@ -35,7 +35,7 @@ you to create and run Pods on a Kubernetes cluster.
   - :ref:`EksPodOperator <howto/operator:EksPodOperator>` operator for `AWS Elastic Kubernetes Engine <https://aws.amazon.com/eks/>`__.
 
 .. note::
-  The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
+  The :doc:`Kubernetes executor <kubernetes_executor>` is **not** required to use this operator.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -602,7 +602,7 @@ you to create and run Jobs on a Kubernetes cluster.
   - ``GKEStartJobOperator`` operator for `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__.
 
 .. note::
-  The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
+  The :doc:`Kubernetes executor <kubernetes_executor>` is **not** required to use this operator.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

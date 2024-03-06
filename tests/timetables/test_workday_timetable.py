@@ -42,12 +42,12 @@ WEEK_2_MONDAY = pendulum.DateTime(2021, 9, 13, tzinfo=utc)
 WEEK_2_TUESDAY = pendulum.DateTime(2021, 9, 14, tzinfo=utc)
 
 
-@pytest.fixture()
+@pytest.fixture
 def restriction():
     return TimeRestriction(earliest=START_DATE, latest=None, catchup=True)
 
 
-@pytest.fixture()
+@pytest.fixture
 def timetable():
     return AfterWorkdayTimetable()
 

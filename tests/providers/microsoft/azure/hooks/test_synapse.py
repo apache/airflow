@@ -116,7 +116,10 @@ def test_get_conn_by_default_azure_credential(mock_credential):
 
         connection = hook.get_conn()
         assert connection is not None
-        assert mock_credential.called_with(None, None)
+        assert mock_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
+            None,
+            None,
+        )
         mock_create_client.assert_called_with(
             mock_credential(),
             "https://testsynapse.dev.azuresynapse.net",

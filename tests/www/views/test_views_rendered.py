@@ -44,7 +44,7 @@ DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag():
     return DAG(
         "testdag",
@@ -54,7 +54,7 @@ def dag():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def task1(dag):
     return BashOperator(
         task_id="task1",
@@ -63,7 +63,7 @@ def task1(dag):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def task2(dag):
     return BashOperator(
         task_id="task2",
@@ -72,7 +72,7 @@ def task2(dag):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def task3(dag):
     class TestOperator(BaseOperator):
         template_fields = ("sql",)
@@ -91,7 +91,7 @@ def task3(dag):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def task4(dag):
     def func(*op_args):
         pass
@@ -105,7 +105,7 @@ def task4(dag):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_secret(dag):
     return BashOperator(
         task_id="task_secret",
@@ -133,7 +133,7 @@ def reset_db(dag, task1, task2, task3, task4, task_secret):
     clear_rendered_ti_fields()
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, execution_date, session):
         dag_run = dag.create_dagrun(
@@ -159,7 +159,7 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     return _create_dag_run
 
 
-@pytest.fixture()
+@pytest.fixture
 def patch_app(app, dag):
     with mock.patch.object(app, "dag_bag") as mock_dag_bag:
         mock_dag_bag.get_dag.return_value = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))

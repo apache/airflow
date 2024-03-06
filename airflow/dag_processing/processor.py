@@ -177,7 +177,7 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
                 # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
                 with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                    StreamLogWriter(log, logging.WARN)
+                    StreamLogWriter(log, logging.WARNING)
                 ), Stats.timer() as timer:
                     _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)

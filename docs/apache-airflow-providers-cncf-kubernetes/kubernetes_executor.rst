@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _executor:KubernetesExecutor:
+.. _KubernetesExecutor:
 
 Kubernetes Executor
 ===================
@@ -38,12 +38,12 @@ KubernetesExecutor requires a non-sqlite database in the backend.
 
 When a DAG submits a task, the KubernetesExecutor requests a worker pod from the Kubernetes API. The worker pod then runs the task, reports the result, and terminates.
 
-.. image:: ../../img/arch-diag-kubernetes.png
+.. image:: img/arch-diag-kubernetes.png
 
 
 One example of an Airflow deployment running on a distributed set of five nodes in a Kubernetes cluster is shown below.
 
-.. image:: ../../img/arch-diag-kubernetes2.png
+.. image:: img/arch-diag-kubernetes2.png
 
 Consistent with the regular Airflow architecture, the Workers need access to the DAG files to execute the tasks within those DAGs and interact with the Metadata repository. Also, configuration information specific to the Kubernetes Executor, such as the worker namespace and image information, needs to be specified in the Airflow Configuration file.
 
@@ -56,7 +56,7 @@ Additionally, the Kubernetes Executor enables specification of additional featur
 .. Airflow_Worker -> Kubernetes: Pod completes with state "Succeeded" and k8s records in ETCD
 .. Kubernetes -> Airflow_Scheduler: Airflow scheduler reads "Succeeded" from k8s watcher thread
 .. @enduml
-.. image:: ../../img/k8s-happy-path.png
+.. image:: img/k8s-happy-path.png
 
 Configuration
 -------------
@@ -272,7 +272,7 @@ In the case where a worker dies before it can report its status to the backend D
 ..
 .. @enduml
 
-.. image:: ../../img/k8s-failed-pod.png
+.. image:: img/k8s-failed-pod.png
 
 
 A Kubernetes watcher is a thread that can subscribe to every change that occurs in Kubernetes' database. It is alerted when pods start, run, end, and fail.

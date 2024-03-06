@@ -54,7 +54,6 @@ def build_python_op(dag_maker):
 def clear_db():
     clear_db_runs()
     clear_db_dags()
-    yield
 
 
 class TestXComArgBuild:

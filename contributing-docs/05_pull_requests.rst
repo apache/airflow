@@ -97,7 +97,7 @@ these guidelines:
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
 
--   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
+-   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`__.
     This makes the lives of those who come after you (and your future self) a lot easier.
 
 Experimental Requirement to resolve all conversations

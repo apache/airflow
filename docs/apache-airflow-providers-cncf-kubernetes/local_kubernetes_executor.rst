@@ -16,7 +16,7 @@
     under the License.
 
 
-.. _executor:LocalKubernetesExecutor:
+.. _LocalKubernetesExecutor:
 
 LocalKubernetes Executor
 =========================

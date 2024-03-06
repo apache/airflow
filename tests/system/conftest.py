@@ -33,7 +33,7 @@ def use_debug_executor():
         yield
 
 
-@pytest.fixture()
+@pytest.fixture
 def provider_env_vars():
     """Override this fixture in provider's conftest.py"""
     return ()

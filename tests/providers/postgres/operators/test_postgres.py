@@ -93,10 +93,8 @@ class TestPostgres:
 
         from psycopg2 import OperationalError
 
-        try:
+        with pytest.raises(OperationalError, match='database "foobar" does not exist'):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except OperationalError as e:
-            assert 'database "foobar" does not exist' in str(e)
 
     def test_runtime_parameter_setting(self):
         """

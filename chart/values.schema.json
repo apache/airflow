@@ -4005,6 +4005,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the migrate database job objects and pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",

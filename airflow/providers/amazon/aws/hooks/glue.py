@@ -245,8 +245,9 @@ class GlueJobHook(AwsBaseHook):
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     # we land here when the log groups/streams don't exist yet
                     self.log.warning(
-                        "No new Glue driver logs so far.\nIf this persists, check the CloudWatch dashboard "
-                        f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
+                        "No new Glue driver logs so far.\n"
+                        "If this persists, check the CloudWatch dashboard at: %r.",
+                        f"https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home",
                     )
                 else:
                     raise

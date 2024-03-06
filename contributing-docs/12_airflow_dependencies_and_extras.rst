@@ -85,7 +85,7 @@ from the PyPI package:
 
 .. code-block:: bash
 
-  pip install apache-airflow[google,amazon,async]==2.2.5 \
+  pip install "apache-airflow[google,amazon,async]==2.2.5" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
@@ -211,7 +211,7 @@ microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, od
 openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
 pgvector, pinecone, pinot, postgres, presto, pydantic, qdrant, rabbitmq, redis, s3, s3fs,
 salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, teradata, trino, vertica, virtualenv,
+spark, sqlite, ssh, statsd, tableau, tabular, telegram, teradata, trino, uv, vertica, virtualenv,
 weaviate, webhdfs, winrm, yandex, zendesk
 
   .. END REGULAR EXTRAS HERE

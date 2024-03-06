@@ -188,7 +188,10 @@ class TestWasbHook:
         )
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
-        assert mocked_default_azure_credential.called_with(None, None)
+        assert mocked_default_azure_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
+            None,
+            None,
+        )
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
         mocked_blob_service_client.assert_called_once_with(

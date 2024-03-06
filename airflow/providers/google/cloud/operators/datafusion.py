@@ -20,6 +20,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
@@ -49,10 +50,11 @@ class DataFusionPipelineLinkHelper:
     """
 
     @staticmethod
+    @deprecated(
+        reason="Please use `airflow.providers.google.cloud.utils.helpers.resource_path_to_dict` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_project_id(instance):
-        raise AirflowProviderDeprecationWarning(
-            "DataFusionPipelineLinkHelper is deprecated. Consider using resource_path_to_dict() instead."
-        )
         instance = instance["name"]
         project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id

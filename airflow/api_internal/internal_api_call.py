@@ -103,7 +103,8 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:
             raise AirflowException(
-                f"Got {response.status_code}:{response.reason} when sending the internal api request."
+                f"Got {response.status_code}:{response.reason} when sending "
+                f"the internal api request: {response.text}"
             )
         return response.content
 

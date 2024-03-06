@@ -39,6 +39,8 @@ def check_file(the_file: Path) -> int:
     res = yaml.safe_load(the_file.read_text())
     console.print(f"Checking file [yellow]{the_file}[/]")
     for job in res["jobs"].values():
+        if job.get("steps") is None:
+            continue
         for step in job["steps"]:
             uses = step.get("uses")
             pretty_step = yaml.safe_dump(step, indent=2)

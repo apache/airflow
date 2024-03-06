@@ -331,7 +331,7 @@ class TestKubernetesJobOperator:
         tpl_file = tmp_path / "template.yaml"
         tpl_file.write_text(job_template_yaml)
 
-        yield tpl_file
+        return tpl_file
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_job_template_file(self, randomize_name, job_template_file):

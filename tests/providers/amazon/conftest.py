@@ -102,4 +102,3 @@ def set_default_aws_settings(aws_testing_env_vars, monkeypatch):
             monkeypatch.delenv(env_name, raising=False)
     for env_name, value in aws_testing_env_vars.items():
         monkeypatch.setenv(env_name, value)
-    yield

@@ -825,13 +825,13 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers) == 0
         mock_failed_function.assert_called_once()
         assert (
-            "The ECS task failed due to the following containers failing: \ntest-container-arn1 - "
+            "The ECS task failed due to the following containers failing:\ntest-container-arn1 - "
             "test failure" in caplog.messages[0]
         )
 
 
 class TestEcsExecutorConfig:
-    @pytest.fixture()
+    @pytest.fixture
     def assign_subnets(self):
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 
@@ -1142,7 +1142,7 @@ class TestEcsExecutorConfig:
         task_kwargs = ecs_executor_config.build_task_kwargs()
         assert "launchType" not in task_kwargs
         assert "capacityProviderStrategy" not in task_kwargs
-        assert mock_conn.describe_clusters.called_once()
+        mock_conn.describe_clusters.assert_called_once()
 
     @mock.patch.object(EcsHook, "conn")
     def test_providing_no_capacity_provider_no_lunch_type_no_cluster_default(self, mock_conn, set_env_vars):

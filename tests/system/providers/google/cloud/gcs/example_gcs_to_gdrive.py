@@ -34,7 +34,7 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.settings import Session
@@ -46,13 +46,14 @@ FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "root")
 
 DAG_ID = "example_gcs_to_gdrive"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
 TMP_PATH = "tmp"
 WORK_DIR = f"folder_{DAG_ID}_{ENV_ID}".replace("-", "_")
 CURRENT_FOLDER = Path(__file__).parent
-LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
+LOCAL_PATH = str(Path("gcs"))
 FILE_LOCAL_PATH = str(Path(LOCAL_PATH))
 FILE_NAME = "example_upload.txt"
 
@@ -94,18 +95,22 @@ with DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file_1 = LocalFilesystemToGCSOperator(
+    upload_file_1 = GCSToGCSOperator(
         task_id="upload_file_1",
-        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
-        dst=f"{TMP_PATH}/{FILE_NAME}",
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        destination_bucket=BUCKET_NAME,
+        destination_object=f"{TMP_PATH}/{FILE_NAME}",
+        exact_match=True,
     )
 
-    upload_file_2 = LocalFilesystemToGCSOperator(
+    upload_file_2 = GCSToGCSOperator(
         task_id="upload_file_2",
-        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
-        dst=f"{TMP_PATH}/2_{FILE_NAME}",
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        destination_bucket=BUCKET_NAME,
+        destination_object=f"{TMP_PATH}/2_{FILE_NAME}",
+        exact_match=True,
     )
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(

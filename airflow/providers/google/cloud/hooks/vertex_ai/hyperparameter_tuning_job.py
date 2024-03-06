@@ -25,7 +25,6 @@ This module contains a Google Cloud Vertex AI hook.
 from __future__ import annotations
 
 import asyncio
-from functools import lru_cache
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -35,7 +34,7 @@ from google.cloud.aiplatform_v1 import JobServiceAsyncClient, JobServiceClient, 
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -431,8 +430,10 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         return result
 
 
-class HyperparameterTuningJobAsyncHook(GoogleBaseHook):
+class HyperparameterTuningJobAsyncHook(GoogleBaseAsyncHook):
     """Async hook for Google Cloud Vertex AI Hyperparameter Tuning Job APIs."""
+
+    sync_hook_class = HyperparameterTuningJobHook
 
     def __init__(
         self,
@@ -446,8 +447,7 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseHook):
             **kwargs,
         )
 
-    @lru_cache
-    def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
+    async def get_job_service_client(self, region: str | None = None) -> JobServiceAsyncClient:
         """
         Retrieve Vertex AI async client.
 
@@ -455,7 +455,7 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseHook):
         """
         endpoint = f"{region}-aiplatform.googleapis.com:443" if region and region != "global" else None
         return JobServiceAsyncClient(
-            credentials=self.get_credentials(),
+            credentials=(await self.get_sync_hook()).get_credentials(),
             client_info=CLIENT_INFO,
             client_options=ClientOptions(api_endpoint=endpoint),
         )
@@ -479,7 +479,7 @@ class HyperparameterTuningJobAsyncHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
         """
-        client: JobServiceAsyncClient = self.get_job_service_client(region=location)
+        client: JobServiceAsyncClient = await self.get_job_service_client(region=location)
         job_name = client.hyperparameter_tuning_job_path(project_id, location, job_id)
 
         result = await client.get_hyperparameter_tuning_job(

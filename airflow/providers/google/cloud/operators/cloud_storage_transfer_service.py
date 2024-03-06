@@ -69,7 +69,9 @@ if TYPE_CHECKING:
 class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
-    def __init__(self, body: dict, aws_conn_id: str = "aws_default", default_schedule: bool = False) -> None:
+    def __init__(
+        self, body: dict, aws_conn_id: str | None = "aws_default", default_schedule: bool = False
+    ) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
@@ -228,7 +230,7 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         self,
         *,
         body: dict,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: str | None = None,
@@ -318,7 +320,7 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         *,
         job_name: str,
         body: dict,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: str | None = None,
@@ -832,7 +834,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         s3_path: str | None = None,
         gcs_path: str | None = None,
         project_id: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
         schedule: dict | None = None,

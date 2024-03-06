@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+8.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
+* ``Skip pod cleanup in case of pod creation failed (#37671)``
+
+Misc
+~~~~
+
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 8.0.0
 .....
 

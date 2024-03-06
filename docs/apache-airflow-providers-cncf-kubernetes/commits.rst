@@ -35,14 +35,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.0.1
+.....
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`30f7b2abe6 <https://github.com/apache/airflow/commit/30f7b2abe6991fe6e565f17f7d0701e80ecba0d3>`_  2024-03-04   ``Avoid to use too broad 'noqa' (#37862)``
+`d470674912 <https://github.com/apache/airflow/commit/d4706749128c4ec16890541f97c6e607e8eeb86a>`_  2024-03-01   ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
+`77341ef6a1 <https://github.com/apache/airflow/commit/77341ef6a1e4ffa3f8d3275eade325c89f2c95f2>`_  2024-02-29   ``Avoid non-recommended usage of logging (#37792)``
+`cd33c2a6a7 <https://github.com/apache/airflow/commit/cd33c2a6a73ca902daa234cf60dd0b7b9782bdc6>`_  2024-02-27   ``Migrate executor docs to respective providers (#37728)``
+`c6ba13adf2 <https://github.com/apache/airflow/commit/c6ba13adf278125177f561a23c601358294fa766>`_  2024-02-26   ``Skip pod cleanup in case of pod creation failed (#37671)``
+=================================================================================================  ===========  ===========================================================================================
+
 8.0.0
 .....
 
-Latest change: 2024-02-18
+Latest change: 2024-02-19
 
 =================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================================
+`fa234e0d22 <https://github.com/apache/airflow/commit/fa234e0d229dfebb6284dd851870e64186fb53e2>`_  2024-02-19   ``Prepare docs 1st wave (RC3) of Providers February 2024 (#37521)``
 `6412b06a7b <https://github.com/apache/airflow/commit/6412b06a7b35a0743656dd3b2160f390f40108c2>`_  2024-02-18   ``Fix KPO task hanging when pod fails to start within specified timeout (#37514)``
 `d50a25bd35 <https://github.com/apache/airflow/commit/d50a25bd35161b8a06bbeb4c61b19290f222021c>`_  2024-02-17   ``Fix KeyError when KPO exits too soon (#37508)``
 `75182363a2 <https://github.com/apache/airflow/commit/75182363a2070145745b98fa040e9bc590e3853b>`_  2024-02-17   ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``

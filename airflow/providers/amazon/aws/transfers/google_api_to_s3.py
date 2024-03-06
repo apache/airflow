@@ -112,7 +112,7 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):

@@ -33,7 +33,6 @@ from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
@@ -659,7 +658,6 @@ class AbstractOperator(Templater, DAGNode):
             dag = self.get_dag()
         return super().get_template_env(dag=dag)
 
-    @provide_session
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -667,8 +665,6 @@ class AbstractOperator(Templater, DAGNode):
         context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
-        *,
-        session: Session = NEW_SESSION,
     ) -> None:
         """Override the base to use custom error logging."""
         for attr_name in template_fields:

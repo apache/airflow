@@ -128,7 +128,7 @@ def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
     druid_ingest_conn_id = "druid_ingest_default"
     max_ingestion_time = 5
     timeout = 5
-    verify_ssl = "/path/to/ca.crt"
+    verify_ssl = False
     operator = DruidOperator(
         task_id="spark_submit_job",
         json_index_file=json_index_file,

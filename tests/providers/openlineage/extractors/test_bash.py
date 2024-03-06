@@ -43,7 +43,7 @@ with DAG(
     bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True)
 def clear_cache():
     is_source_enabled.cache_clear()
     try:

@@ -45,7 +45,7 @@ from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture()
+@pytest.fixture
 def recalculate_patterns():
     _get_patterns.cache_clear()
     _get_regexp_patterns.cache_clear()

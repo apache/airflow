@@ -1928,7 +1928,7 @@ class TestDataflow:
             mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
 
 
-@pytest.fixture()
+@pytest.fixture
 def make_mock_awaitable():
     def func(mock_obj, return_value):
         f = Future()

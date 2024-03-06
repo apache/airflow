@@ -21,7 +21,7 @@ from __future__ import annotations
 import warnings
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.triggers.pod import *  # noqa
+from airflow.providers.cncf.kubernetes.triggers.pod import *  # noqa: F403
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.triggers.pod` instead.",

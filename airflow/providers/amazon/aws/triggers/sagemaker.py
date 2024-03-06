@@ -50,7 +50,7 @@ class SageMakerTrigger(BaseTrigger):
         job_type: str,
         poke_interval: int = 30,
         max_attempts: int = 480,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
@@ -139,7 +139,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
         pipeline_execution_arn: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
     ):
         self.waiter_type = waiter_type
         self.pipeline_execution_arn = pipeline_execution_arn
@@ -212,7 +212,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         self,
         job_name: str,
         poke_interval: float,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name

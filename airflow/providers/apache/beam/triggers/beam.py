@@ -227,7 +227,7 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                     )
                     is_running = bool([job async for job in jobs if job.name == self.job_name])
                 except Exception as e:
-                    self.log.exception(f"Exception occurred while requesting jobs with name {self.job_name}")
+                    self.log.exception("Exception occurred while requesting jobs with name %s", self.job_name)
                     yield TriggerEvent({"status": "error", "message": str(e)})
                     return
                 if is_running:

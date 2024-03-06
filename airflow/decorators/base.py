@@ -459,7 +459,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            map_index_template=partial_kwargs.pop("map_index_template", None),
             params=partial_params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,

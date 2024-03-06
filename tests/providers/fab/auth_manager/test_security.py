@@ -154,7 +154,7 @@ def clear_db_after_suite():
     _clear_db_dag_and_runs()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db_before_test():
     _clear_db_dag_and_runs()
 
@@ -189,7 +189,7 @@ def db(app):
     return SQLA(app)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def role(request, app, security_manager):
     params = request.param
     _role = None
@@ -201,7 +201,7 @@ def role(request, app, security_manager):
     delete_role(app, params["name"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def mock_dag_models(request, session, security_manager):
     dags_ids = request.param
     dags = [_create_dag_model(dag_id, session, security_manager) for dag_id in dags_ids]
@@ -212,7 +212,7 @@ def mock_dag_models(request, session, security_manager):
         _delete_dag_model(dag, session, security_manager)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def sample_dags(security_manager):
     dags = [
         DAG("has_access_control", access_control={"Public": {permissions.ACTION_CAN_READ}}),
@@ -1049,14 +1049,14 @@ def test_fab_models_use_airflow_base_meta():
     assert user.metadata is Base.metadata
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_security_manager(app_builder):
     mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
     mocked_security_manager.update_user = mock.MagicMock()
     return mocked_security_manager
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_user():
     user = mock.MagicMock()
     user.login_count = None
@@ -1065,7 +1065,7 @@ def new_user():
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def old_user():
     user = mock.MagicMock()
     user.login_count = 42
@@ -1081,7 +1081,7 @@ def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_
     assert new_user.login_count == 1
     assert new_user.fail_login_count == 0
     assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once()
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1091,7 +1091,7 @@ def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager,
     assert old_user.login_count == 43
     assert old_user.fail_login_count == 0
     assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once()
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1101,7 +1101,7 @@ def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, ne
     assert new_user.login_count == 0
     assert new_user.fail_login_count == 1
     assert new_user.last_login is None
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once()
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1111,7 +1111,7 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
     assert old_user.login_count == 42
     assert old_user.fail_login_count == 10
     assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once()
 
 
 def test_users_can_be_found(app, security_manager, session, caplog):

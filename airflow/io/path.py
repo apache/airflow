@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import functools
 import os
 import shutil
 import typing
@@ -152,9 +151,10 @@ class ObjectStoragePath(CloudPath):
 
         return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
 
-    @functools.lru_cache
     def __hash__(self) -> int:
-        return hash(str(self))
+        if not (_hash := getattr(self, "_hash", None)):
+            self._hash = _hash = hash(str(self))
+        return _hash
 
     def __eq__(self, other: typing.Any) -> bool:
         return self.samestore(other) and str(self) == str(other)

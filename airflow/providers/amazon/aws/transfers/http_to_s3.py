@@ -114,7 +114,7 @@ class HttpToS3Operator(BaseOperator):
         replace: bool = False,
         encrypt: bool = False,
         acl_policy: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
     ):

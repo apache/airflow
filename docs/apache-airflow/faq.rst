@@ -104,7 +104,7 @@ Operators or tasks also have configurations that improves efficiency and schedul
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
-- ``queue``: See :ref:`executor:CeleryExecutor:queue` for CeleryExecutor deployments only.
+- ``queue``: See :ref:`apache-airflow-providers-celery:celery_executor:queue` for CeleryExecutor deployments only.
 
 
 How to reduce DAG scheduling latency / task delay?
@@ -118,6 +118,8 @@ How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
 You can achieve this with :ref:`concepts:trigger-rules`.
+
+.. _faq:how-to-control-dag-file-parsing-timeout:
 
 How to control DAG file parsing timeout for different DAG files?
 ----------------------------------------------------------------
@@ -146,6 +148,11 @@ When the return value is less than or equal to 0, it means no timeout during the
         if "no-timeout" in dag_file_path:
             return 0
         return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
+
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
+
 
 
 When there are a lot (>1000) of DAG files, how to speed up parsing of new files?

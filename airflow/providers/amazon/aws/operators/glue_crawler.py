@@ -45,7 +45,11 @@ class GlueCrawlerOperator(BaseOperator):
         :ref:`howto/operator:GlueCrawlerOperator`
 
     :param config: Configurations for the AWS Glue crawler
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
     :param wait_for_completion: Whether to wait for crawl execution completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.

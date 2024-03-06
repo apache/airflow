@@ -83,4 +83,4 @@ if __name__ == "__main__":
     # Example:
 
     with trace_memory():
-        import airflow  # noqa
+        import airflow  # noqa: F401

@@ -66,7 +66,7 @@ def testdata_string(testdata_bytes):
 def testdata_file(request, tmp_path_factory, testdata_bytes):
     fn = tmp_path_factory.mktemp(request.node.name) / "testfile_data"
     fn.write_bytes(testdata_bytes)
-    yield str(fn)
+    return str(fn)
 
 
 class TestGCSHookHelperFunctions:

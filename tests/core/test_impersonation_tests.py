@@ -97,7 +97,6 @@ def check_original_docker_image():
             "and only allow to run the test there. This is done by checking /.dockerenv file "
             "(always present inside container) and checking for PYTHON_BASE_IMAGE variable."
         )
-    yield
 
 
 @pytest.fixture
@@ -229,7 +228,6 @@ class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):
         monkeypatch.syspath_prepend(TEST_UTILS_FOLDER)
         self.dagbag = self.get_dagbag(TEST_DAG_CORRUPTED_FOLDER)
         monkeypatch.undo()
-        yield
 
     def test_impersonation_custom(self, monkeypatch):
         """

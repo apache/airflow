@@ -40,6 +40,12 @@ class KubeConfig:
         self.delete_worker_pods_on_failure = conf.getboolean(
             self.kubernetes_section, "delete_worker_pods_on_failure"
         )
+        self.worker_pod_pending_fatal_container_state_reasons = []
+        if conf.get(self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons", fallback=""):
+            self.worker_pod_pending_fatal_container_state_reasons = conf.get(
+                self.kubernetes_section, "worker_pod_pending_fatal_container_state_reasons"
+            ).split(",")
+
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )

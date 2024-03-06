@@ -31,10 +31,16 @@ be configured by providing custom logging configuration object. You can also cre
 for specific operators and tasks.
 
 Some configuration options require that the logging config class be overwritten. You can do it by copying the default
-configuration of Airflow and modifying it to suit your needs. The default configuration can be seen in the
+configuration of Airflow and modifying it to suit your needs.
+
+The default configuration can be seen in the
 `airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow-version|/airflow/config_templates/airflow_local_settings.py>`_
-and you can see the loggers and handlers used there. Except the custom loggers and handlers configurable there
-via the ``airflow.cfg``, the logging methods in Airflow follow the usual Python logging convention,
+and you can see the loggers and handlers used there.
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
+
+Except the custom loggers and handlers configurable there via the ``airflow.cfg``, the logging methods in Airflow follow the usual Python logging convention,
 that Python objects log to loggers that follow naming convention of ``<package>.<module_name>``.
 
 You can read more about standard python logging classes (Loggers, Handlers, Formatters) in the

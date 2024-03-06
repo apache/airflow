@@ -37,6 +37,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookP
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
+    from kubernetes.client import V1JobList
     from kubernetes.client.models import V1Deployment, V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -501,6 +502,30 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             )
             raise e
         return resp
+
+    def get_job(self, job_name: str, namespace: str) -> V1Job:
+        """Get Job of specified name from Google Cloud.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :return: Job object
+        """
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+
+    def list_jobs_all_namespaces(self) -> V1JobList:
+        """Get list of Jobs from all namespaces.
+
+        :return: V1JobList object
+        """
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
+
+    def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
+        """Get list of Jobs from dedicated namespace.
+
+        :param namespace: Namespace of the Job.
+        :return: V1JobList object
+        """
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
 
 
 def _get_bool(val) -> bool | None:

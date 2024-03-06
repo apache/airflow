@@ -179,34 +179,15 @@ first) event for the data interval, otherwise manual runs will run with a ``data
 
 .. _dataset-timetable-section:
 
-DatasetTimetable
-^^^^^^^^^^^^^^^^
+Dataset event based scheduling with time based scheduling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
 
-The ``DatasetTimetable`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
+The ``DatasetOrTimeSchedule`` is a specialized timetable allowing for the scheduling of DAGs based on both time-based schedules and dataset events. It facilitates the creation of scheduled runs (as per traditional timetables) and dataset-triggered runs, which operate independently.
 
 This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
-Here's an example of a DAG using ``DatasetTimetable``:
-
-.. code-block:: python
-
-    from airflow.timetables.dataset import DatasetTimetable
-    from airflow.timetables.trigger import CronTriggerTimetable
-
-
-    @dag(
-        schedule=DatasetTimetable(time=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), event=[dag1_dataset])
-        # Additional arguments here, replace this comment with actual arguments
-    )
-    def example_dag():
-        # DAG tasks go here
-        pass
-
-In this example, the DAG is scheduled to run every Wednesday at 01:00 UTC based on the ``CronTriggerTimetable``, and it is also triggered by updates to ``dag1_dataset``.
-
-Integrate conditional dataset with Time-Based Scheduling
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility:
+Here's an example of a DAG using ``DatasetOrTimeSchedule``:
 
 .. code-block:: python
 
@@ -223,6 +204,7 @@ Combining conditional dataset expressions with time-based schedules enhances sch
     def example_dag():
         # DAG tasks go here
         pass
+
 
 
 Timetables comparisons

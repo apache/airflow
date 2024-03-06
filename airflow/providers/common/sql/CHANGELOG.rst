@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
 1.11.0
 ......
 

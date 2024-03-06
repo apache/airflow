@@ -51,8 +51,6 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
         self.description = f"Triggered by datasets or {timetable.description}"
         self.periodic = timetable.periodic
         self._can_be_scheduled = timetable._can_be_scheduled
-
-        self.run_ordering = timetable.run_ordering
         self.active_runs_limit = timetable.active_runs_limit
 
     @classmethod

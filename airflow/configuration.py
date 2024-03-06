@@ -259,8 +259,10 @@ class AirflowConfigParser(ConfigParser):
                 if not self.is_template(section, key) and "{" in value:
                     errors = True
                     log.error(
-                        f"The {section}.{key} value {value} read from string contains "
-                        "variable. This is not supported"
+                        "The %s.%s value %s read from string contains variable. This is not supported",
+                        section,
+                        key,
+                        value,
                     )
                 self._default_values.set(section, key, value)
             if errors:

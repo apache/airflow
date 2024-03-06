@@ -208,7 +208,7 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
 
         except Exception:
@@ -272,7 +272,6 @@ class AwsEcsExecutor(BaseExecutor):
 
     def __log_container_failures(self, task_arn: str):
         """Check if the task failed due to issues with the containers."""
-        message = "The ECS task failed due to the following containers failing: \n"
         containers = self.active_workers.task_by_arn(task_arn).containers
         has_exit_codes = all(["exit_code" in x for x in containers])
         if not has_exit_codes:
@@ -282,8 +281,10 @@ class AwsEcsExecutor(BaseExecutor):
             for container in containers
             if "reason" in container
         ]
-
-        self.log.warning(message + "\n".join(reasons)) if reasons else ""
+        if reasons:
+            self.log.warning(
+                "The ECS task failed due to the following containers failing:\n%s", "\n".join(reasons)
+            )
 
     def __handle_failed_task(self, task_arn: str, reason: str):
         """If an API failure occurs, the task is rescheduled."""

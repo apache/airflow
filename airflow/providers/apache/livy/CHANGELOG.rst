@@ -28,6 +28,18 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix rendering 'LivyOperator.spark_params' (#37361)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 3.7.2
 .....
 

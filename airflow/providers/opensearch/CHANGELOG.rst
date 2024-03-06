@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+1.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix "Exception statement has no effect" (#37722)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix remaining D401 checks (#37434)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Add missing header into 'opensearch' changelog (#37313)``
+   * ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+
 1.1.1
 .....
 

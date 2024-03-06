@@ -41,10 +41,9 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
-    from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
-def _check_action_and_resource(sm: AirflowSecurityManagerV2, perms: list[tuple[str, str]]) -> None:
+def _check_action_and_resource(sm: FabAirflowSecurityManagerOverride, perms: list[tuple[str, str]]) -> None:
     """
     Check if the action or resource exists and otherwise raise 400.
 

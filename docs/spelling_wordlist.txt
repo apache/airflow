@@ -524,6 +524,7 @@ dttm
 dtypes
 du
 duckdb
+dunder
 durations
 dylib
 Dynamodb
@@ -858,6 +859,7 @@ JobComplete
 JobExists
 jobflow
 jobId
+JobList
 jobName
 JobRunning
 JobSpec
@@ -1740,6 +1742,7 @@ utilise
 Utils
 utils
 uuid
+V1JobList
 validator
 vals
 vCPU

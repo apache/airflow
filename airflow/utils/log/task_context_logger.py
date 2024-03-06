@@ -143,7 +143,7 @@ class TaskContextLogger:
         :param msg: the message to relay to task context log
         :param ti: the task instance
         """
-        self._log(logging.WARN, msg, *args, ti=ti)
+        self._log(logging.WARNING, msg, *args, ti=ti)
 
     def warning(self, msg: str, *args, ti: TaskInstance):
         """

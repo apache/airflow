@@ -1187,8 +1187,9 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
+    message += "execution_date=%s, start_date=%s, end_date=%s"
     log.info(
-        message + "execution_date=%s, start_date=%s, end_date=%s",
+        message,
         *params,
         _date_or_empty(task_instance=task_instance, attr="execution_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
@@ -1275,7 +1276,7 @@ class TaskInstance(Base, LoggingMixin):
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    rendered_map_index = Column(String(64))
+    rendered_map_index = Column(String(250))
 
     external_executor_id = Column(StringID())
 
@@ -1355,6 +1356,7 @@ class TaskInstance(Base, LoggingMixin):
 
     :meta private:
     """
+    _logger_name = "airflow.task"
 
     def __init__(
         self,
@@ -1456,8 +1458,6 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
-        # correctly config the ti log
-        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @hybrid_property
@@ -1501,7 +1501,6 @@ class TaskInstance(Base, LoggingMixin):
         Expose this for the Task Tries and Gantt graph views.
         Using `try_number` throws off the counts for non-running tasks.
         Also useful in error logging contexts to get the try number for the last try that was attempted.
-        https://issues.apache.org/jira/browse/AIRFLOW-2143
         """
         return self._try_number
 
@@ -2238,7 +2237,10 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.state = TaskInstanceState.RUNNING
         ti.emit_state_change_metric(TaskInstanceState.RUNNING)
-        ti.external_executor_id = external_executor_id
+
+        if external_executor_id:
+            ti.external_executor_id = external_executor_id
+
         ti.end_date = None
         if not test_mode:
             session.merge(ti).task = task

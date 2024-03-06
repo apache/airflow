@@ -39,6 +39,7 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -140,10 +141,10 @@ class TestFabAuthManager:
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    # With permission
                     (
                         api_name,
-                        "GET",
+                        "MENU",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
@@ -346,6 +347,18 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
                 False,
             ),
+            # Docs (positive)
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DOCS)],
+                True,
+            ),
+            # Without permission
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_READ, RESOURCE_DOCS)],
+                False,
+            ),
         ],
     )
     def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
@@ -399,7 +412,7 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_login(next_url="next_url")
-        mock_url_for.assert_called_once_with("test_endpoint.login", next_url="next_url")
+        mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):

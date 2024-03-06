@@ -72,11 +72,10 @@ def temp_override_attr(obj, attr, val):
     setattr(obj, attr, orig)
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db():
     db.clear_db_dags()
     db.clear_db_runs()
-    yield
 
 
 def create_context(task, persist_to_db=False, map_index=None):
@@ -936,7 +935,7 @@ class TestKubernetesPodOperator:
         tpl_file = tmp_path / "template.yaml"
         tpl_file.write_text(pod_template_yaml)
 
-        yield tpl_file
+        return tpl_file
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_pod_template_file(self, randomize_name, pod_template_file):

@@ -92,7 +92,7 @@ collect_ignore = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def reset_environment():
     """Resets env variables."""
     init_env = os.environ.copy()
@@ -105,7 +105,7 @@ def reset_environment():
             os.environ[key] = init_env[key]
 
 
-@pytest.fixture()
+@pytest.fixture
 def secret_key() -> str:
     """Return secret key configured."""
     from airflow.configuration import conf
@@ -119,19 +119,18 @@ def secret_key() -> str:
     return the_key
 
 
-@pytest.fixture()
+@pytest.fixture
 def url_safe_serializer(secret_key) -> URLSafeSerializer:
     return URLSafeSerializer(secret_key)
 
 
-@pytest.fixture()
+@pytest.fixture
 def reset_db():
     """Resets Airflow db."""
 
     from airflow.utils import db
 
     db.resetdb()
-    yield
 
 
 ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count"]
@@ -917,6 +916,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_id=None,
         run_type=None,
         data_interval=None,
+        external_executor_id=None,
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
@@ -937,6 +937,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.task = task
         ti.state = state
+        ti.external_executor_id = external_executor_id
         ti.map_index = map_index
 
         dag_maker.session.flush()
@@ -945,7 +946,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
     return maker
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_task_instance_of_operator(dag_maker):
     def _create_task_instance(
         operator_class,
@@ -967,7 +968,7 @@ def create_task_instance_of_operator(dag_maker):
     return _create_task_instance
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_task_of_operator(dag_maker):
     def _create_task_of_operator(operator_class, *, dag_id, session=None, **operator_kwargs):
         with dag_maker(dag_id=dag_id, session=session):
@@ -986,7 +987,7 @@ def session():
         session.rollback()
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_test_dag():
     def _get(dag_id):
         from airflow.models.dagbag import DagBag
@@ -1004,7 +1005,7 @@ def get_test_dag():
     return _get
 
 
-@pytest.fixture()
+@pytest.fixture
 def create_log_template(request):
     from airflow import settings
     from airflow.models.tasklog import LogTemplate
@@ -1025,7 +1026,7 @@ def create_log_template(request):
     return _create_log_template
 
 
-@pytest.fixture()
+@pytest.fixture
 def reset_logging_config():
     import logging.config
 
@@ -1112,7 +1113,7 @@ def initialize_providers_manager():
     ProvidersManager().initialize_providers_configuration()
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True)
 def close_all_sqlalchemy_sessions():
     from sqlalchemy.orm import close_all_sessions
 
@@ -1121,7 +1122,7 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
 
 
-@pytest.fixture()
+@pytest.fixture
 def cleanup_providers_manager():
     from airflow.providers_manager import ProvidersManager
 

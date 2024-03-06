@@ -22,9 +22,10 @@ description: |
     `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 state: ready
-source-date-epoch: 1707636332
+source-date-epoch: 1709555283
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.11.1
   - 1.11.0
   - 1.10.1
   - 1.10.0
@@ -58,7 +59,11 @@ dependencies:
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=1.2.5
+      # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+      # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+      # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+      # In addition FAB also limit sqlalchemy to < 2.0
+      - pandas>=1.2.5,<2.2
 
 integrations:
   - integration-name: Common SQL

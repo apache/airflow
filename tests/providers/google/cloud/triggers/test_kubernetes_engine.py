@@ -283,7 +283,7 @@ def operation_trigger():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_operation_result():
     def func(**kwargs):
         m = mock.MagicMock()
