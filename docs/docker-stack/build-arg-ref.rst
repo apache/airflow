@@ -49,7 +49,8 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_UV_VERSION``                   | ``<LATEST_AVAILABLE_IN_PYPI>``           |  UV version used.                           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_USE_UV``                       | ``false``                                |  Whether to use UV.                         |
+| ``AIRFLOW_USE_UV``                       | ``false``                                |  Whether to use UV to build the image.      |
+|                                          |                                          |  This is an experimental feature.           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |
@@ -113,6 +114,7 @@ List of default extras in the production Dockerfile:
 * snowflake
 * ssh
 * statsd
+* uv
 * virtualenv
 
 .. END OF EXTRAS LIST UPDATED BY PRE COMMIT

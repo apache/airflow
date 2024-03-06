@@ -38,6 +38,10 @@ KUBERNETES_JOB_LINK = (
     KUBERNETES_BASE_LINK
     + "/job/{location}/{cluster_name}/{namespace}/{job_name}/details?project={project_id}"
 )
+KUBERNETES_WORKLOADS_LINK = (
+    KUBERNETES_BASE_LINK + '/workload/overview?project={project_id}&pageState=("savedViews":'
+    '("c":%5B"gke%2F{location}%2F{cluster_name}"%5D,"n":%5B"{namespace}"%5D))'
+)
 
 
 class KubernetesEngineClusterLink(BaseGoogleLink):
@@ -108,6 +112,30 @@ class KubernetesEngineJobLink(BaseGoogleLink):
                 "cluster_name": task_instance.cluster_name,
                 "namespace": task_instance.job.metadata.namespace,
                 "job_name": task_instance.job.metadata.name,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class KubernetesEngineWorkloadsLink(BaseGoogleLink):
+    """Helper class for constructing Kubernetes Engine Workloads Link."""
+
+    name = "Kubernetes Workloads"
+    key = "kubernetes_workloads_conf"
+    format_str = KUBERNETES_WORKLOADS_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=KubernetesEngineWorkloadsLink.key,
+            value={
+                "location": task_instance.location,
+                "cluster_name": task_instance.cluster_name,
+                "namespace": task_instance.namespace,
                 "project_id": task_instance.project_id,
             },
         )

@@ -333,6 +333,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
+        self.pipeline_options = copy.deepcopy(self.pipeline_options)
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
@@ -740,7 +741,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
         self.go_file = go_file
         self.launcher_binary = launcher_binary
         self.worker_binary = worker_binary or launcher_binary
-
+        self.pipeline_options = copy.deepcopy(self.pipeline_options)
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )

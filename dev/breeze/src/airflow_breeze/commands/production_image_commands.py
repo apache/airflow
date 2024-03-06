@@ -68,6 +68,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_uv_default_disabled,
     option_verbose,
     option_version_suffix_for_pypi,
 )
@@ -244,6 +245,7 @@ def prod_image():
 @option_runtime_apt_deps
 @option_skip_cleanup
 @option_tag_as_latest
+@option_use_uv_default_disabled
 @option_verbose
 @option_version_suffix_for_pypi
 def build(
@@ -296,6 +298,7 @@ def build(
     skip_cleanup: bool,
     tag_as_latest: bool,
     use_constraints_for_context_packages: bool,
+    use_uv: bool,
     version_suffix_for_pypi: str,
 ):
     """
@@ -354,6 +357,7 @@ def build(
         runtime_apt_deps=runtime_apt_deps,
         tag_as_latest=tag_as_latest,
         use_constraints_for_context_packages=use_constraints_for_context_packages,
+        use_uv=use_uv,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:

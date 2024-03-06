@@ -27,6 +27,7 @@ import { useAutoRefresh } from "src/context/autorefresh";
 export default function useEventLogs({
   dagId,
   taskId,
+  runId,
   limit,
   offset,
   orderBy,
@@ -36,7 +37,18 @@ export default function useEventLogs({
 }: API.GetEventLogsVariables) {
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
-    ["eventLogs", dagId, taskId, limit, offset, orderBy, after, before, owner],
+    [
+      "eventLogs",
+      dagId,
+      taskId,
+      runId,
+      limit,
+      offset,
+      orderBy,
+      after,
+      before,
+      owner,
+    ],
     () => {
       const eventsLogUrl = getMetaValue("event_logs_api");
       const orderParam = orderBy ? { order_by: orderBy } : {};
@@ -46,6 +58,7 @@ export default function useEventLogs({
           limit,
           ...{ dag_id: dagId },
           ...{ task_id: taskId },
+          ...{ run_id: runId },
           ...orderParam,
           after,
           before,

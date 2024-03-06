@@ -288,6 +288,16 @@ The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` unde
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
 
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
+also provides deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+    :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+
+
 To delete batch prediction job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
 
