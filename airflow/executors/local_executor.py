@@ -272,7 +272,7 @@ class LocalExecutor(BaseExecutor):
             s.set_attribute('dag_id', key.dag_id)
             s.set_attribute('run_id', key.run_id)
             s.set_attribute('task_id', key.task_id)
-            s.set_attribute('try_number', key.try_number)
+            s.set_attribute('try_number', key.try_number-1)
             s.set_attribute('commands_to_run', str(self.commands_to_run))
 
             local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)

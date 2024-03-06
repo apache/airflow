@@ -759,7 +759,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 s.set_attribute('hostname', ti.hostname)
                 s.set_attribute('log_url', ti.log_url)
                 s.set_attribute('operator', str(ti.operator))
-                s.set_attribute('try_number', ti.try_number)
+                s.set_attribute('try_number', ti.try_number-1)
                 s.set_attribute('executor_state', state)
                 s.set_attribute('job_id', ti.job_id)
                 s.set_attribute('pool', ti.pool)
@@ -1482,8 +1482,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = trace_utils.gen_trace_id(dag_run=dag_run)
-        span_id = trace_utils.gen_dag_span_id(dag_run=dag_run)
+        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run), 16)
+        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run), 16)
         from airflow.traces.tracer import gen_links_from_kv_list
         links = [{'trace_id':trace_id, 'span_id':span_id}]
 

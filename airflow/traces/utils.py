@@ -29,16 +29,8 @@ log = logging.getLogger(__name__)
 def gen_trace_id(dag_run)->str:
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
-    hash_seed = f"{dag_id}_{run_id}"
-    hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
-    return hash_hex
-
-
-def gen_trace_id_from_ti_key(ti_key)->str:
-    """generate trace id from TI key"""
-    dag_id = ti_key.dag_id
-    run_id = ti_key.run_id
-    hash_seed = f"{dag_id}_{run_id}"
+    start_dt = dag_run.start_date
+    hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
     hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()
     return hash_hex
 
@@ -48,8 +40,10 @@ def gen_span_id_from_ti_key(ti_key)->str:
     dag_id = ti_key.dag_id
     run_id = ti_key.run_id
     task_id = ti_key.task_id
-    hash_seed = f"{dag_id}_{run_id}_{task_id}"
+    try_num = ti_key.try_number   # key always has next number, not current
+    hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    log.info(f"[gen_span_id_from_ti_key] dag_id: {dag_id} run_id: {run_id} task_id: {task_id} try_num: {try_num} => {hash_hex}")
     return hash_hex
 
 
@@ -57,7 +51,8 @@ def gen_dag_span_id(dag_run):
     """generate dag's root span id using dag_run"""
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
-    hash_seed = f"{dag_id}_{run_id}"
+    start_dt = dag_run.start_date
+    hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
     return hash_hex
 
@@ -68,8 +63,11 @@ def gen_span_id(ti):
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
     task_id = ti.task_id
-    hash_seed = f"{dag_id}_{run_id}_{task_id}"
+    """in terms of ti when this is called, the try_number is already set to next, hence the subtraction"""
+    try_num = ti.try_number-1
+    hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    log.info(f"[gen_span_id] dag_id: {dag_id} run_id: {run_id} task_id: {task_id} try_num: {try_num} => {hash_hex}")
     return hash_hex
 
 

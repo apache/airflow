@@ -65,6 +65,7 @@ _NEXT_ID = create_key("next_id")
 class OtelTrace:
     def __init__(self, span_exporter, tags=None):
         self.span_exporter = span_exporter
+        self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tags = tags
         self.otel_service = conf.get('traces','otel_service')
 
@@ -75,8 +76,8 @@ class OtelTrace:
             SERVICE_NAME: self.otel_service
         })
         tracer_provider = TracerProvider(resource=resource)
-        span_processor = BatchSpanProcessor(self.span_exporter)
-        tracer_provider.add_span_processor(span_processor)
+        # span_processor = BatchSpanProcessor(self.span_exporter)
+        tracer_provider.add_span_processor(self.span_processor)
         tracer = tracer_provider.get_tracer(component)
         return tracer
     
@@ -87,8 +88,8 @@ class OtelTrace:
             SERVICE_NAME: self.otel_service
         })
         tracer_provider = TracerProvider(resource=resource, id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id))
-        span_processor = BatchSpanProcessor(self.span_exporter)
-        tracer_provider.add_span_processor(span_processor)
+        # span_processor = BatchSpanProcessor(self.span_exporter, schedule_delay_millis=1)
+        tracer_provider.add_span_processor(self.span_processor)
         tracer = tracer_provider.get_tracer(component)
         """tracer will product a Single ID value if value is provided. Note that this is one-time only, so any
            subsequent call will produce the normal random ids
@@ -101,12 +102,17 @@ class OtelTrace:
     def use_span(self, span:Span) -> Span:
         return trace.use_span(span=span)
 
-    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, links=None, start_time=None) -> Span:
+    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, span_id=None, links=None, start_time=None) -> Span:
         """start a span. if service_name is not given, otel_service is used"""
         if component is None:
-            tracer = self.get_tracer(self.otel_service)
+            component = self.otel_service
+
+        trace_id = self.get_current_span().get_span_context().trace_id
+        if span_id is not None:
+            tracer = self.get_tracer_with_id(component=component, trace_id=trace_id, span_id=span_id)
         else:
             tracer = self.get_tracer(component)
+
         kvs = {}
         if self.tags is not None:
             kvs = parse_tracestate(self.tags)
@@ -196,11 +202,7 @@ class OtelTrace:
            if child == True, it will create a 'child' span under the given span
         """
         dagrun = ti.dag_run
-        # check if any trace_id is found. if found, use it.
-        if dagrun.conf is not None and 'trace_id' in dagrun.conf:
-            trace_id = int(dagrun.conf['trace_id'], 16)
-        else:
-            trace_id = int(gen_trace_id(dag_run=dagrun), 16)
+        trace_id = int(gen_trace_id(dag_run=dagrun), 16)
         span_id = int(gen_span_id(ti=ti), 16)
         span_name = ti.task_id
 
@@ -241,8 +243,8 @@ class OtelTrace:
 
 def gen_context(trace_id, span_id):
     span_ctx = SpanContext(
-        trace_id = int(trace_id, 16),
-        span_id = int(span_id, 16),
+        trace_id = trace_id,
+        span_id = span_id,
         is_remote = True,
         trace_flags = TraceFlags(0x01)
     )
@@ -269,7 +271,7 @@ def gen_link_from_traceparent(traceparent):
         trace_ctx = parse_traceparent(traceparent)
         trace_id = trace_ctx['trace_id']
         span_id = trace_ctx['parent_id']
-        span_ctx = gen_context(trace_id, span_id)
+        span_ctx = gen_context(int(trace_id, 16), int(span_id, 16))
         a_link = Link(
             context=span_ctx,
             attributes={
