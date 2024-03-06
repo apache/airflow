@@ -341,7 +341,16 @@ option_use_uv = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
     default=True,
-    help="Use uv instead of pip as packaging tool.",
+    show_default=True,
+    help="Use uv instead of pip as packaging tool to build the image.",
+    envvar="USE_UV",
+)
+option_use_uv_default_disabled = click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
 option_pydantic = click.option(

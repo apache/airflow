@@ -4896,7 +4896,7 @@ class VariableModelView(AirflowModelView):
             if action_on_existing == "fail" and existing_keys:
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                logger.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logger.error("Failed. The variables with these keys: %s already exists.", failed_repr)
                 self.update_redirect()
                 return redirect(self.get_redirect())
             skipped = set()
@@ -5240,6 +5240,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5250,6 +5251,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",

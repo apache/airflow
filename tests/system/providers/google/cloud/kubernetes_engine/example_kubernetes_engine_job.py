@@ -27,6 +27,8 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
+    GKEDescribeJobOperator,
+    GKEListJobsOperator,
     GKEStartJobOperator,
 )
 
@@ -64,6 +66,23 @@ with DAG(
         name="test-pi",
     )
     # [END howto_operator_gke_start_job]
+
+    # [START howto_operator_gke_list_jobs]
+    list_job_task = GKEListJobsOperator(
+        task_id="list_job_task", project_id=GCP_PROJECT_ID, location=GCP_LOCATION, cluster_name=CLUSTER_NAME
+    )
+    # [END howto_operator_gke_list_jobs]
+
+    # [START howto_operator_gke_describe_job]
+    describe_job_task = GKEDescribeJobOperator(
+        task_id="describe_job_task",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
+        job_name=job_task.output["job_name"],
+        namespace="default",
+        cluster_name=CLUSTER_NAME,
+    )
+    # [END howto_operator_gke_describe_job]
 
     delete_cluster = GKEDeleteClusterOperator(
         task_id="delete_cluster",

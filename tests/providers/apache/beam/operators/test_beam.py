@@ -60,6 +60,7 @@ EXPECTED_ADDITIONAL_OPTIONS = {
     "output": "gs://test/output",
     "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
 }
+
 TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
 BEAM_OPERATOR_PATH = "airflow.providers.apache.beam.operators.beam.{}"
 
@@ -286,7 +287,7 @@ class TestBeamRunJavaPipelineOperator:
             "jobName": job_name,
             "stagingLocation": "gs://test/staging",
             "region": "us-central1",
-            "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
+            "labels": {"foo": "bar"},
             "output": "gs://test/output",
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
@@ -926,7 +927,7 @@ class TestBeamRunJavaPipelineOperatorAsync:
             "job_name": job_name,
             "staging_location": "gs://test/staging",
             "output": "gs://test/output",
-            "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
+            "labels": {"foo": "bar"},
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
         }
