@@ -78,15 +78,20 @@ class TaskContextLogger:
             assert isinstance(h, FileTaskHandler)
         return h
 
-    def _log(self, level: int, msg: str, *args, ti: TaskInstance):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message to the task instance logs.
 
         :param level: the log level
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        if self.call_site_logger and self.call_site_logger.isEnabledFor(level=level):
+        if (
+            self.call_site_logger
+            and self.call_site_logger.isEnabledFor(level=level)
+            and not suppress_in_call_site
+        ):
             with suppress(Exception):
                 self.call_site_logger.log(level, msg, *args)
 
@@ -109,74 +114,82 @@ class TaskContextLogger:
         finally:
             task_handler.close()
 
-    def critical(self, msg: str, *args, ti: TaskInstance):
+    def critical(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level CRITICAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.CRITICAL, msg, *args, ti=ti)
+        self._log(logging.CRITICAL, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def fatal(self, msg: str, *args, ti: TaskInstance):
+    def fatal(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level FATAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.FATAL, msg, *args, ti=ti)
+        self._log(logging.FATAL, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def error(self, msg: str, *args, ti: TaskInstance):
+    def error(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level ERROR to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.ERROR, msg, *args, ti=ti)
+        self._log(logging.ERROR, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def warn(self, msg: str, *args, ti: TaskInstance):
+    def warn(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level WARN to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.WARNING, msg, *args, ti=ti)
+        self._log(logging.WARNING, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def warning(self, msg: str, *args, ti: TaskInstance):
+    def warning(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level WARNING to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.WARNING, msg, *args, ti=ti)
+        self._log(logging.WARNING, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def info(self, msg: str, *args, ti: TaskInstance):
+    def info(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level INFO to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.INFO, msg, *args, ti=ti)
+        self._log(logging.INFO, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def debug(self, msg: str, *args, ti: TaskInstance):
+    def debug(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level DEBUG to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.DEBUG, msg, *args, ti=ti)
+        self._log(logging.DEBUG, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
 
-    def notset(self, msg: str, *args, ti: TaskInstance):
+    def notset(self, msg: str, *args, ti: TaskInstance, suppress_in_call_site=False):
         """
         Emit a log message with level NOTSET to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
+        :param suppress_in_call_site: if True, only write to task log not call site log
         """
-        self._log(logging.NOTSET, msg, *args, ti=ti)
+        self._log(logging.NOTSET, msg, *args, ti=ti, suppress_in_call_site=suppress_in_call_site)
