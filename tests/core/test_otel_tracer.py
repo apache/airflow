@@ -122,7 +122,10 @@ class TestOtelTrace(unittest.TestCase):
                 with tracer.start_span(span_name='span2') as s2:
                     s2.set_attribute('attr2', 'val2')
                 span1 = json.loads(s1.to_json())
-            assert(span1['context']['trace_id'] == '0x0af7651916cd43dd8448eb211c80319c')
+            log.info(f"{span1}")
+            assert(span1['context']['trace_id'] != '0x0af7651916cd43dd8448eb211c80319c')
+            assert(span1['links'][1]['context']['trace_id'] == '0x0af7651916cd43dd8448eb211c80319c')
+            assert(span1['links'][1]['context']['span_id'] == '0xb7ad6b7169203331')
             time.sleep(1)
             assert(len(in_mem_exporter.get_finished_spans()) == 2)
 

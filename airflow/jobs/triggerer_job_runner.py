@@ -412,6 +412,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge(
             "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
         )
+        s = Trace.get_current_span()
+        s.set_attribute('trigger host', self.job.hostname)
+        s.set_attribute('triggers running', len(self.trigger_runner.triggers))
 
 
 class TriggerDetails(TypedDict):

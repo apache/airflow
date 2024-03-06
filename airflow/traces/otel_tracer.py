@@ -177,24 +177,15 @@ class OtelTrace:
             # add the trace parent as linkages
             tp_link = gen_link_from_traceparent(traceparent)
             _links.append(tp_link)
-            parent_id = tp_link.span_id
-            span_ctx = SpanContext(
-                trace_id = trace_id,
-                span_id = parent_id,
-                is_remote = True,
-                trace_flags = TraceFlags(0x01)
-            )
-            ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
-        else:
-            span_ctx = SpanContext(
-                trace_id = INVALID_TRACE_ID,
-                span_id = INVALID_SPAN_ID,
-                is_remote = True,
-                trace_flags = TraceFlags(0x01)
-            )
-            ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-            span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
+
+        span_ctx = SpanContext(
+            trace_id = INVALID_TRACE_ID,
+            span_id = INVALID_SPAN_ID,
+            is_remote = True,
+            trace_flags = TraceFlags(0x01)
+        )
+        ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
+        span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
         return span
 
     def start_span_from_taskinstance(self, ti, span_name:str=None, component:str='taskinstance', child:bool=False, links=None) -> Span:
@@ -279,6 +270,8 @@ def gen_link_from_traceparent(traceparent):
                 'from': 'traceparent'
             }
         )
+        return a_link
+    return None
 
 def get_otel_tracer(cls) -> OtelTrace:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import(
