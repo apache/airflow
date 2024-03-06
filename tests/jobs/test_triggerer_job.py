@@ -52,20 +52,20 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture(autouse=True)
+class QueueListener_(logging.handlers.QueueListener):
+    def __init__(self, queue, *handlers, respect_handler_level):
+        no_console_handlers = []
+        for h in handlers:
+            if h.name != "console":
+                no_console_handlers.append(h)
+        super().__init__(queue, *no_console_handlers, respect_handler_level=respect_handler_level)
+
+
+@pytest.fixture(scope="module", autouse=True)
 def disable_console_handler():
     """
     Prevent console handler from getting bound to the trigger_job_runner when setup_queue_listener is called during tests
     """
-
-    class QueueListener_(logging.handlers.QueueListener):
-        def __init__(self, queue, *handlers, respect_handler_level):
-            no_console_handlers = []
-            for h in handlers:
-                if h.name != "console":
-                    no_console_handlers.append(h)
-            super().__init__(queue, *no_console_handlers, respect_handler_level=respect_handler_level)
-
     with patch("logging.handlers.QueueListener", QueueListener_):
         yield
 
