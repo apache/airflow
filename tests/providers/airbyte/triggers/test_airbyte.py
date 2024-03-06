@@ -31,6 +31,7 @@ class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
     JOB_ID = 1234
+    API_TYPE = "config_api"
     CONN_ID = "airbyte_default"
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
@@ -38,13 +39,18 @@ class TestAirbyteSyncTrigger:
     def test_serialization(self):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            api_type=self.API_TYPE,
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
         assert kwargs == {
             "job_id": self.JOB_ID,
             "conn_id": self.CONN_ID,
+            "api_type": self.API_TYPE,
             "end_time": self.END_TIME,
             "poll_interval": self.POLL_INTERVAL,
         }
@@ -55,6 +61,7 @@ class TestAirbyteSyncTrigger:
         """Test AirbyteSyncTrigger is triggered with mocked details and run successfully."""
         mocked_is_still_running.return_value = True
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
@@ -83,6 +90,7 @@ class TestAirbyteSyncTrigger:
         mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
@@ -114,7 +122,11 @@ class TestAirbyteSyncTrigger:
         mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            api_type=self.API_TYPE,
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         expected_result = {
             "status": mock_status,
@@ -142,6 +154,7 @@ class TestAirbyteSyncTrigger:
         mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
@@ -165,6 +178,7 @@ class TestAirbyteSyncTrigger:
         mocked_is_still_running.return_value = False
         mock_get_job_status.side_effect = Exception("Test exception")
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
@@ -190,6 +204,7 @@ class TestAirbyteSyncTrigger:
         mock_get_job_status.side_effect = Exception("Test exception")
         end_time = time.time()
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=end_time,
@@ -223,6 +238,7 @@ class TestAirbyteSyncTrigger:
         hook = mock.AsyncMock(AirbyteHook)
         hook.get_job_status.return_value = mock_response
         trigger = AirbyteSyncTrigger(
+            api_type=self.API_TYPE,
             conn_id=self.CONN_ID,
             poll_interval=self.POLL_INTERVAL,
             end_time=self.END_TIME,
@@ -247,7 +263,11 @@ class TestAirbyteSyncTrigger:
         airbyte_hook = mock.AsyncMock(AirbyteHook)
         airbyte_hook.get_job_status.return_value = mock_response
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            api_type=self.API_TYPE,
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         response = await trigger.is_still_running(airbyte_hook)
         assert response == expected_status
