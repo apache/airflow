@@ -80,29 +80,35 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component, links=None):
+    def start_span_from_dagrun(cls, dagrun, span_name=None, service_name=None, component=None, links=None):
         """start span from dagrun"""
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name, component, child=False, links=None):
+    def start_span_from_taskinstance(cls, ti, span_name=None, component=None, child=False, links=None):
         """start span from taskinstance"""
         raise NotImplementedError()
 
-
-class DummySpan(object):
-    """If no Tracer is configured, DummySpan is used as a fallback"""
+class DummyContext:
     def __init__(self):
-        pass
+        self.trace_id = 1
+
+DUMMY_CTX = DummyContext()
+
+class DummySpan:
+    """If no Tracer is configured, DummySpan is used as a fallback"""
 
     def __enter__(self):
-        pass
+        return self
 
-    def __exit__(self):
+    def __exit__(self, *args, **kwargs):
         pass
 
     def __call__(self, obj):
         return obj
+    
+    def get_span_context(self):
+        return DUMMY_CTX
 
     def set_attribute(self, key, value) -> None:
         """setting a attribute to the span"""
@@ -129,41 +135,46 @@ class DummySpan(object):
         """adding link to the span"""
         pass
 
-    def end(self, end_time = None) -> None:
+    def end(self, end_time = None, *args, **kwargs) -> None:
         pass
 
+DUMMY_SPAN = DummySpan()
 
 class DummyTrace:
     """If no Tracer is configured, DummyTracer is used as a fallback"""
 
     @classmethod
-    def get_tracer(cls, component):
-        """get tracer"""
+    def get_tracer(cls, component:str):
+        return cls
+
+    @classmethod
+    def get_tracer_with_id(cls, component:str, trace_id:int=None, span_id:int=None):
+        return cls
 
     @classmethod
     def start_span(cls, span_name:str, component:str=None, parent_sc=None, span_id=None, links=None, start_time=None) -> DummySpan:
         """start span"""
-        return DummySpan()
+        return DUMMY_SPAN
     
     @classmethod
     def use_span(cls, span) -> DummySpan:
         """use span"""
-        return DummySpan()
+        return DUMMY_SPAN
     
     @classmethod
     def get_current_span(self) -> DummySpan:
         """get current span"""
-        return DummySpan()
+        return DUMMY_SPAN
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name, service_name, component, links=None) -> DummySpan:
+    def start_span_from_dagrun(cls, dagrun, span_name=None, service_name=None, component=None, links=None) -> DummySpan:
         """start span from dagrun"""
-        return DummySpan()
+        return DUMMY_SPAN
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name, component, child=False, links=None) -> DummySpan:
+    def start_span_from_taskinstance(cls, ti, span_name=None, component=None, child=False, links=None) -> DummySpan:
         """start span from taskinstance"""
-        return DummySpan()
+        return DUMMY_SPAN
 
 
 class _Trace(type):
