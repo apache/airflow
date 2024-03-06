@@ -25,7 +25,7 @@ from unittest import mock
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart
+from tests.charts.helm_template_generator import get_chart_and_airflow_version, render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
@@ -307,6 +307,7 @@ class TestBaseChartTest:
     def test_labels_are_valid(self):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
+        chart_version, airflow_version = get_chart_and_airflow_version()
         k8s_objects = render_chart(
             name=release_name,
             values={
@@ -402,6 +403,11 @@ class TestBaseChartTest:
             expected_labels = {
                 "label1": "value1",
                 "label2": "value2",
+                "app.kubernetes.io/version": airflow_version,
+                "app.kubernetes.io/instance": release_name,
+                "helm.sh/chart": f"airflow-{chart_version}",
+                "app.kubernetes.io/managed-by": "Helm",
+                "app.kubernetes.io/part-of": "airflow",
                 "tier": "airflow",
                 "release": release_name,
                 "heritage": "Helm",
@@ -409,13 +415,61 @@ class TestBaseChartTest:
             }
             if component:
                 expected_labels["component"] = component
+                expected_labels["app.kubernetes.io/component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+
+            # Not all k8s resources are labelled with app.kubernetes.io/name
+            # So we skip the checking of this label
+            if "app.kubernetes.io/name" in actual_labels:
+                del actual_labels["app.kubernetes.io/name"]
             assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
             warnings.warn(f"Unchecked objects: {kind_k8s_obj_labels_tuples.keys()}")
+
+    def test_app_name_label_not_exceed_63_char(self):
+        """Test label app.kubernetes.io/name does not exceed 63 char."""
+        long_release_name = "airflow" * 7
+        chart_version, airflow_version = get_chart_and_airflow_version()
+        k8s_objects = render_chart(
+            name=long_release_name,
+            values={
+                "labels": {"label1": "value1", "label2": "value2"},
+                "executor": "CeleryExecutor",
+                "data": {
+                    "resultBackendConnection": {
+                        "user": "someuser",
+                        "pass": "somepass",
+                        "host": "somehost",
+                        "protocol": "postgresql",
+                        "port": 7777,
+                        "db": "somedb",
+                        "sslmode": "allow",
+                    }
+                },
+                "pgbouncer": {"enabled": True},
+                "redis": {"enabled": True},
+                "ingress": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
+                "dagProcessor": {"enabled": True},
+                "logs": {"persistence": {"enabled": True}},
+                "dags": {"persistence": {"enabled": True}},
+                "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
+            },
+        )
+        target_labels = [
+            label_val
+            for k8s_object in k8s_objects
+            for label_name, label_val in k8s_object["metadata"]["labels"].items()
+            if label_name == "app.kubernetes.io/name"
+        ]
+
+        for target_label in target_labels:
+            assert len(target_label) < 63
 
     def test_labels_are_valid_on_job_templates(self):
         """Test labels are correctly applied on all job templates created by this chart."""

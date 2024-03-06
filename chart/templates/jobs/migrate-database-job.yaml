@@ -32,7 +32,8 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "airflow.fullname" . }}-run-airflow-migrations
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: run-airflow-migrations
     tier: airflow
     component: run-airflow-migrations
     release: {{ .Release.Name }}

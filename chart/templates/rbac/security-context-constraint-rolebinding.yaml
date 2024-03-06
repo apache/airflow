@@ -33,7 +33,7 @@ metadata:
   namespace: "{{ .Release.Namespace }}"
   {{- end }}
   name: {{ include "airflow.fullname" . }}-scc-rolebinding
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

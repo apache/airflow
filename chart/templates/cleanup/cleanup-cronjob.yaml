@@ -31,7 +31,8 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ include "airflow.fullname" . }}-cleanup
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: airflow-cleanup-pods
     tier: airflow
     component: airflow-cleanup-pods
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

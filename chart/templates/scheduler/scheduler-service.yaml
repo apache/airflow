@@ -26,7 +26,9 @@ apiVersion: v1
 kind: Service
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-scheduler
+    app.kubernetes.io/component: scheduler
     tier: airflow
     component: scheduler
     release: {{ .Release.Name }}

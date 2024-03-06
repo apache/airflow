@@ -24,15 +24,15 @@ If release name contains chart name it will be used as a full name.
 */}}
 {{- define "airflow.fullname" -}}
   {{- if not .Values.useStandardNaming }}
-    {{- .Release.Name }}
+    {{- .Release.Name | trunc 40 | trimSuffix "-" }}
   {{- else if .Values.fullnameOverride }}
-    {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+    {{- .Values.fullnameOverride | trunc 40 | trimSuffix "-" }}
   {{- else }}
     {{- $name := default .Chart.Name .Values.nameOverride }}
     {{- if contains $name .Release.Name }}
-      {{- .Release.Name | trunc 63 | trimSuffix "-" }}
+      {{- .Release.Name | trunc 40 | trimSuffix "-" }}
     {{- else }}
-      {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+      {{- printf "%s-%s" .Release.Name $name | trunc 40 | trimSuffix "-" }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -1037,3 +1037,15 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "kubernetes_recommended_labels" }}
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  app.kubernetes.io/instance: {{ .Release.Name }}
+  helm.sh/chart: "{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}"
+  app.kubernetes.io/managed-by: {{ .Release.Service }}
+  app.kubernetes.io/part-of: {{ include "airflow_chart_name" . }}
+{{- end }}
+
+{{- define "airflow_chart_name" -}}
+  {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
+{{- end -}}
