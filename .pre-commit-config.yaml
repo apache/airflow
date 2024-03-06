@@ -452,7 +452,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
-        files: ^setup\.py$|^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
+        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
@@ -768,6 +768,14 @@ repos:
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
+        language: python
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
+      - id: kubeconform
+        name: Kubeconform check on our helm chart
+        entry: ./scripts/ci/pre_commit/pre_commit_kubeconform.py
         language: python
         pass_filenames: false
         files: ^chart

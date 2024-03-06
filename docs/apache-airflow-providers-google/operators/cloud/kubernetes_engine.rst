@@ -213,6 +213,37 @@ All Kubernetes parameters (except ``config_file``) are also valid for the ``GKES
     :start-after: [START howto_operator_gke_start_job]
     :end-before: [END howto_operator_gke_start_job]
 
+
+.. _howto/operator:GKEDescribeJobOperator:
+
+Retrieve information about Job by given name
+""""""""""""""""""""""""""""""""""""""""""""
+
+You can use :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEDescribeJobOperator` to retrieve
+detailed description of existing Job by providing its name and namespace.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_describe_job]
+    :end-before: [END howto_operator_gke_describe_job]
+
+
+.. _howto/operator:GKEListJobsOperator:
+
+Retrieve list of Jobs
+"""""""""""""""""""""
+
+You can use :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEListJobsOperator` to retrieve
+list of existing Jobs. If ``namespace`` parameter is provided, output will include Jobs across given namespace.
+If ``namespace`` parameter is not specified, the information across all the namespaces will be outputted.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_list_jobs]
+    :end-before: [END howto_operator_gke_list_jobs]
+
 Reference
 ^^^^^^^^^
 

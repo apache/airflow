@@ -21,15 +21,14 @@ import json
 import logging
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_gcs import GoogleDriveToGCSOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.sensors.drive import GoogleDriveFileExistenceSensor
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
@@ -41,6 +40,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gdrive_to_gcs_with_gdrive_sensor"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
@@ -48,7 +48,7 @@ OBJECT = "abc123xyz"
 FOLDER_ID = ""
 FILE_NAME = "example_upload.txt"
 DRIVE_FILE_NAME = f"example_upload_{DAG_ID}_{ENV_ID}.txt"
-LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+LOCAL_PATH = f"gcs/{FILE_NAME}"
 
 log = logging.getLogger(__name__)
 
@@ -88,11 +88,13 @@ with DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
+    upload_file = GCSToGCSOperator(
         task_id="upload_file",
-        src=LOCAL_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=LOCAL_PATH,
+        destination_bucket=BUCKET_NAME,
+        destination_object=FILE_NAME,
+        exact_match=True,
     )
 
     copy_single_file = GCSToGoogleDriveOperator(

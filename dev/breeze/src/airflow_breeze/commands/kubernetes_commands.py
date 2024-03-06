@@ -29,6 +29,7 @@ from shlex import quote
 import click
 
 from airflow_breeze.commands.common_options import (
+    option_answer,
     option_debug_resources,
     option_dry_run,
     option_include_success_outputs,
@@ -37,6 +38,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_uv,
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import run_build_production_image
@@ -555,9 +557,10 @@ def _rebuild_k8s_image(
     python: str,
     image_tag: str,
     rebuild_base_image: bool,
+    use_uv: bool,
     output: Output | None,
 ) -> tuple[int, str]:
-    params = BuildProdParams(python=python, image_tag=image_tag)
+    params = BuildProdParams(python=python, image_tag=image_tag, use_uv=use_uv)
     if rebuild_base_image:
         run_build_production_image(prod_image_params=params, output=output)
     else:
@@ -583,6 +586,7 @@ def _rebuild_k8s_image(
     docker_image_for_kubernetes_tests = f"""
 FROM {params.airflow_image_name_with_tag}
 
+COPY . /opt/airflow/
 COPY airflow/example_dags/ /opt/airflow/dags/
 
 COPY airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
@@ -627,27 +631,30 @@ def _upload_k8s_image(python: str, kubernetes_version: str, output: Output | Non
     name="build-k8s-image",
     help="Build k8s-ready airflow image (optionally all images in parallel).",
 )
-@option_python
+@option_answer
+@option_debug_resources
+@option_dry_run
 @option_image_tag
+@option_include_success_outputs
+@option_parallelism
+@option_python
+@option_python_versions
 @option_rebuild_base_image
 @option_run_in_parallel
-@option_parallelism
 @option_skip_cleanup
-@option_debug_resources
-@option_include_success_outputs
-@option_python_versions
+@option_use_uv
 @option_verbose
-@option_dry_run
 def build_k8s_image(
-    python: str,
+    debug_resources: bool,
     image_tag: str,
+    include_success_outputs: bool,
+    parallelism: int,
+    python: str,
+    python_versions: str,
     rebuild_base_image: bool,
     run_in_parallel: bool,
-    parallelism: int,
     skip_cleanup: bool,
-    debug_resources: bool,
-    include_success_outputs: bool,
-    python_versions: str,
+    use_uv: bool,
 ):
     result = create_virtualenv(force_venv_setup=False)
     if result.returncode != 0:
@@ -669,6 +676,7 @@ def build_k8s_image(
                             "python": _python,
                             "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "use_uv": use_uv,
                             "output": outputs[index],
                         },
                     )
@@ -686,6 +694,7 @@ def build_k8s_image(
             python=python,
             image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            use_uv=use_uv,
             output=None,
         )
         if return_code == 0:
@@ -1502,6 +1511,7 @@ def _run_complete_tests(
     executor: str,
     image_tag: str,
     rebuild_base_image: bool,
+    use_uv: bool,
     upgrade: bool,
     wait_time_in_seconds: int,
     force_recreate_cluster: bool,
@@ -1516,6 +1526,7 @@ def _run_complete_tests(
         python=python,
         output=output,
         image_tag=image_tag,
+        use_uv=use_uv,
         rebuild_base_image=rebuild_base_image,
     )
     if returncode != 0:
@@ -1629,45 +1640,47 @@ def _run_complete_tests(
         ignore_unknown_options=True,
     ),
 )
-@option_python
-@option_kubernetes_version
-@option_executor
-@option_image_tag
-@option_rebuild_base_image
-@option_upgrade
-@option_wait_time_in_seconds
-@option_force_venv_setup
-@option_force_recreate_cluster
-@option_run_in_parallel
-@option_parallelism_cluster
-@option_skip_cleanup
 @option_debug_resources
-@option_include_success_outputs
-@option_use_standard_naming
-@option_python_versions
-@option_kubernetes_versions
-@option_verbose
 @option_dry_run
+@option_executor
+@option_force_recreate_cluster
+@option_force_venv_setup
+@option_image_tag
+@option_include_success_outputs
+@option_kubernetes_version
+@option_kubernetes_versions
+@option_parallelism_cluster
+@option_python
+@option_python_versions
+@option_rebuild_base_image
+@option_run_in_parallel
+@option_skip_cleanup
+@option_upgrade
+@option_use_standard_naming
+@option_use_uv
+@option_verbose
+@option_wait_time_in_seconds
 @click.argument("test_args", nargs=-1, type=click.Path())
 def run_complete_tests(
-    python: str,
-    kubernetes_version: str,
+    debug_resources: bool,
     executor: str,
-    image_tag: str,
-    rebuild_base_image: bool,
-    upgrade: bool,
-    wait_time_in_seconds: int,
     force_recreate_cluster: bool,
     force_venv_setup: bool,
-    run_in_parallel: bool,
-    parallelism: int,
-    skip_cleanup: bool,
-    debug_resources: bool,
+    image_tag: str,
     include_success_outputs: bool,
-    use_standard_naming: bool,
-    python_versions: str,
+    kubernetes_version: str,
     kubernetes_versions: str,
+    parallelism: int,
+    python: str,
+    python_versions: str,
+    rebuild_base_image: bool,
+    run_in_parallel: bool,
+    skip_cleanup: bool,
     test_args: tuple[str, ...],
+    upgrade: bool,
+    use_standard_naming: bool,
+    use_uv: bool,
+    wait_time_in_seconds: int,
 ):
     result = create_virtualenv(force_venv_setup=force_venv_setup)
     if result.returncode != 0:
@@ -1697,6 +1710,7 @@ def run_complete_tests(
                             "executor": executor,
                             "image_tag": image_tag,
                             "rebuild_base_image": rebuild_base_image,
+                            "use_uv": use_uv,
                             "upgrade": upgrade,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "force_recreate_cluster": force_recreate_cluster,
@@ -1723,6 +1737,7 @@ def run_complete_tests(
             executor=executor,
             image_tag=image_tag,
             rebuild_base_image=rebuild_base_image,
+            use_uv=use_uv,
             upgrade=upgrade,
             wait_time_in_seconds=wait_time_in_seconds,
             force_recreate_cluster=force_recreate_cluster,
