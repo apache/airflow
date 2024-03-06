@@ -65,8 +65,7 @@ if TYPE_CHECKING:
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
 
-LABEL_REGEX = re.compile(r"^[a-z][\w-]+$")
-LABEL_SIZE_LIMIT = 64
+LABEL_REGEX = re.compile(r"^[a-z][\w-]{0,63}$")
 
 
 class BigQueryUIColors(enum.Enum):
@@ -2776,14 +2775,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         dag_label = self.dag_id.lower()
         task_label = self.task_id.lower()
 
-        if len(dag_label) <= LABEL_SIZE_LIMIT and len(task_label) <= LABEL_SIZE_LIMIT:
-            if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
-                if "labels" in self.configuration:
-                    if isinstance(self.configuration["labels"], dict):
-                        self.configuration["labels"]["airflow-dag"] = dag_label
-                        self.configuration["labels"]["airflow-task"] = task_label
-                else:
-                    self.configuration["labels"] = {"airflow-dag": dag_label, "airflow-task": task_label}
+        if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
+            automatic_labels = {"airflow-dag": dag_label, "airflow-task": task_label}
+            if "labels" in self.configuration:
+                if isinstance(self.configuration["labels"], dict):
+                    self.configuration["labels"].update(automatic_labels)
+            else:
+                self.configuration["labels"] = automatic_labels
 
     def _submit_job(
         self,
