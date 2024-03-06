@@ -271,6 +271,8 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all Markdown files                         |         |
 |                                                           | * Add license for all other files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| kubeconform                                               | Kubeconform check on our helm chart                          |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | lint-css                                                  | stylelint                                                    |         |
