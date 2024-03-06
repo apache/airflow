@@ -42,7 +42,7 @@ class AirbyteHook(HttpHook):
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
-    :param api_type: Optional. The type of Airbyte API to use. Either "config_api" or "cloud_api". Defaults to "config_api".
+    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     """
 
     conn_name_attr = "airbyte_conn_id"
@@ -58,13 +58,11 @@ class AirbyteHook(HttpHook):
     ERROR = "error"
     INCOMPLETE = "incomplete"
 
-    # add an api_type parameter should either be config_api or cloud_api
-
     def __init__(
         self,
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
-        api_type: Literal["config_api", "cloud_api"] = "config_api",
+        api_type: Literal["config", "cloud"] = "config",
     ) -> None:
         super().__init__(http_conn_id=airbyte_conn_id)
         self.api_version: str = api_version
@@ -75,7 +73,7 @@ class AirbyteHook(HttpHook):
         connection: Connection = await sync_to_async(self.get_connection)(self.http_conn_id)
         base_url = connection.host
 
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             credentials = f"{connection.login}:{connection.password}"
             credentials_base64 = base64.b64encode(credentials.encode("utf-8")).decode("utf-8")
             authorized_headers = {
@@ -99,7 +97,7 @@ class AirbyteHook(HttpHook):
         :param job_id: The ID of an Airbyte Sync Job.
         """
         headers, base_url = await self.get_headers_tenants_from_connection()
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             url = f"{base_url}/api/{self.api_version}/jobs/get"
             self.log.info("URL for api request: %s", url)
             async with aiohttp.ClientSession(headers=headers) as session:
@@ -130,7 +128,7 @@ class AirbyteHook(HttpHook):
         """
         self.log.info("Getting the status of job run %s.", job_id)
         response = await self.get_job_details(job_id=job_id)
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             return str(response["job"]["status"])
         else:
             return str(response["status"])
@@ -153,7 +151,7 @@ class AirbyteHook(HttpHook):
             time.sleep(wait_seconds)
             try:
                 job = self.get_job(job_id=(int(job_id)))
-                if self.api_type == "config_api":
+                if self.api_type == "config":
                     state = job.json()["job"]["status"]
                 else:
                     state = job.json()["status"]
@@ -178,7 +176,7 @@ class AirbyteHook(HttpHook):
 
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         """
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             return self.run(
                 endpoint=f"api/{self.api_version}/connections/sync",
                 json={"connectionId": connection_id},
@@ -202,7 +200,7 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             return self.run(
                 endpoint=f"api/{self.api_version}/jobs/get",
                 json={"id": job_id},
@@ -222,7 +220,7 @@ class AirbyteHook(HttpHook):
 
         :param job_id: Required. Id of the Airbyte job
         """
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             return self.run(
                 endpoint=f"api/{self.api_version}/jobs/cancel",
                 json={"id": job_id},

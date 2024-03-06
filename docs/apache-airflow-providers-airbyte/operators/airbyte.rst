@@ -41,7 +41,7 @@ connect to your account.
 Airbyte currently supports two different API's. The first one is the `Config API <https://airbyte-public-api-docs.s3.us-east-2.amazonaws.com/rapidoc-api-docs.html>`_
 which is specifically used for Open Source Airbyte Instances. The second is the `Cloud API <https://reference.airbyte.com/reference/start>`_
 which is used for the Airbyte Cloud Service. If you are using Airbyte's Cloud service,
-then you will need to specify ``api_type="cloud_api"`` as part of the Operator's parameters.
+then you will need to specify ``api_type="cloud"`` as part of the Operator's parameters.
 
 You can trigger a synchronization job in Airflow in two ways with the Operator. The first one is a synchronous process.
 This Operator will initiate the Airbyte job, and the Operator manages the job status. Another way is to use the flag

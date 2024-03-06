@@ -41,7 +41,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     :param deferrable: Run sensor in the deferrable mode.
         connection information for Airbyte. Defaults to "airbyte_default".
     :param api_version: Optional. Airbyte API version. Defaults to "v1".
-    :param api_type: Optional. The type of Airbyte API to use. Either "config_api" or "cloud_api". Defaults to "config_api".
+    :param api_type: Optional. The type of Airbyte API to use. Either "config" or "cloud". Defaults to "config".
     """
 
     template_fields: Sequence[str] = ("airbyte_job_id",)
@@ -54,7 +54,7 @@ class AirbyteJobSensor(BaseSensorOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
-        api_type: Literal["config_api", "cloud_api"] = "config_api",
+        api_type: Literal["config", "cloud"] = "config",
         **kwargs,
     ) -> None:
         if deferrable:
@@ -86,7 +86,7 @@ class AirbyteJobSensor(BaseSensorOperator):
             airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
         )
         job = hook.get_job(job_id=self.airbyte_job_id)
-        if self.api_type == "config_api":
+        if self.api_type == "config":
             status = job.json()["job"]["status"]
         else:
             status = job.json()["status"]
@@ -121,7 +121,7 @@ class AirbyteJobSensor(BaseSensorOperator):
                 airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version, api_type=self.api_type
             )
             job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-            if self.api_type == "config_api":
+            if self.api_type == "config":
                 state = job.json()["job"]["status"]
             else:
                 state = job.json()["status"]

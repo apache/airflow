@@ -31,7 +31,7 @@ class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
     JOB_ID = 1234
-    API_TYPE = "config_api"
+    API_TYPE = "config"
     CONN_ID = "airbyte_default"
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
