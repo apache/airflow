@@ -21,6 +21,43 @@
 
 .. towncrier release notes start
 
+Airflow 2.8.3 (2024-03-11)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+The smtp provider is now pre-installed when you install Airflow. (#37713)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Bug Fixes
+"""""""""
+- Add "MENU" permission in auth manager (#37881)
+- Fix external_executor_id being overwritten (#37784)
+- Make more MappedOperator members modifiable (#37828)
+- Set parsing context dag_id in dag test command (#37606)
+
+Miscellaneous
+"""""""""""""
+- Remove useless methods from security manager (#37889)
+- Improve code coverage for TriggerRuleDep (#37680)
+- The SMTP provider is now preinstalled when installing Airflow (#37713)
+- Bump min versions of openapi validators (#37691)
+- Properly include ``airflow_pre_installed_providers.txt`` artifact (#37679)
+
+Doc Only Changes
+""""""""""""""""
+- Clarify lack of sync between workers and scheduler (#37913)
+- Simplify some docs around airflow_local_settings (#37835)
+- Add section about local settings configuration (#37829)
+- Fix docs of ``BranchDayOfWeekOperator`` (#37813)
+- Write to secrets store is not supported by design (#37814)
+- ``ERD`` generating doc improvement (#37808)
+- Update incorrect config value (#37706)
+- Update security model to clarify Connection Editing user's capabilities (#37688)
+- Fix ImportError on examples dags (#37571)
+
+
 Airflow 2.8.2 (2024-02-26)
 --------------------------
 
