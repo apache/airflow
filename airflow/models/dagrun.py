@@ -59,9 +59,9 @@ from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
-from airflow.traces.tracer import span, Trace
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.traces.tracer import Trace
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -858,39 +858,34 @@ class DagRun(Base, LoggingMixin):
                 self.data_interval_end,
                 self.dag_hash,
             )
-            
+
             with Trace.start_span_from_dagrun(dagrun=self) as s:
                 if self._state is DagRunState.FAILED:
-                    s.set_attribute('error', True)
+                    s.set_attribute("error", True)
                 attributes = {
-                    'category': 'DAG runs',
-                    'dag_id': str(self.dag_id),
-                    'execution_date': str(self.execution_date),
-                    'run_id': str(self.run_id),
-                    'queued_at': str(self.queued_at),
-                    'run_start_date': str(self.start_date),
-                    'run_end_date': str(self.end_date),
-                    'run_duration': str((self.end_date - self.start_date).total_seconds() if self.start_date and self.end_date else 0),
-                    'state': str(self._state),
-                    'external_trigger': str(self.external_trigger),
-                    'run_type': str(self.run_type),
-                    'data_interval_start': str(self.data_interval_start),
-                    'data_interval_end': str(self.data_interval_end),
-                    'dag_hash': str(self.dag_hash),
-                    'conf': str(self.conf)
+                    "category": "DAG runs",
+                    "dag_id": str(self.dag_id),
+                    "execution_date": str(self.execution_date),
+                    "run_id": str(self.run_id),
+                    "queued_at": str(self.queued_at),
+                    "run_start_date": str(self.start_date),
+                    "run_end_date": str(self.end_date),
+                    "run_duration": str(
+                        (self.end_date - self.start_date).total_seconds()
+                        if self.start_date and self.end_date
+                        else 0
+                    ),
+                    "state": str(self._state),
+                    "external_trigger": str(self.external_trigger),
+                    "run_type": str(self.run_type),
+                    "data_interval_start": str(self.data_interval_start),
+                    "data_interval_end": str(self.data_interval_end),
+                    "dag_hash": str(self.dag_hash),
+                    "conf": str(self.conf),
                 }
-                s.add_event(
-                    name='queued',
-                    timestamp=int(self.queued_at.timestamp() * 1000000000)
-                )
-                s.add_event(
-                    name='started',
-                    timestamp=int(self.start_date.timestamp() * 1000000000)
-                )
-                s.add_event(
-                    name='ended',
-                    timestamp=int(self.end_date.timestamp() * 1000000000)
-                )
+                s.add_event(name="queued", timestamp=int(self.queued_at.timestamp() * 1000000000))
+                s.add_event(name="started", timestamp=int(self.start_date.timestamp() * 1000000000))
+                s.add_event(name="ended", timestamp=int(self.end_date.timestamp() * 1000000000))
                 s.set_attributes(attributes)
 
             session.flush()

@@ -51,7 +51,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
-from airflow.traces.tracer import span, Trace
+from airflow.traces.tracer import Trace, span
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -227,8 +227,8 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # to iterate the child processes
         set_new_process_group()
         span = Trace.get_current_span()
-        span.set_attribute('dag_directory', str(dag_directory))
-        span.set_attribute('dag_ids', str(dag_ids))
+        span.set_attribute("dag_directory", str(dag_directory))
+        span.set_attribute("dag_ids", str(dag_ids))
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
@@ -261,7 +261,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         span = Trace.get_current_span()
         self.log.debug("Received message of type %s", type(message).__name__)
         if isinstance(message, DagParsingStat):
-            span.set_attribute('all_files_processed', str(message.all_files_processed))
+            span.set_attribute("all_files_processed", str(message.all_files_processed))
             self._sync_metadata(message)
         else:
             raise RuntimeError(f"Unexpected message received of type {type(message).__name__}")
@@ -467,7 +467,6 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
-
         self.register_exit_signals()
 
         set_new_process_group()
@@ -560,18 +559,21 @@ class DagFileProcessorManager(LoggingMixin):
             # in sync mode we need to be told to start a "loop"
             self.start_new_processes()
         while True:
-            with Trace.start_span(span_name='dag_parsing_loop', component='DagFileProcessorManager') as s:
+            with Trace.start_span(span_name="dag_parsing_loop", component="DagFileProcessorManager") as s:
                 loop_start_time = time.monotonic()
                 ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
+                s.add_event(name="heartbeat()")
                 self.heartbeat()
                 if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                     agent_signal = self._direct_scheduler_conn.recv()
 
                     self.log.debug("Received %s signal from DagFileProcessorAgent", agent_signal)
                     if agent_signal == DagParsingSignal.TERMINATE_MANAGER:
+                        s.add_event(name="terminate()")
                         self.terminate()
                         break
                     elif agent_signal == DagParsingSignal.END_MANAGER:
+                        s.add_event(name="end()")
                         self.end()
                         sys.exit(os.EX_OK)
                     elif agent_signal == DagParsingSignal.AGENT_RUN_ONCE:
@@ -609,6 +611,7 @@ class DagFileProcessorManager(LoggingMixin):
                 DagWarning.purge_inactive_dag_warnings()
                 refreshed_dag_dir = self._refresh_dag_dir()
 
+                s.add_event(name="_kill_timed_out_processors()")
                 self._kill_timed_out_processors()
 
                 # Generate more file paths to process if we processed all the files already. Note for this
@@ -616,12 +619,15 @@ class DagFileProcessorManager(LoggingMixin):
                 # cleared all files added as a result of callbacks
                 if not self._file_path_queue:
                     self.emit_metrics()
+                    s.add_event(name="prepare_file_path_queue()")
                     self.prepare_file_path_queue()
 
                 # if new files found in dag dir, add them
                 elif refreshed_dag_dir:
+                    s.add_event(name="add_new_file_path_to_queue()")
                     self.add_new_file_path_to_queue()
 
+                s.add_event(name="start_new_processes()")
                 self.start_new_processes()
 
                 # Update number of loop iteration.
@@ -636,8 +642,10 @@ class DagFileProcessorManager(LoggingMixin):
                     self.wait_until_finished()
 
                 # Collect anything else that has finished, but don't kick off any more processors
+                s.add_event(name="collect_results()")
                 self.collect_results()
 
+                s.add_event(name="print_stat()")
                 self._print_stat()
 
                 all_files_processed = all(self.get_last_finish_time(x) is not None for x in self.file_paths)
@@ -663,6 +671,12 @@ class DagFileProcessorManager(LoggingMixin):
                 if max_runs_reached:
                     self.log.info(
                         "Exiting dag parsing loop as all files have been processed %s times", self._max_runs
+                    )
+                    s.add_event(
+                        name="info",
+                        attributes={
+                            "message": "Exiting dag parsing loop as all files have been processed {self._max_runs} times"
+                        },
                     )
                     break
 
@@ -1037,16 +1051,18 @@ class DagFileProcessorManager(LoggingMixin):
         file_name = Path(processor.file_path).stem
 
         """crude exposure of instrumentation code which may need to be furnished"""
-        s = Trace.get_tracer('DagFileProcessorManager').start_span('dag_processing', start_time=int(processor.start_time.timestamp() * 1000000000))
-        s.set_attribute('file_path', processor.file_path)
-        s.set_attribute('run_count', self.get_run_count(processor.file_path) + 1)
-        
+        s = Trace.get_tracer("DagFileProcessorManager").start_span(
+            "dag_processing", start_time=int(processor.start_time.timestamp() * 1000000000)
+        )
+        s.set_attribute("file_path", processor.file_path)
+        s.set_attribute("run_count", self.get_run_count(processor.file_path) + 1)
+
         if processor.result is None:
-            s.set_attribute('error', True)
-            s.set_attribute('processor.exit_code', processor.exit_code)
+            s.set_attribute("error", True)
+            s.set_attribute("processor.exit_code", processor.exit_code)
         else:
-            s.set_attribute('num_dags', num_dags)
-            s.set_attribute('import_errors', count_import_errors)
+            s.set_attribute("num_dags", num_dags)
+            s.set_attribute("import_errors", count_import_errors)
 
         s.end(end_time=int(last_finish_time.timestamp() * 1000000000))
 
@@ -1105,17 +1121,17 @@ class DagFileProcessorManager(LoggingMixin):
 
             del self._callback_to_execute[file_path]
             Stats.incr("dag_processing.processes", tags={"file_path": file_path, "action": "start"})
-            
+
             span = Trace.get_current_span()
-            span.set_attribute('category', 'processing')
+            span.set_attribute("category", "processing")
 
             processor.start()
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
 
-            span.add_event(name='dag_processing processor started', attributes={
-                'file_path': file_path,
-                'pid': processor.pid
-            })
+            span.add_event(
+                name="dag_processing processor started",
+                attributes={"file_path": file_path, "pid": processor.pid},
+            )
 
             self._processors[file_path] = processor
             self.waitables[processor.waitable_handle] = processor
@@ -1131,9 +1147,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self._file_stats[file_path] = DagFileProcessorManager.DEFAULT_FILE_STAT
                 self._file_path_queue.appendleft(file_path)
                 s = Trace.get_current_span()
-                s.add_event(name='adding new file to parsing queue', attributes={
-                    'file_path': file_path
-                })
+                s.add_event(name="adding new file to parsing queue", attributes={"file_path": file_path})
 
     def prepare_file_path_queue(self):
         """
@@ -1248,11 +1262,11 @@ class DagFileProcessorManager(LoggingMixin):
                 Stats.incr("dag_file_processor_timeouts")
                 processor.kill()
                 span = Trace.get_current_span()
-                span.set_attribute('category', 'processing')
-                span.add_event(name='dag processing killed processor', attributes={
-                    'file_path': file_path,
-                    'action': 'timeout'
-                })
+                span.set_attribute("category", "processing")
+                span.add_event(
+                    name="dag processing killed processor",
+                    attributes={"file_path": file_path, "action": "timeout"},
+                )
 
                 # Clean up processor references
                 self.waitables.pop(processor.waitable_handle)
@@ -1312,16 +1326,16 @@ class DagFileProcessorManager(LoggingMixin):
         This is called once every time around the parsing "loop" - i.e. after
         all files have been parsed.
         """
-        with Trace.start_span(span_name='emit_metrics', component='DagFileProcessorManager') as s:
+        with Trace.start_span(span_name="emit_metrics", component="DagFileProcessorManager") as s:
             parse_time = time.perf_counter() - self._parsing_start_time
             Stats.gauge("dag_processing.total_parse_time", parse_time)
             Stats.gauge("dagbag_size", sum(stat.num_dags for stat in self._file_stats.values()))
             Stats.gauge(
                 "dag_processing.import_errors", sum(stat.import_errors for stat in self._file_stats.values())
             )
-            s.set_attribute('total_parse_time', parse_time)
-            s.set_attribute('dag_bag_size', sum(stat.num_dags for stat in self._file_stats.values()))
-            s.set_attribute('import_errors', sum(stat.import_errors for stat in self._file_stats.values()))
+            s.set_attribute("total_parse_time", parse_time)
+            s.set_attribute("dag_bag_size", sum(stat.num_dags for stat in self._file_stats.values()))
+            s.set_attribute("import_errors", sum(stat.import_errors for stat in self._file_stats.values()))
 
     @property
     def file_paths(self):

@@ -38,9 +38,9 @@ from setproctitle import getproctitle, setproctitle
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
+from airflow.traces.tracer import Trace, span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.traces.tracer import span, Trace
 
 if TYPE_CHECKING:
     from multiprocessing.managers import SyncManager
@@ -267,13 +267,13 @@ class LocalExecutor(BaseExecutor):
             """
             if TYPE_CHECKING:
                 assert self.executor.result_queue
-            
+
             s = Trace.get_current_span()
-            s.set_attribute('dag_id', key.dag_id)
-            s.set_attribute('run_id', key.run_id)
-            s.set_attribute('task_id', key.task_id)
-            s.set_attribute('try_number', key.try_number-1)
-            s.set_attribute('commands_to_run', str(self.commands_to_run))
+            s.set_attribute("dag_id", key.dag_id)
+            s.set_attribute("run_id", key.run_id)
+            s.set_attribute("task_id", key.task_id)
+            s.set_attribute("try_number", key.try_number - 1)
+            s.set_attribute("commands_to_run", str(command))
 
             local_worker = LocalWorker(self.executor.result_queue, key=key, command=command)
             self.executor.workers_used += 1

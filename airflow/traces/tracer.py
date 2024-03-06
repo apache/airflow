@@ -17,62 +17,137 @@
 # under the License.
 from __future__ import annotations
 
-import socket
 import logging
-import types
+import socket
 import typing
 from typing import (
-    Optional,
+    TYPE_CHECKING,
+    Callable,
 )
-
-from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
 from airflow.typing_compat import Protocol
 
 log = logging.getLogger(__name__)
 
+
 def gen_context(trace_id, span_id):
-    """function that generate span context from trace_id and span_id"""
+    """Generate span context from trace_id and span_id."""
     from airflow.traces.otel_tracer import gen_context as otel_gen_context
+
     return otel_gen_context(trace_id, span_id)
 
+
 def gen_links_from_kv_list(list):
+    """Generate links from kv list of {trace_id:int, span_id:int}."""
     from airflow.traces.otel_tracer import gen_links_from_kv_list
+
     return gen_links_from_kv_list(list)
 
+
 def span(func):
-    """decorator that can be used to generate trace spans"""
+    """Decorate a function with span."""
+
     def wrapper(*args, **kwargs):
         func_name = func.__name__
         qual_name = func.__qualname__
         module_name = func.__module__
-        if '.' in qual_name:
+        if "." in qual_name:
             component = f"{qual_name.rsplit('.', 1)[0]}"
         else:
             component = module_name
         with Trace.start_span(span_name=func_name, component=component):
             func(*args, **kwargs)
+
     return wrapper
 
 
+class DummyContext:
+    """If no Tracer is configured, DummyContext is used as a fallback."""
+
+    def __init__(self):
+        self.trace_id = 1
+
+
+class DummySpan:
+    """If no Tracer is configured, DummySpan is used as a fallback."""
+
+    def __enter__(self):
+        """Enter."""
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        """Exit."""
+        pass
+
+    def __call__(self, obj):
+        """Call."""
+        return obj
+
+    def get_span_context(self):
+        """Get span context."""
+        return DUMMY_CTX
+
+    def set_attribute(self, key, value) -> None:
+        """Set an attribute to the span."""
+        pass
+
+    def set_attributes(self, attributes) -> None:
+        """Set multiple attributes at once."""
+        pass
+
+    def add_event(
+        self,
+        name: str,
+        attributes=None,
+        timestamp: int | None = None,
+    ) -> None:
+        """Add event to span."""
+        pass
+
+    def add_link(
+        self,
+        context: typing.Any,
+        attributes=None,
+    ) -> None:
+        """Add link to the span."""
+        pass
+
+    def end(self, end_time=None, *args, **kwargs) -> None:
+        """End."""
+        pass
+
+
+DUMMY_SPAN = DummySpan()
+DUMMY_CTX = DummyContext()
+
+
 class Tracer(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
+
     instance: Tracer | DummyTrace | None = None
 
     @classmethod
     def get_tracer(cls, component):
-        """get tracer"""
+        """Get a tracer."""
         raise NotImplementedError()
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None, parent_sc=None, span_id=None, links=None, start_time=None):
-        """start span"""
+    def start_span(
+        cls,
+        span_name: str,
+        component: str | None = None,
+        parent_sc=None,
+        span_id=None,
+        links=None,
+        start_time=None,
+    ):
+        """Start a span."""
         raise NotImplementedError()
-    
+
     @classmethod
     def use_span(cls, span):
-        """use span"""
+        """Use a span as current."""
         raise NotImplementedError()
 
     @classmethod
@@ -81,99 +156,63 @@ class Tracer(Protocol):
 
     @classmethod
     def start_span_from_dagrun(cls, dagrun, span_name=None, service_name=None, component=None, links=None):
-        """start span from dagrun"""
+        """Start a span from dagrun."""
         raise NotImplementedError()
 
     @classmethod
     def start_span_from_taskinstance(cls, ti, span_name=None, component=None, child=False, links=None):
-        """start span from taskinstance"""
+        """Start a span from taskinstance."""
         raise NotImplementedError()
 
-class DummyContext:
-    def __init__(self):
-        self.trace_id = 1
-
-DUMMY_CTX = DummyContext()
-
-class DummySpan:
-    """If no Tracer is configured, DummySpan is used as a fallback"""
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        pass
-
-    def __call__(self, obj):
-        return obj
-    
-    def get_span_context(self):
-        return DUMMY_CTX
-
-    def set_attribute(self, key, value) -> None:
-        """setting a attribute to the span"""
-        pass
-
-    def set_attributes(self, attributes) -> None:
-        """setting multiple attributes at once"""
-        pass
-
-    def add_event(
-        self,
-        name: str,
-        attributes: types.Attributes = None,
-        timestamp: Optional[int] = None,
-    ) -> None:
-        """adding event to span"""
-        pass
-
-    def add_link(
-        self,
-        context: typing.Any,
-        attributes: types.Attributes = None,
-    ) -> None:
-        """adding link to the span"""
-        pass
-
-    def end(self, end_time = None, *args, **kwargs) -> None:
-        pass
-
-DUMMY_SPAN = DummySpan()
 
 class DummyTrace:
-    """If no Tracer is configured, DummyTracer is used as a fallback"""
+    """If no Tracer is configured, DummyTracer is used as a fallback."""
 
     @classmethod
-    def get_tracer(cls, component:str):
+    def get_tracer(cls, component: str):
+        """Get a tracer."""
         return cls
 
     @classmethod
-    def get_tracer_with_id(cls, component:str, trace_id:int=None, span_id:int=None):
+    def get_tracer_with_id(cls, component: str, trace_id: int | None = None, span_id: int | None = None):
+        """Get a tracer using provided node id and trace id."""
         return cls
 
     @classmethod
-    def start_span(cls, span_name:str, component:str=None, parent_sc=None, span_id=None, links=None, start_time=None) -> DummySpan:
-        """start span"""
+    def start_span(
+        cls,
+        span_name: str,
+        component: str | None = None,
+        parent_sc=None,
+        span_id=None,
+        links=None,
+        start_time=None,
+    ) -> DummySpan:
+        """Start a span."""
         return DUMMY_SPAN
-    
+
     @classmethod
     def use_span(cls, span) -> DummySpan:
-        """use span"""
+        """Use a span as current."""
         return DUMMY_SPAN
-    
+
     @classmethod
     def get_current_span(self) -> DummySpan:
-        """get current span"""
+        """Get the current span."""
         return DUMMY_SPAN
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name=None, service_name=None, component=None, links=None) -> DummySpan:
-        """start span from dagrun"""
+    def start_span_from_dagrun(
+        cls, dagrun, span_name=None, service_name=None, component=None, links=None
+    ) -> DummySpan:
+        """Start a span from dagrun."""
         return DUMMY_SPAN
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name=None, component=None, child=False, links=None) -> DummySpan:
-        """start span from taskinstance"""
+    def start_span_from_taskinstance(
+        cls, ti, span_name=None, component=None, child=False, links=None
+    ) -> DummySpan:
+        """Start a span from taskinstance."""
         return DUMMY_SPAN
 
 
@@ -193,22 +232,25 @@ class _Trace(type):
     def __init__(cls, *args, **kwargs) -> None:
         super().__init__(cls)
         if not hasattr(cls.__class__, "factory"):
-            if conf.has_option('traces', 'otel_on') and conf.getboolean('traces', 'otel_on'):
+            if conf.has_option("traces", "otel_on") and conf.getboolean("traces", "otel_on"):
                 from airflow.traces import otel_tracer
+
                 cls.__class__.factory = otel_tracer.get_otel_tracer
             else:
                 cls.__class__.factory = DummyTrace
-    
+
     @classmethod
-    def get_constant_tags(cls) -> str:
+    def get_constant_tags(cls) -> str | None:
         """Get constant tags to add to all traces."""
         tags_in_string = conf.get("traces", "tags", fallback=None)
         if not tags_in_string:
             return None
         return tags_in_string
 
+
 if TYPE_CHECKING:
     Trace: DummyTrace
 else:
+
     class Trace(metaclass=_Trace):
-        """Empty class for Trace - we use metaclass to inject the right one"""
+        """Empty class for Trace - we use metaclass to inject the right one."""

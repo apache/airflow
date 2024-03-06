@@ -18,92 +18,93 @@
 from __future__ import annotations
 
 import logging
-from typing import Iterator
-from contextlib import contextmanager
+import random
+
+from opentelemetry import trace
+from opentelemetry.context import create_key
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import Span, Tracer as OpenTelemetryTracer, TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.id_generator import IdGenerator
+from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags, Tracer
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
-from opentelemetry import context as context_api
-from opentelemetry.context.context import Context
-from opentelemetry.context import create_key, get_value, set_value
-from opentelemetry.trace import (
-    format_span_id,
-    format_trace_id,
-    Link,
-)
-from opentelemetry.sdk.trace import Event
+
 from airflow.configuration import conf
-from airflow.utils.net import get_hostname
 from airflow.traces import (
     TRACEPARENT,
     TRACESTATE,
 )
-"""
-from airflow.models import (
-    DagRun,
-    TaskInstance,
-)
-"""
 from airflow.traces.utils import (
-    parse_traceparent, parse_tracestate, 
-    gen_trace_id, 
     gen_dag_span_id,
     gen_span_id,
+    gen_trace_id,
+    parse_traceparent,
+    parse_tracestate,
 )
-
-from opentelemetry import trace
-from opentelemetry.trace import NonRecordingSpan, SpanContext, TraceFlags, TraceState
-from opentelemetry.sdk.trace import Span
-from opentelemetry.sdk.trace import Tracer as OpenTelemetryTracer
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, HOST_NAME
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry import context
+from airflow.utils.net import get_hostname
 
 log = logging.getLogger(__name__)
 
 _NEXT_ID = create_key("next_id")
 
+
 class OtelTrace:
-    def __init__(self, span_exporter, tags=None):
+    """
+    OpenTelemetry Tracing Class.
+
+    Handles all tracing requirements such as getting the tracer, and starting a new span.
+    When OTEL is enabled, the Trace class will be replaced by this class.
+    """
+
+    def __init__(self, span_exporter: ConsoleSpanExporter | OTLPSpanExporter, tags=None):
         self.span_exporter = span_exporter
         self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tags = tags
-        self.otel_service = conf.get('traces','otel_service')
+        self.otel_service = conf.get("traces", "otel_service")
 
-    def get_tracer(self, component:str) -> OpenTelemetryTracer:
-        """get tracer from a given component"""
-        resource = Resource(attributes={
-            HOST_NAME: get_hostname(),
-            SERVICE_NAME: self.otel_service
-        })
+    def get_tracer(self, component: str) -> OpenTelemetryTracer | Tracer:
+        """Get tracer from a given component."""
+        resource = Resource(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service})
         tracer_provider = TracerProvider(resource=resource)
         # span_processor = BatchSpanProcessor(self.span_exporter)
         tracer_provider.add_span_processor(self.span_processor)
         tracer = tracer_provider.get_tracer(component)
         return tracer
-    
-    def get_tracer_with_id(self, component:str, trace_id:int=None, span_id:int=None) -> OpenTelemetryTracer:
-        """tracer that will use special AirflowOtelIdGenerator to control producing certain span and trace id"""
-        resource = Resource(attributes={
-            HOST_NAME: get_hostname(),
-            SERVICE_NAME: self.otel_service
-        })
-        tracer_provider = TracerProvider(resource=resource, id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id))
+
+    def get_tracer_with_id(
+        self, component: str, trace_id: int | None = None, span_id: int | None = None
+    ) -> OpenTelemetryTracer | Tracer:
+        """Tracer that will use special AirflowOtelIdGenerator to control producing certain span and trace id."""
+        resource = Resource(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: self.otel_service})
+        tracer_provider = TracerProvider(
+            resource=resource, id_generator=AirflowOtelIdGenerator(span_id=span_id, trace_id=trace_id)
+        )
         # span_processor = BatchSpanProcessor(self.span_exporter, schedule_delay_millis=1)
         tracer_provider.add_span_processor(self.span_processor)
         tracer = tracer_provider.get_tracer(component)
-        """tracer will product a Single ID value if value is provided. Note that this is one-time only, so any
-           subsequent call will produce the normal random ids
+        """
+        Tracer will product a Single ID value if value is provided. Note that this is one-time only, so any
+        subsequent call will produce the normal random ids.
         """
         return tracer
-    
-    def get_current_span(self) -> Span:
+
+    def get_current_span(self):
         return trace.get_current_span()
-    
-    def use_span(self, span:Span) -> Span:
+
+    def use_span(self, span: Span):
         return trace.use_span(span=span)
 
-    def start_span(self, span_name:str, component:str=None, parent_sc:SpanContext=None, span_id=None, links=None, start_time=None) -> Span:
-        """start a span. if service_name is not given, otel_service is used"""
+    def start_span(
+        self,
+        span_name: str,
+        component: str | None = None,
+        parent_sc: SpanContext | None = None,
+        span_id=None,
+        links=None,
+        start_time=None,
+    ):
+        """Start a span. if service_name is not given, otel_service is used."""
         if component is None:
             component = self.otel_service
 
@@ -127,13 +128,19 @@ class OtelTrace:
 
         if parent_sc is not None:
             ctx = trace.set_span_in_context(NonRecordingSpan(parent_sc))
-            span = tracer.start_as_current_span(span_name, context=ctx, attributes=kvs, links=_links, start_time=start_time)
+            span = tracer.start_as_current_span(
+                span_name, context=ctx, attributes=kvs, links=_links, start_time=start_time
+            )
         else:
-            span = tracer.start_as_current_span(span_name, attributes=kvs, links=_links, start_time=start_time)
+            span = tracer.start_as_current_span(
+                span_name, attributes=kvs, links=_links, start_time=start_time
+            )
         return span
 
-    def start_span_from_dagrun(self, dagrun, span_name:str=None, component:str='dagrun', links=None) -> Span:
-        """Produce a span from dag run"""
+    def start_span_from_dagrun(
+        self, dagrun, span_name: str | None = None, component: str = "dagrun", links=None
+    ):
+        """Produce a span from dag run."""
         # check if dagrun has configs
         conf = dagrun.conf
         trace_id = int(gen_trace_id(dag_run=dagrun), 16)
@@ -145,8 +152,8 @@ class OtelTrace:
 
         tracer = self.get_tracer_with_id(component=component, span_id=span_id, trace_id=trace_id)
 
-        # merge attributes from tags and tracestate
         kvstr = None
+        # merge attributes from tags and tracestate
         if self.tags is not None:
             kvstr = self.tags
         if tracestate is not None:
@@ -166,10 +173,7 @@ class OtelTrace:
 
         a_link = Link(
             context=trace.get_current_span().get_span_context(),
-            attributes={
-                'meta.annotation_type': 'link',
-                'from': 'parenttrace'
-            },
+            attributes={"meta.annotation_type": "link", "from": "parenttrace"},
         )
         _links.append(a_link)
 
@@ -179,34 +183,44 @@ class OtelTrace:
             _links.append(tp_link)
 
         span_ctx = SpanContext(
-            trace_id = INVALID_TRACE_ID,
-            span_id = INVALID_SPAN_ID,
-            is_remote = True,
-            trace_flags = TraceFlags(0x01)
+            trace_id=INVALID_TRACE_ID, span_id=INVALID_SPAN_ID, is_remote=True, trace_flags=TraceFlags(0x01)
         )
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(name=span_name, context=ctx, links=_links, start_time=int(dagrun.queued_at.timestamp() * 1000000000), attributes=kvs)
+        span = tracer.start_as_current_span(
+            name=span_name,
+            context=ctx,
+            links=_links,
+            start_time=int(dagrun.queued_at.timestamp() * 1000000000),
+            attributes=kvs,
+        )
         return span
 
-    def start_span_from_taskinstance(self, ti, span_name:str=None, component:str='taskinstance', child:bool=False, links=None) -> Span:
-        """create and start span from given task instance. essentially the span represents the ti itself
-           if child == True, it will create a 'child' span under the given span
+    def start_span_from_taskinstance(
+        self,
+        ti,
+        span_name: str | None = None,
+        component: str = "taskinstance",
+        child: bool = False,
+        links=None,
+    ):
+        """
+        Create and start span from given task instance.
+
+        Essentially the span represents the ti itself if child == True, it will create a 'child' span under the given span.
         """
         dagrun = ti.dag_run
         trace_id = int(gen_trace_id(dag_run=dagrun), 16)
         span_id = int(gen_span_id(ti=ti), 16)
-        span_name = ti.task_id
+        if span_name is None:
+            span_name = ti.task_id
 
         if child is False:
             parent_id = int(gen_dag_span_id(dag_run=dagrun), 16)
         else:
             parent_id = span_id
-        
+
         span_ctx = SpanContext(
-            trace_id = trace_id,
-            span_id = parent_id,
-            is_remote = True,
-            trace_flags = TraceFlags(0x01)
+            trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
         )
 
         if links is not None:
@@ -216,10 +230,7 @@ class OtelTrace:
 
         a_link = Link(
             context=trace.get_current_span().get_span_context(),
-            attributes={
-                'meta.annotation_type': 'link',
-                'from': 'parenttrace'
-            },
+            attributes={"meta.annotation_type": "link", "from": "parenttrace"},
         )
         _links.append(a_link)
 
@@ -229,79 +240,77 @@ class OtelTrace:
             tracer = self.get_tracer(component=component)
 
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(name=span_name, context=ctx, start_time=int(ti.queued_dttm.timestamp() * 1000000000), links=_links)
+        span = tracer.start_as_current_span(
+            name=span_name, context=ctx, start_time=int(ti.queued_dttm.timestamp() * 1000000000), links=_links
+        )
         return span
 
-def gen_context(trace_id, span_id):
-    span_ctx = SpanContext(
-        trace_id = trace_id,
-        span_id = span_id,
-        is_remote = True,
-        trace_flags = TraceFlags(0x01)
-    )
+
+def gen_context(trace_id: int, span_id: int):
+    """Generate a remote span context for given trace and span id."""
+    span_ctx = SpanContext(trace_id=trace_id, span_id=span_id, is_remote=True, trace_flags=TraceFlags(0x01))
     return span_ctx
 
+
 def gen_links_from_kv_list(kv_list):
-    """convert list of kv dic of trace_id and span_id and generate list of SpanContext"""
+    """Convert list of kv dic of trace_id and span_id and generate list of SpanContext."""
     result = []
     for a in kv_list:
-        trace_id = a['trace_id']    # string of hexa
-        span_id = a['span_id']      # string of hexa
+        trace_id = a["trace_id"]  # string of hexa
+        span_id = a["span_id"]  # string of hexa
         span_ctx = gen_context(trace_id, span_id)
         a_link = Link(
             context=span_ctx,
-            attributes={
-                'meta.annotation_type': 'link'
-            },
+            attributes={"meta.annotation_type": "link"},
         )
         result.append(a_link)
     return result
 
-def gen_link_from_traceparent(traceparent):
+
+def gen_link_from_traceparent(traceparent: str):
+    """Generate Link object from provided traceparent string."""
     if traceparent is not None:
         trace_ctx = parse_traceparent(traceparent)
-        trace_id = trace_ctx['trace_id']
-        span_id = trace_ctx['parent_id']
+        trace_id = trace_ctx["trace_id"]
+        span_id = trace_ctx["parent_id"]
         span_ctx = gen_context(int(trace_id, 16), int(span_id, 16))
-        a_link = Link(
-            context=span_ctx,
-            attributes={
-                'meta.annotation_type': 'link',
-                'from': 'traceparent'
-            }
-        )
+        a_link = Link(context=span_ctx, attributes={"meta.annotation_type": "link", "from": "traceparent"})
         return a_link
     return None
 
-def get_otel_tracer(cls) -> OtelTrace:
-    from opentelemetry.exporter.otlp.proto.http.trace_exporter import(
-        OTLPSpanExporter
-    )
-    from opentelemetry.sdk.trace.export import ConsoleSpanExporter
-    
-    host=conf.get('traces', 'otel_host')
-    port=conf.getint('traces', 'otel_port')
-    debug=conf.getboolean('traces','otel_debugging_on')
-    ssl_active = conf.getboolean("traces", "otel_ssl_active")
-    tags=cls.get_constant_tags()
 
-    if debug == True:
+def get_otel_tracer(cls) -> OtelTrace:
+    """Get OTEL tracer from airflow configuration."""
+    host = conf.get("traces", "otel_host")
+    port = conf.getint("traces", "otel_port")
+    debug = conf.getboolean("traces", "otel_debugging_on")
+    ssl_active = conf.getboolean("traces", "otel_ssl_active")
+    tags = cls.get_constant_tags()
+
+    if debug is True:
         logging.info("[ConsoleSpanExporter] is being used")
-        span_exporter = ConsoleSpanExporter()
+        return OtelTrace(span_exporter=ConsoleSpanExporter(), tags=tags)
     else:
         protocol = "https" if ssl_active else "http"
         endpoint = f"{protocol}://{host}:{port}/v1/traces"
         logging.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
-        span_exporter = OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"})
+        return OtelTrace(
+            span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
+            tags=tags,
+        )
 
-    return OtelTrace(span_exporter, tags=tags)
-
-from opentelemetry.sdk.trace.id_generator import RandomIdGenerator, IdGenerator
-import random
 
 class AirflowOtelIdGenerator(IdGenerator):
+    """
+    ID Generator for span id and trace id.
 
-    def __init__(self, span_id:int=None, trace_id:int=None):
+    The specific purpose of this ID generator is to generate a given span_id when the
+    generate_span_id is called for the FIRST time. Any subsequent calls to the generate_span_id()
+    will then fall back into producing random ones. As for the trace_id, the class is designed
+    to produce the provided trace id (and not anything random)
+    """
+
+    def __init__(self, span_id=None, trace_id=None):
         super().__init__()
         self.span_id = span_id
         self.trace_id = trace_id
@@ -314,7 +323,7 @@ class AirflowOtelIdGenerator(IdGenerator):
         else:
             new_id = random.getrandbits(64)
             return new_id
-        
+
     def generate_trace_id(self) -> int:
         if self.trace_id is not None:
             id = self.trace_id
@@ -322,4 +331,3 @@ class AirflowOtelIdGenerator(IdGenerator):
         else:
             new_id = random.getrandbits(128)
             return new_id
-
