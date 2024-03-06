@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-06T01:18:45.244044
+# This constraints file was automatically generated on 2024-03-06T08:45:37.100352
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -86,7 +86,7 @@ alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.8
 alibabacloud_tea_util==0.3.11
 alibabacloud_tea_xml==0.0.2
-aliyun-python-sdk-core==2.14.0
+aliyun-python-sdk-core==2.15.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
 analytics-python==1.2.9
@@ -554,7 +554,7 @@ pykerberos==1.2.4
 pymongo==4.6.2
 pymssql==2.2.11
 pyodbc==5.1.0
-pyparsing==3.1.1
+pyparsing==3.1.2
 pypsrp==0.8.1
 pyspark==3.5.1
 pyspnego==0.10.2
@@ -706,7 +706,7 @@ universal-pathlib==0.1.4
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.1.14
+uv==0.1.15
 validators==0.22.0
 vertica-python==1.3.8
 vine==5.1.0
@@ -719,7 +719,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.262.0
+yandexcloud==0.263.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.47
