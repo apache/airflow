@@ -43,7 +43,6 @@ def gen_span_id_from_ti_key(ti_key)->str:
     try_num = ti_key.try_number   # key always has next number, not current
     hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex =  md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    log.info(f"[gen_span_id_from_ti_key] dag_id: {dag_id} run_id: {run_id} task_id: {task_id} try_num: {try_num} => {hash_hex}")
     return hash_hex
 
 
@@ -67,7 +66,6 @@ def gen_span_id(ti):
     try_num = ti.try_number-1
     hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    log.info(f"[gen_span_id] dag_id: {dag_id} run_id: {run_id} task_id: {task_id} try_num: {try_num} => {hash_hex}")
     return hash_hex
 
 

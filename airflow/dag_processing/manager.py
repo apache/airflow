@@ -1135,7 +1135,6 @@ class DagFileProcessorManager(LoggingMixin):
                     'file_path': file_path
                 })
 
-    @span
     def prepare_file_path_queue(self):
         """
         Scan dags dir to generate more file paths to process.
