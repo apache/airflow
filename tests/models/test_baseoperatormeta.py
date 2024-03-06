@@ -28,10 +28,9 @@ class IterableSession(Session):
 
 
 class TestBaseOperatorMeta:
-
     @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_safeguard_when_unauthorized(self):
-        with raises(AirflowException, match="Some pattern of the exception message here"):
+        with raises(AirflowException, match="Method execute cannot be called from inner!"):
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
