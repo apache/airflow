@@ -32,9 +32,10 @@ class TestPineconeHook:
             mock_conn.password = "test_password"
             mock_get_connection.return_value = mock_conn
             self.pinecone_hook = PineconeHook()
+            self.pinecone_hook.conn
             self.index_name = "test_index"
 
-    @patch("airflow.providers.pinecone.hooks.pinecone.pinecone.Index")
+    @patch("airflow.providers.pinecone.hooks.pinecone.Pinecone.Index")
     def test_upsert(self, mock_index):
         """Test the upsert_data_async method of PineconeHook for correct data insertion asynchronously."""
         data = [("id1", [1.0, 2.0, 3.0], {"meta": "data"})]
