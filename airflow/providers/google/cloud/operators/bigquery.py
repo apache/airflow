@@ -2777,10 +2777,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
 
         if LABEL_REGEX.match(dag_label) and LABEL_REGEX.match(task_label):
             automatic_labels = {"airflow-dag": dag_label, "airflow-task": task_label}
-            if "labels" in self.configuration:
-                if isinstance(self.configuration["labels"], dict):
-                    self.configuration["labels"].update(automatic_labels)
-            else:
+            if isinstance(self.configuration.get("labels"), dict):
+                self.configuration["labels"].update(automatic_labels)
+            elif "labels" not in self.configuration:
                 self.configuration["labels"] = automatic_labels
 
     def _submit_job(
