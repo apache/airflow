@@ -299,8 +299,8 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
-@provide_session
 @action_logging
+@provide_session
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
