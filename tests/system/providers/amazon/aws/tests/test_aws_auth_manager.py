@@ -167,7 +167,6 @@ def client_admin_permissions(base_app):
     auth.get_attributes.return_value = {
         "id": ["user_admin_permissions"],
         "groups": ["Admin"],
-        "email": ["email"],
     }
     base_app.return_value = auth
     return application.create_app(testing=True)
