@@ -263,7 +263,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None}) == result
+        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -289,7 +289,7 @@ class TestRenderedTaskInstanceFields:
         assert (
             "test_write",
             "test",
-            {"bash_command": "echo test_val_updated", "env": None},
+            {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
