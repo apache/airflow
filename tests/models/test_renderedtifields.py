@@ -303,8 +303,10 @@ class TestRenderedTaskInstanceFields:
             )
         dr = dag_maker.create_dagrun()
         redact.side_effect = [
-            "val 1",
-            "val 2",
+            # Order depends on order in Operator template_fields
+            "val 1",  # bash_command
+            "val 2",  # env
+            "val 3",  # cwd
         ]
 
         ti = dr.task_instances[0]
@@ -313,4 +315,5 @@ class TestRenderedTaskInstanceFields:
         assert rtif.rendered_fields == {
             "bash_command": "val 1",
             "env": "val 2",
+            "cwd": "val 3",
         }
