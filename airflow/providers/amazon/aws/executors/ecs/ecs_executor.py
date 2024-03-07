@@ -304,7 +304,7 @@ class AwsEcsExecutor(BaseExecutor):
                 task_arn,
             )
             self.active_workers.increment_failure_count(task_key)
-            self.pending_tasks.appendleft(
+            self.pending_tasks.append(
                 EcsQueuedTask(
                     task_key,
                     task_cmd,
@@ -348,12 +348,12 @@ class AwsEcsExecutor(BaseExecutor):
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
             except NoCredentialsError:
-                self.pending_tasks.appendleft(ecs_task)
+                self.pending_tasks.append(ecs_task)
                 raise
             except ClientError as e:
                 error_code = e.response["Error"]["Code"]
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
-                    self.pending_tasks.appendleft(ecs_task)
+                    self.pending_tasks.append(ecs_task)
                     raise
                 _failure_reasons.append(str(e))
             except Exception as e:
@@ -373,12 +373,12 @@ class AwsEcsExecutor(BaseExecutor):
                 for reason in _failure_reasons:
                     failure_reasons[reason] += 1
                 # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
-                if int(attempt_number) <= int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+                if int(attempt_number) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
                     ecs_task.attempt_number += 1
                     ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number
                     )
-                    self.pending_tasks.appendleft(ecs_task)
+                    self.pending_tasks.append(ecs_task)
                 else:
                     self.log.error(
                         "ECS task %s has failed a maximum of %s times. Marking as failed",
