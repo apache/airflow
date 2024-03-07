@@ -1015,7 +1015,7 @@ class TestTriggerRuleDep:
         Unknown trigger rules should cause this dep to fail
         """
         ti = get_task_instance(
-            TriggerRule.DUMMY,
+            TriggerRule.ALWAYS,
             success=1,
             skipped=0,
             failed=0,
