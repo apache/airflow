@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -64,7 +64,9 @@ class TestBaseOperatorMeta:
 
     @patch("sqlalchemy.orm.Session.__init__")
     @conf_vars({("core", "unit_test_mode"): "False"})
-    def test_executor_when_called_from_decorated_task(self, mock_session: MagicMock, mock_task_instance_methods):
+    def test_executor_when_called_from_decorated_task(
+        self, mock_session: MagicMock, mock_task_instance_methods
+    ):
         session = MagicMock(spec=IterableSession)
         mock_session.return_value = session
         session.__iter__.return_value = iter({})
@@ -86,7 +88,9 @@ class TestBaseOperatorMeta:
 
     @patch("sqlalchemy.orm.Session.__init__")
     @conf_vars({("core", "unit_test_mode"): "False"})
-    def test_executor_when_called_from_task_instance(self, mock_session: MagicMock, mock_task_instance_methods):
+    def test_executor_when_called_from_task_instance(
+        self, mock_session: MagicMock, mock_task_instance_methods
+    ):
         session = MagicMock(spec=IterableSession)
         mock_session.return_value = session
         session.__iter__.return_value = iter({})

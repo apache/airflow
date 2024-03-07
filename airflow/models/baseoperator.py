@@ -483,7 +483,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
-        if callable(execute_method) and not getattr(execute_method, '__isabstractmethod__', False):
+        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
             namespace["execute"] = executor_safeguard()(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
