@@ -179,7 +179,9 @@ class TestExecutorLoader:
     def test_get_hybrid_executors_from_config_duplicates_should_fail(self, executor_config):
         ExecutorLoader.block_use_of_hybrid_exec = mock.Mock()
         with conf_vars({("core", "executor"): executor_config}):
-            with pytest.raises(AirflowConfigException, match=r".+Duplicate executors is not yet supported.+"):
+            with pytest.raises(
+                AirflowConfigException, match=r".+Duplicate executors are not yet supported.+"
+            ):
                 ExecutorLoader._get_executor_names()
 
     @pytest.mark.parametrize(
