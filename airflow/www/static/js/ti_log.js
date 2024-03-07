@@ -18,6 +18,7 @@
  */
 
 /* global document, window, $ */
+import { AnsiUp } from "ansi_up";
 import { escapeHtml } from "./main";
 import { getMetaValue } from "./utils";
 import { formatDateTime } from "./datetime_utils";
@@ -107,7 +108,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         shouldScroll = true;
       }
 
-      // Detect urls and log timestamps
+      // Text coloring, detect urls and log timestamps
+      const ansiUp = new AnsiUp();
       const urlRegex =
         /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
       const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
@@ -130,7 +132,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
         // The message may contain HTML, so either have to escape it or write it as text.
         const escapedMessage = escapeHtml(item[1]);
-        const linkifiedMessage = escapedMessage
+        const coloredMessage = ansiUp.ansi_to_html(escapedMessage);
+        const linkifiedMessage = coloredMessage
           .replace(
             urlRegex,
             (url) =>

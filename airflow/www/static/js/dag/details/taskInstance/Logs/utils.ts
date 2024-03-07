@@ -19,6 +19,7 @@
 
 /* global moment */
 
+import { AnsiUp } from "ansi_up";
 import { defaultFormatWithTZ } from "src/datetime_utils";
 
 import sanitizeHtml from "sanitize-html";
@@ -61,6 +62,7 @@ export const parseLogs = (
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
+  const ansiUp = new AnsiUp();
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -116,8 +118,10 @@ export const parseLogs = (
         },
       });
 
+      const coloredLine = ansiUp.ansi_to_html(sanitizedLine);
+
       // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = sanitizedLine.replace(
+      const lineWithHyperlinks = coloredLine.replace(
         /((https?:\/\/|http:\/\/)[^\s]+)/g,
         '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
       );
