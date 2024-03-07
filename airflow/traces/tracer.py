@@ -57,7 +57,7 @@ def span(func):
         else:
             component = module_name
         with Trace.start_span(span_name=func_name, component=component):
-            func(*args, **kwargs)
+            return func(*args, **kwargs)
 
     return wrapper
 
