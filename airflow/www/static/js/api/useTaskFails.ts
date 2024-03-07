@@ -21,6 +21,7 @@ import { useQuery } from "react-query";
 import axios, { AxiosResponse } from "axios";
 
 import { getMetaValue } from "src/utils";
+import { useAutoRefresh } from "src/context/autorefresh";
 
 const DAG_ID_PARAM = "dag_id";
 const RUN_ID_PARAM = "run_id";
@@ -43,8 +44,10 @@ interface Props {
   enabled?: boolean;
 }
 
-const useTaskFails = ({ runId, taskId, enabled = true }: Props) =>
-  useQuery(
+const useTaskFails = ({ runId, taskId, enabled = true }: Props) => {
+  const { isRefreshOn } = useAutoRefresh();
+
+  return useQuery(
     ["taskFails", runId, taskId],
     async () => {
       const params = {
@@ -54,7 +57,11 @@ const useTaskFails = ({ runId, taskId, enabled = true }: Props) =>
       };
       return axios.get<AxiosResponse, TaskFail[]>(taskFailsUrl, { params });
     },
-    { enabled }
+    {
+      enabled,
+      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+    }
   );
+};
 
 export default useTaskFails;

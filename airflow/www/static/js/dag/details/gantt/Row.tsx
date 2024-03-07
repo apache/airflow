@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Box, Tooltip, Flex, Text } from "@chakra-ui/react";
+import { Box, Tooltip, Flex } from "@chakra-ui/react";
 
 import useSelection from "src/dag/useSelection";
 import { getDuration } from "src/datetime_utils";
@@ -27,9 +27,9 @@ import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
 import type { Task } from "src/types";
 import { useTaskFails } from "src/api";
-import Time from "src/components/Time";
 
 import GanttTooltip from "./GanttTooltip";
+import TaskFail from "./TaskFail";
 
 interface Props {
   ganttWidth?: number;
@@ -69,11 +69,6 @@ const Row = ({
     enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task fails if it even has a try number > 1
   });
 
-  const pastFails = (taskFails || []).filter(
-    (tf) =>
-      instance?.startDate && tf?.startDate && tf.startDate < instance?.startDate
-  );
-
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
   const queuedDuration = hasValidQueuedDttm
@@ -106,7 +101,7 @@ const Row = ({
         width={ganttWidth}
         height={`${boxSize + 9}px`}
       >
-        {instance ? (
+        {instance && (
           <Tooltip
             label={<GanttTooltip task={task} instance={instance} />}
             hasArrow
@@ -148,52 +143,24 @@ const Row = ({
               />
             </Flex>
           </Tooltip>
-        ) : (
-          <Box height="10px" />
         )}
-        {pastFails.map((tf) => {
-          const duration = getDuration(tf?.startDate, tf?.endDate);
-          const percent = duration / runDuration;
-          const failWidth = ganttWidth * percent;
-
-          const startOffset = getDuration(ganttStartDate, tf?.startDate);
-          const offsetLeft = (startOffset / runDuration) * ganttWidth;
-
-          return (
-            <Tooltip
-              label={
-                <Box>
-                  <Text>Task Fail</Text>
-                  {tf?.startDate && (
-                    <Text>
-                      Start: <Time dateTime={tf?.startDate} />
-                    </Text>
-                  )}
-                  {instance?.endDate && (
-                    <Text>
-                      End: <Time dateTime={tf?.endDate} />
-                    </Text>
-                  )}
-                </Box>
-              }
-              hasArrow
-              portalProps={{ containerRef }}
-              placement="top"
-              openDelay={hoverDelay}
-              key={`${tf.taskId}-${tf.startDate}`}
-              top="4px"
-            >
-              <Box
-                position="absolute"
-                left={`${offsetLeft}px`}
-                cursor="pointer"
-                top="4px"
-              >
-                <SimpleStatus state="failed" width={`${failWidth}px`} />
-              </Box>
-            </Tooltip>
-          );
-        })}
+        {/* Only show fails before the most recent task instance */}
+        {(taskFails || [])
+          .filter(
+            (tf) =>
+              tf.startDate !== instance?.startDate &&
+              // @ts-ignore
+              moment(tf.startDate).isAfter(ganttStartDate)
+          )
+          .map((taskFail) => (
+            <TaskFail
+              key={`${taskFail.taskId}-${taskFail.startDate}`}
+              taskFail={taskFail}
+              ganttStartDate={ganttStartDate}
+              ganttWidth={ganttWidth}
+              runDuration={runDuration}
+            />
+          ))}
       </Box>
       {isOpen &&
         !!task.children &&
