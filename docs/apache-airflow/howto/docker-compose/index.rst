@@ -358,9 +358,11 @@ Networking
 
 In general, if you want to use Airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
 
-Debug Airflow inside docker container using Pycharm
+Debug Airflow inside docker container using PyCharm
 ===================================================
-Prerequisites: Create a project in **PyCharm** and download the `docker-compose.yaml <{{ doc_root_url }}docker-compose.yaml>`__.
+.. jinja:: quick_start_ctx
+
+    Prerequisites: Create a project in **PyCharm** and download the (`docker-compose.yaml <{{ doc_root_url }}docker-compose.yaml>`__).
 
 Steps:
 
@@ -368,24 +370,21 @@ Steps:
 
    Add the following section under the ``services`` section:
 
-.. code-block:: docker
+.. code-block:: yaml
 
-    services:
-      airflow-python:
-        <<: *airflow-common
-        profiles:
-          - debug
-        environment:
-          <<: *airflow-common-env
-        user: "50000:0"
-        entrypoint: ["bash"]
+    airflow-python:
+    <<: *airflow-common
+    profiles:
+        - debug
+    environment:
+        <<: *airflow-common-env
+    user: "50000:0"
+    entrypoint: ["bash"]
 
 .. note::
 
     This code snippet creates a new service named **"airflow-python"** specifically for PyCharm's Python interpreter.
-
-    On a Linux system,  if you have executed the command ``echo -e "AIRFLOW_UID=$(id -u)" > .env``, 
-    you need to set ``user: "50000:0"`` in ``airflow-python`` service to avoid PyCharm's ``Unresolved reference 'airflow'`` error.
+    On a Linux system,  if you have executed the command ``echo -e "AIRFLOW_UID=$(id -u)" > .env``, you need to set ``user: "50000:0"`` in ``airflow-python`` service to avoid PyCharm's ``Unresolved reference 'airflow'`` error.
 
 2) Configure PyCharm Interpreter
 
@@ -398,9 +397,7 @@ Steps:
 .. image:: /img/add_container_python_interpreter.png
     :alt: Configuring the container's Python interpreter in PyCharm, step diagram
 
-    
 Building the interpreter index might take some time.
-
 Once configured, you can debug your Airflow code within the container environment, mimicking your local setup.
 
 
