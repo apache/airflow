@@ -207,5 +207,4 @@ class TestAwsAuthManager:
     def test_login_admin(self, client_admin_permissions):
         with client_admin_permissions.test_client() as client:
             response = client.get("/login_callback", follow_redirects=True)
-            print(response.data.decode("utf-8"))
             check_content_in_response("<h2>DAGs</h2>", response, 200)
