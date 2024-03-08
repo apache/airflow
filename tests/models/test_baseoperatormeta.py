@@ -54,16 +54,15 @@ class TestBaseOperatorMeta:
         )
         return task_instance
 
-    @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_when_called_directly(self):
         with pytest.raises(AirflowException, match="Method execute cannot be called from inner!"):
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
-            HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
+            with conf_vars({("core", "unit_test_mode"): "False"}):
+                HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
 
     @patch("sqlalchemy.orm.Session.__init__")
-    @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_when_called_from_decorated_task(
         self, mock_session: MagicMock, mock_task_instance_methods
     ):
@@ -82,12 +81,13 @@ class TestBaseOperatorMeta:
         assert not operator.called
 
         task_instance = self.create_task_instance(operator=say_hello(context=context).operator)
-        task_instance.run(test_mode=True, session=session)
+
+        with conf_vars({("core", "unit_test_mode"): "False"}):
+            task_instance.run(test_mode=True, session=session)
 
         assert not operator.called
 
     @patch("sqlalchemy.orm.Session.__init__")
-    @conf_vars({("core", "unit_test_mode"): "False"})
     def test_executor_when_called_from_task_instance(
         self, mock_session: MagicMock, mock_task_instance_methods
     ):
@@ -101,6 +101,8 @@ class TestBaseOperatorMeta:
         assert not operator.called
 
         task_instance = self.create_task_instance(operator=operator)
-        task_instance.run(test_mode=True, session=session)
+
+        with conf_vars({("core", "unit_test_mode"): "False"}):
+            task_instance.run(test_mode=True, session=session)
 
         assert operator.called
