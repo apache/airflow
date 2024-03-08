@@ -34,6 +34,7 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
+from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
@@ -46,13 +47,32 @@ from airflow.security.permissions import (
     RESOURCE_DATASET,
     RESOURCE_VARIABLE,
 )
+from airflow.www import app as application
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from tests.test_utils.config import conf_vars
+from tests.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 mock = Mock()
+
+SAML_METADATA_PARSED = {
+    "idp": {
+        "entityId": "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/<assertion>",
+        "singleSignOnService": {
+            "url": "https://portal.sso.us-east-1.amazonaws.com/saml/assertion/<assertion>",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+        },
+        "singleLogoutService": {
+            "url": "https://portal.sso.us-east-1.amazonaws.com/saml/logout/<assertion>",
+            "binding": "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect",
+        },
+        "x509cert": "<cert>",
+    },
+    "security": {"authnRequestsSigned": False},
+    "sp": {"NameIDFormat": "urn:oasis:names:tc:SAML:2.0:nameid-format:transient"},
+}
 
 
 @pytest.fixture
@@ -88,6 +108,39 @@ def auth_manager_with_appbuilder():
 @pytest.fixture
 def test_user():
     return AwsAuthManagerUser(user_id="test_user_id", groups=[], username="test_username")
+
+
+@pytest.fixture
+def client_admin():
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "enable"): "True",
+            ("aws_auth_manager", "region_name"): "us-east-1",
+            ("aws_auth_manager", "saml_metadata_url"): "/saml/metadata",
+            ("aws_auth_manager", "avp_policy_store_id"): "avp_policy_store_id",
+        }
+    ):
+        with patch(
+            "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
+        ) as mock_parser, patch(
+            "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
+        ) as mock_init_saml_auth:
+            mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
+
+            auth = Mock()
+            auth.is_authenticated.return_value = True
+            auth.get_nameid.return_value = "user_admin_permissions"
+            auth.get_attributes.return_value = {
+                "id": ["user_admin_permissions"],
+                "groups": ["Admin"],
+                "email": ["email"],
+            }
+            mock_init_saml_auth.return_value = auth
+            yield application.create_app(testing=True)
 
 
 class TestAwsAuthManager:
@@ -654,3 +707,23 @@ class TestAwsAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0
+
+    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_single_result")
+    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_results")
+    @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "is_authorized")
+    def test_aws_auth_manager_index(
+        self,
+        mock_is_authorized,
+        mock_get_batch_is_authorized_results,
+        mock_get_batch_is_authorized_single_result,
+        client_admin,
+    ):
+        """
+        Load the index page using AWS auth manager. Mock all interactions with Amazon Verified Permissions.
+        """
+        mock_is_authorized.return_value = True
+        mock_get_batch_is_authorized_results.return_value = []
+        mock_get_batch_is_authorized_single_result.return_value = {"decision": "ALLOW"}
+        with client_admin.test_client() as client:
+            response = client.get("/login_callback", follow_redirects=True)
+            check_content_in_response("<h2>DAGs</h2>", response, 200)
