@@ -58,8 +58,4 @@ def test_k8s_resource_iterator():
     def callback_success(yml_doc: dict) -> None:
         return
 
-    try:
-        k8s_resource_iterator(callback_success, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML))
-
-    except FailToCreateError:
-        assert False
+    k8s_resource_iterator(callback_success, resources=yaml.safe_load_all(TEST_VALID_LIST_RESOURCE_YAML))

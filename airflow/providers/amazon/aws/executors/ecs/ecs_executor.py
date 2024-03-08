@@ -26,7 +26,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -47,12 +47,13 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
         ExecutorConfigType,
@@ -240,6 +241,7 @@ class AwsEcsExecutor(BaseExecutor):
         # Get state of current task.
         task_state = task.get_task_state()
         task_key = self.active_workers.arn_to_key[task.task_arn]
+
         # Mark finished tasks as either a success/failure.
         if task_state == State.FAILED:
             self.fail(task_key)
@@ -394,6 +396,7 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
+                self.queued(task_key, task.task_arn)
         if failure_reasons:
             self.log.error(
                 "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
@@ -494,3 +497,39 @@ class AwsEcsExecutor(BaseExecutor):
                     'container "name" must be provided in "containerOverrides" configuration'
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
+
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+        """
+        Adopt task instances which have an external_executor_id (the ECS task ARN).
+
+        Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
+        """
+        with Stats.timer("ecs_executor.adopt_task_instances.duration"):
+            adopted_tis: list[TaskInstance] = []
+
+            if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+                task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
+
+                for task in task_descriptions:
+                    ti = [ti for ti in tis if ti.external_executor_id == task.task_arn][0]
+                    self.active_workers.add_task(
+                        task,
+                        ti.key,
+                        ti.queue,
+                        ti.command_as_list(),
+                        ti.executor_config,
+                        ti.prev_attempted_tries,
+                    )
+                    adopted_tis.append(ti)
+
+            if adopted_tis:
+                tasks = [f"{task} in state {task.state}" for task in adopted_tis]
+                task_instance_str = "\n\t".join(tasks)
+                self.log.info(
+                    "Adopted the following %d tasks from a dead executor:\n\t%s",
+                    len(adopted_tis),
+                    task_instance_str,
+                )
+
+            not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
+            return not_adopted_tis
