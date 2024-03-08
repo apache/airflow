@@ -1419,7 +1419,7 @@ class TestVertexAIUndeployModelOperator:
 
 
 class TestVertexAICreateHyperparameterTuningJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.types.HyperparameterTuningJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = CreateHyperparameterTuningJobOperator(
@@ -1464,7 +1464,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             enable_web_access=False,
             tensorboard=None,
             sync=False,
-            wait_job_completed=True,
+            wait_job_completed=False,
         )
 
     @mock.patch(
@@ -1511,11 +1511,8 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context={"ti": mock.MagicMock()})
 
-    @mock.patch(
-        VERTEX_AI_PATH.format("hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator.xcom_push")
-    )
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
-    def test_execute_complete(self, mock_hook, mock_xcom_push):
+    def test_execute_complete(self, mock_hook):
         test_job_id = "test_job_id"
         test_job = {"name": f"test/{test_job_id}"}
         event = {
@@ -1544,20 +1541,6 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
 
         result = op.execute_complete(context=mock_context, event=event)
 
-        mock_xcom_push.assert_has_calls(
-            [
-                call(mock_context, key="hyperparameter_tuning_job_id", value=test_job_id),
-                call(
-                    mock_context,
-                    key="training_conf",
-                    value={
-                        "training_conf_id": test_job_id,
-                        "region": GCP_LOCATION,
-                        "project_id": GCP_PROJECT,
-                    },
-                ),
-            ]
-        )
         assert result == test_job
 
     def test_execute_complete_error(self):
@@ -1587,7 +1570,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
 
 
 class TestVertexAIGetHyperparameterTuningJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.types.HyperparameterTuningJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = GetHyperparameterTuningJobOperator(

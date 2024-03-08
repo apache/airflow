@@ -34,6 +34,7 @@ from airflow.utils.state import TaskInstanceState
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -1140,7 +1141,7 @@ class TestGetDags(TestDagEndpoint):
 
 
 class TestPatchDag(TestDagEndpoint):
-    def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer):
+    def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
         response = self.client.patch(
@@ -1183,8 +1184,9 @@ class TestPatchDag(TestDagEndpoint):
             "pickle_id": None,
         }
         assert response.json == expected_response
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
 
-    def test_should_respond_200_on_patch_with_granular_dag_access(self):
+    def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
         self._create_dag_models(1)
         response = self.client.patch(
             "/api/v1/dags/TEST_DAG_1",
@@ -1194,6 +1196,7 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
 
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
@@ -1445,6 +1448,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     def test_should_respond_200_on_patch_is_paused_using_update_mask(self, session, url_safe_serializer):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
@@ -1531,6 +1535,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     def test_wrong_value_as_update_mask_rasise(self, session):
         self._create_dag_models(2)
@@ -1578,7 +1583,7 @@ class TestPatchDags(TestDagEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
-    def test_only_active_true_returns_active_dags(self, url_safe_serializer):
+    def test_only_active_true_returns_active_dags(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
@@ -1626,8 +1631,9 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 1,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
-    def test_only_active_false_returns_all_dags(self, url_safe_serializer):
+    def test_only_active_false_returns_all_dags(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
@@ -1708,6 +1714,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -2135,7 +2142,7 @@ class TestPatchDags(TestDagEndpoint):
 
 
 class TestDeleteDagEndpoint(TestDagEndpoint):
-    def test_that_dag_can_be_deleted(self):
+    def test_that_dag_can_be_deleted(self, session):
         self._create_dag_models(1)
 
         response = self.client.delete(
@@ -2143,6 +2150,7 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.delete_dag", execution_date=None)
 
     def test_raise_when_dag_is_not_found(self):
         response = self.client.delete(
