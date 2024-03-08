@@ -483,7 +483,7 @@ core:
       default: "Disabled"
     priority_weight_check_rule:
       description: |
-        Which rule use for validar task's **priority_weight_total**.
+        Which rule use for validate task's **priority_weight_total**.
 
         * ``strict`` - Validate that task's **priority_weight_total**
           in range **[-2147483648..2147483647]** (int32).
