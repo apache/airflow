@@ -29,6 +29,7 @@ from kubernetes.client.models import V1Deployment, V1DeploymentStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
+    GKECustomResourceHook,
     GKEDeploymentHook,
     GKEHook,
     GKEJobHook,
@@ -691,6 +692,51 @@ class TestGKEJobHook:
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
             self.gke_hook = GKEJobHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+        self.gke_hook._client = mock.Mock()
+
+        def refresh_token(request):
+            self.credentials.token = "New"
+
+        self.credentials = mock.MagicMock()
+        self.credentials.token = "Old"
+        self.credentials.expired = False
+        self.credentials.refresh = refresh_token
+
+    @mock.patch(GKE_STRING.format("google_requests.Request"))
+    def test_get_connection_update_hook_with_invalid_token(self, mock_request):
+        self.gke_hook._get_config = self._get_config
+        self.gke_hook.get_credentials = self._get_credentials
+        self.gke_hook.get_credentials().expired = True
+        the_client: kubernetes.client.ApiClient = self.gke_hook.get_conn()
+
+        the_client.configuration.refresh_api_key_hook(the_client.configuration)
+
+        assert self.gke_hook.get_credentials().token == "New"
+
+    @mock.patch(GKE_STRING.format("google_requests.Request"))
+    def test_get_connection_update_hook_with_valid_token(self, mock_request):
+        self.gke_hook._get_config = self._get_config
+        self.gke_hook.get_credentials = self._get_credentials
+        self.gke_hook.get_credentials().expired = False
+        the_client: kubernetes.client.ApiClient = self.gke_hook.get_conn()
+
+        the_client.configuration.refresh_api_key_hook(the_client.configuration)
+
+        assert self.gke_hook.get_credentials().token == "Old"
+
+    def _get_config(self):
+        return kubernetes.client.configuration.Configuration()
+
+    def _get_credentials(self):
+        return self.credentials
+
+
+class TestGKECustomResourceHook:
+    def setup_method(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKECustomResourceHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):

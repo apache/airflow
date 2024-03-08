@@ -330,6 +330,15 @@ class BaseExecutor(LoggingMixin):
         """
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
+    def queued(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set queued state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.QUEUED, info)
+
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
         Return and flush the event buffer.

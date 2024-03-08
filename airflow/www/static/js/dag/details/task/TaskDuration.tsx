@@ -22,7 +22,7 @@
 import React from "react";
 
 import useSelection from "src/dag/useSelection";
-import { useGridData } from "src/api";
+import { useGridData, useTaskFails } from "src/api";
 import { startCase } from "lodash";
 import { getDuration, formatDateTime, defaultFormat } from "src/datetime_utils";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
@@ -44,6 +44,10 @@ const TaskDuration = () => {
     selected: { taskId },
     onSelect,
   } = useSelection();
+
+  const { data: taskFails } = useTaskFails({ taskId: taskId || undefined });
+
+  console.log(taskFails);
 
   const {
     data: { dagRuns, groups, ordering },
