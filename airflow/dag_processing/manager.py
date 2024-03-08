@@ -1063,6 +1063,8 @@ class DagFileProcessorManager(LoggingMixin):
         else:
             s.set_attribute("num_dags", num_dags)
             s.set_attribute("import_errors", count_import_errors)
+            if count_import_errors > 0:
+                s.set_attribute("error", True)
 
         s.end(end_time=int(last_finish_time.timestamp() * 1000000000))
 
