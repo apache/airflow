@@ -19,9 +19,8 @@
 
 /* global moment */
 
+import { AnsiUp } from "ansi_up";
 import { defaultFormatWithTZ } from "src/datetime_utils";
-
-import sanitizeHtml from "sanitize-html";
 
 export enum LogLevel {
   DEBUG = "DEBUG",
@@ -61,6 +60,7 @@ export const parseLogs = (
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
+  const ansiUp = new AnsiUp();
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -99,29 +99,14 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      // sanitize the lines to remove any tags that may cause HTML injection
-      const sanitizedLine = sanitizeHtml(parsedLine, {
-        allowedTags: ["a"],
-        allowedAttributes: {
-          a: ["href", "target", "style"],
-        },
-        transformTags: {
-          a: (tagName, attribs) => {
-            attribs.style = "color: blue; text-decoration: underline;";
-            return {
-              tagName: "a",
-              attribs,
-            };
-          },
-        },
-      });
+      // for lines with color convert to nice HTML
+      const coloredLine = ansiUp.ansi_to_html(parsedLine);
 
       // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = sanitizedLine.replace(
+      const lineWithHyperlinks = coloredLine.replace(
         /((https?:\/\/|http:\/\/)[^\s]+)/g,
         '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
       );
-
       parsedLines.push(lineWithHyperlinks);
     }
   });
