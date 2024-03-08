@@ -57,9 +57,9 @@ While ``schema_override`` and ``steps_override`` are explicit, optional paramete
 ``additional_run_config`` dictionary. This parameter can be used to initialize additional runtime
 configurations or overrides for the job run such as ``threads_override``, ``generate_docs_override``,
 ``git_branch``, etc. For a complete list of the other configurations that can used at runtime, reference the
-`API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#operation/triggerRun>`__.
+`API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Trigger%20Job%20Run>`__.
 
-The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks with both synchronous and
+The below examples demonstrate how to instantiate DbtCloudRetryJobOperator tasks with both synchronous and
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
 referenced within the ``default_args`` of the example DAG.
 
@@ -77,6 +77,53 @@ via the ``additional_run_config`` dictionary.
     :dedent: 4
     :start-after: [START howto_operator_dbt_cloud_run_job_async]
     :end-before: [END howto_operator_dbt_cloud_run_job_async]
+
+.. _howto/operator:DbtCloudRetryJobOperator:
+
+Retry a dbt Cloud Job
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.dbt.cloud.operators.dbt.DbtCloudRetryJobOperator` to retry a dbt
+Cloud job from the point of failure, if the run failed. Otherwise trigger a new run. For more information on the api behavior,
+reference the `API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job>`__.
+Retrying a job with an existing in-progress run can result in an error, hence this operator only triggers retry
+if the job is in a terminated state.
+
+By default, the operator will periodically check on the status of the executed job to terminate
+with a successful status every ``check_interval`` seconds or until the job reaches a ``timeout`` length of
+execution time. This functionality is controlled by the ``wait_for_termination`` parameter. Alternatively,
+``wait_for_termination`` can be set to False to perform an asynchronous wait (typically paired with the
+:class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`). Setting ``wait_for_termination`` to
+False is a good approach for long-running dbt Cloud jobs.
+
+The ``deferrable`` parameter along with ``wait_for_termination`` will control the functionality
+whether to poll the job status on the worker or defer using the Triggerer.
+When ``wait_for_termination`` is True and ``deferrable`` is False,we submit the job and ``poll``
+for its status on the worker. This will keep the worker slot occupied till the job execution is done.
+When ``wait_for_termination`` is True and ``deferrable`` is True,
+we submit the job and ``defer`` using Triggerer. This will release the worker slot leading to savings in
+resource utilization while the job is running.
+
+When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
+track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
+
+The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks with both synchronous and
+asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
+referenced within the ``default_args`` of the example DAG.
+
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_retry_job]
+    :end-before: [END howto_operator_dbt_cloud_retry_job]
+
+This next example also shows how to run this in an async way without waiting for termination.
+
+.. exampleinclude:: /../../tests/system/providers/dbt/cloud/example_dbt_cloud.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dbt_cloud_retry_job_async]
+    :end-before: [END howto_operator_dbt_cloud_retry_job_async]
 
 .. _howto/operator:DbtCloudJobRunSensor:
 
