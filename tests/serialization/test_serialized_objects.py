@@ -48,7 +48,7 @@ from airflow.serialization.pydantic.dataset import DatasetEventPydantic, Dataset
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
-from airflow.serialization.serialized_objects import BaseSerialization, _orm_to_model
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
@@ -351,15 +351,34 @@ def test_all_pydantic_models_round_trip():
                 if obj == BaseModel:
                     continue
                 classes.add(obj)
-    inclusion_list = set(_orm_to_model.values())  # these are not yet needed
+    exclusion_list = {
+        "DatasetPydantic",
+        "DagTagPydantic",
+        "DagScheduleDatasetReferencePydantic",
+        "TaskOutletDatasetReferencePydantic",
+        "DagOwnerAttributesPydantic",
+        "DatasetEventPydantic",
+    }
     for c in sorted(classes, key=str):
-        if c not in inclusion_list:
+        if c.__name__ in exclusion_list:
             continue
         orm_instance = sample_objects.get(c)
         if not orm_instance:
-            pytest.fail(f"need to add to `sample_objects` an object for testing roundtrip for class {c}")
+            pytest.fail(
+                f"Class {c.__name__} not set up for testing. Either (1) add"
+                f" to `sample_objects` an object for testing roundtrip or"
+                f" (2) add class name to `exclusion list` if it does not"
+                f" need to be serialized directly."
+            )
         orm_ser = BaseSerialization.serialize(orm_instance, use_pydantic_models=True)
         pydantic_instance = BaseSerialization.deserialize(orm_ser, use_pydantic_models=True)
+        if isinstance(pydantic_instance, str):
+            pytest.fail(
+                f"The model object {orm_instance.__class__} came back as a string "
+                f"after round trip. Probably you need to define a DagAttributeType "
+                f"for it and define it in mappings `_orm_to_model` and `_type_to_class` "
+                f"in `serialized_objects.py`"
+            )
         assert isinstance(pydantic_instance, c)
         serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
         deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
