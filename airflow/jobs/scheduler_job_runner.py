@@ -150,7 +150,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
 
     job_type = "SchedulerJob"
-    heartrate: int = conf.getint("scheduler", "SCHEDULER_HEARTBEAT_SEC")
 
     def __init__(
         self,
