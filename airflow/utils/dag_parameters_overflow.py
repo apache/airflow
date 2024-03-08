@@ -17,40 +17,34 @@
 """DAG parameters overflow validator."""
 from __future__ import annotations
 
-import functools
 from typing import TYPE_CHECKING
 
-from airflow import settings
-from airflow.exceptions import AirflowDagTaskOutOfBoundsValue, AirflowException
+from airflow.configuration import conf
+from airflow.exceptions import AirflowDagTaskOutOfBoundsValue
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
-
-_POSTGRES_PRIORITY_WEIGHT_UPPER_BOUND = 2147483647
-_POSTGRES_PRIORITY_WEIGHT_LOWER_BOUND = -2147483648
-
-
-@functools.lru_cache(maxsize=None)
-def _is_metadatabase_postgres() -> bool:
-    if settings.engine is None:
-        raise AirflowException("Must initialize ORM first")
-    return settings.engine.url.get_backend_name() == "postgresql"
+_WEIGHT_UPPER_BOUND = 2147483647  # 2 ** 31 -1
+_WEIGHT_LOWER_BOUND = -2147483648  # -(2 ** 31)
 
 
 def check_values_overflow(dag: DAG) -> None:
     """Validate priority weight values overflow."""
-    if _is_metadatabase_postgres():
-        task_dict = dag.task_dict
+    if conf.get_mandatory_value("core", "priority_weight_check_rule") == "ignore":
+        return
 
-        for task in task_dict.values():
-            task_priority_weight_total = task.priority_weight_total
+    errors = []
+    for task in dag.task_dict.values():
+        if not (_WEIGHT_UPPER_BOUND >= (weight_total := task.priority_weight_total) >= _WEIGHT_LOWER_BOUND):
+            errors.append(f"Task {task.task_id!r} has priority weight {weight_total}.")
 
-            if (task_priority_weight_total > _POSTGRES_PRIORITY_WEIGHT_UPPER_BOUND) or (
-                task_priority_weight_total < _POSTGRES_PRIORITY_WEIGHT_LOWER_BOUND
-            ):
-                msg = (
-                    f"Faulty DAG/Task: [{dag.dag_id}/{task.task_id}] with total "
-                    f"priority weight {task_priority_weight_total} exceeds max/min DB value"
-                )
-                raise AirflowDagTaskOutOfBoundsValue(msg)
+    if not errors:
+        return
+
+    error_msg = (
+        f"Tasks in dag {dag.dag_id!r} exceeds allowed priority weight "
+        f"[{_WEIGHT_LOWER_BOUND}..{_WEIGHT_UPPER_BOUND}] range: \n * "
+    )
+    error_msg += "\n * ".join(errors)
+    raise AirflowDagTaskOutOfBoundsValue(error_msg)

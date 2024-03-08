@@ -481,6 +481,18 @@ core:
       type: string
       example: ~
       default: "Disabled"
+    priority_weight_check_rule:
+      description: |
+        Which rule use for validar task's **priority_weight_total**.
+
+        * ``strict`` - Validate that task's **priority_weight_total**
+          in range **[-2147483648..2147483647]** (int32).
+        * ``ignore`` - Do not validate **priority_weight_total**. It might leads to the scheduler failure
+          in case if it cannot be written into the Airflow Database.
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "strict"
 database:
   description: ~
   options:

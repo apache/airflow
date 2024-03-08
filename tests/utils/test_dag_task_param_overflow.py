@@ -18,54 +18,92 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import DAG
 from airflow.exceptions import AirflowDagTaskOutOfBoundsValue
+from airflow.models import dag as dag_module, dagbag as dagbag_module
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dag_parameters_overflow import check_values_overflow
-from tests.models import DEFAULT_DATE
+from airflow.utils.dag_parameters_overflow import (
+    _WEIGHT_LOWER_BOUND,
+    _WEIGHT_UPPER_BOUND,
+    check_values_overflow,
+)
+from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDagTaskParameterOverflow:
-    def test_priority_weight_empty(self):
-        # test empty DAG no overflow
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+    def test_priority_weight_default(self, dag_maker, mocker):
+        spy = mocker.spy(dagbag_module, "check_values_overflow")
+        with dag_maker(dag_id="test_priority_weight_empty") as dag:
+            EmptyOperator(task_id="empty")
+        spy.assert_called_once_with(dag)
 
-        assert not check_values_overflow(dag)
+    @pytest.mark.parametrize(
+        "priority_weight",
+        [
+            42,
+            pytest.param(_WEIGHT_LOWER_BOUND, id="lower-bound"),
+            pytest.param(_WEIGHT_UPPER_BOUND, id="upper-bound"),
+        ],
+    )
+    def test_priority_weight_absolute(self, priority_weight, dag_maker, mocker):
+        spy = mocker.spy(dagbag_module, "check_values_overflow")
+        with dag_maker(dag_id="test_priority_weight_empty") as dag:
+            EmptyOperator(task_id="empty", priority_weight=priority_weight)
+        spy.assert_called_once_with(dag)
 
-    def test_priority_weight_single_task(self):
-        # test single task with no specific priority weight (no overflow)
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
+    @pytest.mark.parametrize(
+        "priority_weight",
+        [
+            pytest.param(_WEIGHT_LOWER_BOUND - 1, id="less-than-lower-bound"),
+            pytest.param(_WEIGHT_UPPER_BOUND + 1, id="greater-than-upper-bound"),
+        ],
+    )
+    def test_priority_weight_absolute_overflow(self, priority_weight, dag_maker, mocker):
+        spy = mocker.spy(dagbag_module, "check_values_overflow")
+        error_message = f"'empty' has priority weight {priority_weight}"
+        with pytest.raises(AirflowDagTaskOutOfBoundsValue, match=error_message):
+            with dag_maker(dag_id="test_priority_weight_empty") as dag:
+                EmptyOperator(task_id="empty", priority_weight=priority_weight)
+        spy.assert_called_once_with(dag)
 
-        with dag:
-            EmptyOperator(task_id="stage1")
+    @pytest.mark.parametrize(
+        "priority, bound_priority",
+        [
+            pytest.param(-1, _WEIGHT_LOWER_BOUND, id="less-than-lower-bound"),
+            pytest.param(1, _WEIGHT_UPPER_BOUND, id="greater-than-upper-bound"),
+        ],
+    )
+    def test_priority_weight_sum_up_overflow(self, priority: int, bound_priority: int, dag_maker, mocker):
+        spy = mocker.spy(dagbag_module, "check_values_overflow")
+        with pytest.raises(AirflowDagTaskOutOfBoundsValue) as err_ctx:
+            with dag_maker(dag_id="test_priority_weight_sum_up_overflow") as dag:
+                op1 = EmptyOperator(task_id="stage1", priority_weight=priority)
+                op2 = EmptyOperator(task_id="stage2", priority_weight=priority)
+                op3 = EmptyOperator(task_id="stage3", priority_weight=bound_priority)
+                op1 >> op2 >> op3
+        spy.assert_called_once_with(dag)
+        exc_msg = err_ctx.value.args[0]
+        assert "Tasks in dag 'test_priority_weight_sum_up_overflow' exceeds" in exc_msg
+        assert "Task 'stage1' has priority weight" in exc_msg
+        assert "Task 'stage2' has priority weight" in exc_msg
+        assert "Task 'stage3' has priority weight" not in exc_msg
 
-        assert not check_values_overflow(dag)
-
-    @pytest.mark.backend("postgres")
-    def test_priority_weight_sum_up_overflow(self):
-        # Test that priority_weight_total sum up overflows
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-        with dag:
-            op1 = EmptyOperator(task_id="stage1", priority_weight=10)
-            op2 = EmptyOperator(task_id="stage2", priority_weight=2147483647)
-            op1.set_downstream(op2)
-        with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert check_values_overflow(dag)
-
-    @pytest.mark.backend("postgres")
-    def test_priority_weight_negative_overflow(self):
-        # Test that priority_weight_total overflows
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-        with dag:
-            EmptyOperator(task_id="stage1", priority_weight=-3147483648)
-        with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert check_values_overflow(dag)
-
-    @pytest.mark.backend("postgres")
-    def test_priority_weight_positive_overflow(self):
-        # Test that priority_weight_total overflows
-        dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
-        with dag:
-            EmptyOperator(task_id="stage1", priority_weight=2147483648)
-        with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert check_values_overflow(dag)
+    @pytest.mark.parametrize(
+        "priority_weight",
+        [
+            42,
+            pytest.param(_WEIGHT_LOWER_BOUND, id="lower-bound"),
+            pytest.param(_WEIGHT_UPPER_BOUND, id="upper-bound"),
+            pytest.param(_WEIGHT_LOWER_BOUND - 1, id="less-than-lower-bound"),
+            pytest.param(_WEIGHT_UPPER_BOUND + 1, id="greater-than-upper-bound"),
+            pytest.param(10**100, id="positive-googol"),
+            pytest.param(-(10**100), id="negative-googol"),
+        ],
+    )
+    def test_priority_weight_database_rule(self, priority_weight, dag_maker, mocker):
+        """Test that in `database` check rule doesn't matter values until it saved into the database."""
+        with conf_vars({("core", "priority_weight_check_rule"): "ignore"}):
+            with dag_module.DAG("test_priority_weight_database_rule", schedule=None) as dag:
+                EmptyOperator(task_id="empty", priority_weight=priority_weight)
+            check_values_overflow(dag)
