@@ -42,7 +42,7 @@ with DAG(
     # [START howto_operator_bash]
     run_this = BashOperator(
         task_id="run_after_loop",
-        bash_command="ls -alh --color=always / && echo https://airflow.apache.org/   ",
+        bash_command="ls -alh --color=always / && echo https://airflow.apache.org/  && echo 'some <code>html</code>'",
     )
     # [END howto_operator_bash]
 
