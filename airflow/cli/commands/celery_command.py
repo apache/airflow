@@ -46,7 +46,9 @@ from airflow.utils.serve_logs import serve_logs
 WORKER_PROCESS_NAME = "worker"
 
 warnings.warn(
-    "Use celery command from providers package, Use celery provider > 3.6.0", DeprecationWarning, stacklevel=2
+    "Use celery command from providers package, Use celery provider >= 3.6.1",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 
