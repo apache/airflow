@@ -79,7 +79,7 @@ from airflow.models.abstractoperator import (
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance, clear_task_instances, _execute_task
+from airflow.models.taskinstance import TaskInstance, _execute_task, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from airflow import DAG
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance, DagRun, Operator
+from airflow.models import DagRun, Operator, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import task
 from airflow.utils.context import Context
