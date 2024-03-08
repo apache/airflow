@@ -264,6 +264,8 @@ class Job(Base, LoggingMixin):
     def _heartrate(job_type: str) -> float:
         if job_type == "TriggererJob":
             return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+        elif job_type == "SchedulerJob":
+            return conf.getfloat("scheduler", "SCHEDULER_HEARTBEAT_SEC")
         else:
             # Heartrate used to be hardcoded to scheduler, so in all other
             # cases continue to use that value for back compat
