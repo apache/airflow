@@ -3034,6 +3034,16 @@ class DAG(LoggingMixin):
         )
         return cls.bulk_write_to_db(dags=dags, session=session)
 
+    def simplify_dataset_expression(self, dataset_expression) -> dict | None:
+        """Simplifies a nested dataset expression into a 'any' or 'all' format with URIs."""
+        if dataset_expression is None:
+            return None
+        if dataset_expression.get("__type") == "dataset":
+            return dataset_expression["__var"]["uri"]
+
+        new_key = "any" if dataset_expression["__type"] == "dataset_any" else "all"
+        return {new_key: [self.simplify_dataset_expression(item) for item in dataset_expression["__var"]]}
+
     @classmethod
     @provide_session
     def bulk_write_to_db(
@@ -3119,7 +3129,9 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
-            orm_dag.dataset_expression = BaseSerialization.serialize(dag.dataset_triggers) or None
+            orm_dag.dataset_expression = dag.simplify_dataset_expression(
+                BaseSerialization.serialize(dag.dataset_triggers)
+            )
 
             orm_dag.processor_subdir = processor_subdir
 

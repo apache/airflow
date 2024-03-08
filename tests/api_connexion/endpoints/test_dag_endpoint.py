@@ -154,23 +154,10 @@ class TestDagEndpoint:
             is_active=True,
             is_paused=False,
             dataset_expression={
-                "__type": "dataset_any",
-                "__var": [
-                    {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
-                    {
-                        "__type": "dataset_all",
-                        "__var": [
-                            {
-                                "__type": "dataset",
-                                "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
-                            },
-                            {
-                                "__type": "dataset",
-                                "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
-                            },
-                        ],
-                    },
-                ],
+                "any": [
+                    "s3://dag1/output_1.txt",
+                    {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                ]
             },
         )
         session.add(dag_model)
@@ -401,23 +388,10 @@ class TestGetDagDetails(TestDagEndpoint):
             "dag_id": "test_dag",
             "dag_run_timeout": None,
             "dataset_expression": {
-                "__type": "dataset_any",
-                "__var": [
-                    {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
-                    {
-                        "__type": "dataset_all",
-                        "__var": [
-                            {
-                                "__type": "dataset",
-                                "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
-                            },
-                            {
-                                "__type": "dataset",
-                                "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
-                            },
-                        ],
-                    },
-                ],
+                "any": [
+                    "s3://dag1/output_1.txt",
+                    {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                ]
             },
             "default_view": None,
             "description": None,
