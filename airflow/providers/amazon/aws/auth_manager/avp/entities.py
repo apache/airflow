@@ -38,6 +38,7 @@ class AvpEntities(Enum):
     CUSTOM = "Custom"
     DAG = "Dag"
     DATASET = "Dataset"
+    MENU = "Menu"
     POOL = "Pool"
     VARIABLE = "Variable"
     VIEW = "View"

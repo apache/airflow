@@ -121,6 +121,12 @@
                     "resourceTypes": ["Dataset"]
                 }
             },
+            "Menu.MENU": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Menu"]
+                }
+            },
             "Pool.DELETE": {
                 "appliesTo": {
                     "principalTypes": ["User"],
@@ -182,6 +188,7 @@
             "Custom": {},
             "Dag": {},
             "Dataset": {},
+            "Menu": {},
             "Pool": {},
             "Role": {},
             "User": {
