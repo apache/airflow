@@ -25,12 +25,7 @@ from airflow.models.xcom_arg import XComArg
 
 # Ignore missing args provided by default_args
 # mypy: disable-error-code="call-arg"
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
-
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label

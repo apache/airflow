@@ -2878,6 +2878,43 @@ class TestDagModel:
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
+    def test_dataset_expression(self, session):
+        dataset_expr = {
+            "__type": "dataset_any",
+            "__var": [
+                {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
+                {
+                    "__type": "dataset_all",
+                    "__var": [
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
+                        },
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
+                        },
+                    ],
+                },
+            ],
+        }
+        dag_id = "test_dag_dataset_expression"
+        orm_dag = DagModel(
+            dag_id=dag_id,
+            dataset_expression=dataset_expr,
+            is_active=True,
+            is_paused=False,
+            next_dagrun=timezone.utcnow(),
+            next_dagrun_create_after=timezone.utcnow() + timedelta(days=1),
+        )
+        session.add(orm_dag)
+        session.commit()
+        retrieved_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        assert retrieved_dag.dataset_expression == dataset_expr
+
+        session.rollback()
+        session.close()
+
 
 class TestQueries:
     def setup_method(self) -> None:

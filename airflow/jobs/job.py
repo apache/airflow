@@ -39,6 +39,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
@@ -302,6 +303,7 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
+    @retry_db_transaction
     def _fetch_from_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
         if isinstance(job, Job):
             # not Internal API
@@ -342,6 +344,7 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
+    @retry_db_transaction
     def _update_heartbeat(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
         orm_job: Job | None = session.scalar(select(Job).where(Job.id == job.id).limit(1))
         if orm_job is None:

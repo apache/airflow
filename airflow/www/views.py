@@ -3505,6 +3505,31 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
+    @expose("/object/task_fails")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @provide_session
+    def task_fails(self, session):
+        """Return task fails."""
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        run_id = request.args.get("run_id")
+
+        query = select(
+            TaskFail.task_id, TaskFail.run_id, TaskFail.map_index, TaskFail.start_date, TaskFail.end_date
+        ).where(TaskFail.dag_id == dag_id)
+
+        if run_id:
+            query = query.where(TaskFail.run_id == run_id)
+        if task_id:
+            query = query.where(TaskFail.task_id == task_id)
+
+        task_fails = [dict(tf) for tf in session.execute(query).all()]
+
+        return (
+            htmlsafe_json_dumps(task_fails, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
     @expose("/object/task_instances")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def task_instances(self):
