@@ -32,6 +32,7 @@ class BaseJobRunner:
     """Abstract class for job runners to derive from."""
 
     job_type = "undefined"
+    heartrate = None
 
     def __init__(self, job: Job) -> None:
         if job.job_type and job.job_type != self.job_type:
@@ -40,6 +41,8 @@ class BaseJobRunner:
                 f"This is a bug and should be reported."
             )
         job.job_type = self.job_type
+        if self.heartrate is not None:
+            job.heartrate = self.heartrate
         self.job: Job = job
 
     def _execute(self) -> int | None:

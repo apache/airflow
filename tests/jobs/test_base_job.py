@@ -240,6 +240,18 @@ class TestJob:
         assert test_job.state == "running"
         assert test_job.executor == mock_sequential_executor
 
+    def test_heartrate_for_job(self):
+        from airflow.jobs.base_job_runner import BaseJobRunner
+
+        class _JobRunner(BaseJobRunner):
+            heartrate = 345
+
+        job = Mock(job_type=None)
+
+        _JobRunner(job)
+
+        assert job.heartrate == 345
+
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
         with create_session() as session:
