@@ -59,7 +59,7 @@ configurations or overrides for the job run such as ``threads_override``, ``gene
 ``git_branch``, etc. For a complete list of the other configurations that can used at runtime, reference the
 `API documentation <https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Trigger%20Job%20Run>`__.
 
-The below examples demonstrate how to instantiate DbtCloudRetryJobOperator tasks with both synchronous and
+The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks with both synchronous and
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
 referenced within the ``default_args`` of the example DAG.
 
@@ -107,7 +107,7 @@ resource utilization while the job is running.
 When ``wait_for_termination`` is False and ``deferrable`` is False, we just submit the job and can only
 track the job status with the :class:`~airflow.providers.dbt.cloud.sensors.dbt.DbtCloudJobRunSensor`.
 
-The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks with both synchronous and
+The below examples demonstrate how to instantiate DbtCloudRetryJobOperator tasks with both synchronous and
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
 referenced within the ``default_args`` of the example DAG.
 
