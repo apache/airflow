@@ -19,7 +19,6 @@
 
 /* global document, window, $ */
 import { AnsiUp } from "ansi_up";
-import { escapeHtml } from "./main";
 import { getMetaValue } from "./utils";
 import { formatDateTime } from "./datetime_utils";
 
@@ -110,8 +109,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
       // Text coloring, detect urls and log timestamps
       const ansiUp = new AnsiUp();
-      const urlRegex =
-        /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
+      ansiUp.escape_html = true;
+      ansiUp.url_allowlist = { http: 1, https: 1 };
       const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
       const iso8601Regex =
         /\d{4}[./-]\d{2}[./-]\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{4}/g;
@@ -131,14 +130,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         }
 
         // The message may contain HTML, so either have to escape it or write it as text.
-        const escapedMessage = escapeHtml(item[1]);
-        const coloredMessage = ansiUp.ansi_to_html(escapedMessage);
+        const coloredMessage = ansiUp.ansi_to_html(item[1]);
         const linkifiedMessage = coloredMessage
-          .replace(
-            urlRegex,
-            (url) =>
-              `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
-          )
           .replaceAll(
             dateRegex,
             (date) =>

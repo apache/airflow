@@ -63,6 +63,8 @@ export const parseLogs = (
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
   const ansiUp = new AnsiUp();
+  ansiUp.escape_html = true;
+  ansiUp.url_allowlist = { http: 1, https: 1 };
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -118,15 +120,9 @@ export const parseLogs = (
         },
       });
 
+      // for lines with color, links, transform to hyperlinks
       const coloredLine = ansiUp.ansi_to_html(sanitizedLine);
-
-      // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = coloredLine.replace(
-        /((https?:\/\/|http:\/\/)[^\s]+)/g,
-        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
-      );
-
-      parsedLines.push(lineWithHyperlinks);
+      parsedLines.push(coloredLine);
     }
   });
 
