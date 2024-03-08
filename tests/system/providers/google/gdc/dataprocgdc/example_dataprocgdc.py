@@ -36,6 +36,8 @@ DAG_ID = "example_dag_dpgdc-krm"
 with DAG(
     DAG_ID, schedule="@once", catchup=False, start_date=datetime(2024, 2, 5), tags=["example", "dataprocgdc"]
 ) as dag:
+
+    # [START howto_operator_dataprocGDC_submit_spark]
     submitSparkJobOperator = DataprocGDCSubmitSparkJobKrmOperator(
         task_id="example-dataprocgdc-submitspark-operator",
         trigger_rule="all_success",
@@ -47,7 +49,9 @@ with DAG(
         do_xcom_push=True,
         dag=dag,
     )
+    # [END howto_operator_dataprocGDC_submit_spark]
 
+    # [START howto_operator_dataprocGDC_create_appenv]
     createAppEnvOperator = DataprocGdcCreateAppEnvironmentKrmOperator(
         task_id="example-dataprocgdc-appenv-operator",
         trigger_rule="all_success",
@@ -59,7 +63,9 @@ with DAG(
         do_xcom_push=True,
         dag=dag,
     )
+    # [END howto_operator_dataprocGDC_create_appenv]
 
+    # [START howto_sensor_dataprocGDC_spark]
     sensor = DataprocGDCKrmSensor(
         task_id="example-dataprocgdc-sensor",
         application_name="simple-spark",
@@ -69,7 +75,7 @@ with DAG(
         api_group="dataprocgdc.cloud.google.com",
         api_version="v1alpha1",
     )
-
+    # [END howto_sensor_dataprocGDC_spark]
 
 from tests.system.utils import get_test_run  # noqa: E402
 
