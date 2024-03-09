@@ -93,7 +93,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
             user_id=attributes["id"][0],
             groups=attributes["groups"],
             username=saml_auth.get_nameid(),
-            email=attributes["email"][0] if "email" in attributes else None,
+            email=attributes["email"][0],
         )
         session["aws_user"] = user
 
