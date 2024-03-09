@@ -182,7 +182,7 @@ class TestUtils:
         with cached_app(testing=True).app.test_request_context():
             html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&amp;1%3E" in html
         assert "<a&1>" not in html
 
     @pytest.mark.db_test
@@ -205,7 +205,7 @@ class TestUtils:
                 utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
             )
 
-        assert "%3Ca%261%3E" in html
+        assert "%3Ca&amp;1%3E" in html
         assert "%3Cb2%3E" in html
         assert "<a&1>" not in html
         assert "<b2>" not in html
