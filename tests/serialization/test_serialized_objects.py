@@ -26,7 +26,6 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
-from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
@@ -52,6 +51,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
+from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
