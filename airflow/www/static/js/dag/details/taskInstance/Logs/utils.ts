@@ -62,6 +62,16 @@ export const parseLogs = (
   const fileSources: Set<string> = new Set();
   const ansiUp = new AnsiUp();
 
+  const urlRegex = /((https?:\/\/|http:\/\/)[^\s]+)/g;
+  // Detect log groups which can be collapsed
+  // Either in Github like format '::group::<group name>' to '::endgroup::'
+  // see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines
+  // Or in ADO pipeline like format '##[group]<group name>' to '##[endgroup]'
+  // see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
+  const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
+  const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
+  const logGroupStyle = "color:#0060df;cursor:pointer;font-weight: bold;";
+
   lines.forEach((line) => {
     let parsedLine = line;
 
@@ -103,10 +113,22 @@ export const parseLogs = (
       const coloredLine = ansiUp.ansi_to_html(parsedLine);
 
       // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = coloredLine.replace(
-        /((https?:\/\/|http:\/\/)[^\s]+)/g,
-        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
-      );
+      const lineWithHyperlinks = coloredLine
+        .replace(
+          urlRegex,
+          '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+        )
+        .replace(logGroupStart, (textLine) => {
+          const gName = textLine.substring(17);
+          const gId = gName.replace(/\W+/g, "_").toLowerCase();
+          const unfold = `<span id="${gId}_unfold" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
+          const fold = `<span style="display:none;"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+          return unfold + fold;
+        })
+        .replace(
+          logGroupEnd,
+          " <span style='color:#0060df;'>&#11205;&#11205;&#11205; Log group end</span></span>"
+        );
       parsedLines.push(lineWithHyperlinks);
     }
   });

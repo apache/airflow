@@ -59,10 +59,31 @@ const LogBlock = ({ parsedLogs, wrap, tryNumber }: Props) => {
     }
   };
 
+  const onClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.id && target.id.endsWith("_unfold")) {
+      target.style.display = "none";
+      if (target.nextElementSibling) {
+        (target.nextElementSibling as HTMLElement).style.display = "inline";
+      }
+    }
+    if (target.id && target.id.endsWith("_fold")) {
+      if (target.parentNode) {
+        (target.parentNode as HTMLElement).style.display = "none";
+        if (target.parentNode.previousSibling) {
+          (target.parentNode.previousSibling as HTMLElement).style.display =
+            "inline";
+        }
+      }
+    }
+    return false;
+  };
+
   return (
     <Code
       ref={logBoxRef}
       onScroll={onScroll}
+      onClick={onClick}
       maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
       p={3}
