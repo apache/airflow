@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 import pickle
 import tarfile
 import warnings
@@ -326,6 +327,7 @@ class DockerOperator(BaseOperator):
         self.port_bindings = port_bindings or {}
         if self.port_bindings and self.network_mode == "host":
             raise ValueError("Port bindings is not supported in the host network mode")
+        self._log_formatter_backup = {handler: handler.formatter for handler in self.log.handlers}
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -376,6 +378,14 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
+    def _restore_log_formatters(self):
+        for handler, formatter in self._log_formatter_backup.items():
+            handler.setFormatter(formatter)
+
+    def _change_log_formatters(self, new_format):
+        for handler in self.log.handlers:
+            handler.setFormatter(logging.Formatter(new_format))
+
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
             self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -421,6 +431,8 @@ class DockerOperator(BaseOperator):
         )
         logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
+            self._change_log_formatters('%(message)s')
+
             self.cli.start(self.container["Id"])
 
             log_lines = []
@@ -428,6 +440,8 @@ class DockerOperator(BaseOperator):
                 log_chunk = stringify(log_chunk).strip()
                 log_lines.append(log_chunk)
                 self.log.info("%s", log_chunk)
+
+            self._restore_log_formatters()
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
