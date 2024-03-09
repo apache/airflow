@@ -112,7 +112,6 @@ class GlueJobHook(AwsBaseHook):
 
         kwargs["client_type"] = "glue"
         super().__init__(*args, **kwargs)
-        self.logs_hook = AwsLogsHook(aws_conn_id=self.aws_conn_id)
 
     def create_glue_job_config(self) -> dict:
         default_command = {
@@ -214,6 +213,13 @@ class GlueJobHook(AwsBaseHook):
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
+    @property
+    def logs_hook(self):
+        """
+        Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook
+        """
+        return AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config)
+
     def print_job_logs(
         self,
         job_name: str,
@@ -226,6 +232,7 @@ class GlueJobHook(AwsBaseHook):
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
         """
+        
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
