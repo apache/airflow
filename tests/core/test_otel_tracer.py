@@ -46,8 +46,7 @@ class TestOtelTrace:
             # values
             conf_a.get.return_value = "abc"
             conf_a.getint.return_value = 123
-            """this will enable debug to set - which outputs the result
-            to the console exporter"""
+            # this will enable debug to set - which outputs the result to console
             conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion
@@ -82,8 +81,7 @@ class TestOtelTrace:
             log.setLevel(logging.DEBUG)
             conf_a.get.return_value = "abc"
             conf_a.getint.return_value = 123
-            """this will enable debug to set - which outputs the result
-            to the console exporter"""
+            # this will enable debug to set - which outputs the result to console
             conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion
@@ -92,8 +90,12 @@ class TestOtelTrace:
 
             now = datetime.now()
             dag_run = MagicMock()
+
+            parent_trace_id = "0af7651916cd43dd8448eb211c80319c"
+            parent_span_id = "b7ad6b7169203331"
+
             dag_run.conf = {
-                TRACEPARENT: "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+                TRACEPARENT: f"00-{parent_trace_id}-{parent_span_id}-01",
                 TRACESTATE: "key1=val1,key2=val2",
             }
             dag_run.dag_id = "dag_id"
@@ -108,9 +110,9 @@ class TestOtelTrace:
                 with tracer.start_span(span_name="span2") as s2:
                     s2.set_attribute("attr2", "val2")
                 span1 = json.loads(s1.to_json())
-            assert span1["context"]["trace_id"] != "0x0af7651916cd43dd8448eb211c80319c"
-            assert span1["links"][1]["context"]["trace_id"] == "0x0af7651916cd43dd8448eb211c80319c"
-            assert span1["links"][1]["context"]["span_id"] == "0xb7ad6b7169203331"
+            assert span1["context"]["trace_id"] != f"0x{parent_trace_id}"
+            assert span1["links"][1]["context"]["trace_id"] == f"0x{parent_trace_id}"
+            assert span1["links"][1]["context"]["span_id"] == f"0x{parent_span_id}"
 
     @patch("opentelemetry.sdk.trace.export.ConsoleSpanExporter")
     @patch("airflow.traces.otel_tracer.conf")
@@ -121,8 +123,7 @@ class TestOtelTrace:
             log.setLevel(logging.DEBUG)
             conf_a.get.return_value = "abc"
             conf_a.getint.return_value = 123
-            """this will enable debug to set - which outputs the result
-            to the console exporter"""
+            # this will enable debug to set - which outputs the result to console
             conf_a.getboolean.return_value = True
 
             # mocking console exporter with in mem exporter for better assertion

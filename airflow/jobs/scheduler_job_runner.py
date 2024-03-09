@@ -62,6 +62,7 @@ from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import Trace, span
 from airflow.utils import timezone
+from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.task_context_logger import TaskContextLogger
@@ -768,9 +769,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("queued_dttm", str(ti.queued_dttm))
                 span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
-                span.add_event(name="queued", timestamp=int(ti.queued_dttm.timestamp() * 1000000000))
-                span.add_event(name="started", timestamp=int(ti.start_date.timestamp() * 1000000000))
-                span.add_event(name="ended", timestamp=int(ti.end_date.timestamp() * 1000000000))
+                span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
+                span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
+                span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -1478,8 +1479,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run), 16)
-        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run), 16)
+        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run, as_int=True))
+        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
         links = [{"trace_id": trace_id, "span_id": span_id}]
 
         with Trace.start_span(
@@ -1563,12 +1564,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # query to update all the TIs across all the execution dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
             # see #11147/commit ee90807ac for more details
-            _schedulable_ti_ids = []
-            for _ti in schedulable_tis:
-                _schedulable_ti_ids.append(_ti.task_id)
             span.add_event(
                 name="schedule_tis",
-                attributes={"message": "dag_run scheduling its tis", "schedulable_tis": _schedulable_ti_ids},
+                attributes={
+                    "message": "dag_run scheduling its tis",
+                    "schedulable_tis": [_ti.task_id for _ti in schedulable_tis],
+                },
             )
             dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 

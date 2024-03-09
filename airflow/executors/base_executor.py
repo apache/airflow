@@ -27,10 +27,12 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
+from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -311,12 +313,10 @@ class BaseExecutor(LoggingMixin):
 
     @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
-        from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
-
         for key, command, queue, executor_config in task_tuples:
-            qt = self.queued_tasks[key][3]
-            trace_id = int(gen_trace_id(qt.dag_run), 16)  # TaskInstance in fourth element
-            span_id = int(gen_span_id_from_ti_key(key), 16)
+            task_instance = self.queued_tasks[key][3]
+            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))  # TaskInstance in fourth element
+            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             links = [{"trace_id": trace_id, "span_id": span_id}]
 
             # assuming that the span_id will very likely be unique inside the trace
@@ -359,11 +359,8 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        from airflow.traces.tracer import gen_context
-        from airflow.traces.utils import gen_span_id_from_ti_key
-
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        span_id = int(gen_span_id_from_ti_key(key), 16)
+        span_id = int(gen_span_id_from_ti_key(key, as_int=True))
         with Trace.start_span(
             span_name="fail",
             component="BaseExecutor",
@@ -384,11 +381,8 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        from airflow.traces.tracer import gen_context
-        from airflow.traces.utils import gen_span_id_from_ti_key
-
         trace_id = Trace.get_current_span().get_span_context().trace_id
-        span_id = int(gen_span_id_from_ti_key(key), 16)
+        span_id = int(gen_span_id_from_ti_key(key, as_int=True))
         with Trace.start_span(
             span_name="success",
             component="BaseExecutor",
@@ -570,8 +564,6 @@ class BaseExecutor(LoggingMixin):
 
         :meta private:
         """
-        from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-
         parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
         subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
         for group_command in cls.get_cli_commands():

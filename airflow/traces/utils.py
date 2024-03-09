@@ -18,22 +18,30 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from airflow.utils.hashlib_wrapper import md5
+
+if TYPE_CHECKING:
+    from airflow.models import DagRun, TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 
 
-def gen_trace_id(dag_run) -> str:
+def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
+    """Generate trace id from DagRun."""
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
     start_dt = dag_run.start_date
     hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()
+    if as_int is True:
+        return int(hash_hex, 16)
     return hash_hex
 
 
-def gen_span_id_from_ti_key(ti_key) -> str:
+def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> str | int:
     """Generate span id from TI key."""
     dag_id = ti_key.dag_id
     run_id = ti_key.run_id
@@ -41,29 +49,35 @@ def gen_span_id_from_ti_key(ti_key) -> str:
     try_num = ti_key.try_number  # key always has next number, not current
     hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    if as_int is True:
+        return int(hash_hex, 16)
     return hash_hex
 
 
-def gen_dag_span_id(dag_run):
+def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate dag's root span id using dag_run."""
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
     start_dt = dag_run.start_date
     hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    if as_int is True:
+        return int(hash_hex, 16)
     return hash_hex
 
 
-def gen_span_id(ti):
+def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
     dag_id = dag_run.dag_id
     run_id = dag_run.run_id
     task_id = ti.task_id
-    """in terms of ti when this is called, the try_number is already set to next, hence the subtraction"""
+    """When this is called, the try_number of ti is already set to next(+1), hence the subtraction"""
     try_num = ti.try_number - 1
     hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
     hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
+    if as_int is True:
+        return int(hash_hex, 16)
     return hash_hex
 
 
@@ -91,7 +105,7 @@ def parse_tracestate(tracestate_str: str | None = None) -> dict:
 
 def is_valid_trace_id(trace_id: str) -> bool:
     """Check whether trace id is valid."""
-    if trace_id is not None and len(trace_id) == 32 and trace_id != "0x00000000000000000000000000000000":
+    if trace_id is not None and len(trace_id) == 34 and int(trace_id, 16) != 0:
         return True
     else:
         return False
@@ -99,7 +113,7 @@ def is_valid_trace_id(trace_id: str) -> bool:
 
 def is_valid_span_id(span_id: str) -> bool:
     """Check whether span id is valid."""
-    if span_id is not None and len(span_id) == 16 and span_id != "0x0000000000000000":
+    if span_id is not None and len(span_id) == 18 and int(span_id, 16) != 0:
         return True
     else:
         return False

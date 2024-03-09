@@ -59,7 +59,7 @@ services:
     container_name: "breeze-jaeger"
     environment:
       COLLECTOR_OTLP_ENABLED: true
-      COLLLECTOR_ZIPKIN_HOST_PORT: :9411
+      COLLLECTOR_ZIPKIN_HOST_PORT: 9411
     ports:
       - "36686:16686"
       - "34317:4317"

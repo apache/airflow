@@ -19,11 +19,7 @@ from __future__ import annotations
 
 import logging
 import socket
-import typing
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-)
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.configuration import conf
 from airflow.typing_compat import Protocol
@@ -62,15 +58,15 @@ def span(func):
     return wrapper
 
 
-class DummyContext:
-    """If no Tracer is configured, DummyContext is used as a fallback."""
+class EmptyContext:
+    """If no Tracer is configured, EmptyContext is used as a fallback."""
 
     def __init__(self):
         self.trace_id = 1
 
 
-class DummySpan:
-    """If no Tracer is configured, DummySpan is used as a fallback."""
+class EmptySpan:
+    """If no Tracer is configured, EmptySpan is used as a fallback."""
 
     def __enter__(self):
         """Enter."""
@@ -86,7 +82,7 @@ class DummySpan:
 
     def get_span_context(self):
         """Get span context."""
-        return DUMMY_CTX
+        return EMPTY_CTX
 
     def set_attribute(self, key, value) -> None:
         """Set an attribute to the span."""
@@ -99,7 +95,7 @@ class DummySpan:
     def add_event(
         self,
         name: str,
-        attributes=None,
+        attributes: Any | None = None,
         timestamp: int | None = None,
     ) -> None:
         """Add event to span."""
@@ -107,8 +103,8 @@ class DummySpan:
 
     def add_link(
         self,
-        context: typing.Any,
-        attributes=None,
+        context: Any,
+        attributes: Any | None = None,
     ) -> None:
         """Add link to the span."""
         pass
@@ -118,8 +114,8 @@ class DummySpan:
         pass
 
 
-DUMMY_SPAN = DummySpan()
-DUMMY_CTX = DummyContext()
+EMPTY_SPAN = EmptySpan()
+EMPTY_CTX = EmptyContext()
 
 
 class Tracer(Protocol):
@@ -155,12 +151,26 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_dagrun(cls, dagrun, span_name=None, service_name=None, component=None, links=None):
+    def start_span_from_dagrun(
+        cls,
+        dagrun,
+        span_name=None,
+        service_name=None,
+        component=None,
+        links=None,
+    ):
         """Start a span from dagrun."""
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_taskinstance(cls, ti, span_name=None, component=None, child=False, links=None):
+    def start_span_from_taskinstance(
+        cls,
+        ti,
+        span_name=None,
+        component=None,
+        child=False,
+        links=None,
+    ):
         """Start a span from taskinstance."""
         raise NotImplementedError()
 
@@ -169,12 +179,12 @@ class DummyTrace:
     """If no Tracer is configured, DummyTracer is used as a fallback."""
 
     @classmethod
-    def get_tracer(cls, component: str):
-        """Get a tracer."""
-        return cls
-
-    @classmethod
-    def get_tracer_with_id(cls, component: str, trace_id: int | None = None, span_id: int | None = None):
+    def get_tracer(
+        cls,
+        component: str,
+        trace_id: int | None = None,
+        span_id: int | None = None,
+    ):
         """Get a tracer using provided node id and trace id."""
         return cls
 
@@ -187,33 +197,43 @@ class DummyTrace:
         span_id=None,
         links=None,
         start_time=None,
-    ) -> DummySpan:
+    ) -> EmptySpan:
         """Start a span."""
-        return DUMMY_SPAN
+        return EMPTY_SPAN
 
     @classmethod
-    def use_span(cls, span) -> DummySpan:
+    def use_span(cls, span) -> EmptySpan:
         """Use a span as current."""
-        return DUMMY_SPAN
+        return EMPTY_SPAN
 
     @classmethod
-    def get_current_span(self) -> DummySpan:
+    def get_current_span(self) -> EmptySpan:
         """Get the current span."""
-        return DUMMY_SPAN
+        return EMPTY_SPAN
 
     @classmethod
     def start_span_from_dagrun(
-        cls, dagrun, span_name=None, service_name=None, component=None, links=None
-    ) -> DummySpan:
+        cls,
+        dagrun,
+        span_name=None,
+        service_name=None,
+        component=None,
+        links=None,
+    ) -> EmptySpan:
         """Start a span from dagrun."""
-        return DUMMY_SPAN
+        return EMPTY_SPAN
 
     @classmethod
     def start_span_from_taskinstance(
-        cls, ti, span_name=None, component=None, child=False, links=None
-    ) -> DummySpan:
+        cls,
+        ti,
+        span_name=None,
+        component=None,
+        child=False,
+        links=None,
+    ) -> EmptySpan:
         """Start a span from taskinstance."""
-        return DUMMY_SPAN
+        return EMPTY_SPAN
 
 
 class _Trace(type):

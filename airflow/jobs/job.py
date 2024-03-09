@@ -211,35 +211,29 @@ class Job(Base, LoggingMixin):
                 heartbeat_callback(session)
                 self.log.debug("[heartbeat]")
             except OperationalError:
-                Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
+                class_name = self.__class__.__name__
+                Stats.incr(convert_camel_to_snake(class_name) + "_heartbeat_failure", 1, 1)
                 if not self.heartbeat_failed:
-                    self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+                    msg = f"{class_name} heartbeat got an exception"
+                    self.log.exception(msg)
                     self.heartbeat_failed = True
                     span.add_event(
                         name="error",
-                        attributes={"message": f"{self.__class__.__name__} heartbeat got an exception"},
+                        attributes={"message": msg},
                     )
                 if self.is_alive():
-                    self.log.error(
-                        "%s heartbeat failed with error. Scheduler may go into unhealthy state",
-                        self.__class__.__name__,
-                    )
+                    msg = f"{class_name} heartbeat failed with error. Scheduler may go into unhealthy state"
+                    self.log.error(msg)
                     span.add_event(
                         name="error",
-                        attributes={
-                            "message": f"{self.__class__.__name__} heartbeat failed with error. Scheduler may go into unhealthy state"
-                        },
+                        attributes={"message": msg},
                     )
                 else:
-                    self.log.error(
-                        "%s heartbeat failed with error. Scheduler is in unhealthy state",
-                        self.__class__.__name__,
-                    )
+                    msg = f"{class_name} heartbeat failed with error. Scheduler is in unhealthy state"
+                    self.log.error(msg)
                     span.add_event(
                         name="error",
-                        attributes={
-                            "message": f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"
-                        },
+                        attributes={"message": msg},
                     )
                 # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                 self.latest_heartbeat = previous_heartbeat

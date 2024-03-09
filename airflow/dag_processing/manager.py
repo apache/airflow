@@ -53,6 +53,7 @@ from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, span
 from airflow.utils import timezone
+from airflow.utils.dates import datetime_to_nano
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
@@ -1052,7 +1053,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         """crude exposure of instrumentation code which may need to be furnished"""
         span = Trace.get_tracer("DagFileProcessorManager").start_span(
-            "dag_processing", start_time=int(processor.start_time.timestamp() * 1000000000)
+            "dag_processing", start_time=datetime_to_nano(processor.start_time)
         )
         span.set_attribute("file_path", processor.file_path)
         span.set_attribute("run_count", self.get_run_count(processor.file_path) + 1)
@@ -1066,7 +1067,7 @@ class DagFileProcessorManager(LoggingMixin):
             if count_import_errors > 0:
                 span.set_attribute("error", True)
 
-        span.end(end_time=int(last_finish_time.timestamp() * 1000000000))
+        span.end(end_time=datetime_to_nano(last_finish_time))
 
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
         Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})

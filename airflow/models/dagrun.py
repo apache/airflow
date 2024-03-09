@@ -63,6 +63,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.traces.tracer import Trace
 from airflow.utils import timezone
+from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -883,9 +884,9 @@ class DagRun(Base, LoggingMixin):
                     "dag_hash": str(self.dag_hash),
                     "conf": str(self.conf),
                 }
-                span.add_event(name="queued", timestamp=int(self.queued_at.timestamp() * 1000000000))
-                span.add_event(name="started", timestamp=int(self.start_date.timestamp() * 1000000000))
-                span.add_event(name="ended", timestamp=int(self.end_date.timestamp() * 1000000000))
+                span.add_event(name="queued", timestamp=datetime_to_nano(self.queued_at))
+                span.add_event(name="started", timestamp=datetime_to_nano(self.start_date))
+                span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
                 span.set_attributes(attributes)
 
             session.flush()
