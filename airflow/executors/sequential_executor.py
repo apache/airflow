@@ -70,12 +70,12 @@ class SequentialExecutor(BaseExecutor):
         self.validate_airflow_tasks_run_command(command)
         self.commands_to_run.append((key, command))
 
-        s = Trace.get_current_span()
-        s.set_attribute("dag_id", key.dag_id)
-        s.set_attribute("run_id", key.run_id)
-        s.set_attribute("task_id", key.task_id)
-        s.set_attribute("try_number", key.try_number - 1)
-        s.set_attribute("commands_to_run", str(self.commands_to_run))
+        span = Trace.get_current_span()
+        span.set_attribute("dag_id", key.dag_id)
+        span.set_attribute("run_id", key.run_id)
+        span.set_attribute("task_id", key.task_id)
+        span.set_attribute("try_number", key.try_number - 1)
+        span.set_attribute("commands_to_run", str(self.commands_to_run))
 
     def sync(self) -> None:
         for key, command in self.commands_to_run:

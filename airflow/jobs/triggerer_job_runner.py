@@ -359,25 +359,25 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             if not self.trigger_runner.is_alive():
                 self.log.error("Trigger runner thread has died! Exiting.")
                 break
-            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as s:
+            with Trace.start_span(span_name="triggerer_job_loop", component="TriggererJobRunner") as span:
                 # Clean out unused triggers
-                s.add_event(name="Trigger.clean_unused()")
+                span.add_event(name="Trigger.clean_unused()")
                 Trigger.clean_unused()
                 # Load/delete triggers
-                s.add_event(name="load_triggers()")
+                span.add_event(name="load_triggers()")
                 self.load_triggers()
                 # Handle events
-                s.add_event(name="handle_events()")
+                span.add_event(name="handle_events()")
                 self.handle_events()
                 # Handle failed triggers
-                s.add_event(name="handle_failed_triggers()")
+                span.add_event(name="handle_failed_triggers()")
                 self.handle_failed_triggers()
-                s.add_event(name="perform_heartbeat()")
+                span.add_event(name="perform_heartbeat()")
                 perform_heartbeat(
                     self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True
                 )
                 # Collect stats
-                s.add_event(name="emit_metrics()")
+                span.add_event(name="emit_metrics()")
                 self.emit_metrics()
             # Idle sleep
             time.sleep(1)
@@ -420,9 +420,9 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge(
             "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
         )
-        s = Trace.get_current_span()
-        s.set_attribute("trigger host", self.job.hostname)
-        s.set_attribute("triggers running", len(self.trigger_runner.triggers))
+        span = Trace.get_current_span()
+        span.set_attribute("trigger host", self.job.hostname)
+        span.set_attribute("triggers running", len(self.trigger_runner.triggers))
 
 
 class TriggerDetails(TypedDict):

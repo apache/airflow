@@ -859,9 +859,9 @@ class DagRun(Base, LoggingMixin):
                 self.dag_hash,
             )
 
-            with Trace.start_span_from_dagrun(dagrun=self) as s:
+            with Trace.start_span_from_dagrun(dagrun=self) as span:
                 if self._state is DagRunState.FAILED:
-                    s.set_attribute("error", True)
+                    span.set_attribute("error", True)
                 attributes = {
                     "category": "DAG runs",
                     "dag_id": str(self.dag_id),
@@ -883,10 +883,10 @@ class DagRun(Base, LoggingMixin):
                     "dag_hash": str(self.dag_hash),
                     "conf": str(self.conf),
                 }
-                s.add_event(name="queued", timestamp=int(self.queued_at.timestamp() * 1000000000))
-                s.add_event(name="started", timestamp=int(self.start_date.timestamp() * 1000000000))
-                s.add_event(name="ended", timestamp=int(self.end_date.timestamp() * 1000000000))
-                s.set_attributes(attributes)
+                span.add_event(name="queued", timestamp=int(self.queued_at.timestamp() * 1000000000))
+                span.add_event(name="started", timestamp=int(self.start_date.timestamp() * 1000000000))
+                span.add_event(name="ended", timestamp=int(self.end_date.timestamp() * 1000000000))
+                span.set_attributes(attributes)
 
             session.flush()
 

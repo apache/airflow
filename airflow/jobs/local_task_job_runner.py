@@ -180,7 +180,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             # If LocalTaskJob receives SIGTERM, LocalTaskJob passes SIGTERM to _run_raw_task
             # If the state of task_instance is changed, LocalTaskJob sends SIGTERM to _run_raw_task
             while not self.terminating:
-                with Trace.start_span(span_name="local_task_job_loop", component="LocalTaskJobRunner") as s:
+                with Trace.start_span(
+                    span_name="local_task_job_loop", component="LocalTaskJobRunner"
+                ) as span:
                     # Monitor the task to see if it's done. Wait in a syscall
                     # (`os.wait`) for as long as possible so we notice the
                     # subprocess finishing as quick as we can
@@ -200,7 +202,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                         self.handle_task_exit(return_code)
                         return return_code
 
-                    s.add_event(name="perform_heartbeat()")
+                    span.add_event(name="perform_heartbeat()")
                     perform_heartbeat(
                         job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
                     )
@@ -214,7 +216,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     if time_since_last_heartbeat > heartbeat_time_limit:
                         Stats.incr("local_task_job_prolonged_heartbeat_failure", 1, 1)
                         self.log.error("Heartbeat time limit exceeded!")
-                        s.add_event(
+                        span.add_event(
                             name="error",
                             attributes={
                                 "message": "Heartbeat time limit exceeded",

@@ -865,26 +865,26 @@ def _handle_failure(
     if not test_mode:
         TaskInstance.save_to_db(failure_context["ti"], session)
 
-    with Trace.start_span_from_taskinstance(ti=task_instance) as s:
+    with Trace.start_span_from_taskinstance(ti=task_instance) as span:
         # ---- error info ----
-        s.set_attribute("error", "true")
-        s.set_attribute("error_msg", str(error))
-        s.set_attribute("context", context)
-        s.set_attribute("force_fail", force_fail)
+        span.set_attribute("error", "true")
+        span.set_attribute("error_msg", str(error))
+        span.set_attribute("context", context)
+        span.set_attribute("force_fail", force_fail)
         # ---- common info ----
-        s.set_attribute("category", "DAG runs")
-        s.set_attribute("task_id", task_instance.task_id)
-        s.set_attribute("dag_id", task_instance.dag_id)
-        s.set_attribute("state", task_instance.state)
-        s.set_attribute("start_date", str(task_instance.start_date))
-        s.set_attribute("end_date", str(task_instance.end_date))
-        s.set_attribute("duration", task_instance.duration)
-        s.set_attribute("executor_config", str(task_instance.executor_config))
-        s.set_attribute("execution_date", str(task_instance.execution_date))
-        s.set_attribute("hostname", task_instance.hostname)
+        span.set_attribute("category", "DAG runs")
+        span.set_attribute("task_id", task_instance.task_id)
+        span.set_attribute("dag_id", task_instance.dag_id)
+        span.set_attribute("state", task_instance.state)
+        span.set_attribute("start_date", str(task_instance.start_date))
+        span.set_attribute("end_date", str(task_instance.end_date))
+        span.set_attribute("duration", task_instance.duration)
+        span.set_attribute("executor_config", str(task_instance.executor_config))
+        span.set_attribute("execution_date", str(task_instance.execution_date))
+        span.set_attribute("hostname", task_instance.hostname)
         if isinstance(task_instance, TaskInstance):
-            s.set_attribute("log_url", task_instance.log_url)
-        s.set_attribute("operator", str(task_instance.operator))
+            span.set_attribute("log_url", task_instance.log_url)
+        span.set_attribute("operator", str(task_instance.operator))
 
 
 def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):

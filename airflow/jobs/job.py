@@ -182,9 +182,9 @@ class Job(Base, LoggingMixin):
         :param session to use for saving the job
         """
         previous_heartbeat = self.latest_heartbeat
-        with Trace.start_span(span_name="heartbeat", component="Job") as s:
+        with Trace.start_span(span_name="heartbeat", component="Job") as span:
             try:
-                s.set_attribute("heartbeat", str(self.latest_heartbeat))
+                span.set_attribute("heartbeat", str(self.latest_heartbeat))
                 # This will cause it to load from the db
                 self._merge_from(Job._fetch_from_db(self, session))
                 previous_heartbeat = self.latest_heartbeat
@@ -199,7 +199,7 @@ class Job(Base, LoggingMixin):
                         self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                     )
                     sleep_for = max(0, seconds_remaining)
-                s.add_event(name="sleep()", attributes={"sleep_for": sleep_for})
+                span.add_event(name="sleep()", attributes={"sleep_for": sleep_for})
                 sleep(sleep_for)
 
                 job = Job._update_heartbeat(job=self, session=session)
@@ -215,7 +215,7 @@ class Job(Base, LoggingMixin):
                 if not self.heartbeat_failed:
                     self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
                     self.heartbeat_failed = True
-                    s.add_event(
+                    span.add_event(
                         name="error",
                         attributes={"message": f"{self.__class__.__name__} heartbeat got an exception"},
                     )
@@ -224,7 +224,7 @@ class Job(Base, LoggingMixin):
                         "%s heartbeat failed with error. Scheduler may go into unhealthy state",
                         self.__class__.__name__,
                     )
-                    s.add_event(
+                    span.add_event(
                         name="error",
                         attributes={
                             "message": f"{self.__class__.__name__} heartbeat failed with error. Scheduler may go into unhealthy state"
@@ -235,7 +235,7 @@ class Job(Base, LoggingMixin):
                         "%s heartbeat failed with error. Scheduler is in unhealthy state",
                         self.__class__.__name__,
                     )
-                    s.add_event(
+                    span.add_event(
                         name="error",
                         attributes={
                             "message": f"{self.__class__.__name__} heartbeat failed with error. Scheduler is in unhealthy state"

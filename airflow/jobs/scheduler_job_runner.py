@@ -744,33 +744,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            with Trace.start_span_from_taskinstance(ti=ti) as s:
-                s.set_attribute("category", "scheduler")
-                s.set_attribute("task_id", ti.task_id)
-                s.set_attribute("dag_id", ti.dag_id)
-                s.set_attribute("state", ti.state)
+            with Trace.start_span_from_taskinstance(ti=ti) as span:
+                span.set_attribute("category", "scheduler")
+                span.set_attribute("task_id", ti.task_id)
+                span.set_attribute("dag_id", ti.dag_id)
+                span.set_attribute("state", ti.state)
                 if ti.state == TaskInstanceState.FAILED:
-                    s.set_attribute("error", True)
-                s.set_attribute("start_date", str(ti.start_date))
-                s.set_attribute("end_date", str(ti.end_date))
-                s.set_attribute("duration", ti.duration)
-                s.set_attribute("executor_config", str(ti.executor_config))
-                s.set_attribute("execution_date", str(ti.execution_date))
-                s.set_attribute("hostname", ti.hostname)
-                s.set_attribute("log_url", ti.log_url)
-                s.set_attribute("operator", str(ti.operator))
-                s.set_attribute("try_number", ti.try_number - 1)
-                s.set_attribute("executor_state", state)
-                s.set_attribute("job_id", ti.job_id)
-                s.set_attribute("pool", ti.pool)
-                s.set_attribute("queue", ti.queue)
-                s.set_attribute("priority_weight", ti.priority_weight)
-                s.set_attribute("queued_dttm", str(ti.queued_dttm))
-                s.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
-                s.set_attribute("pid", ti.pid)
-                s.add_event(name="queued", timestamp=int(ti.queued_dttm.timestamp() * 1000000000))
-                s.add_event(name="started", timestamp=int(ti.start_date.timestamp() * 1000000000))
-                s.add_event(name="ended", timestamp=int(ti.end_date.timestamp() * 1000000000))
+                    span.set_attribute("error", True)
+                span.set_attribute("start_date", str(ti.start_date))
+                span.set_attribute("end_date", str(ti.end_date))
+                span.set_attribute("duration", ti.duration)
+                span.set_attribute("executor_config", str(ti.executor_config))
+                span.set_attribute("execution_date", str(ti.execution_date))
+                span.set_attribute("hostname", ti.hostname)
+                span.set_attribute("log_url", ti.log_url)
+                span.set_attribute("operator", str(ti.operator))
+                span.set_attribute("try_number", ti.try_number - 1)
+                span.set_attribute("executor_state", state)
+                span.set_attribute("job_id", ti.job_id)
+                span.set_attribute("pool", ti.pool)
+                span.set_attribute("queue", ti.queue)
+                span.set_attribute("priority_weight", ti.priority_weight)
+                span.set_attribute("queued_dttm", str(ti.queued_dttm))
+                span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
+                span.set_attribute("pid", ti.pid)
+                span.add_event(name="queued", timestamp=int(ti.queued_dttm.timestamp() * 1000000000))
+                span.add_event(name="started", timestamp=int(ti.start_date.timestamp() * 1000000000))
+                span.add_event(name="ended", timestamp=int(ti.end_date.timestamp() * 1000000000))
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -994,9 +994,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as s:
-                s.set_attribute("category", "scheduler")
-                s.set_attribute("loop_count", loop_count)
+            with Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span:
+                span.set_attribute("category", "scheduler")
+                span.set_attribute("loop_count", loop_count)
                 with Stats.timer("scheduler.scheduler_loop_duration") as timer:
                     if self.using_sqlite and self.processor_agent:
                         self.processor_agent.run_single_parsing_loop()
@@ -1024,7 +1024,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.debug("Next timed event is in %f", next_event)
 
                 self.log.debug("Ran scheduling loop in %.2f seconds", timer.duration)
-                s.add_event(
+                span.add_event(
                     name="Ran scheduling loop",
                     attributes={
                         "duration in seconds": timer.duration,
@@ -1043,7 +1043,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.num_runs,
                         loop_count,
                     )
-                    s.add_event("Exiting scheduler loop as requested number of runs has been reached")
+                    span.add_event("Exiting scheduler loop as requested number of runs has been reached")
                     break
                 if self.processor_agent and self.processor_agent.done:
                     self.log.info(
@@ -1052,7 +1052,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         self.num_times_parse_dags,
                         loop_count,
                     )
-                    s.add_event("Exiting scheduler loop as requested DAG parse count has been reached")
+                    span.add_event("Exiting scheduler loop as requested DAG parse count has been reached")
                     break
 
     def _do_scheduling(self, session: Session) -> int:
@@ -1391,11 +1391,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         @span
         def _update_state(dag: DAG, dag_run: DagRun):
-            s = Trace.get_current_span()
-            s.set_attribute("state", str(DagRunState.RUNNING))
-            s.set_attribute("run_id", dag_run.run_id)
-            s.set_attribute("type", dag_run.run_type)
-            s.set_attribute("dag_id", dag_run.dag_id)
+            __span = Trace.get_current_span()
+            __span.set_attribute("state", str(DagRunState.RUNNING))
+            __span.set_attribute("run_id", dag_run.run_id)
+            __span.set_attribute("type", dag_run.run_type)
+            __span.set_attribute("dag_id", dag_run.dag_id)
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1416,7 +1416,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
-                s.add_event(
+                __span.add_event(
                     name="schedule_delay",
                     attributes={"dag_id": dag.dag_id, "schedule_delay": str(schedule_delay)},
                 )
@@ -1426,7 +1426,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.dagbag.get_dag, session=session)
         )
 
-        s = Trace.get_current_span()
+        _span = Trace.get_current_span()
         for dag_run in dag_runs:
             dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
 
@@ -1443,7 +1443,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.execution_date,
                 )
             else:
-                s.add_event(
+                _span.add_event(
                     name="dag_run",
                     attributes={
                         "run_id": dag_run.run_id,
@@ -1484,10 +1484,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         with Trace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
-        ) as s:
-            s.set_attribute("dag_id", dag_run.dag_id)
-            s.set_attribute("run_id", dag_run.run_id)
-            s.set_attribute("run_type", dag_run.run_type)
+        ) as span:
+            span.set_attribute("dag_id", dag_run.dag_id)
+            span.set_attribute("run_id", dag_run.run_id)
+            span.set_attribute("run_type", dag_run.run_type)
 
             callback: DagCallbackRequest | None = None
 
@@ -1535,8 +1535,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
                 Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
 
-                s.set_attribute("error", True)
-                s.add_event(
+                span.set_attribute("error", True)
+                span.add_event(
                     name="error",
                     attributes={
                         "message": f"Run {dag_run.run_id} of {dag_run.dag_id} has timed-out",
@@ -1566,7 +1566,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _schedulable_ti_ids = []
             for _ti in schedulable_tis:
                 _schedulable_ti_ids.append(_ti.task_id)
-            s.add_event(
+            span.add_event(
                 name="schedule_tis",
                 attributes={"message": "dag_run scheduling its tis", "schedulable_tis": _schedulable_ti_ids},
             )
@@ -1669,7 +1669,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         from airflow.models.pool import Pool
 
-        with Trace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as s:
+        with Trace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
                 Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
@@ -1682,11 +1682,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
 
-                s.set_attribute("category", "scheduler")
-                s.set_attribute(f"pool.open_slots.{pool_name}", slot_stats["open"])
-                s.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
-                s.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
-                s.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+                span.set_attribute("category", "scheduler")
+                span.set_attribute(f"pool.open_slots.{pool_name}", slot_stats["open"])
+                span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
+                span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
+                span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
