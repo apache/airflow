@@ -271,6 +271,16 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 def add_number(self, num: int) -> int:
                     return self.num + num
 
+    def test_context_variable_filling_doesnt_break_order(self):
+        """Tests that we won't put default arguments before empty-default arguments
+        for known context keys.
+        """
+        @task_decorator
+        def format_date(logical_date: str, num: int) -> str:
+            return logical_date + str(num)
+
+        format_date(num=3)
+
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
