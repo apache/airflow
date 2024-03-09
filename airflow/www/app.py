@@ -216,3 +216,8 @@ def purge_cached_app():
     """Remove the cached version of the app in global state."""
     global app
     app = None
+
+
+def cached_flask_app(config=None, testing=False):
+    """Return flask app from connexion_app."""
+    return cached_app(config=config, testing=testing).app
