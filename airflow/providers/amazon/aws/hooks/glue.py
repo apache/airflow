@@ -218,7 +218,9 @@ class GlueJobHook(AwsBaseHook):
         """
         Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook
         """
-        return AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config)
+        return AwsLogsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config
+        )
 
     def print_job_logs(
         self,
@@ -232,7 +234,6 @@ class GlueJobHook(AwsBaseHook):
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
         """
-        
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
