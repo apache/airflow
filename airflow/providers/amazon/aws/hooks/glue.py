@@ -215,9 +215,7 @@ class GlueJobHook(AwsBaseHook):
 
     @property
     def logs_hook(self):
-        """
-        Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook
-        """
+        """Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook."""
         return AwsLogsHook(
             aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config
         )
