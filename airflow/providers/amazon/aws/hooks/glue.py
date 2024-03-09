@@ -226,7 +226,6 @@ class GlueJobHook(AwsBaseHook):
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
         """
-        #  log_client = boto3.client("logs") # replace with log hook
         log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
@@ -235,13 +234,11 @@ class GlueJobHook(AwsBaseHook):
             fetched_logs = []
             next_token = continuation_token
             try:
-                print("before pagination")
                 for response in paginator.paginate(
                     logGroupName=log_group,
                     logStreamNames=[run_id],
                     PaginationConfig={"StartingToken": continuation_token},
                 ):
-                    print(f"RESPONSE HEHEHE {response}")
                     fetched_logs.extend([event["message"] for event in response["events"]])
                     # if the response is empty there is no nextToken in it
                     next_token = response.get("nextToken") or next_token
@@ -266,7 +263,6 @@ class GlueJobHook(AwsBaseHook):
             return next_token
 
         log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
-        print(log_group_prefix)
         log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
         log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
         # one would think that the error log group would contain only errors, but it actually contains
