@@ -207,6 +207,7 @@ def get_dag_dataset_queued_event(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
+@action_logging
 def delete_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
@@ -254,6 +255,7 @@ def get_dag_dataset_queued_events(
 
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
+@action_logging
 @provide_session
 def delete_dag_dataset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -303,6 +305,7 @@ def get_dataset_queued_events(
 
 
 @security.requires_access_dataset("DELETE")
+@action_logging
 @provide_session
 def delete_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION

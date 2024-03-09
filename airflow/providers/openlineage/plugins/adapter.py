@@ -88,13 +88,13 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_openlineage_config(self) -> dict | None:
         # First, try to read from YAML file
-        openlineage_config_path = conf.get("openlineage", "config_path")
+        openlineage_config_path = conf.get("openlineage", "config_path", fallback="")
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
             if config:
                 return config.get("transport", None)
         # Second, try to get transport config
-        transport = conf.getjson("openlineage", "transport")
+        transport = conf.getjson("openlineage", "transport", fallback="")
         if not transport:
             return None
         elif not isinstance(transport, dict):

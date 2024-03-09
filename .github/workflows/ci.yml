@@ -641,6 +641,8 @@ jobs:
           --hook-stage manual
           update-installers
         if: always()
+        env:
+          UPGRADE_UV: "false"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run
