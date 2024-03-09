@@ -212,6 +212,22 @@ class DecoratedOperator(BaseOperator):
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
+        # Because the previous default-filling can make arguments without defaults go
+        # after the known context key arguments, we need to sort to avoid a
+        # "non-default argument follows default argument" error.
+        parameter_kind_order = {
+            inspect.Parameter.POSITIONAL_ONLY: 0,
+            inspect.Parameter.POSITIONAL_OR_KEYWORD: 1,
+            inspect.Parameter.VAR_POSITIONAL: 2,
+            inspect.Parameter.KEYWORD_ONLY: 3,
+            inspect.Parameter.VAR_KEYWORD: 4,
+        }
+        parameters.sort(
+            key=lambda param: (
+                parameter_kind_order.get(param.kind),
+                param.name in KNOWN_CONTEXT_KEYS,
+            )
+        )
         signature = signature.replace(parameters=parameters)
 
         # Check that arguments can be binded. There's a slight difference when
