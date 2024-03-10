@@ -42,7 +42,8 @@ export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
   logLevelFilters: Array<LogLevel>,
-  fileSourceFilters: Array<string>
+  fileSourceFilters: Array<string>,
+  unfoldedLogGroups: Array<string>
 ) => {
   if (!data) {
     return {};
@@ -121,8 +122,13 @@ export const parseLogs = (
         .replace(logGroupStart, (textLine) => {
           const gName = textLine.substring(17);
           const gId = gName.replace(/\W+/g, "_").toLowerCase();
-          const unfold = `<span id="${gId}_unfold" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
-          const fold = `<span style="display:none;"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+          if (unfoldedLogGroups.indexOf(gId) === -1) {
+            const unfold = `<span id="${gId}_unfold" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
+            const fold = `<span style="display:none;"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+            return unfold + fold;
+          }
+          const unfold = `<span id="${gId}_unfold" style="display:none;${logGroupStyle}"> &#11208; ${gName}</span>`;
+          const fold = `<span><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
           return unfold + fold;
         })
         .replace(
