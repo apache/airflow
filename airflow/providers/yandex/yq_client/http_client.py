@@ -91,12 +91,15 @@ class YQHttpClient:
         self.session = _requests_retry_session(session=requests.Session())
 
     def __enter__(self):
+        """Return the object when a context manager is created."""
         return self
 
     def __exit__(self, *args):
+        """Close network connection when exiting the context manager."""
         self.session.close()
 
     def close(self):
+        """Close network connection."""
         self.session.close()
 
     def _build_headers(self, idempotency_key=None, request_id=None) -> dict[str, str]:
