@@ -1468,7 +1468,6 @@ combine-as-imports = true
 "airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
 "airflow/providers/imap/hooks/imap.py" = ["D105"]
 "airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D105"]
 "airflow/providers/samba/hooks/samba.py" = ["D105"]
 "airflow/providers/smtp/hooks/smtp.py" = ["D105"]
 "airflow/providers/ssh/hooks/ssh.py" = ["D105"]
