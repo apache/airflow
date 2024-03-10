@@ -84,6 +84,9 @@ class XComObjectStoreBackend(BaseXCom):
         path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
 
+        # normalize the path
+        path = str(p)
+
         try:
             url = urlsplit(data)
         except AttributeError:
@@ -132,7 +135,7 @@ class XComObjectStoreBackend(BaseXCom):
             if not p.parent.exists():
                 p.parent.mkdir(parents=True, exist_ok=True)
 
-            with p.open("wb", compression=compression) as f:
+            with p.open(mode="wb", compression=compression) as f:
                 f.write(s_val)
 
             return BaseXCom.serialize_value(str(p))
@@ -152,7 +155,7 @@ class XComObjectStoreBackend(BaseXCom):
 
         try:
             p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
-            return json.load(p.open("rb", compression="infer"), cls=XComDecoder)
+            return json.load(p.open(mode="rb", compression="infer"), cls=XComDecoder)
         except TypeError:
             return data
         except ValueError:
