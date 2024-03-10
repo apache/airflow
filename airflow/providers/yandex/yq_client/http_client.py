@@ -32,6 +32,8 @@ BACK_OFF_FACTOR = 0.3
 TIME_BETWEEN_RETRIES = 1000
 ERROR_CODES = (500, 502, 504)
 
+logger = logging.getLogger(__name__)
+
 
 def _requests_retry_session(
     session, retries=MAX_RETRY_FOR_SESSION, back_off_factor=BACK_OFF_FACTOR, status_force_list=ERROR_CODES
@@ -124,7 +126,7 @@ class YQHttpClient:
         return self.config.web_base_url + path
 
     def _validate_http_error(self, response, expected_code=200) -> None:
-        logging.debug("Response: %s, %s", response.status_code, response.text)
+        logger.debug("Response: %s, %s", response.status_code, response.text)
         if response.status_code != expected_code:
             if response.headers.get("Content-Type", "").startswith("application/json"):
                 body = response.json()

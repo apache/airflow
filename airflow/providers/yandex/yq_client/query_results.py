@@ -155,7 +155,7 @@ class YQResults:
 
     @staticmethod
     def _get_converter(column_type: str) -> Any:
-        """Returns converter based on column type."""
+        """Return converter based on column type."""
         # primitives
         if column_type in [
             "Int8",

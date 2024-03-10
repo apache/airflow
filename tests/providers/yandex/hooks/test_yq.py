@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest import mock
+
 import responses
 from responses import matchers
-from unittest import mock
 
 from airflow.models import Connection
 from airflow.providers.yandex.hooks.yq import YQHook
