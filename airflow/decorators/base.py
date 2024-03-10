@@ -222,10 +222,21 @@ class DecoratedOperator(BaseOperator):
         ]
         try:
             signature = signature.replace(parameters=parameters)
-        except ValueError:
+        except ValueError as err:
             raise ValueError(
-                "The function signature broke while assigning defaults to context key parameters. "
-                "You need to change their position in the parameter list"
+                textwrap.dedent(
+                    f"""
+                    The function signature broke while assigning defaults to context key parameters.
+
+                    The decorator is replacing the signature
+                    > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+
+                    with
+                    > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+
+                    which isn't valid: {err}
+                    """
+                )
             )
 
         # Check that arguments can be binded. There's a slight difference when
