@@ -101,11 +101,22 @@ _airflow_priority_weight_strategies = {
 }
 
 
-def _validate_and_load_priority_weight_strategy(
-    priority_weight_strategy: str | PriorityWeightStrategy,
+def validate_and_load_priority_weight_strategy(
+    priority_weight_strategy: str | PriorityWeightStrategy | None,
 ) -> PriorityWeightStrategy:
+    """Validate and load a priority weight strategy.
+
+    Returns the priority weight strategy if it is valid, otherwise raises an exception.
+
+    :param priority_weight_strategy: The priority weight strategy to validate and load.
+
+    :meta private:
+    """
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
     from airflow.utils.module_loading import qualname
+
+    if priority_weight_strategy is None:
+        return AbsolutePriorityWeightStrategy()
 
     if isinstance(priority_weight_strategy, str):
         if priority_weight_strategy in _airflow_priority_weight_strategies:
@@ -118,8 +129,9 @@ def _validate_and_load_priority_weight_strategy(
     loaded_priority_weight_strategy = _get_registered_priority_weight_strategy(priority_weight_strategy_str)
     if loaded_priority_weight_strategy is None:
         raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_str}")
-    return (
+    validated_priority_weight_strategy = (
         priority_weight_strategy
         if isinstance(priority_weight_strategy, PriorityWeightStrategy)
         else loaded_priority_weight_strategy()
     )
+    return validated_priority_weight_strategy

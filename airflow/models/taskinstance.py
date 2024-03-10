@@ -101,6 +101,7 @@ from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
 from airflow.stats import Stats
+from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -915,7 +916,10 @@ def _refresh_from_task(
     task_instance.pool_slots = task.pool_slots
     with contextlib.suppress(Exception):
         # This method is called from the different places, and sometimes the TI is not fully initialized
-        task_instance.priority_weight = task.priority_weight_strategy.get_weight(
+        loaded_priority_weight_strategy = validate_and_load_priority_weight_strategy(
+            task.priority_weight_strategy
+        )
+        task_instance.priority_weight = loaded_priority_weight_strategy.get_weight(
             task_instance  # type: ignore
         )
     task_instance.run_as_user = task.run_as_user
@@ -3571,7 +3575,7 @@ class SimpleTaskInstance:
         key: TaskInstanceKey,
         run_as_user: str | None = None,
         priority_weight: int | None = None,
-        priority_weight_strategy: PriorityWeightStrategy | None = None,
+        priority_weight_strategy: str | PriorityWeightStrategy | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -3585,7 +3589,7 @@ class SimpleTaskInstance:
         self.run_as_user = run_as_user
         self.pool = pool
         self.priority_weight = priority_weight
-        self.priority_weight_strategy = priority_weight_strategy
+        self.priority_weight_strategy = validate_and_load_priority_weight_strategy(priority_weight_strategy)
         self.queue = queue
         self.key = key
 

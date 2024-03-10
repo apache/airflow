@@ -81,7 +81,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import PriorityWeightStrategy, _validate_and_load_priority_weight_strategy
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -91,6 +91,7 @@ from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
+from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -929,18 +930,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.priority_weight = priority_weight
         self.weight_rule = weight_rule
-        self.priority_weight_strategy: PriorityWeightStrategy
+        self.priority_weight_strategy: str
         if weight_rule:
             warnings.warn(
                 "weight_rule is deprecated. Please use `priority_weight_strategy` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            self.priority_weight_strategy = _validate_and_load_priority_weight_strategy(weight_rule)
+            # For backward compatibility we store the string value as well
+            self.priority_weight_strategy = weight_rule
         else:
-            self.priority_weight_strategy = _validate_and_load_priority_weight_strategy(
+            self.priority_weight_strategy = (
                 priority_weight_strategy
+                if isinstance(priority_weight_strategy, str)
+                else qualname(priority_weight_strategy)
             )
+        validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:

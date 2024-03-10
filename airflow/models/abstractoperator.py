@@ -208,9 +208,9 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def parsed_priority_weight_strategy(self) -> PriorityWeightStrategy:
-        from airflow.task.priority_strategy import _validate_and_load_priority_weight_strategy
+        from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 
-        return _validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
+        return validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
     def as_setup(self):
         self.is_setup = True
