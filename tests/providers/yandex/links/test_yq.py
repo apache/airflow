@@ -18,9 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.models.xcom import XCom
 from airflow.models.taskinstance import TaskInstance
-
+from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
 from tests.test_utils.mock_operators import MockOperator
 
@@ -28,11 +27,7 @@ from tests.test_utils.mock_operators import MockOperator
 def test_persist():
     mock_context = mock.MagicMock()
 
-    YQLink.persist(
-        context=mock_context,
-        task_instance=MockOperator(task_id="test_task_id"),
-        web_link="g.com"
-    )
+    YQLink.persist(context=mock_context, task_instance=MockOperator(task_id="test_task_id"), web_link="g.com")
 
     ti = mock_context["ti"]
     ti.xcom_push.assert_called_once_with(
