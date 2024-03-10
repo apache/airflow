@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from functools import cached_property
 
 from botocore.exceptions import ClientError
 
@@ -213,7 +214,7 @@ class GlueJobHook(AwsBaseHook):
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
-    @property
+    @cached_property
     def logs_hook(self):
         """Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook."""
         return AwsLogsHook(
