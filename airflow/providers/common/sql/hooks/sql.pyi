@@ -53,6 +53,7 @@ class DbApiHook(BaseForDbApiHook):
     placeholder: str
     log_sql: Incomplete
     descriptions: Incomplete
+    rowcounts: Incomplete
     _placeholder: str
     def __init__(self, *args, schema: Union[str, None] = ..., log_sql: bool = ..., **kwargs) -> None: ...
     def get_conn(self): ...
