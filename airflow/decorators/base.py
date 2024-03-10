@@ -220,7 +220,13 @@ class DecoratedOperator(BaseOperator):
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
-        signature = signature.replace(parameters=parameters)
+        try:
+            signature = signature.replace(parameters=parameters)
+        except ValueError:
+            raise ValueError(
+                "The function signature broke while assigning defaults to context key parameters. "
+                "You need to change their position in the parameter list"
+            )
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
