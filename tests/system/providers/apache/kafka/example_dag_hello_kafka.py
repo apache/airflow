@@ -125,7 +125,7 @@ consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
     key = json.loads(message.key())
     value = json.loads(message.value())
-    consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
+    consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
     return
 
 
@@ -133,7 +133,7 @@ def consumer_function_batch(messages, prefix=None):
     for message in messages:
         key = json.loads(message.key())
         value = json.loads(message.value())
-        consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
+        consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
     return
 
 

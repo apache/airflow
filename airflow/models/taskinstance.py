@@ -2215,7 +2215,10 @@ class TaskInstance(Base, LoggingMixin):
 
         ti.state = TaskInstanceState.RUNNING
         ti.emit_state_change_metric(TaskInstanceState.RUNNING)
-        ti.external_executor_id = external_executor_id
+
+        if external_executor_id:
+            ti.external_executor_id = external_executor_id
+
         ti.end_date = None
         if not test_mode:
             session.merge(ti).task = task

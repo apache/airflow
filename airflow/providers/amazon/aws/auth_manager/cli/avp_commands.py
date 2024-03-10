@@ -63,8 +63,9 @@ def init_avp(args):
         _set_schema(client, policy_store_id, args)
 
     if not args.dry_run:
-        print("Amazon Verified Permissions resources created successfully.")
-        print("Please set them in Airflow configuration under AIRFLOW__AWS_AUTH_MANAGER__<config name>.")
+        print(
+            "Please set configs below in Airflow configuration under AIRFLOW__AWS_AUTH_MANAGER__<config name>."
+        )
         print(json.dumps({"avp_policy_store_id": policy_store_id}, indent=4))
 
 
@@ -74,9 +75,6 @@ def update_schema(args):
     """Update Amazon Verified Permissions policy store schema."""
     client = _get_client()
     _set_schema(client, args.policy_store_id, args)
-
-    if not args.dry_run:
-        print("Amazon Verified Permissions policy store schema updated successfully.")
 
 
 def _get_client():
@@ -140,6 +138,16 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         return
 
     if args.verbose:
+        log.debug("Getting the policy store details")
+
+    details = client.get_policy_store(
+        policyStoreId=policy_store_id,
+    )
+
+    if args.verbose:
+        log.debug("Response from get_policy_store: %s", details)
+
+    if args.verbose:
         log.debug("Disabling schema validation before updating schema")
 
     response = client.update_policy_store(
@@ -147,6 +155,7 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         validationSettings={
             "mode": "OFF",
         },
+        description=details["description"],
     )
 
     if args.verbose:
@@ -164,6 +173,8 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         if args.verbose:
             log.debug("Response from put_schema: %s", response)
 
+    print("Policy store schema updated.")
+
     if args.verbose:
         log.debug("Enabling schema validation after updating schema")
 
@@ -172,6 +183,7 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         validationSettings={
             "mode": "STRICT",
         },
+        description=details["description"],
     )
 
     if args.verbose:

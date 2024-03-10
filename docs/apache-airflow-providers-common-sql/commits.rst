@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.11.1
+......
+
+Latest change: 2024-03-01
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`2ab60812a0 <https://github.com/apache/airflow/commit/2ab60812a040cb8b760acaf396f625d0d719e4be>`_  2024-03-01   ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+`9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
+=================================================================================================  ===========  =================================================================================
+
 1.11.0
 ......
 
-Latest change: 2024-02-15
+Latest change: 2024-02-17
 
 =================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================
+`75182363a2 <https://github.com/apache/airflow/commit/75182363a2070145745b98fa040e9bc590e3853b>`_  2024-02-17   ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `b6ca84701e <https://github.com/apache/airflow/commit/b6ca84701e278667bd62c829f7b1f781d27555fe>`_  2024-02-15   ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
 `560d073943 <https://github.com/apache/airflow/commit/560d07394330e3fe356561a955f619a685edc511>`_  2024-02-12   ``Add more-itertools as dependency of common-sql (#37359)``
 `bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``

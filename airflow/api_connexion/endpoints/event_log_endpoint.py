@@ -56,6 +56,7 @@ def get_event_logs(
     *,
     dag_id: str | None = None,
     task_id: str | None = None,
+    run_id: str | None = None,
     owner: str | None = None,
     event: str | None = None,
     excluded_events: str | None = None,
@@ -74,6 +75,7 @@ def get_event_logs(
         "when",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -86,6 +88,8 @@ def get_event_logs(
         query = query.where(Log.dag_id == dag_id)
     if task_id:
         query = query.where(Log.task_id == task_id)
+    if run_id:
+        query = query.where(Log.run_id == run_id)
     if owner:
         query = query.where(Log.owner == owner)
     if event:

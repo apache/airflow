@@ -438,7 +438,7 @@ class BatchClientHook(AwsBaseHook):
             return None
         if len(all_info) > 1:
             self.log.warning(
-                f"AWS Batch job ({job_id}) has more than one log stream, only returning the first one."
+                "AWS Batch job (%s) has more than one log stream, only returning the first one.", job_id
             )
         return all_info[0]
 
@@ -474,7 +474,7 @@ class BatchClientHook(AwsBaseHook):
         # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
         if any(c.get("logDriver", "awslogs") != "awslogs" for c in log_configs):
             self.log.warning(
-                f"AWS Batch job ({job_id}) uses non-aws log drivers. AWS CloudWatch logging disabled."
+                "AWS Batch job (%s) uses non-aws log drivers. AWS CloudWatch logging disabled.", job_id
             )
             return []
 
@@ -482,7 +482,7 @@ class BatchClientHook(AwsBaseHook):
             # If this method is called very early after starting the AWS Batch job,
             # there is a possibility that the AWS CloudWatch Stream Name would not exist yet.
             # This can also happen in case of misconfiguration.
-            self.log.warning(f"AWS Batch job ({job_id}) doesn't have any AWS CloudWatch Stream.")
+            self.log.warning("AWS Batch job (%s) doesn't have any AWS CloudWatch Stream.", job_id)
             return []
 
         # Try to get user-defined log configuration options

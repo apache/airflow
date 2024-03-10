@@ -27,7 +27,7 @@ from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
     # ignored to avoid flake complaining on Linux
-    from pwd import getpwnam  # noqa
+    from pwd import getpwnam  # noqa: F401
 
 from typing import TYPE_CHECKING
 

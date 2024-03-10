@@ -1421,7 +1421,7 @@ class DagRun(Base, LoggingMixin):
         return session.scalar(
             select(DagRun).where(
                 DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa
+                DagRun.external_trigger == False,  # noqa: E712
                 DagRun.execution_date == execution_date,
             )
         )

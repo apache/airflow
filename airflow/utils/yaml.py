@@ -30,7 +30,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, BinaryIO, TextIO, cast
 
 if TYPE_CHECKING:
-    from yaml.error import MarkedYAMLError, YAMLError  # noqa
+    from yaml.error import MarkedYAMLError, YAMLError  # noqa: F401
 
 
 def safe_load(stream: bytes | str | BinaryIO | TextIO) -> Any:

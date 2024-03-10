@@ -22,12 +22,19 @@ inputs:
   python-version:
     description: 'Python versions to use'
     required: true
+    type: string
   build-provider-packages:
-    description: 'Whether to build provider packages from sources'
+    description: 'Whether to build provider packages from sources (true/false)'
     required: true
+    type: string
   chicken-egg-providers:
-    description: 'List of chicken-egg provider packages to build from sources'
+    description: 'List space separated chicken-egg provider packages to build from sources'
     required: true
+    type: string
+  push-image:
+    description: 'Whether to push image (true/false)'
+    required: true
+    type: string
 runs:
   using: "composite"
   steps:
@@ -76,21 +83,23 @@ runs:
         name: constraints
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages != 'true' }}
-    - name: "Build & Push PROD images w/ source providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
+    - name: "Build PROD images w/ source providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
       shell: bash
       run: >
-        breeze prod-image build --tag-as-latest --push
+        breeze prod-image build --tag-as-latest
         --install-packages-from-context --airflow-constraints-mode constraints-source-providers
         --use-constraints-for-context-packages --python "${{ inputs.python-version }}"
       env:
         COMMIT_SHA: ${{ github.sha }}
+        PUSH: ${{ inputs.push-image }}
       if: ${{ inputs.build-provider-packages == 'true' }}
-    - name: "Build & Push PROD images with PyPi providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
+    - name: "Build PROD images with PyPi providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
       shell: bash
       run: >
-        breeze prod-image build --tag-as-latest --push
+        breeze prod-image build --tag-as-latest
         --install-packages-from-context --airflow-constraints-mode constraints
         --use-constraints-for-context-packages --python "${{ inputs.python-version }}"
       env:
         COMMIT_SHA: ${{ github.sha }}
+        PUSH: ${{ inputs.push-image }}
       if: ${{ inputs.build-provider-packages != 'true' }}
