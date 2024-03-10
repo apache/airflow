@@ -26,7 +26,7 @@ requires = [
     "editables==0.5",
     "gitdb==4.0.11",
     "hatchling==1.21.1",
-    "packaging==23.2",
+    "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
     "smmap==5.0.1",
@@ -242,7 +242,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.15",
+    "uv>=0.1.17",
 ]
 virtualenv = [
     "virtualenv",
@@ -1468,7 +1468,6 @@ combine-as-imports = true
 "airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
 "airflow/providers/imap/hooks/imap.py" = ["D105"]
 "airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D105"]
 "airflow/providers/samba/hooks/samba.py" = ["D105"]
 "airflow/providers/smtp/hooks/smtp.py" = ["D105"]
 "airflow/providers/tableau/hooks/tableau.py" = ["D105"]
