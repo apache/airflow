@@ -496,7 +496,6 @@ def _refresh_from_db(
         task_id=task_instance.task_id,
         run_id=task_instance.run_id,
         map_index=task_instance.map_index,
-        select_columns=True,
         lock_for_update=lock_for_update,
         session=session,
     )
@@ -1433,7 +1432,7 @@ class TaskInstance(Base, LoggingMixin):
     def priority_weight_strategy(self, value: PriorityWeightStrategy) -> None:
         from airflow.serialization.serialized_objects import _encode_priority_weight_strategy
 
-        self._priority_weight_strategy = _encode_priority_weight_strategy(value)
+        self._priority_weight_strategy = _encode_priority_weight_strategy(value) if value else None
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:

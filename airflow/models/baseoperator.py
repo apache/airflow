@@ -91,7 +91,6 @@ from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
-from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -930,7 +929,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.priority_weight = priority_weight
         self.weight_rule = weight_rule
-        self.priority_weight_strategy: str
+        self.priority_weight_strategy: str | PriorityWeightStrategy
         if weight_rule:
             warnings.warn(
                 "weight_rule is deprecated. Please use `priority_weight_strategy` instead.",
@@ -940,11 +939,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             # For backward compatibility we store the string value as well
             self.priority_weight_strategy = weight_rule
         else:
-            self.priority_weight_strategy = (
-                priority_weight_strategy
-                if isinstance(priority_weight_strategy, str)
-                else qualname(priority_weight_strategy)
-            )
+            self.priority_weight_strategy = priority_weight_strategy
         validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
         self.resources = coerce_resources(resources)

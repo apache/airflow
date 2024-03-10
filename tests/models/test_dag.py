@@ -90,10 +90,12 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.plugins.priority_weight_strategy import TestPriorityWeightStrategyPlugin
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.mapping import expand_mapped_task
+from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 pytestmark = pytest.mark.db_test
@@ -433,6 +435,7 @@ class TestDag:
             with pytest.raises(AirflowException):
                 EmptyOperator(task_id="should_fail", weight_rule="no rule")
 
+    @mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
     def test_dag_task_custom_weight_strategy(self):
         from tests.plugins.priority_weight_strategy import TestPriorityWeightStrategy
 
@@ -444,6 +447,19 @@ class TestDag:
         dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
         ti = dr.get_task_instance(task.task_id)
         assert ti.priority_weight == 99
+
+    @mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
+    def test_dag_task_parametrized_weight_strategy(self):
+        from tests.plugins.priority_weight_strategy import TestFactorPriorityWeightStrategy
+
+        with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
+            task = EmptyOperator(
+                task_id="empty_task",
+                priority_weight_strategy=TestFactorPriorityWeightStrategy(factor=3),
+            )
+        dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task.task_id)
+        assert ti.priority_weight == 3
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"

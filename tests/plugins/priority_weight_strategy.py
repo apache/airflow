@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
@@ -30,6 +30,17 @@ class TestPriorityWeightStrategy(PriorityWeightStrategy):
         return 99
 
 
+class TestFactorPriorityWeightStrategy(PriorityWeightStrategy):
+    def __init__(self, factor: int = 2):
+        self.factor = factor
+
+    def serialize(self) -> dict[str, Any]:
+        return {"factor": self.factor}
+
+    def get_weight(self, ti: TaskInstance):
+        return max(ti.map_index, 1) * self.factor
+
+
 class TestPriorityWeightStrategyPlugin(AirflowPlugin):
     name = "priority_weight_strategy_plugin"
-    priority_weight_strategies = [TestPriorityWeightStrategy]
+    priority_weight_strategies = [TestPriorityWeightStrategy, TestFactorPriorityWeightStrategy]

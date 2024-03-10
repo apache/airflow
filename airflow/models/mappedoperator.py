@@ -547,7 +547,7 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["weight_rule"] = value
 
     @property  # type: ignore[override]
-    def priority_weight_strategy(self) -> str:  # type: ignore[override]
+    def priority_weight_strategy(self) -> str | PriorityWeightStrategy:  # type: ignore[override]
         return (
             self.weight_rule  # for backward compatibility
             or self.partial_kwargs.get("priority_weight_strategy")
