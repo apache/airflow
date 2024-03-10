@@ -84,6 +84,9 @@ class XComObjectStoreBackend(BaseXCom):
         path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
 
+        # normalize the path
+        path = str(p)
+
         try:
             url = urlsplit(data)
         except AttributeError:
