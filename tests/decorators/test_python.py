@@ -256,6 +256,16 @@ class TestAirflowTaskDecorator(BasePythonTest):
             add_number()
         add_number("test")
 
+    def test_fails_context_parameter_other_than_none(self):
+        """Fail if a context parameter has a default and it's not None."""
+        with pytest.raises(ValueError):
+
+            @task_decorator
+            def add_number_to_try_number(num: int, try_number: int = 0):
+                return num + try_number
+
+            add_number_to_try_number(1)
+
     def test_fail_method(self):
         """Tests that @task will fail if signature is not binding."""
 

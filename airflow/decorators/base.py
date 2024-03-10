@@ -208,6 +208,14 @@ class DecoratedOperator(BaseOperator):
         # since values for those will be provided when the task is run. Since
         # we're not actually running the function, None is good enough here.
         signature = inspect.signature(python_callable)
+
+        # Don't allow context argument defaults other than None to avoid ambiguities.
+        if any(
+            param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+            for param in signature.parameters.values()
+        ):
+            raise ValueError("Context key parameters can't have a default other than None")
+
         parameters = [
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
