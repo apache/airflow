@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 from json import JSONDecodeError
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.batch.utils import (
@@ -68,8 +69,9 @@ def build_submit_kwargs() -> dict:
     if "eksPropertiesOverride" in job_kwargs:
         raise KeyError("Eks jobs are not currently supported.")
 
+    if TYPE_CHECKING:
+        assert isinstance(job_kwargs, dict)
     # some checks with some helpful errors
-    assert isinstance(job_kwargs, dict)
     if "containerOverrides" not in job_kwargs or "command" not in job_kwargs["containerOverrides"]:
         raise KeyError(
             'SubmitJob API needs kwargs["containerOverrides"]["command"] field,'
