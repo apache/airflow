@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import logging
 import socket
 from typing import TYPE_CHECKING, Any, Callable
@@ -53,7 +54,10 @@ def span(func):
         else:
             component = module_name
         with Trace.start_span(span_name=func_name, component=component):
-            return func(*args, **kwargs)
+            if len(inspect.signature(func).parameters) > 0:
+                return func(*args, **kwargs)
+            else:
+                return func()
 
     return wrapper
 
