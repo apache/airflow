@@ -64,6 +64,38 @@ def _create_fake_imap(mock_imaplib, with_mail=False, attachment_name="test1.csv"
     return mock_conn
 
 
+def _create_fake_imap_with_encoding(mock_imaplib, with_mail=False, attachment_name="test1.csv", use_ssl=True):
+    if use_ssl:
+        mock_conn = Mock(spec=imaplib.IMAP4_SSL)
+        mock_imaplib.IMAP4_SSL.return_value = mock_conn
+    else:
+        mock_conn = Mock(spec=imaplib.IMAP4)
+        mock_imaplib.IMAP4.return_value = mock_conn
+
+    mock_conn.login.return_value = ("OK", [])
+
+    if with_mail:
+        mock_conn.select.return_value = ("OK", [])
+        mock_conn.search.return_value = ("OK", [b"1"])
+        mail_string = (
+            f"Content-Type: multipart/mixed; "
+            f"boundary=123\r\n--123\r\n"
+            f"Content-Disposition: attachment; "
+            f'filename="{attachment_name}";'
+            f"Content-Transfer-Encoding: base64\r\nSWQsTmFtZQoxLEZlbGl4\r\n--123--\r\n"
+            f"Content-Type: text/plain; "
+            f'charset="iso-8859-1"\r\n'
+            f"Content-Transfer-Encoding: quoted-printable\r\n\r\n"
+            f"f=FCr"
+        )
+        mock_conn.fetch.return_value = ("OK", [(b"", mail_string.encode("utf-8"))])
+        mock_conn.close.return_value = ("OK", [])
+
+    mock_conn.logout.return_value = ("OK", [])
+
+    return mock_conn
+
+
 class TestImapHook:
     def setup_method(self):
         db.merge_conn(
@@ -302,6 +334,25 @@ class TestImapHook:
 
         with ImapHook() as imap_hook:
             imap_hook.retrieve_mail_attachments(name="test1.csv", mail_filter=mail_filter)
+
+        mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_default_encoding_fails(self, mock_imaplib):
+        _create_fake_imap_with_encoding(mock_imaplib, with_mail=True)
+        mail_filter = '(SINCE "01-Jan-2019")'
+
+        with ImapHook() as imap_hook:
+            with pytest.raises(UnicodeDecodeError):
+                imap_hook.retrieve_mail_attachments(name="test1.csv", mail_filter=mail_filter)
+
+    @patch(imaplib_string)
+    def test_retrieve_mail_attachments_with_encoding(self, mock_imaplib):
+        _create_fake_imap(mock_imaplib, with_mail=True)
+        mail_filter = '(SINCE "01-Jan-2019")'
+
+        with ImapHook() as imap_hook:
+            imap_hook.retrieve_mail_attachments(name="test1.csv", mail_filter=mail_filter, encoding="latin-1")
 
         mock_imaplib.IMAP4_SSL.return_value.search.assert_called_once_with(None, mail_filter)
 
