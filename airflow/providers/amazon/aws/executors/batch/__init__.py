@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,33 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""add priority_weight_strategy to task_instance
-
-Revision ID: 624ecf3b6a5e
-Revises: 1fd565369930
-Create Date: 2023-10-29 02:01:34.774596
-
-"""
-
-import sqlalchemy as sa
-from alembic import op
-
-# revision identifiers, used by Alembic.
-revision = "624ecf3b6a5e"
-down_revision = "1fd565369930"
-branch_labels = None
-depends_on = None
-airflow_version = "2.9.0"
-
-
-def upgrade():
-    """Apply add priority_weight_strategy to task_instance"""
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("_priority_weight_strategy", sa.JSON()))
-
-
-def downgrade():
-    """Unapply add priority_weight_strategy to task_instance"""
-    with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.drop_column("_priority_weight_strategy")

@@ -1198,8 +1198,10 @@ export interface components {
       when?: string;
       /** @description The DAG ID */
       dag_id?: string | null;
-      /** @description The DAG ID */
+      /** @description The Task ID */
       task_id?: string | null;
+      /** @description The DAG Run ID */
+      run_id?: string | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -2541,6 +2543,8 @@ export interface components {
     FilterDAGID: string;
     /** @description Returns objects matched by the Task ID. */
     FilterTaskID: string;
+    /** @description Returns objects matched by the Run ID. */
+    FilterRunID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -3494,6 +3498,8 @@ export interface operations {
         dag_id?: components["parameters"]["FilterDAGID"];
         /** Returns objects matched by the Task ID. */
         task_id?: components["parameters"]["FilterTaskID"];
+        /** Returns objects matched by the Run ID. */
+        run_id?: components["parameters"]["FilterRunID"];
         /** The name of event log. */
         event?: components["parameters"]["Event"];
         /** The owner's name of event log. */

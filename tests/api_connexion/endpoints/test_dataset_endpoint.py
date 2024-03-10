@@ -41,6 +41,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -817,6 +818,9 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(
+            session, dag_id=dag_id, event="api.delete_dag_dataset_queued_event", execution_date=None
+        )
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -1021,6 +1025,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(session, dag_id=None, event="api.delete_dataset_queued_events", execution_date=None)
 
     def test_should_respond_404(self):
         dataset_uri = "not_exists"

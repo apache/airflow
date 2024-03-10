@@ -28,6 +28,7 @@ import sqlalchemy
 import airflow
 from airflow.cli import cli_parser
 from airflow.configuration import conf
+from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
 from tests.test_utils.config import conf_vars
 
@@ -69,6 +70,7 @@ class TestCeleryStopCommand:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            importlib.reload(executor_loader)
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 

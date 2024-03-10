@@ -153,9 +153,10 @@ class BaseSQLToGCSOperator(BaseOperator):
     def execute(self, context: Context):
         if self.partition_columns:
             self.log.info(
-                f"Found partition columns: {','.join(self.partition_columns)}. "
+                "Found partition columns: %s. "
                 "Assuming the SQL statement is properly sorted by these columns in "
-                "ascending or descending order."
+                "ascending or descending order.",
+                ",".join(self.partition_columns),
             )
 
         self.log.info("Executing query")

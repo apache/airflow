@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+7.0.1
+.....
+
+Misc
+~~~~
+
+* ``Remove references from the code to Jira Issues (#37807)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 7.0.0
 .....
 

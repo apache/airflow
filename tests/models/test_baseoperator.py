@@ -201,7 +201,7 @@ class TestBaseOperator:
         # An operator with non default trigger rule and a fail stop dag should not be allowed
         with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
-                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
+                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
             )
 
     @pytest.mark.db_test

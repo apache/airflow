@@ -22,12 +22,7 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
-
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 
 class BaseAuthManager(LoggingMixin):
@@ -344,11 +344,30 @@ class BaseAuthManager(LoggingMixin):
         By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
+
+        :param methods: whether filter readable or writable
+        :param user: the current user
+        :param session: the session
+        """
+        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+        return self.filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=user)
+
+    def filter_permitted_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+    ):
+        """
+        Filter readable or writable DAGs for user.
+
+        :param dag_ids: the list of DAG ids
+        :param methods: whether filter readable or writable
+        :param user: the current user
         """
         if not methods:
             methods = ["PUT", "GET"]
-
-        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
         if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
             "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)

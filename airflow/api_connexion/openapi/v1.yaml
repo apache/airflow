@@ -1156,6 +1156,7 @@ paths:
         - $ref: "#/components/parameters/OrderBy"
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/FilterRunID"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
@@ -3242,7 +3243,12 @@ components:
           readOnly: true
           nullable: true
         task_id:
-          description: The DAG ID
+          description: The Task ID
+          type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          description: The DAG Run ID
           type: string
           readOnly: true
           nullable: true
@@ -5510,6 +5516,14 @@ components:
         type: string
       required: false
       description: Returns objects matched by the Task ID.
+
+    FilterRunID:
+      in: query
+      name: run_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Run ID.
 
     # Other parameters
     FileToken:

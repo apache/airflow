@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.10.2
+......
+
+Misc
+~~~~
+
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix remaining D401 checks (#37434)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 5.10.1
 ......
 
