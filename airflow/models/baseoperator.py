@@ -374,6 +374,7 @@ class ExecutorSafeguard:
     the TaskInstance as we want to avoid bad mixing between decorated and
     classic operators.
     """
+
     test_mode = conf.getboolean("core", "unit_test_mode")
 
     @classmethod
