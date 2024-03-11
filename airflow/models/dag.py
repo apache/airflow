@@ -627,7 +627,7 @@ class DAG(LoggingMixin):
             )
         if self.max_consecutive_failed_dag_runs < 0:
             raise AirflowException(
-                f"Invalid max_consecutive_failed_dag_runs: {str(self.max_consecutive_failed_dag_runs)}."
+                f"Invalid max_consecutive_failed_dag_runs: {self.max_consecutive_failed_dag_runs}."
                 f"Requires max_consecutive_failed_dag_runs >= 0"
             )
         if self.timetable.active_runs_limit is not None:
@@ -3608,7 +3608,7 @@ class DagModel(Base):
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
-    max_consecutive_failed_dag_runs = Column(Integer, nullable=True)
+    max_consecutive_failed_dag_runs = Column(Integer, nullable=False)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
     has_import_errors = Column(Boolean(), default=False, server_default="0")
