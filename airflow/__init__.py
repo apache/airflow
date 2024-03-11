@@ -39,7 +39,12 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
-__all__ = ["__version__", "DAG", "Dataset", "XComArg"]
+__all__ = [
+    "__version__",
+    "DAG",
+    "Dataset",
+    "XComArg",
+]
 
 # Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user

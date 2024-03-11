@@ -82,10 +82,10 @@ class TestAzureCosmosDbHook:
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_default_credential")
         hook.get_conn()
 
-        assert mock_default_azure_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
-            "test_client_id",
-            "test_tenant_id",
-        )
+        mock_default_azure_credential.assert_called()
+        args = mock_default_azure_credential.call_args
+        assert args.kwargs["managed_identity_client_id"] == "test_client_id"
+        assert args.kwargs["workload_identity_tenant_id"] == "test_tenant_id"
 
     @mock.patch(f"{MODULE}.CosmosClient", autospec=True)
     def test_client(self, mock_cosmos):
