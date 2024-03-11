@@ -90,9 +90,7 @@
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.drill": {
