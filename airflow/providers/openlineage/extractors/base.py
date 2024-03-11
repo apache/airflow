@@ -67,7 +67,8 @@ class BaseExtractor(ABC, LoggingMixin):
     @cached_property
     def disabled_operators(self) -> set[str]:
         return set(
-            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+            operator.strip()
+            for operator in conf.get("openlineage", "disabled_for_operators", fallback="").split(";")
         )
 
     @cached_property
