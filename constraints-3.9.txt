@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-11T17:18:29.585101
+# This constraints file was automatically generated on 2024-03-11T21:16:13.809135
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -320,7 +320,7 @@ google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
 google-cloud-batch==0.17.14
 google-cloud-bigquery-datatransfer==3.15.1
-google-cloud-bigquery==3.18.0
+google-cloud-bigquery==3.19.0
 google-cloud-bigtable==2.23.0
 google-cloud-build==3.23.3
 google-cloud-compute==1.18.0
@@ -358,7 +358,7 @@ google-cloud-workflows==1.14.3
 google-crc32c==1.5.0
 google-re2==1.1
 google-resumable-media==2.7.0
-googleapis-common-protos==1.62.0
+googleapis-common-protos==1.63.0
 graphql-core==3.2.3
 graphviz==0.20.1
 greenlet==3.0.3
@@ -488,7 +488,7 @@ opentelemetry-proto==1.23.0
 opentelemetry-sdk==1.23.0
 opentelemetry-semantic-conventions==0.44b0
 opsgenie-sdk==2.1.5
-oracledb==2.0.1
+oracledb==2.1.0
 ordered-set==4.1.0
 orjson==3.9.15
 oss2==2.18.4
