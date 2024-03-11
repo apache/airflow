@@ -1470,7 +1470,6 @@ combine-as-imports = true
 "airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
 "airflow/providers/samba/hooks/samba.py" = ["D105"]
 "airflow/providers/smtp/hooks/smtp.py" = ["D105"]
-"airflow/providers/ssh/hooks/ssh.py" = ["D105"]
 "airflow/providers/tableau/hooks/tableau.py" = ["D105"]
 
 [tool.ruff.lint.flake8-tidy-imports]
