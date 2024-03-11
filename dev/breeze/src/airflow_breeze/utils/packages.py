@@ -392,6 +392,25 @@ def get_wheel_package_name(provider_id: str) -> str:
     return "apache_airflow_providers_" + provider_id.replace(".", "_")
 
 
+def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
+    if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix:
+        # Applies version suffix to the apache-airflow and provider package dependencies to make
+        # sure that pre-release versions have correct limits - this address the issue with how
+        # pip handles pre-release versions when packages are pre-release and refer to each other - we
+        # need to make sure that all our >= references for all apache-airflow packages in pre-release
+        # versions of providers contain the same suffix as the provider itself.
+        # For example `apache-airflow-providers-fab==2.0.0.dev0` should refer to
+        # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
+        # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
+        prefix, version = install_clause.split(">=")
+        from packaging.version import Version
+
+        base_version = Version(version).base_version
+        target_version = Version(str(base_version) + "." + version_suffix)
+        return prefix + ">=" + str(target_version)
+    return install_clause
+
+
 def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     """
     Returns install requirements for the package.
@@ -401,32 +420,15 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
 
     :return: install requirements of the package
     """
-
-    def apply_version_suffix(install_clause: str) -> str:
-        if (
-            install_clause.startswith("apache-airflow")
-            and ">=" in install_clause
-            and version_suffix != ""
-            and not install_clause.endswith(version_suffix)
-        ):
-            # This is workaround for `pip` way of handling `--pre` installation switch. It apparently does
-            # not modify the meaning of `install_requires` to include also pre-releases, so we need to
-            # modify our internal provider and airflow package version references to include all pre-releases
-            # including all development releases. When you specify dependency as >= X.Y.Z, and you
-            # have packages X.Y.Zdev0 or X.Y.Zrc1 in a local file, such package is not considered
-            # as fulfilling the requirement even if `--pre` switch is used.
-            return install_clause + ".dev0"
-        return install_clause
-
     if provider_id in get_removed_provider_ids():
         dependencies = get_provider_requirements(provider_id)
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
-    install_requires = [apply_version_suffix(clause) for clause in dependencies]
+    install_requires = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
-def get_package_extras(provider_id: str) -> dict[str, list[str]]:
+def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[str]]:
     """
     Finds extras for the package specified.
 
@@ -458,6 +460,8 @@ def get_package_extras(provider_id: str) -> dict[str, list[str]]:
                     extras_dict[name].append(new_dependency)
             else:
                 extras_dict[name] = dependencies
+    for extra, dependencies in extras_dict.items():
+        extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
     return extras_dict
 
 
@@ -572,7 +576,9 @@ def get_provider_jinja_context(
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
-        "EXTRAS_REQUIREMENTS": get_package_extras(provider_id=provider_details.provider_id),
+        "EXTRAS_REQUIREMENTS": get_package_extras(
+            provider_id=provider_details.provider_id, version_suffix=version_suffix
+        ),
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
             provider_details.documentation_provider_package_path,
