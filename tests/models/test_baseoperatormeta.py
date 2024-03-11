@@ -25,13 +25,13 @@ import pytest
 from sqlalchemy.orm import Session
 
 from airflow import DAG
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, Operator, TaskInstance
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import task
 from airflow.utils.context import Context
 from airflow.utils.state import DagRunState
-from tests.test_utils.config import conf_vars
 
 
 class HelloWorldOperator(BaseOperator):
@@ -48,7 +48,7 @@ class IterableSession(Session):
 
 
 @pytest.fixture
-def mock_task_instance_methods(mocker):
+def mock_task_instance(mocker):
     mocker.patch.object(TaskInstance, "get_task_instance", return_value=None)
     mocker.patch.object(TaskInstance, "get_template_context", return_value={"params": {}})
     mocker.patch.object(TaskInstance, "render_templates", return_value=None)
@@ -56,9 +56,20 @@ def mock_task_instance_methods(mocker):
     mocker.patch.object(TaskInstance, "check_and_change_state_before_execution", return_value=True)
 
 
-class TestBaseOperatorMeta:
+@pytest.fixture
+def mock_session(mocker):
+    session = mocker.patch("sqlalchemy.orm.Session", spec=IterableSession)
+    session.__iter__.return_value = iter({})
+    return session
+
+
+class TestExecutorSafeguard:
     def setup_method(self):
         HelloWorldOperator.called = False
+        ExecutorSafeguard.test_mode = False
+
+    def teardown_method(self, method):
+        ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
     @classmethod
     def create_task_instance(cls, operator: Operator) -> TaskInstance:
@@ -78,17 +89,12 @@ class TestBaseOperatorMeta:
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
-            with conf_vars({("core", "unit_test_mode"): "False"}):
-                HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
+            HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
 
     @patch("sqlalchemy.orm.Session.__init__")
     def test_executor_when_called_from_decorated_task(
-        self, mock_session: MagicMock, mock_task_instance_methods
+        self, mock_session, mock_task_instance
     ):
-        session = MagicMock(spec=IterableSession)
-        mock_session.return_value = session
-        session.__iter__.return_value = iter({})
-
         dag = DAG(dag_id="hello_world")
         context = MagicMock(spec=Context)
         operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
@@ -100,28 +106,20 @@ class TestBaseOperatorMeta:
         assert not operator.called
 
         task_instance = self.create_task_instance(operator=say_hello(context=context).operator)
-
-        with conf_vars({("core", "unit_test_mode"): "False"}):
-            task_instance.run(test_mode=True, session=session)
+        task_instance.run(test_mode=True, session=mock_session())
 
         assert not operator.called
 
     @patch("sqlalchemy.orm.Session.__init__")
     def test_executor_when_called_from_task_instance(
-        self, mock_session: MagicMock, mock_task_instance_methods
+        self, mock_session, mock_task_instance
     ):
-        session = MagicMock(spec=IterableSession)
-        mock_session.return_value = session
-        session.__iter__.return_value = iter({})
-
         dag = DAG(dag_id="hello_world")
         operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
 
         assert not operator.called
 
         task_instance = self.create_task_instance(operator=operator)
-
-        with conf_vars({("core", "unit_test_mode"): "False"}):
-            task_instance.run(test_mode=True, session=session)
+        task_instance.run(test_mode=True, session=mock_session())
 
         assert operator.called

@@ -366,11 +366,13 @@ def partial(
     )
 
 
-def executor_safeguard():
-    def decorator(func):
+class ExecutorSafeguard:
+    test_mode = conf.getboolean("core", "unit_test_mode")
+
+    @classmethod
+    def decorator(cls, func):
         def wrapper(*args, **kwargs):
-            unit_test_mode = conf.getboolean("core", "unit_test_mode")
-            if unit_test_mode:
+            if cls.test_mode:
                 return func(*args, **kwargs)
             caller_frame = traceback.extract_stack()[-3]  # Get the caller frame excluding the current frame
             filename = _execute_task.__module__.replace(".", os.path.sep)
@@ -379,8 +381,6 @@ def executor_safeguard():
             raise AirflowException(f"Method {func.__name__} cannot be called from {caller_frame.name}!")
 
         return wrapper
-
-    return decorator
 
 
 class BaseOperatorMeta(abc.ABCMeta):
@@ -484,7 +484,7 @@ class BaseOperatorMeta(abc.ABCMeta):
     def __new__(cls, name, bases, namespace, **kwargs):
         execute_method = namespace.get("execute")
         if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
-            namespace["execute"] = executor_safeguard()(execute_method)
+            namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
