@@ -642,7 +642,7 @@ jobs:
           update-installers
         if: always()
         env:
-          UPGRADE_UV: "false"
+          UPGRADE_UV: "true"
       - name: "Run automated upgrade for chart dependencies"
         run: >
           pre-commit run
