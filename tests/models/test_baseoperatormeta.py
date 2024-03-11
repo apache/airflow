@@ -91,9 +91,7 @@ class TestExecutorSafeguard:
 
             HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
 
-    def test_executor_when_called_from_decorated_task(
-        self, mock_session, mock_task_instance
-    ):
+    def test_executor_when_called_from_decorated_task(self, mock_session, mock_task_instance):
         dag = DAG(dag_id="hello_world")
         context = MagicMock(spec=Context)
         operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
@@ -109,9 +107,7 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-    def test_executor_when_called_from_task_instance(
-        self, mock_session, mock_task_instance
-    ):
+    def test_executor_when_called_from_task_instance(self, mock_session, mock_task_instance):
         dag = DAG(dag_id="hello_world")
         operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
 
