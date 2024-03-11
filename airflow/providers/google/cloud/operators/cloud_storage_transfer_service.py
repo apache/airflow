@@ -555,7 +555,7 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     @property
     def filter(self) -> dict | None:
-        """Alias for ``request_filter``, used for compatibility"""
+        """Alias for ``request_filter``, used for compatibility."""
         return self.request_filter
 
     def execute(self, context: Context) -> list[dict]:
