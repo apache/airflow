@@ -67,7 +67,7 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
   an image and run any image-based static checks
-* `All Airflow Python files` - files that are checked by `mypy-core` static checks
+* `All Airflow Python files` - files that are checked by `mypy-airflow` static checks
 * `All Providers Python files` - files that are checked by `mypy-providers` static checks
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
 * `All Docs Python files` - files that are checked by `mypy-docs` static checks
@@ -140,7 +140,7 @@ when some files are not changed. Those are the rules implemented:
 * If "full tests" mode is detected, no more pre-commits are skipped - we run all of them
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
-  * if no `All Airflow Python files` changed - `mypy-core` check is skipped
+  * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
   * if no `All Docs Python files` changed - `mypy-docs` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
