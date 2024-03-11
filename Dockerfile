@@ -45,7 +45,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.8.2"
+ARG AIRFLOW_VERSION="2.8.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
