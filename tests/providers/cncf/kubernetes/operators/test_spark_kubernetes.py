@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import date
 from os.path import join
 from pathlib import Path
 from unittest import mock
@@ -32,6 +33,7 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
+from airflow.template.templater import LiteralValue
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
@@ -504,3 +506,48 @@ def test_template_body_templating(create_task_instance_of_operator):
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
     assert task.template_body == {"spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}}
+
+
+@pytest.mark.db_test
+def test_resolve_application_file_template_file(dag_maker, tmp_path):
+    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+    filename = "test-application-file.yml"
+    (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
+
+    with dag_maker(
+        dag_id="test_resolve_application_file_template_file", template_searchpath=tmp_path.as_posix()
+    ):
+        SparkKubernetesOperator(
+            application_file=filename,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_template_body_templating_task",
+        )
+
+    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti.render_templates()
+    task: SparkKubernetesOperator = ti.task
+    assert task.template_body == {
+        "spark": {
+            "foo": date(2024, 2, 1),
+            "bar": "test_resolve_application_file_template_file",
+            "spam": "egg",
+        }
+    }
+
+
+@pytest.mark.db_test
+def test_resolve_application_file_real_file(dag_maker, tmp_path):
+    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+    application_file = tmp_path / "test-application-file.yml"
+    application_file.write_text("foo: bar\nspam: egg")
+    with dag_maker(dag_id="test_resolve_application_file_real_file"):
+        SparkKubernetesOperator(
+            application_file=LiteralValue(application_file.resolve().as_posix()),
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_template_body_templating_task",
+        )
+
+    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti.render_templates()
+    task: SparkKubernetesOperator = ti.task
+    assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
