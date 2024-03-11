@@ -38,30 +38,20 @@ with DAG(
 ) as dag:
 
     # [START howto_operator_dataprocGDC_submit_spark]
-    submitSparkJobOperator = DataprocGDCSubmitSparkJobKrmOperator(
+    submit_spark_job_operator = DataprocGDCSubmitSparkJobKrmOperator(
         task_id="example-dataprocgdc-submitspark-operator",
-        trigger_rule="all_success",
-        depends_on_past=False,
-        retries=1,
         application_file="sparkpi.yaml",
         namespace="default",
         kubernetes_conn_id="myk8s",
-        do_xcom_push=True,
-        dag=dag,
     )
     # [END howto_operator_dataprocGDC_submit_spark]
 
     # [START howto_operator_dataprocGDC_create_appenv]
-    createAppEnvOperator = DataprocGdcCreateAppEnvironmentKrmOperator(
+    create_app_env_operator = DataprocGdcCreateAppEnvironmentKrmOperator(
         task_id="example-dataprocgdc-appenv-operator",
-        trigger_rule="all_success",
-        depends_on_past=False,
-        retries=1,
         application_file="appEnv.yaml",
         namespace="default",
         kubernetes_conn_id="myk8s",
-        do_xcom_push=True,
-        dag=dag,
     )
     # [END howto_operator_dataprocGDC_create_appenv]
 
@@ -72,8 +62,6 @@ with DAG(
         attach_log=True,
         namespace="default",
         kubernetes_conn_id="myk8s",
-        api_group="dataprocgdc.cloud.google.com",
-        api_version="v1alpha1",
     )
     # [END howto_sensor_dataprocGDC_spark]
 

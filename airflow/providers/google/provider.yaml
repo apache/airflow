@@ -402,6 +402,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataproc_metastore.rst
     tags: [gcp]
+  - integration-name: Google Dataproc GDC
+    external-doc-url: https://cloud.google.com/distributed-cloud/
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/gdc/dataprocgdc.rst
+    tags: [gdc]
   - integration-name: Google Dataproc
     external-doc-url: https://cloud.google.com/dataproc/
     how-to-guide:
