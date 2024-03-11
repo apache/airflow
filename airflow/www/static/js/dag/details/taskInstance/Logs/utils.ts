@@ -71,7 +71,8 @@ export const parseLogs = (
   // see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
   const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
   const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
-  const logGroupStyle = "color:#0060df;cursor:pointer;font-weight: bold;";
+  // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
+  const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -122,13 +123,11 @@ export const parseLogs = (
         .replace(logGroupStart, (textLine) => {
           const gName = textLine.substring(17);
           const gId = gName.replace(/\W+/g, "_").toLowerCase();
-          if (unfoldedLogGroups.indexOf(gId) === -1) {
-            const unfold = `<span id="${gId}_unfold" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
-            const fold = `<span style="display:none;"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
-            return unfold + fold;
-          }
-          const unfold = `<span id="${gId}_unfold" style="display:none;${logGroupStyle}"> &#11208; ${gName}</span>`;
-          const fold = `<span><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+          const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
+          const ufDisplay = isFolded ? "" : "display:none;";
+          const unfold = `<span id="${gId}_unfold" style="${ufDisplay}${logGroupStyle}"> &#11208; ${gName}</span>`;
+          const fDisplay = isFolded ? "display:none;" : "";
+          const fold = `<span style="${fDisplay}"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
           return unfold + fold;
         })
         .replace(

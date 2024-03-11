@@ -69,7 +69,7 @@ const LogBlock = ({
 
   const onClick = (e: React.MouseEvent<HTMLElement>) => {
     const target = e.target as HTMLElement;
-    if (target.id && target.id.endsWith("_unfold")) {
+    if (target.id?.endsWith("_unfold")) {
       const gId = target.id.substring(0, target.id.length - 7);
       // remember the folding state if logs re-loaded
       unfoldedGroups.push(gId);
@@ -80,7 +80,7 @@ const LogBlock = ({
         (target.nextElementSibling as HTMLElement).style.display = "inline";
       }
     }
-    if (target.id && target.id.endsWith("_fold")) {
+    if (target.id?.endsWith("_fold")) {
       const gId = target.id.substring(0, target.id.length - 5);
       // remember the folding state if logs re-loaded
       if (unfoldedGroups.indexOf(gId) >= 0) {
@@ -88,10 +88,10 @@ const LogBlock = ({
       }
       setUnfoldedLogGroup(unfoldedGroups);
       // now do the folding
-      if (target.parentNode) {
-        (target.parentNode as HTMLElement).style.display = "none";
-        if (target.parentNode.previousSibling) {
-          (target.parentNode.previousSibling as HTMLElement).style.display =
+      if (target.parentElement) {
+        target.parentElement.style.display = "none";
+        if (target.parentElement.previousSibling) {
+          (target.parentElement.previousSibling as HTMLElement).style.display =
             "inline";
         }
       }
