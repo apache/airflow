@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import sys
 from datetime import timedelta
 from unittest import mock
 from urllib.parse import quote_plus
@@ -335,10 +334,6 @@ class TestLineageApiExperimental(TestBase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
-    @pytest.mark.skipif(
-        sys.version_info >= (3, 12),
-        reason="Skipped as papermill used with experimental lineage is not Python 3.12 compatible",
-    )
     @mock.patch("airflow.settings.DAGS_FOLDER", PAPERMILL_EXAMPLE_DAGS)
     def test_lineage_info(self):
         url_template = "/api/experimental/lineage/{}/{}"

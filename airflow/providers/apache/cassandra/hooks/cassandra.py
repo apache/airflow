@@ -19,22 +19,10 @@
 from __future__ import annotations
 
 import re
-import sys
 from typing import Any, Union
 
-import cassandra
 from cassandra.auth import PlainTextAuthProvider
-
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from cassandra.cluster import Cluster, Session
-except cassandra.DependencyException:
-    if sys.version_info >= (3, 12):
-        raise AirflowOptionalProviderFeatureException(
-            "You need to have cassandra driver compiled with libev to get it working."
-        )
-    raise
+from cassandra.cluster import Cluster, Session
 from cassandra.policies import (
     DCAwareRoundRobinPolicy,
     RoundRobinPolicy,
