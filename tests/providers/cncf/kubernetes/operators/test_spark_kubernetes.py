@@ -536,18 +536,18 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path):
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_real_file(dag_maker, tmp_path):
-    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+def test_resolve_application_file_real_file(create_task_instance_of_operator, tmp_path):
     application_file = tmp_path / "test-application-file.yml"
     application_file.write_text("foo: bar\nspam: egg")
-    with dag_maker(dag_id="test_resolve_application_file_real_file"):
-        SparkKubernetesOperator(
-            application_file=LiteralValue(application_file.resolve().as_posix()),
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="test_template_body_templating_task",
-        )
 
-    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
+        application_file=LiteralValue(application_file.resolve().as_posix()),
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        dag_id="test_resolve_application_file_real_file",
+        task_id="test_template_body_templating_task",
+    )
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
+
     assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
