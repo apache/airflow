@@ -579,7 +579,7 @@ class DagRun(Base, LoggingMixin):
         if to_be_paused:
             from airflow.models.dag import DagModel
 
-            self.log.warning(
+            self.log.info(
                 "Pausing DAG %s because last %s DAG runs failed.",
                 self.dag_id,
                 max_consecutive_failed_dag_runs,
@@ -828,8 +828,8 @@ class DagRun(Base, LoggingMixin):
 
             # Check if the max_consecutive_failed_dag_runs has been provided and not 0
             # and last consecutive failures are more
-            if bool(dag.max_consecutive_failed_dag_runs):
-                self.log.info(
+            if dag.max_consecutive_failed_dag_runs > 0:
+                self.log.debug(
                     "Checking consecutive failed DAG runs for DAG %s, limit is %s",
                     self.dag_id,
                     dag.max_consecutive_failed_dag_runs,
