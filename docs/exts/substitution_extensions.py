@@ -41,7 +41,7 @@ _SUBSTITUTION_OPTION_NAME = "substitutions"
 class SubstitutionCodeBlock(OriginalCodeBlock):  # type: ignore
     """Similar to CodeBlock but replaces placeholders with variables."""
 
-    option_spec = OriginalCodeBlock.option_spec.copy()
+    option_spec = OriginalCodeBlock.option_spec.copy()  # type: ignore[union-attr]
     option_spec[_SUBSTITUTION_OPTION_NAME] = directives.flag
 
     def run(self) -> list:

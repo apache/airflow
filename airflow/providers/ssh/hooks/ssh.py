@@ -375,9 +375,11 @@ class SSHHook(BaseHook):
         category=AirflowProviderDeprecationWarning,
     )
     def __enter__(self) -> SSHHook:
+        """Return an instance of SSHHook when the `with` statement is used."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Clear ssh client after exiting the `with` statement block."""
         if self.client is not None:
             self.client.close()
             self.client = None
