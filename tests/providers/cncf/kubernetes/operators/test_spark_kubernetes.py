@@ -552,7 +552,7 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
         yaml.safe_dump(body, fp)
 
     with dag_maker(
-        dag_id="test_resolve_application_file_template_file", template_searchpath=tmp_path.as_posix()
+        dag_id="test_resolve_application_file_template_nondictionary", template_searchpath=tmp_path.as_posix()
     ):
         SparkKubernetesOperator(
             application_file=filename,
@@ -602,7 +602,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
         SparkKubernetesOperator,
         application_file=LiteralValue(application_file),
         kubernetes_conn_id="kubernetes_default_kube_config",
-        dag_id="test_resolve_application_file_real_file",
+        dag_id="test_resolve_application_file_real_file_not_exists",
         task_id="test_template_body_templating_task",
     )
     ti.render_templates()
