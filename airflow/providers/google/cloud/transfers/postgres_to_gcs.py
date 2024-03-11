@@ -113,7 +113,13 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         self.cursor_itersize = cursor_itersize
 
     def _unique_name(self):
-        return f"{self.dag_id}__{self.task_id}__{uuid.uuid4()}" if self.use_server_side_cursor else None
+        """
+        Generates a deterministic UUID for the cursor name,
+        using the combination of DAG ID and task ID.
+        """
+        if self.use_server_side_cursor:
+            return str(uuid5(uuid5(NAMESPACE_OID, self.dag_id), self.task_id))
+        return None
 
     def query(self):
         """Query Postgres and returns a cursor to the results."""
