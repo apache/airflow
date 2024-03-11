@@ -60,6 +60,11 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
+from airflow.task.priority_strategy import (
+    PriorityWeightStrategy,
+    _airflow_priority_weight_strategies,
+    validate_and_load_priority_weight_strategy,
+)
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
@@ -76,7 +81,6 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
     from airflow.serialization.json_schema import Validator
-    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
     from airflow.utils.pydantic import BaseModel
@@ -267,13 +271,19 @@ def _encode_priority_weight_strategy(var: PriorityWeightStrategy) -> dict[str, A
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def _decode_priority_weight_strategy(var: dict[str, Any]) -> PriorityWeightStrategy:
+def _decode_priority_weight_strategy(var: dict[str, Any] | str) -> PriorityWeightStrategy | str:
     """
-    Decode a previously serialized timetable.
+    Decode a previously serialized priority weight strategy.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
+    if isinstance(var, str):
+        # for backward compatibility
+        if var in _airflow_priority_weight_strategies:
+            return var
+        else:
+            raise _PriorityWeightStrategyNotRegistered(var)
     importable_string = var[Encoding.TYPE]
     priority_weight_strategy_class = _get_registered_priority_weight_strategy(importable_string)
     if priority_weight_strategy_class is None:
@@ -445,6 +455,12 @@ class BaseSerialization:
         for key in keys_to_serialize:
             # None is ignored in serialized form and is added back in deserialization.
             value = getattr(object_to_serialize, key, None)
+            if key == "priority_weight_strategy":
+                if value not in _airflow_priority_weight_strategies:
+                    value = validate_and_load_priority_weight_strategy(value)
+                else:
+                    serialized_object[key] = value
+                    continue
             if cls._is_excluded(value, key, object_to_serialize):
                 continue
 
@@ -597,6 +613,8 @@ class BaseSerialization:
                 return cls.default_serialization(strict, var)
         elif isinstance(var, ArgNotSet):
             return cls._encode(None, type_=DAT.ARG_NOT_SET)
+        elif isinstance(var, PriorityWeightStrategy):
+            return json.dumps(_encode_priority_weight_strategy(var))
         else:
             return cls.default_serialization(strict, var)
 

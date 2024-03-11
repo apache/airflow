@@ -119,7 +119,14 @@ def validate_and_load_priority_weight_strategy(
         return AbsolutePriorityWeightStrategy()
 
     if isinstance(priority_weight_strategy, str):
-        if priority_weight_strategy in _airflow_priority_weight_strategies:
+        if priority_weight_strategy.startswith("{") and priority_weight_strategy.endswith("}"):
+            # This is a serialized priority weight strategy
+            import json
+
+            from airflow.serialization.serialized_objects import _decode_priority_weight_strategy
+
+            priority_weight_strategy = _decode_priority_weight_strategy(json.loads(priority_weight_strategy))
+        elif priority_weight_strategy in _airflow_priority_weight_strategies:
             priority_weight_strategy = _airflow_priority_weight_strategies[priority_weight_strategy]
     priority_weight_strategy_str = (
         qualname(priority_weight_strategy)
