@@ -30,7 +30,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = '8e1c784a4fc7'
-down_revision = '1fd565369930'
+down_revision = 'ab34f260b71c'
 branch_labels = None
 depends_on = None
 airflow_version = '2.9.0'
