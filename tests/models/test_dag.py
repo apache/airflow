@@ -437,12 +437,12 @@ class TestDag:
 
     @mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
     def test_dag_task_custom_weight_strategy(self):
-        from tests.plugins.priority_weight_strategy import TestPriorityWeightStrategy
+        from tests.plugins.priority_weight_strategy import StaticPriorityWeightStrategy
 
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             task = EmptyOperator(
                 task_id="empty_task",
-                priority_weight_strategy=TestPriorityWeightStrategy(),
+                priority_weight_strategy=StaticPriorityWeightStrategy(),
             )
         dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
         ti = dr.get_task_instance(task.task_id)
@@ -450,12 +450,12 @@ class TestDag:
 
     @mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
     def test_dag_task_parametrized_weight_strategy(self):
-        from tests.plugins.priority_weight_strategy import TestFactorPriorityWeightStrategy
+        from tests.plugins.priority_weight_strategy import FactorPriorityWeightStrategy
 
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             task = EmptyOperator(
                 task_id="empty_task",
-                priority_weight_strategy=TestFactorPriorityWeightStrategy(factor=3),
+                priority_weight_strategy=FactorPriorityWeightStrategy(factor=3),
             )
         dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
         ti = dr.get_task_instance(task.task_id)

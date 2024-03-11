@@ -21,7 +21,7 @@ from datetime import datetime
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
 from airflow.operators.empty import EmptyOperator
 from tests.plugins.priority_weight_strategy import (
-    TestFactorPriorityWeightStrategy,
+    FactorPriorityWeightStrategy,
     TestPriorityWeightStrategyPlugin,
 )
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -74,7 +74,7 @@ class TestTaskSchema:
             task_id="task_id",
             start_date=datetime(2020, 6, 16),
             end_date=datetime(2020, 6, 26),
-            priority_weight_strategy=TestFactorPriorityWeightStrategy(2),
+            priority_weight_strategy=FactorPriorityWeightStrategy(2),
         )
         result = task_schema.dump(op)
         expected = {
@@ -94,7 +94,7 @@ class TestTaskSchema:
             "pool_slots": 1.0,
             "priority_weight": 1.0,
             "priority_weight_strategy": {
-                "__type": "tests.plugins.priority_weight_strategy.TestFactorPriorityWeightStrategy",
+                "__type": "tests.plugins.priority_weight_strategy.FactorPriorityWeightStrategy",
                 "__var": {"factor": 2},
             },
             "queue": "default",

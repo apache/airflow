@@ -41,7 +41,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.task.priority_strategy import DownstreamPriorityWeightStrategy, UpstreamPriorityWeightStrategy
+from airflow.task.priority_strategy import UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.template import literal
@@ -780,7 +780,7 @@ class TestBaseOperator:
 
     def test_priority_weight_strategy_default(self):
         op = BaseOperator(task_id="test_task")
-        assert op.priority_weight_strategy == DownstreamPriorityWeightStrategy()
+        assert op.priority_weight_strategy == "downstream"
 
     def test_deprecated_weight_rule_override(self):
         op = BaseOperator(task_id="test_task", weight_rule="upstream")

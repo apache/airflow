@@ -25,12 +25,12 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 
-class TestPriorityWeightStrategy(PriorityWeightStrategy):
+class StaticTestPriorityWeightStrategy(PriorityWeightStrategy):
     def get_weight(self, ti: TaskInstance):
         return 99
 
 
-class TestFactorPriorityWeightStrategy(PriorityWeightStrategy):
+class FactorPriorityWeightStrategy(PriorityWeightStrategy):
     def __init__(self, factor: int = 2):
         self.factor = factor
 
@@ -43,4 +43,4 @@ class TestFactorPriorityWeightStrategy(PriorityWeightStrategy):
 
 class TestPriorityWeightStrategyPlugin(AirflowPlugin):
     name = "priority_weight_strategy_plugin"
-    priority_weight_strategies = [TestPriorityWeightStrategy, TestFactorPriorityWeightStrategy]
+    priority_weight_strategies = [StaticTestPriorityWeightStrategy, FactorPriorityWeightStrategy]
