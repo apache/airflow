@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import warnings
 
 try:
@@ -58,6 +59,13 @@ def filter_botocore_warnings(botocore_version):
                 category=FutureWarning,
                 module="botocore.client",
                 message="The .* client is currently using a deprecated endpoint.*",
+            )
+        if sys.version_info >= (3, 12):
+            # Ignore some modules' warnings in Python 3.12
+            warnings.filterwarnings(
+                "ignore",
+                module="botocore.auth",
+                message=r"datetime.datetime.utcnow\(\) is deprecated*",
             )
         yield
 
