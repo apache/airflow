@@ -22,6 +22,8 @@ import os
 import random
 import re
 import shutil
+import subprocess
+
 import sys
 import tempfile
 import textwrap
@@ -33,7 +35,7 @@ from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
 from subprocess import DEVNULL
-from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple
+from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, Literal, NamedTuple, Union
 
 import click
 from rich.progress import Progress
@@ -173,8 +175,8 @@ option_chicken_egg_providers = click.option(
     "--chicken-egg-providers",
     default="",
     help="List of chicken-egg provider packages - "
-    "those that have airflow_version >= current_version and should "
-    "be installed in CI from locally built packages with >= current_version.dev0 ",
+         "those that have airflow_version >= current_version and should "
+         "be installed in CI from locally built packages with >= current_version.dev0 ",
     envvar="CHICKEN_EGG_PROVIDERS",
 )
 option_debug_release_management = click.option(
@@ -202,6 +204,12 @@ option_use_local_hatch = click.option(
     is_flag=True,
     help="Use local hatch instead of docker to build the package. You need to have hatch installed.",
 )
+
+
+MY_DIR_PATH = os.path.dirname(__file__)
+SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
+PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
+ISSUE_MATCH_IN_BODY = re.compile(r" #([0-9]+)[^0-9]")
 
 if TYPE_CHECKING:
     from packaging.version import Version
@@ -578,8 +586,8 @@ def provider_action_summary(description: str, message_type: MessageType, package
     "--skip-git-fetch",
     is_flag=True,
     help="Skips removal and recreation of `apache-https-for-providers` remote in git. By default, the "
-    "remote is recreated and fetched to make sure that it's up to date and that recent commits "
-    "are not missing",
+         "remote is recreated and fetched to make sure that it's up to date and that recent commits "
+         "are not missing",
 )
 @click.option(
     "--base-branch",
@@ -597,7 +605,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
     "--non-interactive",
     is_flag=True,
     help="Run in non-interactive mode. Provides random answers to the type of changes and confirms release"
-    "for providers prepared for release - useful to test the script in non-interactive mode in CI.",
+         "for providers prepared for release - useful to test the script in non-interactive mode in CI.",
 )
 @click.option(
     "--only-min-version-update",
@@ -608,7 +616,7 @@ def provider_action_summary(description: str, message_type: MessageType, package
     "--reapply-templates-only",
     is_flag=True,
     help="Only reapply templates, do not bump version. Useful if templates were added"
-    " and you need to regenerate documentation.",
+         " and you need to regenerate documentation.",
 )
 @option_verbose
 def prepare_provider_documentation(
@@ -758,22 +766,22 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     default=False,
     is_flag=True,
     help="Skip deleting files that were used to generate provider package. Useful for debugging and "
-    "developing changes to the build process.",
+         "developing changes to the build process.",
 )
 @click.option(
     "--clean-dist",
     default=False,
     is_flag=True,
     help="Clean dist directory before building packages. Useful when you want to build multiple packages "
-    " in a clean environment",
+         " in a clean environment",
 )
 @click.option(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
     help="Optional, contains comma-seperated list of package ids that are processed for documentation "
-    "building, and document publishing. It is an easier alternative to adding individual packages as"
-    " arguments to every command. This overrides the packages passed as arguments.",
+         "building, and document publishing. It is an easier alternative to adding individual packages as"
+         " arguments to every command. This overrides the packages passed as arguments.",
 )
 @option_dry_run
 @option_github_repository
@@ -1456,8 +1464,8 @@ def run_publish_docs_in_parallel(
 @click.option(
     "--package-filter",
     help="Filter(s) to use more than one can be specified. You can use glob pattern matching the "
-    "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
-    "several similarly named packages together.",
+         "full package name, for example `apache-airflow-providers-*`. Useful when you want to select"
+         "several similarly named packages together.",
     type=str,
     multiple=True,
 )
@@ -1466,8 +1474,8 @@ def run_publish_docs_in_parallel(
     envvar="PACKAGE_LIST",
     type=str,
     help="Optional, contains comma-seperated list of package ids that are processed for documentation "
-    "building, and document publishing. It is an easier alternative to adding individual packages as"
-    " arguments to every command. This overrides the packages passed as arguments.",
+         "building, and document publishing. It is an easier alternative to adding individual packages as"
+         " arguments to every command. This overrides the packages passed as arguments.",
 )
 @option_parallelism
 @option_run_in_parallel
@@ -1672,7 +1680,7 @@ def clean_old_provider_artifacts(
     "--limit-python",
     type=BetterChoice(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS),
     help="Specific python to build slim images for (if not specified - the images are built for all"
-    " available python versions)",
+         " available python versions)",
 )
 @click.option(
     "--limit-platform",
@@ -1686,8 +1694,8 @@ def clean_old_provider_artifacts(
     "--skip-latest",
     is_flag=True,
     help="Whether to skip publishing the latest images (so that 'latest' images are not updated). "
-    "This should only be used if you release image for previous branches. Automatically set when "
-    "rc/alpha/beta images are built.",
+         "This should only be used if you release image for previous branches. Automatically set when "
+         "rc/alpha/beta images are built.",
 )
 @click.option(
     "--slim-images",
@@ -2080,6 +2088,241 @@ def generate_issue_content_providers(
         print(url_to_create_the_issue)
 
 
+def get_git_log_command(
+    verbose: bool,
+    from_commit: str | None = None,
+    to_commit: str | None = None,
+    is_helm_chart: bool = True,
+) -> list[str]:
+    git_cmd = [
+        "git",
+        "log",
+        "--pretty=format:%H %h %cd %s",
+        "--date=short",
+    ]
+    if from_commit and to_commit:
+        git_cmd.append(f"{from_commit}...{to_commit}")
+    elif from_commit:
+        git_cmd.append(from_commit)
+    if is_helm_chart:
+        git_cmd.extend(["--", "chart/"])
+    else:
+        git_cmd.extend(["--", "."])
+    if verbose:
+        get_console().print(f"Command to run: '{' '.join(git_cmd)}'")
+    return git_cmd
+
+
+class Change(NamedTuple):
+    """Stores details about commits"""
+
+    full_hash: str
+    short_hash: str
+    date: str
+    message: str
+    message_without_backticks: str
+    pr: int | None
+
+
+def get_change_from_line(line: str):
+    split_line = line.split(" ", maxsplit=3)
+    message = split_line[3]
+    pr = None
+    pr_match = PR_PATTERN.match(message)
+    if pr_match:
+        pr = pr_match.group(1)
+    return Change(
+        full_hash=split_line[0],
+        short_hash=split_line[1],
+        date=split_line[2],
+        message=message,
+        message_without_backticks=message.replace("`", "'").replace("&#39;", "'").replace("&amp;", "&"),
+        pr=int(pr) if pr else None,
+    )
+
+
+def get_changes(
+    verbose: bool, previous_release: str, current_release: str, is_helm_chart: bool = False
+) -> list[Change]:
+    change_strings = subprocess.check_output(
+        get_git_log_command(
+            verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
+        ),
+        cwd=SOURCE_DIR_PATH,
+        text=True,
+    )
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
+
+
+def render_template(
+    template_name: str,
+    context: dict[str, Any],
+    autoescape: bool = True,
+    keep_trailing_newline: bool = False,
+) -> str:
+    import jinja2
+
+    template_loader = jinja2.FileSystemLoader(searchpath=MY_DIR_PATH)
+    template_env = jinja2.Environment(
+        loader=template_loader,
+        undefined=jinja2.StrictUndefined,
+        autoescape=autoescape,
+        keep_trailing_newline=keep_trailing_newline,
+    )
+    template = template_env.get_template(f"{template_name}_TEMPLATE.md.jinja2")
+    content: str = template.render(context)
+    return content
+
+
+def print_issue_content(
+    current_release: str,
+    pull_requests,
+    linked_issues,
+    users: dict[int, set[str]],
+    is_helm_chart: bool = False,
+):
+    link = f"https://pypi.org/project/apache-airflow/{current_release}/"
+    link_text = f"Apache Airflow RC {current_release}"
+    if is_helm_chart:
+        link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
+        link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
+    pr_list = sorted(pull_requests.keys())
+    user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
+    all_users: set[str] = set()
+    for user_list in users.values():
+        all_users.update(user_list)
+    all_user_logins = " ".join(f"@{u}" for u in all_users)
+    content = render_template(
+        template_name="ISSUE",
+        context={
+            "link": link,
+            "link_text": link_text,
+            "pr_list": pr_list,
+            "pull_requests": pull_requests,
+            "linked_issues": linked_issues,
+            "users": users,
+            "user_logins": user_logins,
+            "all_user_logins": all_user_logins,
+        },
+        autoescape=False,
+        keep_trailing_newline=True,
+    )
+    print(content)
+
+
+@release_management.command(
+    name="generate-issue-content-helm-chart",
+    help="Generates content for issue to test the helm chart release."
+)
+@click.option(
+    "--github-token",
+    envvar="GITHUB_TOKEN",
+    help=textwrap.dedent(
+        """
+      GitHub token used to authenticate.
+      You can set omit it if you have GITHUB_TOKEN env variable set.
+      Can be generated with:
+      https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
+    ),
+)
+@click.option(
+    "--previous-release",
+    type=str,
+    required=True,
+    help="commit reference (for example hash or tag) of the previous release.",
+)
+@click.option(
+    "--current-release",
+    type=str,
+    required=True,
+    help="commit reference (for example hash or tag) of the current release.",
+)
+@click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
+@option_verbose
+@click.option(
+    "--limit-pr-count",
+    type=int,
+    default=None,
+    help="Limit PR count processes (useful for testing small subset of PRs).",
+)
+def generate_issue_content(
+    github_token: str,
+    previous_release: str,
+    current_release: str,
+    excluded_pr_list: str,
+    verbose: bool,
+    limit_pr_count: int | None,
+):
+
+    is_helm_chart = True
+    from github import Github, Issue, PullRequest, UnknownObjectException
+    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
+    if excluded_pr_list:
+        excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+    else:
+        excluded_prs = []
+    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
+    change_prs = [change.pr for change in changes]
+    prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
+
+    g = Github(github_token)
+    repo = g.get_repo("apache/airflow")
+    pull_requests: dict[int, PullRequestOrIssue] = {}
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    users: dict[int, set[str]] = defaultdict(lambda: set())
+    count_prs = limit_pr_count or len(prs)
+    with Progress(console=get_console()) as progress:
+        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
+        for pr_number in prs[:count_prs]:
+            progress.console.print(
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
+            )
+
+            pr: PullRequestOrIssue
+            try:
+                pr = repo.get_pull(pr_number)
+            except UnknownObjectException:
+                # Fallback to issue if PR not found
+                try:
+                    pr = repo.get_issue(pr_number)  # (same fields as PR)
+                except UnknownObjectException:
+                    get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                    continue
+
+            if pr.user.login == "dependabot[bot]":
+                get_console().print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
+                continue
+            # Ignore doc-only and skipped PRs
+            label_names = [label.name for label in pr.labels]
+            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+                continue
+
+            pull_requests[pr_number] = pr
+            # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
+            # Relate so we can find those from the body
+            if pr.body:
+                body = " ".join(pr.body.splitlines())
+                linked_issue_numbers = {
+                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                }
+                for linked_issue_number in linked_issue_numbers:
+                    progress.console.print(
+                        f"Retrieving Linked issue PR#{linked_issue_number}: "
+                        f"https://github.com/apache/airflow/issue/{linked_issue_number}"
+                    )
+                    try:
+                        linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
+                    except UnknownObjectException:
+                        progress.console.print(
+                            f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
+                        )
+            users[pr_number].add(pr.user.login)
+            for linked_issue in linked_issues[pr_number]:
+                users[pr_number].add(linked_issue.user.login)
+            progress.advance(task)
+    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
+
+
 def get_all_constraint_files(
     refresh_constraints: bool, python_version: str
 ) -> tuple[list[str], dict[str, str]]:
@@ -2095,7 +2338,7 @@ def get_all_constraint_files(
                     python_version=python_version,
                     include_provider_dependencies=True,
                     output_file=CONSTRAINTS_CACHE_DIR
-                    / f"constraints-{airflow_version}-python-{python_version}.txt",
+                                / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
                     get_console().print(
                         "[warning]Could not download constraints for "
@@ -2329,7 +2572,7 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
     type=click.Path(file_okay=True, dir_okay=False, path_type=Path, exists=True),
     envvar="COMMENT_FILE",
     help="File containing comment to be added to the constraint "
-    "file before the first package (if not added yet).",
+         "file before the first package (if not added yet).",
 )
 @option_airflow_constraints_mode_update
 @option_verbose
@@ -2682,13 +2925,13 @@ VALUES_YAML_FILE = CHART_DIR / "values.yaml"
 @click.option(
     "--version",
     help="Version used for helm chart. This version has to be set and has to match the version in "
-    "Chart.yaml, unless the --ignore-version-check flag is used.",
+         "Chart.yaml, unless the --ignore-version-check flag is used.",
     envvar="VERSION",
 )
 @click.option(
     "--version-suffix",
     help="Version suffix used to publish the package. Needs to be present as we always build "
-    "archive using release candidate tag.",
+         "archive using release candidate tag.",
     required=True,
     envvar="VERSION_SUFFIX",
 )
@@ -2696,7 +2939,7 @@ VALUES_YAML_FILE = CHART_DIR / "values.yaml"
     "--ignore-version-check",
     is_flag=True,
     help="Ignores result of version update check. Produce tarball regardless of "
-    "whether version is correctly set in the Chart.yaml.",
+         "whether version is correctly set in the Chart.yaml.",
 )
 @click.option(
     "--skip-tagging",
@@ -2712,7 +2955,7 @@ VALUES_YAML_FILE = CHART_DIR / "values.yaml"
     "--override-tag",
     is_flag=True,
     help="Override tag if it already exists. Useful when you want to re-create the tag, usually when you"
-    "test the breeze command locally.",
+         "test the breeze command locally.",
 )
 @option_dry_run
 @option_verbose
