@@ -22,13 +22,7 @@ from unittest.mock import call
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
-except AirflowOptionalProviderFeatureException:
-    pytestmark = pytest.mark.skip("cassandra-driver cannot be loaded")
-
+from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
 
 TMP_FILE_NAME = "temp-file"
 TEST_BUCKET = "test-bucket"
