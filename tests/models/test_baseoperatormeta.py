@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pendulum
 import pytest
@@ -91,7 +91,6 @@ class TestExecutorSafeguard:
 
             HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
 
-    @patch("sqlalchemy.orm.Session.__init__")
     def test_executor_when_called_from_decorated_task(
         self, mock_session, mock_task_instance
     ):
@@ -110,7 +109,6 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-    @patch("sqlalchemy.orm.Session.__init__")
     def test_executor_when_called_from_task_instance(
         self, mock_session, mock_task_instance
     ):
