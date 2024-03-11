@@ -34,7 +34,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test options",
             "options": [
                 "--test-timeout",
-                "--enable-coverage",
                 "--collect-only",
                 "--db-reset",
                 "--skip-provider-tests",
@@ -102,7 +101,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test options",
             "options": [
                 "--test-timeout",
-                "--enable-coverage",
                 "--collect-only",
                 "--skip-provider-tests",
             ],
@@ -156,7 +154,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test options",
             "options": [
                 "--test-timeout",
-                "--enable-coverage",
                 "--collect-only",
                 "--skip-provider-tests",
             ],
@@ -206,7 +203,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Test options",
             "options": [
                 "--test-timeout",
-                "--enable-coverage",
                 "--db-reset",
                 "--skip-provider-tests",
             ],

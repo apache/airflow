@@ -91,14 +91,12 @@ def file_name_from_test_type(test_type: str):
     return re.sub("[,.]", "_", test_type_no_brackets)[:30]
 
 
-def test_paths(test_type: str, backend: str, helm_test_package: str | None) -> tuple[str, str, str]:
+def test_paths(test_type: str, backend: str, helm_test_package: str | None) -> tuple[str, str]:
     file_friendly_test_type = file_name_from_test_type(test_type)
     extra_package = f"-{helm_test_package}" if helm_test_package else ""
-    random_suffix = os.urandom(4).hex()
     result_log_file = f"/files/test_result-{file_friendly_test_type}{extra_package}-{backend}.xml"
     warnings_file = f"/files/warnings-{file_friendly_test_type}{extra_package}-{backend}.txt"
-    coverage_file = f"/files/coverage-{file_friendly_test_type}-{backend}-{random_suffix}.xml"
-    return result_log_file, warnings_file, coverage_file
+    return result_log_file, warnings_file
 
 
 def get_suspended_provider_args() -> list[str]:
@@ -277,13 +275,12 @@ def generate_args_for_pytest(
     run_db_tests_only: bool,
     backend: str,
     use_xdist: bool,
-    enable_coverage: bool,
     collect_only: bool,
     parallelism: int,
     parallel_test_types_list: list[str],
     helm_test_package: str | None,
 ):
-    result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
+    result_log_file, warnings_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
         if parallel_test_types_list:
             args = convert_parallel_types_to_folders(parallel_test_types_list, skip_provider_tests)
@@ -339,16 +336,6 @@ def generate_args_for_pytest(
     args.extend(get_suspended_provider_args())
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
-    if enable_coverage:
-        args.extend(
-            [
-                "--cov=airflow",
-                "--cov-config=pyproject.toml",
-                f"--cov-report=xml:{coverage_file}",
-            ]
-        )
-    else:
-        args.append("--no-cov")
     if collect_only:
         args.extend(
             [

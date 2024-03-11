@@ -137,7 +137,6 @@ class ShellParams:
     downgrade_sqlalchemy: bool = False
     downgrade_pendulum: bool = False
     dry_run: bool = False
-    enable_coverage: bool = False
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False

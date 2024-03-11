@@ -294,7 +294,7 @@ class WorkflowInfo(NamedTuple):
         yield get_ga_output(name="in-workflow-build", value=self.in_workflow_build())
         yield get_ga_output(name="build-job-description", value=self.get_build_job_description())
         yield get_ga_output(name="canary-run", value=self.is_canary_run())
-        yield get_ga_output(name="run-coverage", value=self.run_coverage())
+        yield get_ga_output(name="upload-coverage", value=self.upload_coverage())
 
     def print_all_ga_outputs(self):
         for output in self.get_all_ga_outputs():
@@ -331,7 +331,7 @@ class WorkflowInfo(NamedTuple):
             return "true"
         return "false"
 
-    def run_coverage(self) -> str:
+    def upload_coverage(self) -> str:
         if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/heads/main":
             return "true"
         return "false"

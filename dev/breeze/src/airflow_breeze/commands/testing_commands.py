@@ -188,7 +188,6 @@ def _run_test(
             run_db_tests_only=shell_params.run_db_tests_only,
             backend=shell_params.backend,
             use_xdist=shell_params.use_xdist,
-            enable_coverage=shell_params.enable_coverage,
             collect_only=shell_params.collect_only,
             parallelism=shell_params.parallelism,
             parallel_test_types_list=shell_params.parallel_test_types_list,
@@ -372,12 +371,6 @@ option_collect_only = click.option(
     is_flag=True,
     envvar="COLLECT_ONLY",
 )
-option_enable_coverage = click.option(
-    "--enable-coverage",
-    help="Enable coverage capturing for tests in the form of XML files",
-    is_flag=True,
-    envvar="ENABLE_COVERAGE",
-)
 option_excluded_parallel_test_types = click.option(
     "--excluded-parallel-test-types",
     help="Space separated list of test types that will be excluded from parallel tes runs.",
@@ -478,7 +471,6 @@ option_remove_arm_packages = click.option(
 @option_skip_docker_compose_down
 @option_use_xdist
 @option_skip_provider_tests
-@option_enable_coverage
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -503,7 +495,6 @@ def command_for_tests(**kwargs):
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
 @option_dry_run
-@option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
 @option_github_repository
@@ -553,7 +544,6 @@ def command_for_db_tests(**kwargs):
 @option_downgrade_sqlalchemy
 @option_downgrade_pendulum
 @option_dry_run
-@option_enable_coverage
 @option_excluded_parallel_test_types
 @option_forward_credentials
 @option_github_repository
@@ -595,7 +585,6 @@ def _run_test_command(
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
-    enable_coverage: bool,
     excluded_parallel_test_types: str,
     extra_pytest_args: tuple,
     forward_credentials: bool,
@@ -639,7 +628,6 @@ def _run_test_command(
         collect_only=collect_only,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
-        enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
@@ -714,7 +702,6 @@ def _run_test_command(
 @option_backend
 @option_db_reset
 @option_dry_run
-@option_enable_coverage
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
@@ -730,7 +717,6 @@ def _run_test_command(
 def integration_tests(
     backend: str,
     db_reset: bool,
-    enable_coverage: bool,
     extra_pytest_args: tuple,
     forward_credentials: bool,
     github_repository: str,
@@ -747,7 +733,6 @@ def integration_tests(
     get_console().print(f"Docker filesystem: {docker_filesystem}")
     shell_params = ShellParams(
         backend=backend,
-        enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
         github_repository=github_repository,
@@ -829,7 +814,6 @@ def helm_tests(
         run_db_tests_only=False,
         backend="none",
         use_xdist=use_xdist,
-        enable_coverage=False,
         collect_only=False,
         parallelism=parallelism,
         parallel_test_types_list=[],
