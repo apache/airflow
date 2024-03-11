@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+import warnings
 from unittest import mock
 
 import boto3
@@ -167,7 +168,9 @@ class TestEmrHook:
         # AmiVersion is really old and almost no one will use it anymore, but
         # it's one of the "optional" request params that moto supports - it's
         # coverage of EMR isn't 100% it turns out.
-        with pytest.warns(None):  # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
+        with warnings.catch_warnings():
+            # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
+            warnings.simplefilter("error")
             cluster = hook.create_job_flow({"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2"})
         cluster = client.describe_cluster(ClusterId=cluster["JobFlowId"])["Cluster"]
 
