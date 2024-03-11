@@ -536,13 +536,55 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path):
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_real_file(create_task_instance_of_operator, tmp_path):
+@pytest.mark.parametrize(
+    "body",
+    [
+        pytest.param(["a", "b"], id="list"),
+        pytest.param(42, id="int"),
+        pytest.param("{{ ds }}", id="jinja"),
+        pytest.param(None, id="none"),
+    ],
+)
+def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body):
+    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+    filename = "test-application-file.yml"
+    with open((tmp_path / filename), "w") as fp:
+        yaml.safe_dump(body, fp)
+
+    with dag_maker(
+        dag_id="test_resolve_application_file_template_file", template_searchpath=tmp_path.as_posix()
+    ):
+        SparkKubernetesOperator(
+            application_file=filename,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="test_template_body_templating_task",
+        )
+
+    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti.render_templates()
+    task: SparkKubernetesOperator = ti.task
+    with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
+        _ = task.template_body
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    "use_literal_value", [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")]
+)
+def test_resolve_application_file_real_file(create_task_instance_of_operator, tmp_path, use_literal_value):
     application_file = tmp_path / "test-application-file.yml"
     application_file.write_text("foo: bar\nspam: egg")
 
+    application_file = application_file.resolve().as_posix()
+    if use_literal_value:
+        application_file = LiteralValue(application_file)
+    else:
+        # Prior Airflow 2.8 workaround was adding whitespace at the end of the filepath
+        application_file = f"{application_file} "
+
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,
-        application_file=LiteralValue(application_file.resolve().as_posix()),
+        application_file=application_file,
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_resolve_application_file_real_file",
         task_id="test_template_body_templating_task",
@@ -551,3 +593,19 @@ def test_resolve_application_file_real_file(create_task_instance_of_operator, tm
     task: SparkKubernetesOperator = ti.task
 
     assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
+
+
+@pytest.mark.db_test
+def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path):
+    application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
+        application_file=LiteralValue(application_file),
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        dag_id="test_resolve_application_file_real_file",
+        task_id="test_template_body_templating_task",
+    )
+    ti.render_templates()
+    task: SparkKubernetesOperator = ti.task
+    with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
+        _ = task.template_body

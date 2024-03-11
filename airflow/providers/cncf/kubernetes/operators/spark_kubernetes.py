@@ -125,11 +125,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def manage_template_specs(self):
         if self.application_file:
-            if (application_file := Path(self.application_file).resolve()).is_file():
-                application_file_body = application_file.read_text()
-            else:
+            try:
+                filepath = Path(self.application_file.rstrip()).resolve(strict=True)
+            except (FileNotFoundError, OSError, RuntimeError, ValueError):
                 application_file_body = self.application_file
+            else:
+                application_file_body = filepath.read_text()
             template_body = _load_body_to_dict(application_file_body)
+            if not isinstance(template_body, dict):
+                msg = f"application_file body can't transformed into the dictionary:\n{application_file_body}"
+                raise TypeError(msg)
         elif self.template_spec:
             template_body = self.template_spec
         else:
