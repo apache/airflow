@@ -23,17 +23,15 @@ from typing import TYPE_CHECKING
 
 from openlineage.client.serde import Serde
 
-from airflow.configuration import conf
 from airflow.listeners import hookimpl
-from airflow.models import DAG
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
-from airflow.providers.openlineage.utils.opt_in import is_dag_lineage_enabled, is_task_lineage_enabled
 from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
     is_operator_disabled,
+    is_selective_lineage_enabled,
     print_warning,
 )
 from airflow.stats import Stats
@@ -55,15 +53,6 @@ class OpenLineageListener:
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
-        self._is_opt_in = conf.getboolean("openlineage", "opt_in", fallback=False)
-
-    def _is_lineage_enabled(self, obj) -> bool:
-        if not self._is_opt_in:
-            return True
-        if isinstance(obj, DAG):
-            return is_dag_lineage_enabled(obj)
-        else:
-            return is_task_lineage_enabled(obj)
 
     @hookimpl
     def on_task_instance_running(
@@ -95,7 +84,7 @@ class OpenLineageListener:
             )
             return None
 
-        if not self._is_lineage_enabled(task):
+        if not is_selective_lineage_enabled(task):
             return
 
         @print_warning(self.log)
@@ -165,7 +154,7 @@ class OpenLineageListener:
             )
             return None
 
-        if not self._is_lineage_enabled(task):
+        if not is_selective_lineage_enabled(task):
             return
 
         @print_warning(self.log)
@@ -220,7 +209,7 @@ class OpenLineageListener:
             )
             return None
 
-        if not self._is_lineage_enabled(task):
+        if not is_selective_lineage_enabled(task):
             return
 
         @print_warning(self.log)
@@ -276,7 +265,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):
-        if not self._is_lineage_enabled(dag_run.dag):
+        if not is_selective_lineage_enabled(dag_run.dag):
             return
         data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
         data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
@@ -290,7 +279,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
-        if not self._is_lineage_enabled(dag_run.dag):
+        if not is_selective_lineage_enabled(dag_run.dag):
             return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_success`")
@@ -299,7 +288,7 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
-        if not self._is_lineage_enabled(dag_run.dag):
+        if not is_selective_lineage_enabled(dag_run.dag):
             return
         if not self.executor:
             self.log.debug("Executor have not started before `on_dag_run_failed`")

@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow.decorators import dag, task
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.openlineage.utils.opt_in import (
+from airflow.providers.openlineage.utils.selective_enable import (
     DISABLE_OL_PARAM,
     ENABLE_OL_PARAM,
     ENABLE_OL_PARAM_NAME,
@@ -29,9 +29,9 @@ from airflow.providers.openlineage.utils.opt_in import (
 )
 
 
-class TestOpenLineageOptIn:
+class TestOpenLineageSelectiveEnable:
     def setup_method(self):
-        @dag(dag_id="test_opt_in_decorated_dag")
+        @dag(dag_id="test_selective_enable_decorated_dag")
         def decorated_dag():
             @task
             def decorated_task():
@@ -41,8 +41,8 @@ class TestOpenLineageOptIn:
 
         self.decorated_dag = decorated_dag()
 
-        with DAG(dag_id="test_opt_in_dag") as self.dag:
-            self.task = EmptyOperator(task_id="test_opt_in")
+        with DAG(dag_id="test_selective_enable_dag") as self.dag:
+            self.task = EmptyOperator(task_id="test_selective_enable")
 
     def test_enable_lineage_task_level(self):
         assert ENABLE_OL_PARAM_NAME not in self.task.params

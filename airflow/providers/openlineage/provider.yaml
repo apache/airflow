@@ -77,10 +77,10 @@ config:
         example: "airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator"
         default: ""
         version_added: 1.1.0
-      opt_in:
+      selective_enable:
         description: |
-          Set this to true if you want to enable OpenLineage metadata extraction and emission
-          on DAG and/or Task level.
+          If this setting is enabled, OpenLineage integration won't collect and emit metadata,
+          unless you explicitly enable it per `DAG` or `Task` using  `enable_lineage` method.
         type: boolean
         default: "False"
         example: ~

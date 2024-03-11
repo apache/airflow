@@ -267,26 +267,26 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 Enabling OpenLineage on DAG/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-One can selectively enable OpenLineage for specific DAGs and tasks by using the ``opt_in`` policy.
-To enable this policy, set the ``opt_in`` option to True in the [openlineage] section of your Airflow configuration file:
+One can selectively enable OpenLineage for specific DAGs and tasks by using the ``selective_enable`` policy.
+To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
 
 .. code-block:: ini
 
     [openlineage]
-    opt_in = True
+    selective_enable = True
 
 
-While ``opt_in`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
-If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``opt_in`` setting.
+While ``selective_enable`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
+If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``selective_enable`` setting.
 
-Once the ``opt_in`` policy is enabled, you can choose to enable OpenLineage
+Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
 for individual DAGs and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
 
 1. Enabling Lineage on a DAG:
 
 .. code-block:: python
 
-    from airflow.providers.openlineage.utils.opt_in import disable_lineage, enable_lineage
+    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
     with enable_lineage(DAG(...)):
         # Tasks within this DAG will have lineage tracking enabled
@@ -300,7 +300,7 @@ While enabling lineage on a DAG implicitly enables it for all tasks within that 
 
 .. code-block:: python
 
-    from airflow.providers.openlineage.utils.opt_in import disable_lineage, enable_lineage
+    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
     with DAG(...) as dag:
         t1 = MyOperator(...)

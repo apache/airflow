@@ -30,16 +30,21 @@ from attrs import asdict
 # TODO: move this maybe to Airflow's logic?
 from openlineage.client.utils import RedactMixin
 
+from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
 )
+from airflow.providers.openlineage.utils.selective_enable import (
+    is_dag_lineage_enabled,
+    is_task_lineage_enabled,
+)
 from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 
 if TYPE_CHECKING:
-    from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskInstance
+    from airflow.models import DagRun, TaskInstance
 
 
 log = logging.getLogger(__name__)
@@ -71,6 +76,18 @@ def get_fully_qualified_class_name(operator: BaseOperator | MappedOperator) -> s
 
 def is_operator_disabled(operator: BaseOperator | MappedOperator) -> bool:
     return get_fully_qualified_class_name(operator) in conf.disabled_operators()
+
+
+def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bool:
+    """If selective enable is active check if DAG or Task is enabled to emit events."""
+    if not conf.selective_enable():
+        return True
+    if isinstance(obj, DAG):
+        return is_dag_lineage_enabled(obj)
+    elif isinstance(obj, (BaseOperator, MappedOperator)):
+        return is_task_lineage_enabled(obj)
+    else:
+        raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
 class InfoJsonEncodable(dict):
@@ -329,7 +346,6 @@ def print_warning(log):
                 return f(*args, **kwargs)
             except Exception as e:
                 log.warning(e)
-                raise e
 
         return wrapper
 
