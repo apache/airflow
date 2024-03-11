@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import fcntl
 import importlib
 import inspect
 import json
@@ -57,9 +56,12 @@ from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
-if TYPE_CHECKING:
-    from pendulum.datetime import DateTime
+if not sys.platform.startswith("win"):
+    import fcntl
+else:
+    logging.warning("The fcntl module is only available on Linux!")
 
+if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
