@@ -594,7 +594,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if executable_tis:
             task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
             self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
-
+            for executable_ti in executable_tis:
+                self._task_context_logger.info(
+                    "Advancing from scheduled to queued because pools, parallelism,"
+                    " and concurrency requirements met.",
+                    ti=executable_ti,
+                    suppress_in_call_site=True,
+                )
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
             session.execute(
@@ -636,8 +642,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             priority = ti.priority_weight
             queue = ti.queue
-            self.log.info("Sending %s to executor with priority %s and queue %s", ti.key, priority, queue)
-
+            message = "Sending %s to executor with priority %s and queue %s"
+            self._task_context_logger.info(message, ti=ti)
             self.job.executor.queue_command(
                 ti,
                 command,
@@ -686,7 +692,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
+            self._task_context_logger.info(
+                "Received executor event with state %s for task instance %s", ti=ti_key
+            )
             if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
                 tis_with_right_state.append(ti_key)
 
@@ -1561,9 +1569,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ti in tasks_stuck_in_queued:
                 if repr(ti) in cleaned_up_task_instances:
                     self._task_context_logger.warning(
-                        "Marking task instance %s stuck in queued as failed. "
+                        "Marking task instance %s stuck in queued for {} seconds as failed. "
                         "If the task instance has available retries, it will be retried.",
-                        ti,
+                        self._task_queued_timeout,
                         ti=ti,
                     )
         except NotImplementedError:
