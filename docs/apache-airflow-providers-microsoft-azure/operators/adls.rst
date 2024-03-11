@@ -58,23 +58,6 @@ Below is an example of using this operator to delete a file from ADL.
     :start-after: [START howto_operator_adls_delete]
     :end-before: [END howto_operator_adls_delete]
 
-.. _howto/operator:ADLSListOperator:
-
-ADLSListOperator
-----------------------------------
-Use the
-:class:`~airflow.providers.microsoft.azure.operators.adls.ADLSListOperator` to list all
-file(s) from Azure DataLake Storage
-
-
-Below is an example of using this operator to list files from ADL.
-
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_adls_list.py
-    :language: python
-    :dedent: 0
-    :start-after: [START howto_operator_adls_list]
-    :end-before: [END howto_operator_adls_list]
-
 
 Reference
 ---------

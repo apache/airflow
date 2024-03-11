@@ -121,12 +121,19 @@ class ADLSListOperator(BaseOperator):
     This operator returns a python list with the names of files which can be used by
      `xcom` in the downstream tasks.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:ADLSListOperator`
-
-    :param path: The Azure Data Lake path to find the objects. Supports glob strings (templated)
+    :param path: The Azure Data Lake path to find the objects. Supports glob
+        strings (templated)
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
+
+    **Example**:
+        The following Operator would list all the Parquet files from ``folder/output/``
+        folder in the specified ADLS account ::
+
+            adls_files = ADLSListOperator(
+                task_id="adls_files",
+                path="folder/output/*.parquet",
+                azure_data_lake_conn_id="azure_data_lake_default",
+            )
     """
 
     template_fields: Sequence[str] = ("path",)
