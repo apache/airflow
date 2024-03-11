@@ -44,7 +44,7 @@ DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain one of these strings.
-TEST_FILE_IDENTIFIERS: list[str] = ["example", "test"]
+TEST_FILE_IDENTIFIERS: list[str] = ["example_", "test_"]
 
 INVALID_ENV_ID_MSG: str = (
     "In order to maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
