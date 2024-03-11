@@ -24,7 +24,7 @@ function install_pipx_tools() {
     echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
     echo
     # Make sure PIPX is installed in latest version
-    pip install --root-user-action ignore  --upgrade "pipx>=1.2.1"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pipx>=1.2.1"
     if [[ $(uname -m) != "aarch64" ]]; then
         # Do not install mssql-cli for ARM
         # Install all the tools we need available in command line but without impacting the current environment
@@ -38,5 +38,6 @@ function install_pipx_tools() {
 }
 
 common::get_colors
+common::get_packaging_tool
 
 install_pipx_tools

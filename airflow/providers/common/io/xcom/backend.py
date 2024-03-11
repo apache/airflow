@@ -39,7 +39,10 @@ SECTION = "common.io"
 
 
 def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
-    """This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8."""
+    """Return whether or not this path is relative to the other path.
+
+    This is a port of the pathlib.Path.is_relative_to method. It is not available in python 3.8.
+    """
     if hasattr(o, "is_relative_to"):
         return o.is_relative_to(other)
 
@@ -51,7 +54,7 @@ def _is_relative_to(o: ObjectStoragePath, other: ObjectStoragePath) -> bool:
 
 
 def _get_compression_suffix(compression: str) -> str:
-    """This returns the compression suffix for the given compression.
+    """Return the compression suffix for the given compression.
 
     :raises ValueError: if the compression is not supported
     """
@@ -73,13 +76,16 @@ class XComObjectStoreBackend(BaseXCom):
 
     @staticmethod
     def _get_key(data: str) -> str:
-        """This gets the key from the url and normalizes it to be relative to the configured path.
+        """Get the key from the url and normalizes it to be relative to the configured path.
 
         :raises ValueError: if the key is not relative to the configured path
         :raises TypeError: if the url is not a valid url or cannot be split
         """
         path = conf.get(SECTION, "xcom_objectstore_path", fallback="")
         p = ObjectStoragePath(path)
+
+        # normalize the path
+        path = str(p)
 
         try:
             url = urlsplit(data)
@@ -129,7 +135,7 @@ class XComObjectStoreBackend(BaseXCom):
             if not p.parent.exists():
                 p.parent.mkdir(parents=True, exist_ok=True)
 
-            with p.open("wb", compression=compression) as f:
+            with p.open(mode="wb", compression=compression) as f:
                 f.write(s_val)
 
             return BaseXCom.serialize_value(str(p))
@@ -149,7 +155,7 @@ class XComObjectStoreBackend(BaseXCom):
 
         try:
             p = ObjectStoragePath(path) / XComObjectStoreBackend._get_key(data)
-            return json.load(p.open("rb", compression="infer"), cls=XComDecoder)
+            return json.load(p.open(mode="rb", compression="infer"), cls=XComDecoder)
         except TypeError:
             return data
         except ValueError:

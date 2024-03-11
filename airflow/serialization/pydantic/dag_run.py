@@ -19,10 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic, ConfigDict
-
 from airflow.serialization.pydantic.dag import PydanticDag
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, is_pydantic_2_installed
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -54,7 +53,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa
+    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
@@ -101,4 +100,5 @@ class DagRunPydantic(BaseModelPydantic):
         )
 
 
-DagRunPydantic.model_rebuild()
+if is_pydantic_2_installed():
+    DagRunPydantic.model_rebuild()

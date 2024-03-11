@@ -20,6 +20,9 @@ import os
 from unittest.mock import patch
 
 import pytest
+
+openai = pytest.importorskip("openai")
+
 from openai.types import CreateEmbeddingResponse, Embedding
 
 from airflow.models import Connection
@@ -34,7 +37,7 @@ def mock_openai_connection():
         conn_type="openai",
     )
     os.environ[f"AIRFLOW_CONN_{conn.conn_id.upper()}"] = conn.get_uri()
-    yield conn
+    return conn
 
 
 @pytest.fixture

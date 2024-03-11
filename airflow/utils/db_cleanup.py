@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
     from airflow.models import Base
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 

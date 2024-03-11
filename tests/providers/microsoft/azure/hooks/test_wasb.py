@@ -188,9 +188,12 @@ class TestWasbHook:
         )
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
-        assert mocked_default_azure_credential.called_with(None, None)
+        mocked_default_azure_credential.assert_not_called()
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
+        mocked_default_azure_credential.assert_called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
         mocked_blob_service_client.assert_called_once_with(
             account_url="https://None.blob.core.windows.net/",
             credential="foo-bar",

@@ -75,24 +75,26 @@ Port Forwarding
 
 When you run Airflow Breeze, the following ports are automatically forwarded:
 
-* 12322 -> forwarded to Airflow ssh server -> airflow:22
-* 28080 -> forwarded to Airflow webserver -> airflow:8080
-* 25555 -> forwarded to Flower dashboard -> airflow:5555
-* 25433 -> forwarded to Postgres database -> postgres:5432
-* 23306 -> forwarded to MySQL database  -> mysql:3306
-* 21433 -> forwarded to MSSQL database  -> mssql:1443
-* 26379 -> forwarded to Redis broker -> redis:6379
+.. code-block::
+
+    * 12322 -> forwarded to Airflow ssh server -> airflow:22
+    * 28080 -> forwarded to Airflow webserver -> airflow:8080
+    * 25555 -> forwarded to Flower dashboard -> airflow:5555
+    * 25433 -> forwarded to Postgres database -> postgres:5432
+    * 23306 -> forwarded to MySQL database  -> mysql:3306
+    * 26379 -> forwarded to Redis broker -> redis:6379
 
 
 You can connect to these ports/databases using:
 
-* ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
-* Webserver: http://127.0.0.1:28080
-* Flower:    http://127.0.0.1:25555
-* Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
-* Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-* MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
-* Redis:     redis://127.0.0.1:26379/0
+.. code-block::
+
+    * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+    * Webserver: http://127.0.0.1:28080
+    * Flower:    http://127.0.0.1:25555
+    * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
+    * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
+    * Redis:     redis://127.0.0.1:26379/0
 
 If you do not use ``start-airflow`` command, you can start the webserver manually with
 the ``airflow webserver`` command if you want to run it. You can use ``tmux`` to multiply terminals.
@@ -111,8 +113,7 @@ database client:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/database_view.png" width="640"
-             alt="Airflow Breeze - Database view">
+        <img src="images/database_view.png" width="640" alt="Airflow Breeze - Database view">
     </div>
 
 You can change the used host port numbers by setting appropriate environment variables:
@@ -197,7 +198,7 @@ For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core
+     breeze static-checks --type mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
@@ -214,7 +215,7 @@ re-run latest pre-commits on your changes, but it can take a long time (few minu
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --all-files
+     breeze static-checks --type mypy-airflow --all-files
 
 The above will run mypy check for all files.
 
@@ -223,7 +224,7 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     breeze static-checks --type mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
@@ -235,19 +236,19 @@ of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --last-commit
+     breeze static-checks --type mypy-airflow --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --only-my-changes
+     breeze static-checks --type mypy-airflow --only-my-changes
 
 The above will run mypy check for all commits in your branch which were added since you branched off from main.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks --type mypy-airflow --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)

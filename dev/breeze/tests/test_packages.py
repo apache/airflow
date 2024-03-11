@@ -127,7 +127,6 @@ def test_get_suspended_provider_folders():
     [
         (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (("apache.hdfs",), (), ("apache-airflow-providers-apache-hdfs",)),
-        (("amazon",), (), ("apache-airflow-providers-amazon",)),
         (
             ("apache.hdfs",),
             ("apache-airflow-providers-amazon",),
@@ -376,7 +375,7 @@ def test_provider_jinja_context():
         "VERSION_SUFFIX": ".rc1",
         "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11"],
+        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
         "MIN_AIRFLOW_VERSION": "2.6.0",
         "PROVIDER_REMOVED": False,

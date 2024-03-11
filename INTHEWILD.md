@@ -439,6 +439,7 @@ Currently, **officially** using Airflow:
 1. [Strongmind](https://www.strongmind.com) [[@tomchapin](https://github.com/tomchapin) & [@wongstein](https://github.com/wongstein)]
 1. [Ströer Labs](https://stroeer-labs.com) [[@mbrtargeting](https://github.com/mbrtargeting/)]
 1. [Surfline](https://www.surfline.com/) [[@jawang35](https://github.com/jawang35)]
+1. [SUSE](https://www.suse.com) [[@ruospalo](https://github.com/ruospalo)]
 1. [Swisscom](https://www.swisscom.ch) [[@JulesTriomphe](https://github.com/JulesTriomphe)]
 1. [Syapse](https://www.syapse.com/) [[@zedmor](https://github.com/zedmor)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
@@ -518,6 +519,7 @@ Currently, **officially** using Airflow:
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu) & [adamantnz](https://github.com/adamantnz/)]
 1. [Xoom](https://www.xoom.com/)
 1. [Yahoo!](https://www.yahoo.com/)
+1. [Yektanet!](https://yektanet.com/)
 1. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
 1. [Zalando](https://tech.zalando.com) [[@zalando](https://github.com/zalando) & [@zalando-incubator](https://github.com/zalando-incubator)]
 1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]

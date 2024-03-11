@@ -23,6 +23,7 @@ import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -66,6 +67,7 @@ FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
+DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
@@ -446,7 +448,7 @@ class SelectiveChecks:
     def python_versions(self) -> list[str]:
         return (
             CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
+            if self.full_tests_needed and DEFAULT_VERSIONS_ONLY_LABEL not in self._pr_labels
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -458,7 +460,7 @@ class SelectiveChecks:
     def all_python_versions(self) -> list[str]:
         return (
             ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
+            if self.full_tests_needed and DEFAULT_VERSIONS_ONLY_LABEL not in self._pr_labels
             else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
         )
 
@@ -514,7 +516,11 @@ class SelectiveChecks:
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
-        return CURRENT_KUBERNETES_VERSIONS if self.full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
+        return (
+            CURRENT_KUBERNETES_VERSIONS
+            if (self.full_tests_needed and "default versions only" not in self._pr_labels)
+            else [DEFAULT_KUBERNETES_VERSION]
+        )
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
@@ -719,6 +725,11 @@ class SelectiveChecks:
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
 
+        for file in self._files:
+            if file.endswith("bash.py") and Path(file).parent.name == "operators":
+                candidate_test_types.add("Serialization")
+                candidate_test_types.add("Core")
+                break
         if count_remaining_files > 0:
             get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "

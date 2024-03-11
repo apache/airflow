@@ -835,7 +835,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae_inner, exc_info=True)
+                self.log.exception(ae_inner)
             finally:
                 raise ae
 
@@ -2911,7 +2911,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
-    :param batch_id: Optional. The ID to use for the batch, which will become the final component
+    :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two

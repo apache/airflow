@@ -73,6 +73,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | password            | ``pip install 'apache-airflow[password]'``          | Password authentication for users                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| pydantic            | ``pip install 'apache-airflow[pydantic]'``          | Pydantic serialization for internal-api                                    |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | rabbitmq            | ``pip install 'apache-airflow[rabbitmq]'``          | RabbitMQ support as a Celery backend                                       |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
@@ -82,6 +84,8 @@ python dependencies for the provided package.
 | saml                | ``pip install 'apache-airflow[saml]'``              | Support for SAML authentication in Airflow                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| uv                  | ``pip install 'apache-airflow[uv]'``                | Install uv - fast, Rust-based package installer (experimental)             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -290,6 +294,8 @@ Some of those enable Airflow to use executors to run tasks with them - other tha
 | samba               | ``pip install 'apache-airflow[samba]'``             | Samba hooks and operators                                       |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator                                  |                                              |
++---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
+| teradata            | ``pip install 'apache-airflow[teradata]'``          | Teradata hooks and operators                                    |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+
 | trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks                             |                                              |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------------------+----------------------------------------------+

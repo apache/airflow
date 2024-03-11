@@ -54,6 +54,7 @@ from airflow_breeze.commands.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_project_name,
+    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
@@ -262,6 +263,7 @@ option_warn_image_upgrade_needed = click.option(
 @option_max_time
 @option_mount_sources
 @option_mysql_version
+@option_pydantic
 @option_platform_single
 @option_postgres_version
 @option_project_name
@@ -316,6 +318,7 @@ def shell(
     providers_constraints_mode: str,
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
+    pydantic: str,
     python: str,
     quiet: bool,
     restart: bool,
@@ -364,6 +367,7 @@ def shell(
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
         install_selected_providers=install_selected_providers,
+        install_airflow_with_constraints=True,
         integration=integration,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
@@ -375,6 +379,7 @@ def shell(
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
+        pydantic=pydantic,
         python=python,
         quiet=quiet,
         run_db_tests_only=run_db_tests_only,
@@ -552,6 +557,7 @@ def start_airflow(
         image_tag=image_tag,
         integration=integration,
         install_selected_providers=install_selected_providers,
+        install_airflow_with_constraints=True,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
@@ -603,8 +609,17 @@ def start_airflow(
     type=str,
     multiple=True,
 )
+@click.option(
+    "--package-list",
+    envvar="PACKAGE_LIST",
+    type=str,
+    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    "building, and document publishing. It is an easier alternative to adding individual packages as"
+    " arguments to every command. This overrides the packages passed as arguments.",
+)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
 @option_verbose
+@option_answer
 @argument_doc_packages
 def build_docs(
     builder: str,
@@ -615,6 +630,7 @@ def build_docs(
     include_removed_providers: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
+    package_list: str,
     spellcheck_only: bool,
     doc_packages: tuple[str, ...],
 ):
@@ -634,6 +650,17 @@ def build_docs(
             for directory in docs_dir.rglob(dir_name):
                 get_console().print(f"[info]Removing {directory}")
                 shutil.rmtree(directory, ignore_errors=True)
+    docs_list_as_tuple: tuple[str, ...] = ()
+    if package_list and len(package_list):
+        get_console().print(f"\n[info]Populating provider list from PACKAGE_LIST env as {package_list}")
+        # Override doc_packages with values from PACKAGE_LIST
+        docs_list_as_tuple = tuple(package_list.split(","))
+    if doc_packages and docs_list_as_tuple:
+        get_console().print(
+            f"[warning]Both package arguments and --package-list / PACKAGE_LIST passed. "
+            f"Overriding to {docs_list_as_tuple}"
+        )
+    doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
         docs_only=docs_only,
@@ -659,7 +686,7 @@ def build_docs(
             "[info]To view the built documentation, you have two options:\n\n"
             "1. Start the webserver in breeze and access the built docs at "
             "http://localhost:28080/docs/\n"
-            "2. Alternatively, you can run ./docs/start_docs_server.sh for a lighter resource option and view"
+            "2. Alternatively, you can run ./docs/start_doc_server.sh for a lighter resource option and view"
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)

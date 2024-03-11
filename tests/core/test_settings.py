@@ -22,7 +22,7 @@ import os
 import sys
 import tempfile
 from unittest import mock
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -228,9 +228,39 @@ class TestUpdatedConfigNames:
         ("sqlite://", contextlib.nullcontext()),
     ],
 )
-def test_sqlite_relative_path(monkeypatch, value, expectation):
+def test_sqlite_relative_path(value, expectation):
     from airflow import settings
 
-    monkeypatch.setattr(settings, "SQL_ALCHEMY_CONN", value)
-    with expectation:
-        settings.configure_orm()
+    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
+        "airflow.settings.SQL_ALCHEMY_CONN", value
+    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+        with expectation:
+            settings.configure_orm()
+
+
+class TestEngineArgs:
+    @staticmethod
+    @patch("airflow.settings.conf")
+    @patch("airflow.settings.is_sqlalchemy_v1")
+    def test_encoding_present_in_v1(is_v1, mock_conf):
+        from airflow import settings
+
+        is_v1.return_value = True
+        mock_conf.getjson.return_value = {}
+
+        engine_args = settings.prepare_engine_args()
+
+        assert "encoding" in engine_args
+
+    @staticmethod
+    @patch("airflow.settings.conf")
+    @patch("airflow.settings.is_sqlalchemy_v1")
+    def test_encoding_absent_in_v2(is_v1, mock_conf):
+        from airflow import settings
+
+        is_v1.return_value = False
+        mock_conf.getjson.return_value = {}
+
+        engine_args = settings.prepare_engine_args()
+
+        assert "encoding" not in engine_args

@@ -89,7 +89,7 @@ def create_dag_run(dag):
     return _create_dag_run
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_run(create_dag_run, session):
     return create_dag_run(execution_date=DEFAULT_DATE, session=session)
 

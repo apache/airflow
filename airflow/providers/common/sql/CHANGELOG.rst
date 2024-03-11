@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
 1.11.0
 ......
 
@@ -33,10 +42,19 @@ Features
 
 * ``Enhancement: Performance enhancement for insert_rows method DbApiHook with fast executemany + SAP Hana support (#37246)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
+
 Misc
 ~~~~
 
 * ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Add more-itertools as dependency of common-sql (#37359)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 
 1.10.1
 ......

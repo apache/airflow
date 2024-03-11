@@ -388,7 +388,7 @@ class _VaultClient(LoggingMixin):
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
-        Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
+        Read secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: The path of the secret.
         :return: secret metadata. This is a Dict containing metadata for the secret.
@@ -410,7 +410,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret_version: int | None = None
     ) -> dict | None:
         """
-        Reads secret including metadata. It is only valid for KV version 2.
+        Read secret including metadata. It is only valid for KV version 2.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
@@ -444,7 +444,7 @@ class _VaultClient(LoggingMixin):
         self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
-        Creates or updates secret.
+        Create or updates secret.
 
         :param secret_path: The path of the secret.
         :param secret: Secret to create or update for the path specified
@@ -468,10 +468,10 @@ class _VaultClient(LoggingMixin):
         mount_point, secret_path = self._parse_secret_path(secret_path)
         if self.kv_engine_version == 1:
             response = self.client.secrets.kv.v1.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, method=method
+                path=secret_path, secret=secret, mount_point=mount_point, method=method
             )
         else:
             response = self.client.secrets.kv.v2.create_or_update_secret(
-                secret_path=secret_path, secret=secret, mount_point=mount_point, cas=cas
+                path=secret_path, secret=secret, mount_point=mount_point, cas=cas
             )
         return response

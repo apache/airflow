@@ -32,11 +32,12 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F401
+from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
+from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 from airflow.utils.state import State
 from airflow.utils.timezone import local_timezone, parse_timezone, utc
 
@@ -348,9 +349,11 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         engine_args["isolation_level"] = "READ COMMITTED"
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
+    if is_sqlalchemy_v1():
+        # Allow the user to specify an encoding for their DB otherwise default
+        # to utf-8 so jobs & users with non-latin1 characters can still use us.
+        # This parameter was removed in SQLAlchemy 2.x.
+        engine_args["encoding"] = conf.get("database", "SQL_ENGINE_ENCODING", fallback="utf-8")
 
     return engine_args
 
@@ -463,7 +466,7 @@ def get_session_lifetime_config():
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
 
-    logging.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
+    log.debug("User session lifetime is set to %s minutes.", session_lifetime_minutes)
 
     return int(session_lifetime_minutes)
 
@@ -617,19 +620,6 @@ DASHBOARD_UIALERTS: list[UIAlert] = []
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
-
-SMTP_DEFAULT_TEMPLATED_SUBJECT = """
-{% if ti is defined %}
-DAG {{ ti.dag_id }} - Task {{ ti.task_id }} - Run ID {{ ti.run_id }} in State {{ ti.state }}
-{% elif slas is defined %}
-SLA Missed for DAG {{ dag.dag_id }} - Task {{ slas[0].task_id }}
-{% endif %}
-"""
-
-SMTP_DEFAULT_TEMPLATED_HTML_CONTENT_PATH = os.path.join(
-    os.path.dirname(__file__), "providers", "smtp", "notifications", "templates", "email.html"
-)
-
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.

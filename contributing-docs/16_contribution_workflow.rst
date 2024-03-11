@@ -39,7 +39,7 @@ In general, your contribution includes the following stages:
    the Apache Airflow `main repository <https://github.com/apache/airflow>`__.
 
 2. Create a `local virtualenv <07_local_virtualenv.rst>`_,
-   initialize the `Breeze environment <dev/breeze/doc/README.rst>`__, and
+   initialize the `Breeze environment <../dev/breeze/doc/README.rst>`__, and
    install `pre-commit framework <08_static_code_checks.rst#pre-commit-hooks>`__.
    If you want to add more changes in the future, set up your fork and enable GitHub Actions.
 
@@ -48,7 +48,7 @@ In general, your contribution includes the following stages:
 
 4. Make the change and create a `Pull Request (PR) from your fork <https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request-from-a-fork>`__.
 
-5. Ping @ #development slack, comment @people. Be annoying. Be considerate.
+5. Ping @ #contributors slack, comment @people. Be annoying. Be considerate.
 
 Step 1: Fork the Apache Airflow Repo
 ------------------------------------
@@ -66,7 +66,7 @@ Step 2: Configure Your Environment
 You can use several development environments for Airflow. If you prefer to have development environments
 on your local machine, you might choose Local Virtualenv, or dockerized Breeze environment, however we
 also have support for popular remote development environments: GitHub Codespaces and GitPodify.
-You can see the differences between the various environments in `Development environments <development-environments>`__.
+You can see the differences between the various environments in `Development environments <06_development_environments.rst>`__.
 
 The local env instructions can be found in full in the `Local virtualenv <07_local_virtualenv.rst>`_ file.
 

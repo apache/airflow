@@ -203,3 +203,15 @@ class LogGroomerTestBase:
                 "memory": "2Gi",
             },
         } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
+
+    def test_log_groomer_has_airflow_home(self):
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True}}
+        else:
+            values = None
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
+
+        assert "AIRFLOW_HOME" == jmespath.search("spec.template.spec.containers[1].env[1].name", docs[0])

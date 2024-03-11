@@ -20,6 +20,9 @@ from unittest.mock import patch
 
 import pytest
 
+qdrant_client = pytest.importorskip("qdrant_client")
+
+
 from airflow.providers.qdrant.operators.qdrant import QdrantIngestOperator
 
 

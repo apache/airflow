@@ -302,7 +302,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
-            job = hook.get_job(job_name=result.job, region=self.region)
+            job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
             return Job.to_dict(job)
         else:
             self.defer(
@@ -333,7 +333,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
         hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
 
-        job = hook.get_job(job_name=event["job_name"], region=self.region)
+        job = hook.get_job(job_name=event["job_name"], region=self.region, project_id=self.project_id)
         return Job.to_dict(job)
 
     def _fail_if_execution_failed(self, execution: Execution):
