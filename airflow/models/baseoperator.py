@@ -368,8 +368,11 @@ def partial(
 
 class ExecutorSafeguard:
     """
-    The ExecutorSafeguard decorator checks if the execute method of an operator isn't manually called outside
-    the TaskInstance as we want to avoid bad mixing between decorated and classic operators.
+    The ExecutorSafeguard decorator.
+
+    Checks if the execute method of an operator isn't manually called outside
+    the TaskInstance as we want to avoid bad mixing between decorated and
+    classic operators.
     """
     test_mode = conf.getboolean("core", "unit_test_mode")
 
