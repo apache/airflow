@@ -558,7 +558,8 @@ COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", f
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint("core", "min_serialized_dag_fetch_interval", fallback=10)
 
-CAN_FORK = hasattr(os, "fork")
+# Running "fork" on MacOS is not thread safe
+CAN_FORK = hasattr(os, "fork") and sys.platform.lower() != "darwin"
 
 EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     "core",
