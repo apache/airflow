@@ -46,12 +46,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to push image to the registry (true/false)"
         required: true
         type: string
-      in-workflow-build:
-        description: >
-          Whether the builds are done in-workflow (true/false). If false (in PRs from fork) - they are done in
-          in pull request target workflows for security.
-        required: true
-        type: string
       python-versions:
         description: "JSON-formatted array of Python versions to build images from"
         required: true
@@ -85,10 +79,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
-      debug-resources:
-        description: "Whether to debug resources while parallel builds are running (true/false)"
-        required: true
-        type: string
 jobs:
   build-prod-images:
     strategy:
@@ -103,7 +93,6 @@ jobs:
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
-      DEBUG_RESOURCES: ${{ inputs.debug-resources }}
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
