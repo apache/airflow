@@ -96,7 +96,7 @@ jobs:
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      build-type: "MySQL Client"
+      build-type: "pip"
       image-tag: mysql-${{ inputs.image-tag }}
       install-mysql-client-type: "mysql"
       python-versions: ${{ inputs.python-versions }}
