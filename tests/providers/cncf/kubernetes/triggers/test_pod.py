@@ -106,7 +106,7 @@ class TestKubernetesPodTrigger:
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
-            "startup_check_interval_seconds": 1,
+            "startup_check_interval_seconds": 5,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
             "last_log_time": None,

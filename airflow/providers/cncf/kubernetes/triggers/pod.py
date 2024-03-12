@@ -93,7 +93,7 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
-        startup_check_interval_seconds: int = 1,
+        startup_check_interval_seconds: int = 5,
         startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
