@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  airflow:
+  - apiVersion: v2
+    appVersion: 1.16.0
+    created: "2024-03-12T19:07:12.3590717+05:30"
+    description: A Helm chart for Kubernetes
+    digest: 62310b2c2d387f6bd7b9c0346621f3ff5e8ff7ffe250612ca8d64424365a1222
+    name: airflow
+    type: application
+    urls:
+    - https://github.com/cjay2067/airflow/airflow-0.1.0.tgz
+    version: 0.1.0
+generated: "2024-03-12T19:07:12.2360302+05:30"
