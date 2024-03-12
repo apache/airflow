@@ -315,7 +315,6 @@ _type_to_class = {
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
-_to_pydantic = set(_class_to_type.keys())
 
 
 class BaseSerialization:
@@ -546,7 +545,7 @@ class BaseSerialization:
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
-            if var.__class__ in _to_pydantic:
+            if var.__class__ in _class_to_type:
                 pyd_mod = _orm_to_model.get(var.__class__, var)
                 mod = _pydantic_model_dump(pyd_mod, var)
                 type_ = _class_to_type[var.__class__]
