@@ -36,9 +36,12 @@ the Airflow team.
 
 Airflow 2.8
 ~~~~~~~~~~~
+
 * 2.8.3
 
-   * Remove ``gosu`` binary from our images (#37677)
+   * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+     ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+     security vulnerabilities as it was linked against older Go standard libraries.
 
 * 2.8.1
 
@@ -284,4 +287,8 @@ here so that users affected can find the reason for the changes.
 | 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
 |              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
 |              |                     |                                         | key expiry fiasco      |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
+|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
+|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
