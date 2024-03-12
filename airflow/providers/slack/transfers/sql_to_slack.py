@@ -33,6 +33,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class SqlToSlackNullOutputException(AirflowException):
+    """An exception that indicates the sql output is empty and hence should not be sent with slack message."""
+
+
 class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     """
     Executes an SQL statement in a given SQL connection and sends the results to Slack API as file.
@@ -58,6 +62,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     :param slack_base_url: A string representing the Slack API base URL. Optional
     :param slack_method_version: The version of the Slack SDK Client method to be used, either "v1" or "v2".
     :param df_kwargs: Keyword arguments forwarded to ``pandas.DataFrame.to_{format}()`` method.
+    :param allow_null: Keyword argument to allow null sql output which implies allowing sending an empty file.
     """
 
     template_fields: Sequence[str] = (
@@ -87,6 +92,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_base_url: str | None = None,
         slack_method_version: Literal["v1", "v2"] = "v1",
         df_kwargs: dict | None = None,
+        allow_null: bool = True,
         **kwargs,
     ):
         super().__init__(
@@ -100,6 +106,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         self.slack_base_url = slack_base_url
         self.slack_method_version = slack_method_version
         self.df_kwargs = df_kwargs or {}
+        self.allow_null = allow_null
 
     @cached_property
     def slack_hook(self):
@@ -134,6 +141,8 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             output_file_name = fp.name
             output_file_format = output_file_format.upper()
             df_result = self._get_query_results()
+            if not self.allow_null and df_result.empty:
+                raise SqlToSlackNullOutputException("Sql output is empty.")
             if output_file_format == "CSV":
                 df_result.to_csv(output_file_name, **self.df_kwargs)
             elif output_file_format == "JSON":
