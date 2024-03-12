@@ -31,6 +31,8 @@ import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
 import useFilters from "src/dag/useFilters";
 
+declare const defaultDagRunDisplayNumber: number;
+
 declare const filtersOptions: {
   dagStates: RunState[];
   numRuns: number[];
@@ -38,9 +40,21 @@ declare const filtersOptions: {
   taskStates: TaskState[];
 };
 
+const now = new Date();
+
 const FilterBar = () => {
   const {
-    filters,
+    filters: {
+      baseDate,
+      numRuns,
+      root,
+      filterUpstream,
+      filterDownstream,
+      runState,
+      runStateOptions,
+      runType,
+      runTypeOptions,
+    },
     onBaseDateChange,
     onNumRunsChange,
     onRunTypeChange,
@@ -49,9 +63,23 @@ const FilterBar = () => {
     transformArrayToMultiSelectOptions,
   } = useFilters();
 
+  // @ts-ignore
+  const isBaseDateDefault = moment(now).isSame(baseDate, "minute");
+  const isNumRunsDefault = numRuns === defaultDagRunDisplayNumber.toString();
+  const isRunTypeDefault = !runState || !runState.length;
+  const isRunStateDefault = !runType || !runType.length;
+  const areFiltersDefault =
+    isBaseDateDefault &&
+    isNumRunsDefault &&
+    !root &&
+    !filterUpstream &&
+    !filterDownstream &&
+    isRunTypeDefault &&
+    isRunStateDefault;
+
   const { timezone } = useTimezone();
   // @ts-ignore
-  const time = moment(filters.baseDate);
+  const time = moment(baseDate);
   // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
@@ -61,17 +89,39 @@ const FilterBar = () => {
   };
 
   const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
-  const multiSelectStyles = useChakraSelectProps({
-    ...inputStyles,
+
+  const multiSelectStyles: Record<string, any> = {
+    size: "lg",
     isMulti: true,
     tagVariant: "solid",
     hideSelectedOptions: false,
     isClearable: false,
     selectedOptionStyle: "check",
+  };
+
+  const filteredStyles = {
+    borderColor: "blue.400",
+    borderWidth: 2,
+  };
+
+  const runTypeStyles = useChakraSelectProps({
+    ...multiSelectStyles,
     chakraStyles: {
-      container: (provided) => ({
+      control: (provided) => ({
         ...provided,
         bg: "white",
+        ...(isRunTypeDefault ? {} : filteredStyles),
+      }),
+    },
+  });
+
+  const runStateStyles = useChakraSelectProps({
+    ...multiSelectStyles,
+    chakraStyles: {
+      control: (provided) => ({
+        ...provided,
+        bg: "white",
+        ...(isRunStateDefault ? {} : filteredStyles),
       }),
     },
   });
@@ -90,14 +140,16 @@ const FilterBar = () => {
             type="datetime-local"
             value={formattedTime || ""}
             onChange={(e) => onBaseDateChange(e.target.value)}
+            {...(isBaseDateDefault ? {} : filteredStyles)}
           />
         </Box>
         <Box px={2}>
           <Select
             {...inputStyles}
             placeholder="Runs"
-            value={filters.numRuns || ""}
+            value={numRuns || ""}
             onChange={(e) => onNumRunsChange(e.target.value)}
+            {...(isNumRunsDefault ? {} : filteredStyles)}
           >
             {filtersOptions.numRuns.map((value) => (
               <option value={value} key={value}>
@@ -108,8 +160,8 @@ const FilterBar = () => {
         </Box>
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
-            {...multiSelectStyles}
-            value={transformArrayToMultiSelectOptions(filters.runType)}
+            {...runTypeStyles}
+            value={transformArrayToMultiSelectOptions(runType)}
             onChange={(typeOptions) => {
               if (
                 Array.isArray(typeOptions) &&
@@ -120,15 +172,15 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={transformArrayToMultiSelectOptions(filters.runTypeOptions)}
+            options={transformArrayToMultiSelectOptions(runTypeOptions)}
             placeholder="All Run Types"
           />
         </Box>
         <Box />
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
-            {...multiSelectStyles}
-            value={transformArrayToMultiSelectOptions(filters.runState)}
+            {...runStateStyles}
+            value={transformArrayToMultiSelectOptions(runState)}
             onChange={(stateOptions) => {
               if (
                 Array.isArray(stateOptions) &&
@@ -139,9 +191,7 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={transformArrayToMultiSelectOptions(
-              filters.runStateOptions
-            )}
+            options={transformArrayToMultiSelectOptions(runStateOptions)}
             placeholder="All Run States"
           />
         </Box>
@@ -152,6 +202,7 @@ const FilterBar = () => {
             background="white"
             variant="outline"
             onClick={clearFilters}
+            disabled={areFiltersDefault}
             size="lg"
           >
             Clear Filters
