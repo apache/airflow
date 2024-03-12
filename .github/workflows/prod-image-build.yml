@@ -26,6 +26,13 @@ on:  # yamllint disable-line rule:truthy
           variations.
         required: true
         type: string
+      do-build:
+        description: >
+          Whether to actually do the build (true/false). If set to false, the build is done
+          already in pull-request-target workflow, so we skip it here.
+        required: false
+        default: "true"
+        type: string
       debian-version:
         description: "Base Debian distribution to use for the build (bookworm/bullseye)"
         type: string
@@ -86,7 +93,9 @@ jobs:
       matrix:
         python-version: ${{fromJson(inputs.python-versions)}}
     timeout-minutes: 80
-    name: Build PROD ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
+    name: >
+      ${{ inputs.do-build == 'true' && 'Build' || 'Skip build' }}
+      PROD ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
     runs-on: ["ubuntu-22.04"]
     env:
       BACKEND: sqlite
@@ -96,30 +105,34 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.do-build == 'true'
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
+        if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
           python-version: ${{ inputs.breeze-python-version }}
+        if: inputs.do-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
-        if: inputs.upgrade-to-newer-dependencies != 'false'
+        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Cleanup dist and context file"
         shell: bash
         run: rm -fv ./dist/* ./docker-context-files/*
+        if: inputs.do-build == 'true'
       - name: "Prepare providers packages"
         shell: bash
         run: >
           breeze release-management prepare-provider-packages
           --package-list-file ./prod_image_installed_providers.txt
           --package-format wheel --version-suffix-for-pypi dev0
-        if: ${{ inputs.build-provider-packages == 'true' }}
+        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
       - name: "Prepare chicken-eggs provider packages"
         # In case of provider packages which use latest dev0 version of providers, we should prepare them
         # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
@@ -128,27 +141,31 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages
           --package-format wheel --version-suffix-for-pypi dev0 ${{ inputs.chicken-egg-providers }}
-        if: ${{ inputs.build-provider-packages != 'true' && inputs.chicken-egg-providers != '' }}
+        if: >
+          inputs.do-build == 'true' && inputs.build-provider-packages != 'true' &&
+          inputs.chicken-egg-providers != ''
       - name: "Prepare airflow package"
         shell: bash
         run: >
           breeze release-management prepare-airflow-package
           --package-format wheel --version-suffix-for-pypi dev0
+        if: inputs.do-build == 'true'
       - name: "Copy dist packages to docker-context files"
         shell: bash
         run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
+        if: inputs.do-build == 'true'
       - name: "Download constraints from the CI build"
         uses: actions/download-artifact@v4
         with:
           name: source-constraints-${{ matrix.python-version }}
           path: ./docker-context-files
-        if: ${{ inputs.build-provider-packages == 'true' }}
+        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
       - name: "Download constraints from the Generate & Verify build"
         uses: actions/download-artifact@v4
         with:
           name: constraints
           path: ./docker-context-files
-        if: ${{ inputs.build-provider-packages != 'true' }}
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
       - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
@@ -165,7 +182,7 @@ jobs:
           INCLUDE_NOT_READY_PROVIDERS: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_UV: ${{ inputs.use-uv }}
-        if: ${{ inputs.build-provider-packages == 'true' }}
+        if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
       - name: "Build PROD images with PyPi providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
@@ -182,4 +199,4 @@ jobs:
           INCLUDE_NOT_READY_PROVIDERS: "true"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_UV: ${{ inputs.use-uv }}
-        if: ${{ inputs.build-provider-packages != 'true' }}
+        if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
