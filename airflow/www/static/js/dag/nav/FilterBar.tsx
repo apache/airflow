@@ -31,8 +31,6 @@ import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
 import useFilters from "src/dag/useFilters";
 
-declare const defaultDagRunDisplayNumber: number;
-
 declare const filtersOptions: {
   dagStates: RunState[];
   numRuns: number[];
@@ -47,9 +45,6 @@ const FilterBar = () => {
     filters: {
       baseDate,
       numRuns,
-      root,
-      filterUpstream,
-      filterDownstream,
       runState,
       runStateOptions,
       runType,
@@ -65,17 +60,10 @@ const FilterBar = () => {
 
   // @ts-ignore
   const isBaseDateDefault = moment(now).isSame(baseDate, "minute");
-  const isNumRunsDefault = numRuns === defaultDagRunDisplayNumber.toString();
   const isRunStateDefault = !runState || !runState.length;
   const isRunTypeDefault = !runType || !runType.length;
   const areFiltersDefault =
-    isBaseDateDefault &&
-    isNumRunsDefault &&
-    !root &&
-    !filterUpstream &&
-    !filterDownstream &&
-    isRunTypeDefault &&
-    isRunStateDefault;
+    isBaseDateDefault && isRunTypeDefault && isRunStateDefault;
 
   const { timezone } = useTimezone();
   // @ts-ignore
@@ -155,7 +143,6 @@ const FilterBar = () => {
             placeholder="Runs"
             value={numRuns || ""}
             onChange={(e) => onNumRunsChange(e.target.value)}
-            {...(isNumRunsDefault ? {} : filteredStyles)}
           >
             {filtersOptions.numRuns.map((value) => (
               <option value={value} key={value}>
