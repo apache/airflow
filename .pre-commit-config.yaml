@@ -340,7 +340,6 @@ repos:
               ^airflow\/providers\/apache\/spark\/operators\/spark_submit.py\.py$|
               ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/auto_ml\.py$|
               ^airflow\/providers\/apache\/spark\/operators\/spark_submit\.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_sql\.py$|
               ^airflow\/providers\/databricks\/operators\/databricks_sql\.py$|
           )$
       - id: ruff
@@ -704,7 +703,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
+        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$|^tests/.*$
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -1117,7 +1116,7 @@ repos:
           airflow/example_dags/.*
         args:
           - "--skip"
-          - "B301,B324,B403,B404,B603"
+          - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
       - id: pylint

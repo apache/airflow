@@ -78,9 +78,6 @@ class BaseExtractor(ABC, LoggingMixin):
         )
         return fully_qualified_class_name in self.disabled_operators
 
-    def validate(self):
-        assert self.operator.task_type in self.get_operator_classnames()
-
     @abstractmethod
     def _execute_extraction(self) -> OperatorLineage | None:
         ...
