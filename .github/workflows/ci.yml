@@ -1918,7 +1918,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.default-branch == 'main' && needs.build-info.outputs.canary-runs == 'true'
+    if: needs.build-info.outputs.default-branch == 'main' && needs.build-info.outputs.canary-run == 'true'
 
   prod-image-extra-checks-release-branch:
     name: PROD image extra checks (release)
@@ -1936,7 +1936,7 @@ jobs:
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.default-branch != 'main' && needs.build-info.outputs.canary-runs == 'true'
+    if: needs.build-info.outputs.default-branch != 'main' && needs.build-info.outputs.canary-run == 'true'
 
   wait-for-prod-images:
     timeout-minutes: 80
