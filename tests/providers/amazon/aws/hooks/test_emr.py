@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import warnings
 from unittest import mock
 
@@ -171,6 +172,9 @@ class TestEmrHook:
         with warnings.catch_warnings():
             # Expected no warnings if ``emr_conn_id`` exists with correct conn_type
             warnings.simplefilter("error")
+            if sys.version_info >= (3, 12):
+                # Botocore generates deprecation warning on Python 3.12 connected with utcnow use
+                warnings.filterwarnings("ignore", message=r".*datetime.utcnow.*", category=DeprecationWarning)
             cluster = hook.create_job_flow({"Name": "test_cluster", "ReleaseLabel": "", "AmiVersion": "3.2"})
         cluster = client.describe_cluster(ClusterId=cluster["JobFlowId"])["Cluster"]
 
