@@ -336,10 +336,10 @@ def collect_dags(dag_folder=None):
             "tests/system/providers/*/",
             "tests/system/providers/*/*/",
         ]
-    excluded_patterns = list(get_excluded_patterns())
+    excluded_patterns = [f"{ROOT_FOLDER}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()]
     for pattern in patterns:
         for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
-            if any([directory.startswith(pattern) for pattern in excluded_patterns]):
+            if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
                 continue
             dags.update(make_example_dags(directory))
 
