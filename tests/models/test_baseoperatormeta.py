@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
@@ -49,11 +49,18 @@ class IterableSession(Session):
 
 @pytest.fixture
 def mock_task_instance(mocker):
+    email = "dev@airflow.apache.org"
+    task = MagicMock(spec=BaseOperator)
+    task.iter_mapped_dependants = iter([])
+    task.email = email
+    context = {"params": {}, "task": task, "email_for_state": lambda email: email, "callbacks": {}, "context": {}}
     mocker.patch.object(TaskInstance, "get_task_instance", return_value=None)
-    mocker.patch.object(TaskInstance, "get_template_context", return_value={"params": {}})
+    mocker.patch.object(TaskInstance, "get_template_context", return_value=context)
     mocker.patch.object(TaskInstance, "render_templates", return_value=None)
     mocker.patch.object(TaskInstance, "clear_xcom_data", return_value=None)
     mocker.patch.object(TaskInstance, "check_and_change_state_before_execution", return_value=True)
+    mocker.patch.object(TaskInstance, "fetch_handle_failure_context", return_value=context)
+    mocker.patch.object(TaskInstance, "email_alert", return_value=None)
 
 
 @pytest.fixture
@@ -85,7 +92,7 @@ class TestExecutorSafeguard:
         return task_instance
 
     def test_executor_when_called_directly(self):
-        with pytest.raises(AirflowException, match="Method execute cannot be called from inner!"):
+        with pytest.raises(AirflowException, match="Method execute cannot be called directly!"):
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
@@ -102,10 +109,9 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-        task_instance = self.create_task_instance(operator=say_hello(context=context).operator)
-        task_instance.run(test_mode=True, session=mock_session())
-
-        assert not operator.called
+        with pytest.raises(AirflowException, match="Method execute cannot be called from execute!"):
+            task_instance = self.create_task_instance(operator=say_hello(context=context).operator)
+            task_instance.run(test_mode=True, session=mock_session())
 
     def test_executor_when_called_from_task_instance(self, mock_session, mock_task_instance):
         dag = DAG(dag_id="hello_world")
@@ -113,7 +119,9 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-        task_instance = self.create_task_instance(operator=operator)
-        task_instance.run(test_mode=True, session=mock_session())
+        with (patch("airflow.settings.Session", return_value=mock_session),
+              patch("airflow.models.taskinstance._record_task_map_for_downstreams", return_value=None)):
+            task_instance = self.create_task_instance(operator=operator)
+            task_instance.run(test_mode=True, session=mock_session())
 
-        assert operator.called
+            assert operator.called

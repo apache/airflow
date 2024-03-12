@@ -26,14 +26,15 @@ import abc
 import collections.abc
 import contextlib
 import copy
-import functools
 import logging
 import os
 import sys
 import traceback
 import warnings
 from datetime import datetime, timedelta
+from functools import total_ordering, wraps
 from inspect import signature
+from traceback import FrameSummary
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -379,14 +380,27 @@ class ExecutorSafeguard:
 
     @classmethod
     def decorator(cls, func):
+        def find_task_instance(frame: FrameSummary):
+            return (frame.name == _execute_task.__name__ and
+                    _execute_task.__module__.replace(".", os.path.sep) in frame.filename)
+
+        def find_decorator_operator(frame: FrameSummary):
+            from airflow.decorators.base import DecoratedOperator
+
+            return (frame.name == DecoratedOperator.execute.__name__ and
+                    DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename)
+
+        @wraps(func)
         def wrapper(*args, **kwargs):
             if cls.test_mode:
                 return func(*args, **kwargs)
-            caller_frame = traceback.extract_stack()[-3]  # Get the caller frame excluding the current frame
-            filename = _execute_task.__module__.replace(".", os.path.sep)
-            if caller_frame.name == _execute_task.__name__ and filename in caller_frame.filename:
-                return func(*args, **kwargs)
-            raise AirflowException(f"Method {func.__name__} cannot be called from {caller_frame.name}!")
+            stack_trace = traceback.extract_stack()
+            if next(filter(find_task_instance, stack_trace), None):
+                frame = next(filter(find_decorator_operator, stack_trace), None)
+                if not frame:
+                    return func(*args, **kwargs)
+                raise AirflowException(f"Method {func.__name__} cannot be called from {frame.name}!")
+            raise AirflowException(f"Method {func.__name__} cannot be called directly!")
 
         return wrapper
 
@@ -422,7 +436,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         fixup_decorator_warning_stack(func)
 
-        @functools.wraps(func)
+        @wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
@@ -504,7 +518,7 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
 
-@functools.total_ordering
+@total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators.
