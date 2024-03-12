@@ -223,21 +223,20 @@ class DecoratedOperator(BaseOperator):
         try:
             signature = signature.replace(parameters=parameters)
         except ValueError as err:
-            raise ValueError(
-                textwrap.dedent(
-                    f"""
-                    The function signature broke while assigning defaults to context key parameters.
+            message = textwrap.dedent(
+                f"""
+                The function signature broke while assigning defaults to context key parameters.
 
-                    The decorator is replacing the signature
-                    > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+                The decorator is replacing the signature
+                > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
 
-                    with
-                    > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+                with
+                > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
 
-                    which isn't valid: {err}
-                    """
-                )
+                which isn't valid: {err}
+                """
             )
+            raise ValueError(message)
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
