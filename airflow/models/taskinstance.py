@@ -1025,7 +1025,8 @@ def _email_alert(
     :meta private:
     """
     subject, html_content, html_content_err = task_instance.get_email_subject_content(exception, task=task)
-    assert task.email
+    if TYPE_CHECKING:
+        assert task.email
     try:
         send_email(task.email, subject, html_content)
     except Exception:

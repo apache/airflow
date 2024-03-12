@@ -1528,7 +1528,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="10"
+ARG AIRFLOW_CI_BUILD_EPOCH="11"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 
