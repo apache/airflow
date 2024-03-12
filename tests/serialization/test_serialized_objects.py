@@ -336,15 +336,12 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
 
 def test_all_pydantic_models_round_trip():
-    from pathlib import Path
-
     classes = set()
-    rootdir = Path("../..").resolve()
-    mods_folder = rootdir / "airflow/serialization/pydantic"
+    mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
     for p in mods_folder.iterdir():
         if p.name.startswith("__"):
             continue
-        relpath = str(p.relative_to(rootdir).stem)
+        relpath = str(p.relative_to(REPO_ROOT).stem)
         mod = import_module(f"airflow.serialization.pydantic.{relpath}")
         for name, obj in inspect.getmembers(mod):
             if inspect.isclass(obj) and issubclass(obj, BaseModel):
