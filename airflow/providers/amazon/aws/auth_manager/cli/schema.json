@@ -158,10 +158,10 @@
             "Dag": {},
             "Dataset": {},
             "Pool": {},
-            "Role": {},
+            "Group": {},
             "User": {
                 "memberOfTypes": [
-                    "Role"
+                    "Group"
                 ]
             },
             "Variable": {},

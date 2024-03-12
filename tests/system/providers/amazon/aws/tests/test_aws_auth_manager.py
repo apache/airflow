@@ -49,7 +49,7 @@ SAML_METADATA_PARSED = {
 
 AVP_POLICY_ADMIN = """
 permit (
-    principal in Airflow::Role::"Admin",
+    principal in Airflow::Group::"Admin",
     action,
     resource
 );
