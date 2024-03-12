@@ -2252,16 +2252,16 @@ jobs:
         run: cp -v --no-preserve=mode,ownership ./dist/*.whl ./docker-context-files
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: |
-          for python in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
+          for PYTHON in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
             breeze prod-image build --builder airflow_cache --install-packages-from-context \
             --airflow-constraints-mode constraints-source-providers --prepare-buildx-cache \
-            --platform ${{ matrix.platform }} --python ${python}
+            --platform ${{ matrix.platform }} --python ${PYTHON}
           done
         env:
           COMMIT_SHA: ${{ github.sha }}
       - name: "Push PROD latest image ${{ matrix.platform }}"
         run: |
-          for python in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
+          for PYTHON in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
             breeze prod-image build --tag-as-latest --install-packages-from-context \
             --push --run-in-parallel --python ${PYTHON} --platform ${{ matrix.platform }}
           done
@@ -2320,8 +2320,8 @@ jobs:
           Build CI ARM images ${{ needs.build-info.outputs.image-tag }}
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         run: |
-          for python in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
-            breeze ci-image build --builder airflow_cache --platform "linux/arm64" --python ${python}
+          for PYTHON in ${{needs.build-info.outputs.python-versions-list-as-string}}; do
+            breeze ci-image build --builder airflow_cache --platform "linux/arm64" --python ${PYTHON}
           done
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
