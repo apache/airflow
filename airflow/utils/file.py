@@ -377,6 +377,10 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
     """Find Airflow modules imported in the given file."""
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
+    except ValueError as e:
+        if "source code string cannot contain null bytes" in str(e):
+            log.warning(f"The file {file_path} contains null bytes and cannot be parsed.")
+        raise
     except Exception:
         return
     for m in _find_imported_modules(parsed):
