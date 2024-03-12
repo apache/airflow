@@ -56,10 +56,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
-      debug-resources:
-        description: "Whether to debug resources while parallel builds are running (true/false)"
-        required: true
-        type: string
 jobs:
   bullseye-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -72,14 +68,12 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "true"
-      in-workflow-build: "true"
       build-provider-packages: ${{ inputs.build-provider-packages }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
-      debug-resources: ${{ inputs.debug-resources }}
 
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -92,14 +86,12 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "true"
-      in-workflow-build: "true"
       build-provider-packages: ${{ inputs.build-provider-packages }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
-      debug-resources: ${{ inputs.debug-resources }}
 
   pip-image:
     uses: ./.github/workflows/prod-image-build.yml
@@ -112,11 +104,9 @@ jobs:
       # Always build images during the extra checks and never push them
       push-image: "false"
       use-uv: "false"
-      in-workflow-build: "true"
       build-provider-packages: ${{ inputs.build-provider-packages }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
-      debug-resources: ${{ inputs.debug-resources }}
