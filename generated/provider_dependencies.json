@@ -377,7 +377,9 @@
     "cross-providers-deps": [
       "common.sql"
     ],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.12"
+    ],
     "state": "ready"
   },
   "datadog": {
