@@ -336,6 +336,7 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
 
 def test_all_pydantic_models_round_trip():
+    pytest.importorskip("pydantic", minversion="2.0.0")
     classes = set()
     mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
     for p in mods_folder.iterdir():
