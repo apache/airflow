@@ -87,11 +87,14 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ${{fromJson(inputs.python-versions)}}
+        # yamllint disable-line rule:line-length
+        python-version: ${{ inputs.do-build == 'true' && fromJson(inputs.python-versions) || fromJson('[""]') }}
     timeout-minutes: 110
-    name: >
-      ${{ inputs.do-build == 'true' && 'Build' || 'Skip build' }}
-      CI ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
+    name: "\
+${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
+CI ${{inputs.build-type}} image\
+${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{fromJson(inputs.runs-on)}}
     env:
       BACKEND: sqlite
