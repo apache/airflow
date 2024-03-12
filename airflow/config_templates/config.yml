@@ -1406,7 +1406,7 @@ webserver:
       version_added: ~
       type: string
       example: ~
-      default: "http://localhost:8080"
+      default: "http://perfplatform.cloud.sysco.net/airflow"
     default_ui_timezone:
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or
@@ -1696,7 +1696,7 @@ webserver:
       version_added: 1.10.1
       type: boolean
       example: ~
-      default: "False"
+      default: "True"
     proxy_fix_x_for:
       description: |
         Number of values to trust for ``X-Forwarded-For``.
