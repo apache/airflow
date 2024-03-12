@@ -598,6 +598,130 @@ class TestAwsEcsExecutor:
             == caplog.messages[0]
         )
 
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_task_retry_on_api_failure_all_tasks_fail(self, _, mock_executor, caplog):
+        """
+        Test API failure retries.
+        """
+        airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
+        airflow_commands = [mock.Mock(spec=list), mock.Mock(spec=list)]
+
+        mock_executor.execute_async(airflow_keys[0], airflow_commands[0])
+        mock_executor.execute_async(airflow_keys[1], airflow_commands[1])
+        assert len(mock_executor.pending_tasks) == 2
+        caplog.set_level("WARNING")
+
+        describe_tasks = [
+            {
+                "taskArn": ARN1,
+                "desiredStatus": "STOPPED",
+                "lastStatus": "FAILED",
+                "stoppedReason": "Reason for task 1",
+                "containers": [
+                    {
+                        "name": "some-ecs-container",
+                        "lastStatus": "STOPPED",
+                        "exitCode": 100,
+                    }
+                ],
+            },
+            {
+                "taskArn": ARN2,
+                "desiredStatus": "STOPPED",
+                "lastStatus": "FAILED",
+                "stoppedReason": "Reason for task 2",
+                "containers": [
+                    {
+                        "name": "some-ecs-container",
+                        "lastStatus": "STOPPED",
+                        "exitCode": 100,
+                    }
+                ],
+            },
+        ]
+        run_tasks = [
+            {
+                "taskArn": ARN1,
+                "lastStatus": "",
+                "desiredStatus": "",
+                "containers": [{"name": "some-ecs-container"}],
+            },
+            {
+                "taskArn": ARN2,
+                "lastStatus": "",
+                "desiredStatus": "",
+                "containers": [{"name": "some-ecs-container"}],
+            },
+        ]
+        mock_executor.ecs.run_task.side_effect = [
+            {"tasks": [run_tasks[0]], "failures": []},
+            {"tasks": [run_tasks[1]], "failures": []},
+        ]
+        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
+
+        mock_executor.attempt_task_runs()
+
+        for i in range(2):
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
+
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.active_workers.get_all_arns()) == 2
+
+        mock_executor.sync_running_tasks()
+        for i in range(2):
+            assert (
+                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 1 out of 3"
+                in caplog.messages[i]
+            )
+
+        caplog.clear()
+        mock_executor.ecs.run_task.call_args_list.clear()
+
+        mock_executor.ecs.run_task.side_effect = [
+            {"tasks": [run_tasks[0]], "failures": []},
+            {"tasks": [run_tasks[1]], "failures": []},
+        ]
+        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
+
+        mock_executor.attempt_task_runs()
+
+        for i in range(2):
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
+
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.active_workers.get_all_arns()) == 2
+
+        mock_executor.sync_running_tasks()
+        for i in range(2):
+            assert (
+                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 2 out of 3"
+                in caplog.messages[i]
+            )
+
+        caplog.clear()
+        mock_executor.ecs.run_task.call_args_list.clear()
+
+        mock_executor.ecs.run_task.side_effect = [
+            {"tasks": [run_tasks[0]], "failures": []},
+            {"tasks": [run_tasks[1]], "failures": []},
+        ]
+        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
+
+        mock_executor.attempt_task_runs()
+
+        for i in range(2):
+            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
+            assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
+
+        mock_executor.sync_running_tasks()
+        for i in range(2):
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of 3 times. Marking as failed"
+                in caplog.messages[i]
+            )
+
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     def test_sync(self, success_mock, fail_mock, mock_executor):
