@@ -158,37 +158,150 @@ def test_get_documentation_package_path():
     assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
 
 
-def test_get_install_requirements():
-    assert (
-        get_install_requirements("asana", "").strip()
-        == """
+@pytest.mark.parametrize(
+    "provider, version_suffix, expected",
+    [
+        pytest.param(
+            "fab",
+            "",
+            """
+    "apache-airflow>=2.9.0",
+    "flask-appbuilder==4.3.11",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    """,
+            id="No suffix fab",
+        ),
+        pytest.param(
+            "fab",
+            "dev0",
+            """
+    "apache-airflow>=2.9.0.dev0",
+    "flask-appbuilder==4.3.11",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    """,
+            id="dev0 suffix fab",
+        ),
+        pytest.param(
+            "fab",
+            "beta0",
+            """
+    "apache-airflow>=2.9.0b0",
+    "flask-appbuilder==4.3.11",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    """,
+            id="beta0 suffix fab",
+        ),
+        pytest.param(
+            "postgres",
+            "beta0",
+            """
+    "apache-airflow-providers-common-sql>=1.3.1b0",
+    "apache-airflow>=2.6.0b0",
+    "psycopg2-binary>=2.8.0",
+    """,
+            id="beta0 suffix postgres",
+        ),
+        pytest.param(
+            "postgres",
+            "",
+            """
+    "apache-airflow-providers-common-sql>=1.3.1",
     "apache-airflow>=2.6.0",
-    "asana>=0.10,<4.0.0",
-""".strip()
-    )
+    "psycopg2-binary>=2.8.0",
+    """,
+            id="No suffix postgres",
+        ),
+    ],
+)
+def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
+    assert get_install_requirements(provider, version_suffix).strip() == expected.strip()
 
 
-def test_get_package_extras():
-    assert get_package_extras("google") == {
-        "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
-        "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-        "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-        "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
-        "common.sql": ["apache-airflow-providers-common-sql"],
-        "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
-        "leveldb": ["plyvel"],
-        "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-        "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
-        "mysql": ["apache-airflow-providers-mysql"],
-        "openlineage": ["apache-airflow-providers-openlineage"],
-        "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
-        "postgres": ["apache-airflow-providers-postgres"],
-        "presto": ["apache-airflow-providers-presto"],
-        "salesforce": ["apache-airflow-providers-salesforce"],
-        "sftp": ["apache-airflow-providers-sftp"],
-        "ssh": ["apache-airflow-providers-ssh"],
-        "trino": ["apache-airflow-providers-trino"],
-    }
+@pytest.mark.parametrize(
+    "version_suffix, expected",
+    [
+        pytest.param(
+            "",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="No suffix",
+        ),
+        pytest.param(
+            "dev0",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0.dev0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0.dev0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="With dev0 suffix",
+        ),
+        pytest.param(
+            "beta0",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0b0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0b0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="With beta0 suffix normalized automatically to b0 (PEP 440)",
+        ),
+    ],
+)
+def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
+    assert get_package_extras("google", version_suffix=version_suffix) == expected
 
 
 def test_get_provider_details():
@@ -375,7 +488,7 @@ def test_provider_jinja_context():
         "VERSION_SUFFIX": ".rc1",
         "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11"],
+        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
         "MIN_AIRFLOW_VERSION": "2.6.0",
         "PROVIDER_REMOVED": False,

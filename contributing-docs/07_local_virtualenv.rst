@@ -37,7 +37,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.8, 3.9, 3.10, 3.11)
+* Python (One of: 3.8, 3.9, 3.10, 3.11, 3.12)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -185,6 +185,8 @@ This is what it shows currently:
 | airflow-310 | virtual | devel    | Environment with Python 3.10                                  |
 +-------------+---------+----------+---------------------------------------------------------------+
 | airflow-311 | virtual | devel    | Environment with Python 3.11                                  |
++-------------+---------+----------+---------------------------------------------------------------+
+| airflow-312 | virtual | devel    | Environment with Python 3.12                                  |
 +-------------+---------+----------+---------------------------------------------------------------+
 
 The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.8
