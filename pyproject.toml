@@ -662,12 +662,12 @@ common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.9.2, <4",
-  "apache-airflow[common_sql]",
-  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
-  "requests>=2.27.0,<3",
+  "aiohttp>=3.9.2, <4;python_version != \"3.12\"",
+  "apache-airflow[common_sql];python_version != \"3.12\"",
+  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0;python_version != \"3.12\"",
+  "requests>=2.27.0,<3;python_version != \"3.12\"",
   # Devel dependencies for the databricks provider
-  "deltalake>=0.12.0",
+  "deltalake>=0.12.0;python_version != \"3.12\"",
 ]
 datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
