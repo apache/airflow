@@ -18,7 +18,15 @@ from __future__ import annotations
 
 from flask import request
 from flask.sessions import SecureCookieSessionInterface
-from flask_session.sessions import SqlAlchemySessionInterface
+
+try:
+    from flask_session.sqlalchemy import SqlAlchemySessionInterface
+
+    FLASK_SESSION_070_PLUS = True
+except ImportError:
+    from flask_session.sessions import SqlAlchemySessionInterface
+
+    FLASK_SESSION_070_PLUS = False
 
 
 class SessionExemptMixin:
@@ -35,6 +43,43 @@ class SessionExemptMixin:
 
 class AirflowDatabaseSessionInterface(SessionExemptMixin, SqlAlchemySessionInterface):
     """Session interface that exempts some routes and stores session data in the database."""
+
+    def __init__(
+        self,
+        *,
+        app,
+        db,
+        table: str = "session",
+        sequence=None,
+        schema=None,
+        bind_key=None,
+        key_prefix: str = "",
+        use_signer: bool = False,
+        permanent: bool = True,
+        sid_length: int = 32,
+        cleanup_n_requests: int | None = None,
+    ):
+        sa_session_iface_kw = {
+            "app": app,
+            "table": table,
+            "key_prefix": key_prefix,
+            "use_signer": use_signer,
+            "permanent": permanent,
+        }
+        if FLASK_SESSION_070_PLUS:
+            sa_session_iface_kw.update(
+                {
+                    "client": db,
+                    "sequence": sequence,
+                    "schema": schema,
+                    "bind_key": bind_key,
+                    "sid_length": sid_length,
+                    "cleanup_n_requests": cleanup_n_requests,
+                }
+            )
+        else:
+            sa_session_iface_kw["db"] = db
+        super().__init__(**sa_session_iface_kw)
 
 
 class AirflowSecureCookieSessionInterface(SessionExemptMixin, SecureCookieSessionInterface):
