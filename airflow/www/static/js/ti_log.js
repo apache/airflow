@@ -31,6 +31,8 @@ const DELAY = parseInt(getMetaValue("delay"), 10);
 const AUTO_TAILING_OFFSET = parseInt(getMetaValue("auto_tailing_offset"), 10);
 const ANIMATION_SPEED = parseInt(getMetaValue("animation_speed"), 10);
 const TOTAL_ATTEMPTS = parseInt(getMetaValue("total_attempts"), 10);
+const unfoldIdSuffix = "_unfold";
+const foldIdSuffix = "_fold";
 
 function recurse(delay = DELAY) {
   return new Promise((resolve) => {
@@ -163,8 +165,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           .replaceAll(logGroupStart, (line) => {
             const gName = line.substring(17);
             const gId = gName.replaceAll(/\W+/g, "_").toLowerCase();
-            const unfold = `<span id="${gId}_unfold" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
-            const fold = `<span style="display:none;"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+            const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
+            const fold = `<span style="display:none;"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
             return unfold + fold;
           })
           .replaceAll(
@@ -189,11 +191,10 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 }
 
 function handleLogGroupClick(e) {
-  if (e.target.id && e.target.id.endsWith("_unfold")) {
+  if (e.target.id?.endsWith(unfoldIdSuffix)) {
     e.target.style.display = "none";
     e.target.nextSibling.style.display = "inline";
-  }
-  if (e.target.id && e.target.id.endsWith("_fold")) {
+  } else if (e.target.id?.endsWith(foldIdSuffix)) {
     e.target.parentNode.style.display = "none";
     e.target.parentNode.previousSibling.style.display = "inline";
   }

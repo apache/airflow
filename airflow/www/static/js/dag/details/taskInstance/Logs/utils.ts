@@ -121,13 +121,15 @@ export const parseLogs = (
           '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
         )
         .replace(logGroupStart, (textLine) => {
+          const unfoldIdSuffix = "_unfold";
+          const foldIdSuffix = "_fold";
           const gName = textLine.substring(17);
           const gId = gName.replace(/\W+/g, "_").toLowerCase();
           const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
           const ufDisplay = isFolded ? "" : "display:none;";
-          const unfold = `<span id="${gId}_unfold" style="${ufDisplay}${logGroupStyle}"> &#11208; ${gName}</span>`;
+          const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#11208; ${gName}</span>`;
           const fDisplay = isFolded ? "display:none;" : "";
-          const fold = `<span style="${fDisplay}"><span id="${gId}_fold" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+          const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
           return unfold + fold;
         })
         .replace(
