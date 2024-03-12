@@ -21,11 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.slack.transfers.sql_to_slack import (
-    SqlToSlackApiFileOperator,
-    SqlToSlackNullOutputException,
-    SqlToSlackOperator,
-)
+from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator, SqlToSlackOperator
 from airflow.utils import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
@@ -161,8 +157,9 @@ class TestSqlToSlackApiFileOperator:
         with pytest.raises(ValueError):
             op.execute(mock.MagicMock())
 
+    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
-    def test_null_output(self, mock_get_query_results):
+    def test_null_output_sending_empty_file_by_default(self, mock_get_query_results, mock_slack_hook_cls):
         op_kwargs = {
             **self.default_op_kwargs,
             "slack_conn_id": "expected-test-slack-conn-id",
@@ -170,7 +167,6 @@ class TestSqlToSlackApiFileOperator:
             "slack_channels": ["#random"],
             "slack_initial_comment": "test_comment",
             "slack_title": "test_title",
-            "allow_null": False,
         }
         op = SqlToSlackApiFileOperator(task_id="test_send_file", **op_kwargs)
 
@@ -179,8 +175,30 @@ class TestSqlToSlackApiFileOperator:
         mock_df.configure_mock(**{"empty.return_value": True})
         mock_get_query_results.return_value = mock_df
 
-        with pytest.raises(SqlToSlackNullOutputException):
-            op.execute(mock.MagicMock)
+        op.execute(mock.MagicMock)
+        mock_slack_hook_cls.assert_called_once()
+
+    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
+    @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
+    def test_null_output_skip_sending_file(self, mock_get_query_results, mock_slack_hook_cls):
+        op_kwargs = {
+            **self.default_op_kwargs,
+            "slack_conn_id": "expected-test-slack-conn-id",
+            "slack_filename": "test_filename.csv",
+            "slack_channels": ["#random"],
+            "slack_initial_comment": "test_comment",
+            "slack_title": "test_title",
+            "send_file_if_empty": False,
+        }
+        op = SqlToSlackApiFileOperator(task_id="test_send_file", **op_kwargs)
+
+        # Mock empty query results
+        mock_df = mock.MagicMock()
+        mock_df.configure_mock(**{"empty.return_value": True})
+        mock_get_query_results.return_value = mock_df
+
+        op.execute(mock.MagicMock)
+        mock_slack_hook_cls.assert_not_called()
 
 
 def test_deprecated_sql_to_slack_operator():
