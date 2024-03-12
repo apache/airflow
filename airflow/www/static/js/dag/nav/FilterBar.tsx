@@ -66,8 +66,8 @@ const FilterBar = () => {
   // @ts-ignore
   const isBaseDateDefault = moment(now).isSame(baseDate, "minute");
   const isNumRunsDefault = numRuns === defaultDagRunDisplayNumber.toString();
-  const isRunTypeDefault = !runState || !runState.length;
-  const isRunStateDefault = !runType || !runType.length;
+  const isRunStateDefault = !runState || !runState.length;
+  const isRunTypeDefault = !runType || !runType.length;
   const areFiltersDefault =
     isBaseDateDefault &&
     isNumRunsDefault &&
@@ -111,6 +111,9 @@ const FilterBar = () => {
         ...provided,
         bg: "white",
         ...(isRunTypeDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunTypeDefault ? {} : filteredStyles),
+        },
       }),
     },
   });
@@ -122,6 +125,9 @@ const FilterBar = () => {
         ...provided,
         bg: "white",
         ...(isRunStateDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunStateDefault ? {} : filteredStyles),
+        },
       }),
     },
   });
