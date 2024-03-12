@@ -1713,16 +1713,22 @@ flower:
   enabled: false
 
   livenessProbe:
+    enabled: true
     initialDelaySeconds: 10
     timeoutSeconds: 5
     failureThreshold: 10
     periodSeconds: 5
 
+  customLivenessProbe: {}
+
   readinessProbe:
+    enabled: true
     initialDelaySeconds: 10
     timeoutSeconds: 5
     failureThreshold: 10
     periodSeconds: 5
+
+  customReadinessProbe: {}
 
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
