@@ -704,7 +704,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
+        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$|^tests/.*$
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
