@@ -492,6 +492,14 @@ core:
       type: string
       example: ~
       default: "Disabled"
+    max_templated_field_size:
+      description: |
+        The maximum size of the rendered template field. If the value to be stored in the rendered template
+        field exceeds this size, it's redacted.
+      version_added: 2.9.0
+      type: integer
+      example: ~
+      default: "1024"
 database:
   description: ~
   options:

@@ -27,6 +27,7 @@ from unittest import mock
 import pytest
 
 from airflow import settings
+from airflow.decorators import task as task_decorator
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
@@ -317,4 +318,64 @@ class TestRenderedTaskInstanceFields:
             "bash_command": "val 1",
             "env": "val 2",
             "cwd": "val 3",
+        }
+
+    def test_large_string_is_not_stored(self, dag_maker, session):
+        """
+        Test that large string is not stored in the database
+        """
+        large_string = "a" * 2560
+        with dag_maker("test_large_objects_are_not_stored"):
+
+            @task_decorator
+            def gentask():
+                return large_string
+
+            @task_decorator
+            def consumer_task(value):
+                return value
+
+            consumer_task(gentask())
+
+        dr = dag_maker.create_dagrun()
+        ti, ti2 = dr.task_instances
+        ti.xcom_push(value=large_string, key="return_value")
+        rtif = RTIF(ti=ti2)
+        rtif.write()
+        assert rtif.rendered_fields == {
+            "op_args": "Value redacted as it is too large to be stored in the database. "
+            "You can change this behaviour in [core]max_templated_field_size",
+            "op_kwargs": {},
+            "templates_dict": None,
+        }
+
+    def test_large_objects_are_not_stored(self, dag_maker, session):
+        """
+        Test that large objects are not stored in the database
+        """
+        import pandas as pd
+
+        large_dataframe = pd.DataFrame({"a": range(1000)})
+        with dag_maker("test_large_objects_are_not_stored"):
+
+            @task_decorator
+            def gentask():
+                return large_dataframe
+
+            @task_decorator
+            def consumer_task(value):
+                return value
+
+            consumer_task(gentask())
+
+        dr = dag_maker.create_dagrun()
+        ti, ti2 = dr.task_instances
+        ti.xcom_push(value=large_dataframe, key="return_value")
+        rtif = RTIF(ti=ti2)
+        rtif.write()
+        assert rtif.rendered_fields == {
+            "op_args": "Value redacted as it is too large to be stored in the database. "
+            "You can change this behaviour in [core]max_templated_field_size",
+            "op_kwargs": {},
+            "templates_dict": None,
         }
