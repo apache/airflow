@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models import DagBag, Variable
+from airflow.models import DagBag, Variable, DagRun, Log
+from airflow.www.views import DagRunModelView
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs, clear_db_variables
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 
 pytestmark = pytest.mark.db_test
 
@@ -155,3 +157,11 @@ def test_calendar(admin_client, dagruns):
     datestr = bash_dagrun.execution_date.date().isoformat()
     expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
+
+
+def test_delete_dagrun(session, admin_client, dagruns):
+    bash_dagrun, _, _ = dagruns
+    composite_key = _get_appbuilder_pk_string(DagRunModelView, bash_dagrun)
+    assert session.query(DagRun).filter(DagRun.dag_id == bash_dagrun.dag_id).count() == 1
+    admin_client.post(f"/dagrun/delete/{composite_key}", follow_redirects=True)
+    assert session.query(Log).filter(Log.dag_id == bash_dagrun.dag_id).count() == 1
