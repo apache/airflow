@@ -4,18 +4,18 @@ from base64 import b64encode
 from contextlib import suppress
 from datetime import datetime
 from json import JSONDecodeError
-from typing import Optional, Any
+from typing import Any
 from uuid import UUID
 
 import pendulum
 
 
 class ResponseSerializer:
-    def __init__(self, encoding: Optional[str] = None):
+    def __init__(self, encoding: str | None = None):
         self.encoding = encoding or locale.getpreferredencoding()
 
-    def serialize(self, response) -> Optional[str]:
-        def convert(value) -> Optional[str]:
+    def serialize(self, response) -> str | None:
+        def convert(value) -> str | None:
             if value is not None:
                 if isinstance(value, UUID):
                     return str(value)

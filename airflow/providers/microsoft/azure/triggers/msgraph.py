@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from types import NoneType
 from typing import (
-    Dict,
     Optional,
     Any,
     AsyncIterator,
     Sequence,
     Union,
-    Type,
     TYPE_CHECKING,
     Callable,
 )
@@ -87,22 +86,22 @@ class MSGraphTrigger(BaseTrigger):
 
     def __init__(
         self,
-        url: Optional[str] = None,
-        response_type: Optional[ResponseType] = None,
+        url: str | None = None,
+        response_type: ResponseType | NoneType = None,
         response_handler: Callable[
-            [NativeResponseType, Optional[Dict[str, Optional[ParsableFactory]]]], Any
+            [NativeResponseType, Optional[dict[str, Optional[ParsableFactory]]]], Any
         ] = lambda response, error_map: response.json(),
-        path_parameters: Optional[Dict[str, Any]] = None,
-        url_template: Optional[str] = None,
+        path_parameters: Optional[dict[str, Any]] = None,
+        url_template: str | None = None,
         method: str = "GET",
-        query_parameters: Optional[Dict[str, QueryParams]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        content: Optional[BytesIO] = None,
+        query_parameters: dict[str, QueryParams] | None = None,
+        headers: dict[str, str] | None = None,
+        content: BytesIO | NoneType = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
-        timeout: Optional[float] = None,
-        proxies: Optional[Dict] = None,
-        api_version: Union[APIVersion, str] = APIVersion.v1,
-        serializer: Union[str, Type[ResponseSerializer]] = ResponseSerializer,
+        timeout: float | None = None,
+        proxies: dict | None = None,
+        api_version: APIVersion | NoneType = None,
+        serializer: type[ResponseSerializer] = ResponseSerializer,
     ):
         super().__init__()
         self.hook = KiotaRequestAdapterHook(
@@ -125,7 +124,7 @@ class MSGraphTrigger(BaseTrigger):
         )()
 
     @classmethod
-    def resolve_type(cls, value: Union[str, Type], default) -> Type:
+    def resolve_type(cls, value: str | type, default) -> type:
         if isinstance(value, str):
             try:
                 return import_string(value)
@@ -163,11 +162,11 @@ class MSGraphTrigger(BaseTrigger):
         return self.hook.conn_id
 
     @property
-    def timeout(self) -> Optional[float]:
+    def timeout(self) -> float | None:
         return self.hook.timeout
 
     @property
-    def proxies(self) -> Optional[Dict]:
+    def proxies(self) -> dict | None:
         return self.hook.proxies
 
     @property
@@ -242,7 +241,7 @@ class MSGraphTrigger(BaseTrigger):
         return request_information
 
     @staticmethod
-    def error_mapping() -> Dict[str, Optional[ParsableFactory]]:
+    def error_mapping() -> dict[str, Optional[ParsableFactory]]:
         return {
             "4XX": APIError,
             "5XX": APIError,

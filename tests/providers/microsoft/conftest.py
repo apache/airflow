@@ -21,7 +21,7 @@ import json
 import random
 import string
 from os.path import join, dirname
-from typing import TypeVar, Iterable, Any, Optional, Dict
+from typing import TypeVar, Iterable, Any, Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -75,7 +75,7 @@ def mocked_connection(request, create_mock_connection):
     return create_mock_connection(request.param)
 
 
-def mock_connection(schema: Optional[str] = None, host: Optional[str] = None) -> Connection:
+def mock_connection(schema: str | None = None, host: str | None = None) -> Connection:
     connection = MagicMock(spec=Connection)
     connection.schema = schema
     connection.host = host
@@ -115,7 +115,7 @@ def get_airflow_connection(
         login: str = "client_id",
         password: str = "client_secret",
         tenant_id: str = "tenant-id",
-        proxies: Optional[Dict] = None,
+        proxies: dict | None = None,
         api_version: APIVersion = APIVersion.v1):
     from airflow.models import Connection
 

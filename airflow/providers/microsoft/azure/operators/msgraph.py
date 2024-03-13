@@ -17,18 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from types import NoneType
 from typing import (
-    Dict,
-    Optional,
     Any,
     TYPE_CHECKING,
     Sequence,
-    Callable,
-    Type,
+    Callable, Optional,
 )
 
-from airflow import AirflowException
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.serialization.serializer import (
@@ -80,28 +77,28 @@ class MSGraphAsyncOperator(BaseOperator):
     def __init__(
         self,
         *,
-        url: Optional[str] = None,
-        response_type: Optional[ResponseType] = None,
+        url: str | None = None,
+        response_type: ResponseType | NoneType = None,
         response_handler: Callable[
-            [NativeResponseType, Optional[Dict[str, Optional[ParsableFactory]]]], Any
+            [NativeResponseType, Optional[dict[str, Optional[ParsableFactory]]]], Any
         ] = lambda response, error_map: response.json(),
-        path_parameters: Optional[Dict[str, Any]] = None,
-        url_template: Optional[str] = None,
+        path_parameters: Optional[dict[str, Any]] = None,
+        url_template: str | None = None,
         method: str = "GET",
-        query_parameters: Optional[Dict[str, QueryParams]] = None,
-        headers: Optional[Dict[str, str]] = None,
-        content: Optional[BytesIO] = None,
+        query_parameters: dict[str, QueryParams] | None = None,
+        headers: dict[str, str] | None = None,
+        content: BytesIO | NoneType = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         key: str = XCOM_RETURN_KEY,
-        timeout: Optional[float] = None,
-        proxies: Optional[Dict] = None,
-        api_version: Optional[APIVersion] = None,
+        timeout: float | None = None,
+        proxies: dict | None = None,
+        api_version: APIVersion | NoneType = None,
         result_processor: Callable[
             [Context, Any], Any
         ] = lambda context, result: result,
-        serializer: Type[ResponseSerializer] = ResponseSerializer,
+        serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
-    ) -> None:
+    ):
         super().__init__(**kwargs)
         self.url = url
         self.response_type = response_type
@@ -145,7 +142,7 @@ class MSGraphAsyncOperator(BaseOperator):
     def execute_complete(
         self,
         context: Context,
-        event: Optional[Dict[Any, Any]] = None,
+        event: dict[Any, Any] | None = None,
     ) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
@@ -227,7 +224,7 @@ class MSGraphAsyncOperator(BaseOperator):
             self.xcom_push(context=context, key=self.key, value=value)
 
     def pull_execute_complete(
-        self, context: Context, event: Optional[Dict[Any, Any]] = None
+        self, context: Context, event: dict[Any, Any] | None = None
     ) -> Any:
         self.results = list(
             self.xcom_pull(

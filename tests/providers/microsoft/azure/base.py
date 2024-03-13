@@ -18,17 +18,17 @@ import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from typing import List, Tuple, Any, Iterable, Union, Optional
+from typing import Any, Iterable, Union, Optional
 from unittest.mock import patch
 
 import pytest
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session  # type: ignore[TCH002]
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import Operator, TaskInstance
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent  # type: ignore[TCH001]
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -81,13 +81,13 @@ class Base:
             yield
 
     @staticmethod
-    async def run_tigger(trigger: BaseTrigger) -> List[TriggerEvent]:
+    async def run_tigger(trigger: BaseTrigger) -> list[TriggerEvent]:
         events = []
         async for event in trigger.run():
             events.append(event)
         return events
 
-    def execute_operator(self, operator: Operator) -> Tuple[Any, Any]:
+    def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
         task_instance = MockedTaskInstance(task=operator, run_id="run_id", state=TaskInstanceState.RUNNING)
         context = {"ti": task_instance}
         result = None

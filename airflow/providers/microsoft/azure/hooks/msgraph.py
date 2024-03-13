@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, Optional, Union, TYPE_CHECKING, Tuple
+from typing import Optional, Union, TYPE_CHECKING, Tuple
 from urllib.parse import urljoin
 
 import httpx
@@ -52,16 +52,17 @@ class KiotaRequestAdapterHook(BaseHook):
         or you can pass a string as "v1.0" or "beta".
     """
 
-    cached_request_adapters: Dict[str, Tuple[APIVersion, RequestAdapter]] = {}
+    cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
     default_conn_name: str = "msgraph_default"
 
     def __init__(
         self,
         conn_id: str = default_conn_name,
-        timeout: Optional[float] = None,
-        proxies: Optional[Dict] = None,
-        api_version: Optional[Union[APIVersion, str]] = None,
-    ) -> None:
+        timeout: float | None = None,
+        proxies: dict | None = None,
+        api_version: APIVersion | str | None = None,
+    ):
+        super().__init__()
         self.conn_id = conn_id
         self.timeout = timeout
         self.proxies = proxies
@@ -83,7 +84,7 @@ class KiotaRequestAdapterHook(BaseHook):
             default,
         )
 
-    def get_api_version(self, config: Dict) -> APIVersion:
+    def get_api_version(self, config: dict) -> APIVersion:
         if self._api_version is None:
             return self.resolve_api_version_from_value(
                 api_version=config.get("api_version"), default=APIVersion.v1
@@ -97,7 +98,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return NationalClouds.Global.value
 
     @staticmethod
-    def to_httpx_proxies(proxies: Dict) -> Dict:
+    def to_httpx_proxies(proxies: dict) -> dict:
         proxies = proxies.copy()
         if proxies.get("http"):
             proxies["http://"] = proxies.pop("http")
