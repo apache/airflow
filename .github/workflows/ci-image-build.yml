@@ -87,11 +87,14 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        python-version: ${{fromJson(inputs.python-versions)}}
+        # yamllint disable-line rule:line-length
+        python-version: ${{ inputs.do-build == 'true' && fromJson(inputs.python-versions) || fromJson('[""]') }}
     timeout-minutes: 110
-    name: >
-      ${{ inputs.do-build == 'true' && 'Build' || 'Skip build' }}
-      CI ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
+    name: "\
+${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
+CI ${{inputs.build-type}} image\
+${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     runs-on: ${{fromJson(inputs.runs-on)}}
     env:
       BACKEND: sqlite
@@ -117,7 +120,7 @@ jobs:
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
-        if: inputs.skip-build != 'true' && inputs.upgrade-to-newer-dependencies != 'false'
+        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: inputs.do-build == 'true' && inputs.platform == 'arm64'
