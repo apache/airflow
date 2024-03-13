@@ -1193,7 +1193,7 @@
   "zendesk": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "zenpy>=2.0.24"
+      "zenpy>=2.0.40"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
