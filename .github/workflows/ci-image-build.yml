@@ -117,7 +117,7 @@ jobs:
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
-        if: inputs.skip-build != 'true' && inputs.upgrade-to-newer-dependencies != 'false'
+        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: inputs.do-build == 'true' && inputs.platform == 'arm64'
