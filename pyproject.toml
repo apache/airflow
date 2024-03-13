@@ -86,7 +86,7 @@ dependencies = [
     "connexion[flask]>=2.10.0,<3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=0.3.17",
-    "cryptography>=0.9.3",
+    "cryptography>=39.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=1.5.0",
@@ -244,7 +244,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.17",
+    "uv>=0.1.18",
 ]
 virtualenv = [
     "virtualenv",
@@ -971,7 +971,7 @@ yandex = [ # source: airflow/providers/yandex/provider.yaml
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
-  "zenpy>=2.0.24",
+  "zenpy>=2.0.40",
 ]
 all = [
     # core extras
