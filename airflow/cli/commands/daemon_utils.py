@@ -51,8 +51,8 @@ def run_command_with_daemon_option(
         pid, stdout, stderr, log_file = setup_locations(
             process=process_name, stdout=args.stdout, stderr=args.stderr, log=args.log_file
         )
-        if pid_file:
-            pid = pid_file
+        if pid_file or args.pid:
+            pid = pid_file or args.pid
 
         # Check if the process is already running; if not but a pidfile exists, clean it up
         check_if_pidfile_process_is_running(pid_file=pid, process_name=process_name)
