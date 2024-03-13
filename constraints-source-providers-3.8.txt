@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-11T21:12:55.252950
+# This constraints file was automatically generated on 2024-03-13T08:12:46.021012
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -145,10 +145,10 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.53
+cohere==4.54
 colorama==0.4.6
 colorlog==4.8.0
-comm==0.2.1
+comm==0.2.2
 confluent-kafka==2.3.0
 connexion==2.14.2
 coverage==7.4.3
@@ -158,7 +158,7 @@ croniter==2.0.2
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.4
-datadog==0.48.0
+datadog==0.49.0
 db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
@@ -203,7 +203,7 @@ gitdb==4.0.11
 google-ads==23.1.0
 google-analytics-admin==0.22.7
 google-api-core==2.17.1
-google-api-python-client==2.121.0
+google-api-python-client==2.122.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.28.2
@@ -265,7 +265,7 @@ gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.9.3
+hatch==1.9.4
 hatchling==1.21.1
 hdfs==2.7.3
 hmsclient==0.1.1
@@ -310,8 +310,8 @@ jsonschema-path==0.3.2
 jsonschema-specifications==2023.12.1
 jsonschema==4.21.1
 junit-xml==1.9
-jupyter_client==8.6.0
-jupyter_core==5.7.1
+jupyter_client==8.6.1
+jupyter_core==5.7.2
 keyring==24.3.1
 kombu==5.3.5
 krb5==0.5.1
@@ -324,7 +324,7 @@ limits==3.10.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.2.0
+looker-sdk==24.2.1
 lxml==5.1.0
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -353,8 +353,8 @@ mypy-extensions==1.0.0
 mypy==1.8.0
 mysql-connector-python==8.3.0
 mysqlclient==2.2.4
-nbclient==0.9.0
-nbformat==5.9.2
+nbclient==0.10.0
+nbformat==5.10.2
 neo4j==5.18.0
 nest-asyncio==1.6.0
 networkx==3.1
@@ -434,7 +434,7 @@ pyasn1==0.5.1
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.20.0
-pydantic==2.6.3
+pydantic==2.6.4
 pydantic_core==2.16.3
 pydata-google-auth==1.8.2
 pydot==1.4.2
@@ -494,7 +494,7 @@ restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
-rich-click==1.7.3
+rich-click==1.7.4
 rich==13.7.1
 rpds-py==0.18.0
 rsa==4.9
@@ -567,7 +567,7 @@ tomlkit==0.12.4
 tornado==6.4
 towncrier==23.11.0
 tqdm==4.66.2
-traitlets==5.14.1
+traitlets==5.14.2
 trino==0.328.0
 trove-classifiers==2024.3.3
 twine==5.0.0
@@ -614,11 +614,11 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.263.0
+yandexcloud==0.264.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.47
-zipp==3.17.0
+zipp==3.18.0
 zope.event==5.0
 zope.interface==6.2
 zstandard==0.22.0

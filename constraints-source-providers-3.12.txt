@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-11T21:12:54.969888
+# This constraints file was automatically generated on 2024-03-13T08:12:45.808548
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -121,7 +121,6 @@ boto3==1.34.51
 botocore==1.34.51
 cachelib==0.9.0
 cachetools==5.3.3
-cassandra-driver==3.29.0
 cattrs==23.2.3
 celery==5.3.6
 certifi==2024.2.2
@@ -139,7 +138,7 @@ click-repl==0.3.0
 click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
-cohere==4.53
+cohere==4.54
 colorama==0.4.6
 colorlog==4.8.0
 confluent-kafka==2.3.0
@@ -150,12 +149,10 @@ cron-descriptor==1.4.3
 croniter==2.0.2
 cryptography==41.0.7
 curlify==2.2.1
-databricks-sql-connector==2.9.4
-datadog==0.48.0
+datadog==0.49.0
 db-dtypes==1.2.0
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.16.0
 dill==0.3.8
 distlib==0.3.8
 distro==1.9.0
@@ -170,7 +167,6 @@ elasticsearch==8.12.1
 email-validator==1.3.1
 enum34==1.1.10
 eralchemy2==1.3.8
-et-xmlfile==1.1.0
 eventlet==0.35.2
 execnet==2.0.2
 executing==2.0.1
@@ -185,13 +181,12 @@ gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.2.0
 gcsfs==2023.12.2.post1
-geomet==0.2.1.post1
 gevent==24.2.1
 gitdb==4.0.11
 google-ads==23.1.0
 google-analytics-admin==0.22.7
 google-api-core==2.17.1
-google-api-python-client==2.121.0
+google-api-python-client==2.122.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.28.2
@@ -253,7 +248,7 @@ gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
 h2==4.1.0
-hatch==1.9.3
+hatch==1.9.4
 hatchling==1.21.1
 hdfs==2.7.3
 hmsclient==0.1.1
@@ -271,7 +266,7 @@ idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.1.3
+importlib_resources==6.3.0
 impyla==0.19.0
 incremental==22.10.0
 inflection==0.5.1
@@ -309,9 +304,8 @@ limits==3.10.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
 loguru==0.7.2
-looker-sdk==24.2.0
+looker-sdk==24.2.1
 lxml==5.1.0
-lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.26.1
@@ -350,7 +344,6 @@ openapi-spec-validator==0.7.1
 openlineage-integration-common==1.9.1
 openlineage-python==1.9.1
 openlineage_sql==1.9.1
-openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.23.0
 opentelemetry-exporter-otlp-proto-common==1.23.0
@@ -404,14 +397,13 @@ pure-sasl==0.6.2
 py-partiql-parser==0.5.1
 py4j==0.10.9.7
 pyOpenSSL==24.1.0
-pyarrow-hotfix==0.6
 pyarrow==15.0.1
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
 pycountry==23.12.11
 pycparser==2.21
 pycryptodome==3.20.0
-pydantic==2.6.3
+pydantic==2.6.4
 pydantic_core==2.16.3
 pydata-google-auth==1.8.2
 pydruid==0.6.6
@@ -468,7 +460,7 @@ restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
-rich-click==1.7.3
+rich-click==1.7.4
 rich==13.7.1
 rpds-py==0.18.0
 rsa==4.9
@@ -540,7 +532,7 @@ tomlkit==0.12.4
 tornado==6.4
 towncrier==23.11.0
 tqdm==4.66.2
-traitlets==5.14.1
+traitlets==5.14.2
 trino==0.328.0
 trove-classifiers==2024.3.3
 twine==5.0.0
@@ -587,11 +579,11 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.263.0
+yandexcloud==0.264.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.47
-zipp==3.17.0
+zipp==3.18.0
 zope.event==5.0
 zope.interface==6.2
 zstandard==0.22.0
