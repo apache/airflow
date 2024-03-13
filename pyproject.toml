@@ -819,6 +819,7 @@ microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "azure-storage-file-share",
   "azure-synapse-artifacts>=0.17.0",
   "azure-synapse-spark",
+  "msgraph-core>=1.0.0",
   # Devel dependencies for the microsoft.azure provider
   "pywinrm",
 ]
