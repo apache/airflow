@@ -255,9 +255,6 @@ class AwsEcsExecutor(BaseExecutor):
             )
             self.success(task_key)
             self.active_workers.pop_by_key(task_key)
-        elif task_state == State.REMOVED:
-            self.__log_container_failures(task_arn=task.task_arn)
-            self.__handle_failed_task(task.task_arn, task.stopped_reason)
 
     def __describe_tasks(self, task_arns):
         all_task_descriptions = {"tasks": [], "failures": []}

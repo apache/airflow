@@ -616,7 +616,8 @@ class TestAwsEcsExecutor:
                 "taskArn": ARN1,
                 "desiredStatus": "STOPPED",
                 "lastStatus": "FAILED",
-                "stoppedReason": "Reason for task 1",
+                "startedAt": dt.datetime.now(),
+                "stoppedReason": "Task marked as FAILED",
                 "containers": [
                     {
                         "name": "some-ecs-container",
@@ -629,7 +630,7 @@ class TestAwsEcsExecutor:
                 "taskArn": ARN2,
                 "desiredStatus": "STOPPED",
                 "lastStatus": "FAILED",
-                "stoppedReason": "Reason for task 2",
+                "stoppedReason": "Task marked as REMOVED",
                 "containers": [
                     {
                         "name": "some-ecs-container",
@@ -753,6 +754,7 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "success")
     def test_failed_sync(self, success_mock, fail_mock, mock_executor):
         """Test success and failure states."""
+        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
         self._mock_sync(mock_executor, State.FAILED)
 
         mock_executor.sync()
@@ -760,22 +762,23 @@ class TestAwsEcsExecutor:
 
         # Task is not stored in active workers.
         assert len(mock_executor.active_workers) == 0
-        # Task is immediately succeeded.
+        # Task is immediately failed.
         fail_mock.assert_called_once()
         success_mock.assert_not_called()
 
-    @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
+    @mock.patch.object(BaseExecutor, "fail")
     def test_removed_sync(self, fail_mock, success_mock, mock_executor):
-        """A removed task will increment failure count but call neither fail() nor success()."""
+        """A removed task will be treated as a failed task."""
+        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
         self._mock_sync(mock_executor, expected_state=State.REMOVED, set_task_state=State.REMOVED)
-        task_instance_key = mock_executor.active_workers.arn_to_key[ARN1]
 
         mock_executor.sync_running_tasks()
 
-        assert ARN1 in mock_executor.active_workers.get_all_arns()
-        assert mock_executor.active_workers.key_to_failure_counts[task_instance_key] == 2
-        fail_mock.assert_not_called()
+        # Task is not stored in active workers.
+        assert len(mock_executor.active_workers) == 0
+        # Task is immediately failed.
+        fail_mock.assert_called_once()
         success_mock.assert_not_called()
 
     @mock.patch.object(BaseExecutor, "fail")
@@ -822,19 +825,27 @@ class TestAwsEcsExecutor:
             ],
         }
 
-        # Call sync_running_tasks 2 times with failures.
+        # Call sync_running_tasks and attempt_task_runs 2 times with failures.
         for _ in range(2):
             mock_executor.sync_running_tasks()
 
-            # Ensure task arn is not removed from active.
+            # Ensure task gets removed from active_workers.
+            assert ARN1 not in mock_executor.active_workers.get_all_arns()
+            # Ensure task gets back on the pending_tasks queue
+            assert len(mock_executor.pending_tasks) == 1
+            keys = [task.key for task in mock_executor.pending_tasks]
+            assert task_key in keys
+
+            mock_executor.attempt_task_runs()
+            assert len(mock_executor.pending_tasks) == 0
             assert ARN1 in mock_executor.active_workers.get_all_arns()
 
-            # Task is neither failed nor succeeded.
-            fail_mock.assert_not_called()
-            success_mock.assert_not_called()
+        # Task is neither failed nor succeeded.
+        fail_mock.assert_not_called()
+        success_mock.assert_not_called()
 
-        # run_task failed twice, and passed once
-        assert mock_executor.ecs.run_task.call_count == 3
+        # run_task failed twice, and passed 3 times
+        assert mock_executor.ecs.run_task.call_count == 5
         # describe_tasks failed 2 times so far
         assert mock_executor.ecs.describe_tasks.call_count == 2
 
@@ -855,27 +866,60 @@ class TestAwsEcsExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync_api(self, success_mock, fail_mock, mock_executor):
+    @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
+    def test_failed_sync_api(self, _, success_mock, fail_mock, mock_executor):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
-        self._mock_sync(mock_executor)
-        mock_executor.ecs.describe_tasks.return_value = {
+        airflow_key = "test-key"
+        airflow_cmd = mock.Mock(spec=list)
+        mock_executor.execute_async(airflow_key, airflow_cmd)
+        assert len(mock_executor.pending_tasks) == 1
+
+        run_task_ret_val = {
+            "taskArn": ARN1,
+            "desiredStatus": "STOPPED",
+            "lastStatus": "RUNNING",
+            "containers": [
+                {
+                    "name": "some-ecs-container",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 0,
+                }
+            ],
+        }
+        mock_executor.ecs.run_task.return_value = {"tasks": [run_task_ret_val], "failures": []}
+        describe_tasks_ret_value = {
             "tasks": [],
             "failures": [
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
+        mock_executor.ecs.describe_tasks.return_value = describe_tasks_ret_value
+        mock_executor.attempt_task_runs()
+        assert len(mock_executor.pending_tasks) == 0
+        assert len(mock_executor.active_workers.get_all_arns()) == 1
+        task_key = mock_executor.active_workers.arn_to_key[ARN1]
 
         # Call Sync 2 times with failures. The task can only fail MAX_RUN_TASK_ATTEMPTS times.
         for check_count in range(1, int(AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS)):
             mock_executor.sync_running_tasks()
             assert mock_executor.ecs.describe_tasks.call_count == check_count
 
-            # Ensure task arn is not removed from active.
-            assert ARN1 in mock_executor.active_workers.get_all_arns()
+            # Ensure task gets removed from active_workers.
+            assert ARN1 not in mock_executor.active_workers.get_all_arns()
+            # Ensure task gets back on the pending_tasks queue
+            assert len(mock_executor.pending_tasks) == 1
+            keys = [task.key for task in mock_executor.pending_tasks]
+            assert task_key in keys
 
             # Task is neither failed nor succeeded.
             fail_mock.assert_not_called()
             success_mock.assert_not_called()
+            mock_executor.attempt_task_runs()
+
+            assert len(mock_executor.pending_tasks) == 0
+            assert len(mock_executor.active_workers.get_all_arns()) == 1
+            assert ARN1 in mock_executor.active_workers.get_all_arns()
+            task_key = mock_executor.active_workers.arn_to_key[ARN1]
 
         # Last call should fail the task.
         mock_executor.sync_running_tasks()
@@ -1002,6 +1046,7 @@ class TestAwsEcsExecutor:
         set_task_state=TaskInstanceState.RUNNING,
     ) -> None:
         """Mock ECS to the expected state."""
+        executor.pending_tasks.clear()
         self._add_mock_task(executor, ARN1, set_task_state)
 
         response_task_json = {
@@ -1062,9 +1107,13 @@ class TestAwsEcsExecutor:
         }
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
         mock_executor.sync_running_tasks()
-        assert mock_executor.active_workers.tasks["arn1"].get_task_state() == expected_status
-        # The task is not removed from active_workers in these states
-        assert len(mock_executor.active_workers) == 1
+        if expected_status != State.REMOVED:
+            assert mock_executor.active_workers.tasks["arn1"].get_task_state() == expected_status
+            # The task is not removed from active_workers in these states
+            assert len(mock_executor.active_workers) == 1
+        else:
+            # The task is removed from active_workers in this state
+            assert len(mock_executor.active_workers) == 0
 
     def test_update_running_tasks_success(self, mock_executor):
         self._add_mock_task(mock_executor, ARN1)
@@ -1091,6 +1140,7 @@ class TestAwsEcsExecutor:
         mock_success_function.assert_called_once()
 
     def test_update_running_tasks_failed(self, mock_executor, caplog):
+        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "1"
         caplog.set_level(logging.WARNING)
         self._add_mock_task(mock_executor, ARN1)
         test_response_task_json = {
