@@ -113,15 +113,19 @@ def test_mapped_task_upstream_dep(
             return x + y
 
         @task_group
-        def g(x, y):
-            return m(x, y)
+        def g1(x, y):
+            @task_group
+            def g2():
+                return m(x, y)
+
+            return g2()
 
         if testcase == "task":
             m.expand(x=t.override(task_id="t1")(), y=t.override(task_id="t2")())
         else:
-            g.expand(x=t.override(task_id="t1")(), y=t.override(task_id="t2")())
+            g1.expand(x=t.override(task_id="t1")(), y=t.override(task_id="t2")())
 
-    mapped_task = "m" if testcase == "task" else "g.m"
+    mapped_task = "m" if testcase == "task" else "g1.g2.m"
 
     dr: DagRun = dag_maker.create_dagrun()
     tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
