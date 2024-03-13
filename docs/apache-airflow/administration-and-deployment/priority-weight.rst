@@ -24,6 +24,11 @@ Priority Weights
 bumped to any integer. Moreover, each task has a true ``priority_weight`` that is calculated based on its
 ``weight_rule`` which defines the weighting method used for the effective total priority weight of the task.
 
+.. versionadded:: 2.9.0
+
+    Total priority weight should be in range between **-2,147,483,648** and **2,147,483,647**.
+    In case of overflow it fallback to the boundaries of allowed range.
+
 Below are the weighting methods. By default, Airflow's weighting method is ``downstream``.
 
 

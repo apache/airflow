@@ -19,10 +19,12 @@ from __future__ import annotations
 
 import datetime
 import inspect
-from functools import cached_property
+import warnings
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
 from sqlalchemy import select
+from typing_extensions import final
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -76,6 +78,29 @@ DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
+
+
+def _priority_weight_limiter(prop: Callable[..., int]) -> Callable[..., int]:
+    weight_upper_bound = 2**31 - 1
+    weight_lower_bound = -(2**31)
+
+    @wraps(prop)
+    def wrapper(self: AbstractOperator) -> int:
+        weight_total = prop(self)
+        if not (weight_upper_bound >= weight_total >= weight_lower_bound):
+            msg = f"Task {self.task_id!r} total priority {weight_total:,} "
+            if dag := self.get_dag():
+                msg += f"in dag {dag.dag_id!r} "
+            weight_total = weight_upper_bound if weight_total > weight_upper_bound else weight_lower_bound
+            msg += (
+                f"exceeds allowed priority weight range [{weight_upper_bound:,}..{weight_lower_bound:,}]. "
+                f"Fallback to {weight_total:,}."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=2)
+
+        return weight_total
+
+    return wrapper
 
 
 class NotMapped(Exception):
@@ -386,7 +411,9 @@ class AbstractOperator(Templater, DAGNode):
         """
         raise NotImplementedError()
 
+    @final
     @property
+    @_priority_weight_limiter
     def priority_weight_total(self) -> int:
         """
         Total priority weight for the task. It might include all upstream or downstream tasks.
