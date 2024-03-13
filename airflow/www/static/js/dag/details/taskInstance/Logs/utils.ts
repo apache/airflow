@@ -127,14 +127,14 @@ export const parseLogs = (
           const gId = gName.replace(/\W+/g, "_").toLowerCase();
           const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
           const ufDisplay = isFolded ? "" : "display:none;";
-          const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#11208; ${gName}</span>`;
+          const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#9654; ${gName}</span>`;
           const fDisplay = isFolded ? "display:none;" : "";
-          const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+          const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
           return unfold + fold;
         })
         .replace(
           logGroupEnd,
-          " <span style='color:#0060df;'>&#11205;&#11205;&#11205; Log group end</span></span>"
+          " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
         );
       parsedLines.push(lineWithHyperlinks);
     }

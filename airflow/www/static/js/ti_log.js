@@ -165,13 +165,13 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           .replaceAll(logGroupStart, (line) => {
             const gName = line.substring(17);
             const gId = gName.replaceAll(/\W+/g, "_").toLowerCase();
-            const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${logGroupStyle}"> &#11208; ${gName}</span>`;
-            const fold = `<span style="display:none;"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#11206; ${gName}</span>`;
+            const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${logGroupStyle}"> &#9654; ${gName}</span>`;
+            const fold = `<span style="display:none;"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
             return unfold + fold;
           })
           .replaceAll(
             logGroupEnd,
-            " <span style='color:#0060df;'>&#11205;&#11205;&#11205; Log group end</span></span>"
+            " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
           );
         logBlock.innerHTML += `${linkifiedMessage}`;
       });
