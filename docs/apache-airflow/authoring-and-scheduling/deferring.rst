@@ -18,7 +18,7 @@
 Deferrable Operators & Triggers
 ===============================
 
-Standard :doc:`Operators </core-concepts/operators>` and :doc:`Sensors <../core-concepts/sensors>` take up a full *worker slot* for the entire time they are running, even if they are idle. For example, if you only have 100 worker slots available to run tasks, and you have 100 DAGs waiting on a sensor that's currently running but idle, then you *cannot run anything else* - even though your entire Airflow cluster is essentially idle. ``reschedule`` mode for sensors solves some of this, by allowing sensors to only run at fixed intervals, but it is inflexible and only allows using time as the reason to resume, not other criteria.
+Standard :doc:`Operators </core-concepts/operators>` and :doc:`Sensors <../core-concepts/sensors>` take up a full *worker slot* for the entire time they are running, even if they are idle. For example, if you only have 100 worker slots available to run tasks, and you have 100 DAGs waiting on a sensor that's currently running but idle, or 100 DAGs waiting on a Operator that's in ``up_for_retry`` state, then you *cannot run anything else* - even though your entire Airflow cluster is essentially idle. ``reschedule`` mode for sensors solves some of this, by allowing sensors to only run at fixed intervals, but it is inflexible and only allows using time as the reason to resume, not other criteria.
 
 This is where *Deferrable Operators* can be used. When it has nothing to do but wait, an operator can suspend itself and free up the worker for other processes by *deferring*. When an operator defers, execution moves to the triggerer, where the trigger specified by the operator will run.  The trigger can do the polling or waiting required by the operator. Then, when the trigger finishes polling or waiting, it sends a signal for the operator to resume its execution. During the deferred phase of execution, since work has been offloaded to the triggerer, the task no longer occupies a worker slot, and you have more free workload capacity. By default, tasks in a deferred state don't occupy pool slots. If you would like them to, you can change this by editing the pool in question.
 
@@ -257,3 +257,24 @@ In Airflow, sensors wait for specific conditions to be met before proceeding wit
 | Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
 |                                                        |  external changes                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
+
+Difference between ``up_for_retry`` and ``deferred`` state
+-------------------------------------------------------------------
+
+In Airflow, operators that's in `up_for_retry` state will still take worker slots, becasue the process still runs and does ``sleep`` there. Deferral Operators 
+
+In Airflow when a operator is in the ``up_for_retry`` state, it essentially means the operator is waiting to be retried after a failure, but it does not release its resources. The process remains alive, keeping its memory, sockets, and other resources allocated, except for the CPU. The ``deferred`` state, utilized only by Deferrable Operators, offers a more sophisticated approach to handling wait conditions. Deferrable Operators serialize and store the task's state, freeing all resources. When a condition is met, the task is deserialized and resumes operation, optimizing resource use by not holding onto resources during wait periods.
+
++--------------------------------------------------------+--------------------------------------------------------+
+|           state='up_for_retry'                         |          state='deferred'                              |
++========================================================+========================================================+
+| Keeps resources while waiting.                         |  Releases resources, pauses execution when idle,       |
+|                                                        |  resumes when condition                                |
++--------------------------------------------------------+--------------------------------------------------------+
+| Suitable for shorter retry delay conditions.           |  Recommended for long retry delay                      |
+|                                                        |                                                        |
++--------------------------------------------------------+--------------------------------------------------------+
+| Built-in functionality for retrying                    |  Requires custom logic to defer task and handle        |
+|                                                        |  external changes                                      |
++--------------------------------------------------------+--------------------------------------------------------+
+
