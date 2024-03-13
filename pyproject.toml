@@ -970,7 +970,7 @@ yandex = [ # source: airflow/providers/yandex/provider.yaml
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
-  "zenpy>=2.0.24",
+  "zenpy>=2.0.40",
 ]
 all = [
     # core extras
