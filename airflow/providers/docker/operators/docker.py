@@ -176,6 +176,8 @@ class DockerOperator(BaseOperator):
         Incompatible with ``"host"`` in ``network_mode``.
     :param ulimits: List of ulimit options to set for the container. Each item should
         be a :py:class:`docker.types.Ulimit` instance.
+    :param execute_log_formatter: The logging formatter is applied when the Docker
+        container is being executed. The input should be a logging.Formatter object.
     """
 
     # !!! Changes in DockerOperator's arguments should be also reflected in !!!
@@ -239,6 +241,7 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        container_log_formatter: logging.Formatter | None = None,
         **kwargs,
     ) -> None:
         if skip_exit_code := kwargs.pop("skip_exit_code", None):
@@ -328,6 +331,7 @@ class DockerOperator(BaseOperator):
         if self.port_bindings and self.network_mode == "host":
             raise ValueError("Port bindings is not supported in the host network mode")
         self._log_formatter_backup = {handler: handler.formatter for handler in self.log.handlers}
+        self.container_log_formatter = container_log_formatter
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -382,9 +386,9 @@ class DockerOperator(BaseOperator):
         for handler, formatter in self._log_formatter_backup.items():
             handler.setFormatter(formatter)
 
-    def _change_log_formatters(self, new_format):
+    def _change_log_formatters(self):
         for handler in self.log.handlers:
-            handler.setFormatter(logging.Formatter(new_format))
+            handler.setFormatter(logging.Formatter(self.container_log_formatter))
 
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
@@ -431,7 +435,7 @@ class DockerOperator(BaseOperator):
         )
         logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
-            self._change_log_formatters('%(message)s')
+            self._change_log_formatters()
 
             self.cli.start(self.container["Id"])
 

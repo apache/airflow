@@ -156,6 +156,12 @@ port_bindings
 ulimits
     List of ulimit options to set for the container.
     Each item should be a ``docker.types.Ulimit`` instance.
+container_log_formatter
+    A logging formatter applied on logs from container. Note that this will not
+    change the format of the container logs themselves. Instead, it will change
+    the DockerOperator logging format when it wraps the container logs. It takes
+    a python standard logging.Formatter object.
+    e.g. logging.Formatter("%(message)s")
 
 
 Usage Example

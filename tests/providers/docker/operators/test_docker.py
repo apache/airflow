@@ -728,6 +728,19 @@ class TestDockerOperator:
         assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
         assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]
 
+    def test_change_and_restore_formatter(self):
+        formatter = logging.Formatter("%(message)s - Custom Container Log Formatter")
+        operator = DockerOperator(task_id="test", image="test", container_log_formatter=formatter)
+        default_formatters = {handler: handler.formatter for handler in operator.log.handlers}
+        assert operator.container_log_formatter == formatter
+        assert operator._log_formatter_backup == default_formatters
+        operator._change_log_formatters()
+        for handler in operator.log.handlers:
+            assert formatter == handler.formatter
+        operator._restore_log_formatters()
+        assert operator.container_log_formatter == formatter
+        assert operator._log_formatter_backup == default_formatters
+
     @pytest.mark.parametrize(
         "auto_remove, expected",
         [
