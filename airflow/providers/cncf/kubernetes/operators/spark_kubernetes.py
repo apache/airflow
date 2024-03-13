@@ -72,6 +72,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
 
+    BASE_CONTAINER_NAME = "spark-kubernetes-driver"
+
     def __init__(
         self,
         *,
@@ -108,6 +110,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
+
+        if self.base_container_name != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "base_container_name is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.base_container_name = self.BASE_CONTAINER_NAME
+
+        if self.get_logs and self.container_logs != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "container_logs is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.container_logs = [self.BASE_CONTAINER_NAME]
 
     def _render_nested_template_fields(
         self,
@@ -273,7 +287,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)
