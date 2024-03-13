@@ -26,13 +26,14 @@ import abc
 import collections.abc
 import contextlib
 import copy
+import functools
 import logging
 import os
 import sys
 import traceback
 import warnings
 from datetime import datetime, timedelta
-from functools import partial, total_ordering, wraps
+from functools import total_ordering, wraps
 from inspect import signature
 from traceback import FrameSummary
 from types import FunctionType
@@ -1673,7 +1674,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:
-            execute_callable = partial(execute_callable, **next_kwargs)
+            execute_callable = functools.partial(execute_callable, **next_kwargs)
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
