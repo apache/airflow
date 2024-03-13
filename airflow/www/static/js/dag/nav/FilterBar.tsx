@@ -137,20 +137,6 @@ const FilterBar = () => {
             {...(isBaseDateDefault ? {} : filteredStyles)}
           />
         </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            placeholder="Runs"
-            value={numRuns || ""}
-            onChange={(e) => onNumRunsChange(e.target.value)}
-          >
-            {filtersOptions.numRuns.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
-        </Box>
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...runTypeStyles}
@@ -202,7 +188,24 @@ const FilterBar = () => {
           </Button>
         </Box>
       </Flex>
-      <AutoRefresh />
+      <Flex>
+        <AutoRefresh />
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            placeholder="Runs"
+            value={numRuns || ""}
+            onChange={(e) => onNumRunsChange(e.target.value)}
+            aria-label="Number of runs to display in grid"
+          >
+            {filtersOptions.numRuns.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </Box>
+      </Flex>
     </Flex>
   );
 };
