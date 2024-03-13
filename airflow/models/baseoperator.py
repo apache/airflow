@@ -32,7 +32,7 @@ import sys
 import traceback
 import warnings
 from datetime import datetime, timedelta
-from functools import total_ordering, wraps
+from functools import partial, total_ordering, wraps
 from inspect import signature
 from traceback import FrameSummary
 from types import FunctionType
@@ -381,14 +381,18 @@ class ExecutorSafeguard:
     @classmethod
     def decorator(cls, func):
         def find_task_instance(frame: FrameSummary):
-            return (frame.name == _execute_task.__name__ and
-                    _execute_task.__module__.replace(".", os.path.sep) in frame.filename)
+            return (
+                frame.name == _execute_task.__name__
+                and _execute_task.__module__.replace(".", os.path.sep) in frame.filename
+            )
 
         def find_decorator_operator(frame: FrameSummary):
             from airflow.decorators.base import DecoratedOperator
 
-            return (frame.name == DecoratedOperator.execute.__name__ and
-                    DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename)
+            return (
+                frame.name == DecoratedOperator.execute.__name__
+                and DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename
+            )
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -1669,7 +1673,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:
-            execute_callable = functools.partial(execute_callable, **next_kwargs)
+            execute_callable = partial(execute_callable, **next_kwargs)
         return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:

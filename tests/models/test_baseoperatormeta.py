@@ -53,7 +53,13 @@ def mock_task_instance(mocker):
     task = MagicMock(spec=BaseOperator)
     task.iter_mapped_dependants = iter([])
     task.email = email
-    context = {"params": {}, "task": task, "email_for_state": lambda email: email, "callbacks": {}, "context": {}}
+    context = {
+        "params": {},
+        "task": task,
+        "email_for_state": lambda email: email,
+        "callbacks": {},
+        "context": {},
+    }
     mocker.patch.object(TaskInstance, "get_task_instance", return_value=None)
     mocker.patch.object(TaskInstance, "get_template_context", return_value=context)
     mocker.patch.object(TaskInstance, "render_templates", return_value=None)
@@ -119,8 +125,10 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-        with (patch("airflow.settings.Session", return_value=mock_session),
-              patch("airflow.models.taskinstance._record_task_map_for_downstreams", return_value=None)):
+        with (
+            patch("airflow.settings.Session", return_value=mock_session),
+            patch("airflow.models.taskinstance._record_task_map_for_downstreams", return_value=None),
+        ):
             task_instance = self.create_task_instance(operator=operator)
             task_instance.run(test_mode=True, session=mock_session())
 
