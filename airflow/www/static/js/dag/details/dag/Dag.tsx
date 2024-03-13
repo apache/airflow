@@ -242,6 +242,22 @@ const Dag = () => {
                 </Td>
                 <Td />
               </Tr>
+              {!!dagDetailsData.datasetExpression && (
+                <Tr>
+                  <Td>Dataset Conditions</Td>
+                  <Td>
+                    <Code>
+                      <pre>
+                        {JSON.stringify(
+                          dagDetailsData.datasetExpression,
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </Code>
+                  </Td>
+                </Tr>
+              )}
               {renderDagDetailsData(dagDetailsData, dagDataExcludeFields)}
               <Tr>
                 <Td>Owners</Td>
