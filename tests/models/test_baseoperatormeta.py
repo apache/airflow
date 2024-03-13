@@ -125,10 +125,8 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-        with (
-            patch("airflow.settings.Session", return_value=mock_session),
-            patch("airflow.models.taskinstance._record_task_map_for_downstreams", return_value=None),
-        ):
+        with patch("airflow.settings.Session", return_value=mock_session), \
+             patch("airflow.models.taskinstance._record_task_map_for_downstreams", return_value=None):
             task_instance = self.create_task_instance(operator=operator)
             task_instance.run(test_mode=True, session=mock_session())
 
