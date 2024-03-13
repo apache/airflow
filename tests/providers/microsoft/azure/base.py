@@ -15,11 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import asyncio
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
 from typing import List, Tuple, Any, Iterable, Union, Optional
+from unittest.mock import patch
 
 import pytest
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import TaskDeferred
@@ -29,6 +32,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.xcom import XCOM_RETURN_KEY
+from tests.providers.microsoft.conftest import get_airflow_connection
 
 
 class MockedTaskInstance(TaskInstance):
@@ -65,6 +69,16 @@ class Base:
     def teardown_method(self, method):
         KiotaRequestAdapterHook.cached_request_adapters.clear()
         MockedTaskInstance.values.clear()
+
+    @contextmanager
+    def patch_hook_and_request_adapter(self, response):
+        with patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection), \
+             patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
+            if isinstance(response, Exception):
+                mock_get_http_response.side_effect = response
+            else:
+                mock_get_http_response.return_value = response
+            yield
 
     @staticmethod
     async def run_tigger(trigger: BaseTrigger) -> List[TriggerEvent]:

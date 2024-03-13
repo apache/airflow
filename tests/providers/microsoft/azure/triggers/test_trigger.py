@@ -19,8 +19,6 @@ import locale
 from base64 import b64encode
 from unittest.mock import patch
 
-from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-
 from airflow import AirflowException
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
@@ -34,10 +32,7 @@ class TestMSGraphTrigger(Base):
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
+        with self.patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = self._loop.run_until_complete(self.run_tigger(trigger))
 
@@ -50,10 +45,7 @@ class TestMSGraphTrigger(Base):
     def test_run_when_response_is_none(self):
         response = mock_json_response(200)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
+        with self.patch_hook_and_request_adapter(response):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = self._loop.run_until_complete(self.run_tigger(trigger))
 
@@ -64,10 +56,7 @@ class TestMSGraphTrigger(Base):
             assert actual[0].payload["response"] is None
 
     def test_run_when_response_cannot_be_converted_to_json(self):
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", side_effect=AirflowException()),
-        ):
+        with self.patch_hook_and_request_adapter(AirflowException()):
             trigger = MSGraphTrigger("users/delta", conn_id="msgraph_api")
             actual = next(iter(self._loop.run_until_complete(self.run_tigger(trigger))))
 
@@ -80,10 +69,7 @@ class TestMSGraphTrigger(Base):
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         response = mock_response(200, content)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
+        with self.patch_hook_and_request_adapter(response):
             url = "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
             actual = next(iter(self._loop.run_until_complete(self.run_tigger(trigger))))
@@ -95,10 +81,10 @@ class TestMSGraphTrigger(Base):
             assert actual.payload["response"] == base64_encoded_content
 
     def test_serialize(self):
-        with (patch(
+        with patch(
                 "airflow.hooks.base.BaseHook.get_connection",
                 side_effect=get_airflow_connection,
-        )):
+        ):
             url = "https://graph.microsoft.com/v1.0/me/drive/items"
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
 

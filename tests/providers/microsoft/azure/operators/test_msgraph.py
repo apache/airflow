@@ -17,17 +17,14 @@
 import json
 import locale
 from base64 import b64encode
-from unittest.mock import patch
 
 import pytest
-from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
-from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.exceptions import AirflowException
+from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
-from tests.providers.microsoft.conftest import load_json, mock_json_response, get_airflow_connection, \
-    load_file, mock_response
+from tests.providers.microsoft.conftest import load_json, mock_json_response, load_file, mock_response
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -36,11 +33,7 @@ class TestMSGraphAsyncOperator(Base):
         next_users = load_json("resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
-
+        with self.patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -67,10 +60,7 @@ class TestMSGraphAsyncOperator(Base):
         users.pop("@odata.nextLink")
         response = mock_json_response(200, users)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
+        with self.patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -88,10 +78,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["response"] == json.dumps(users)
 
     def test_run_when_an_exception_occurs(self):
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter,"get_http_response_message", side_effect=AirflowException()),
-        ):
+        with self.patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -108,10 +95,7 @@ class TestMSGraphAsyncOperator(Base):
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
 
-        with (
-            patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection),
-            patch.object(HttpxRequestAdapter, "get_http_response_message", return_value=response),
-        ):
+        with self.patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="drive_item_content",
                 conn_id="msgraph_api",
