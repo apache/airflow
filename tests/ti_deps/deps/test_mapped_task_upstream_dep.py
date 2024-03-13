@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.exceptions import AirflowFailException, AirflowSkipException
+from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
@@ -321,6 +322,34 @@ def test_no_mapped_dependencies(dag_maker, session: Session, testcase: str):
         reason="There are no mapped dependencies!",
     )
     assert get_dep_statuses(dr, mapped_task, session) == [expected_statuses]
+
+
+def test_non_mapped_operator(dag_maker, session: Session):
+    with dag_maker(session=session):
+        op = EmptyOperator(task_id="op")
+        op
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    assert not get_dep_statuses(dr, "op", session)
+
+
+def test_non_mapped_task_group(dag_maker, session: Session):
+    from airflow.decorators import task_group
+
+    with dag_maker(session=session):
+
+        @task_group
+        def tg():
+            op1 = EmptyOperator(task_id="op1")
+            op2 = EmptyOperator(task_id="op2")
+            op1 >> op2
+
+        tg()
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    assert not get_dep_statuses(dr, "tg.op1", session)
 
 
 def _one_scheduling_decision_iteration(
