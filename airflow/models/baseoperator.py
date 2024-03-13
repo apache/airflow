@@ -395,17 +395,29 @@ class ExecutorSafeguard:
                 and DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename
             )
 
+        def raise_or_warn(operator: BaseOperator, message: str):
+            if not operator.allow_mixing:
+                raise AirflowException(message)
+            operator.log.warning(message)
+
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(self, *args, **kwargs):
             if cls.test_mode:
-                return func(*args, **kwargs)
+                return func(self, *args, **kwargs)
             stack_trace = traceback.extract_stack()
             if next(filter(find_task_instance, stack_trace), None):
                 frame = next(filter(find_decorator_operator, stack_trace), None)
                 if not frame:
-                    return func(*args, **kwargs)
-                raise AirflowException(f"Method {func.__name__} cannot be called from {frame.name}!")
-            raise AirflowException(f"Method {func.__name__} cannot be called directly!")
+                    return func(self, *args, **kwargs)
+                raise_or_warn(
+                    operator=self,
+                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                )
+            else:
+                raise_or_warn(
+                    operator=self,
+                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called directly!"
+                )
 
         return wrapper
 
@@ -713,6 +725,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         If set to `None` (default), the logger name will fall back to
         `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
         *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+    :param allow_mixin: if True, when an operator is executed within another one a warning message will be
+        logged. If False, which is the default value, then an exception will be raised if an operator is
+        badly used (e.g. mixed within another one). In future releases of Airflow this parameter will be
+        removed and an exception will always be thrown when operators are badly mixed within each other.
+
+        **Example**: example of a bad operator mixin usage
+
+            @task(provide_context=True)
+            def say_hello_world(**context):
+                hello_world_task = BashOperator(
+                    task_id='hello_world_task',
+                    bash_command='python -c "print(\'Hello, world!\')"',
+                    dag=dag,
+                )
+                hello_world_task.execute(context)`
     """
 
     # Implementing Operator.
@@ -848,6 +875,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
         logger_name: str | None = None,
+        allow_mixing: bool = False,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -1003,6 +1031,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self._log_config_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
+        self.allow_mixing = allow_mixing
 
         # Lineage
         self.inlets: list = []

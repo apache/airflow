@@ -98,16 +98,26 @@ class TestExecutorSafeguard:
         return task_instance
 
     def test_executor_when_called_directly(self):
-        with pytest.raises(AirflowException, match="Method execute cannot be called directly!"):
+        with pytest.raises(AirflowException, match="HelloWorldOperator.execute cannot be called directly!"):
             dag = DAG(dag_id="hello_world")
             context = MagicMock(spec=Context)
 
-            HelloWorldOperator(task_id="task_id", retries=0, dag=dag).execute(context=context)
+            HelloWorldOperator(task_id="task_id", dag=dag).execute(context=context)
+
+    def test_executor_when_called_directly_but_allow_mixing_is_enabled(self):
+        dag = DAG(dag_id="hello_world")
+        context = MagicMock(spec=Context)
+        operator = HelloWorldOperator(task_id="task_id", dag=dag, allow_mixing=True)
+
+        with patch.object(operator.log, "warning") as mock_warning:
+            operator.execute(context=context)
+
+            mock_warning.assert_called_once_with("HelloWorldOperator.execute cannot be called directly!")
 
     def test_executor_when_called_from_decorated_task(self, mock_session, mock_task_instance):
         dag = DAG(dag_id="hello_world")
         context = MagicMock(spec=Context)
-        operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
+        operator = HelloWorldOperator(task_id="hello_operator", dag=dag)
 
         @task(task_id="task_id", dag=dag)
         def say_hello(**context):
@@ -115,13 +125,15 @@ class TestExecutorSafeguard:
 
         assert not operator.called
 
-        with pytest.raises(AirflowException, match="Method execute cannot be called from execute!"):
+        with pytest.raises(
+            AirflowException, match="_PythonDecoratedOperator.execute cannot be called from execute!"
+        ):
             task_instance = self.create_task_instance(operator=say_hello(context=context).operator)
             task_instance.run(test_mode=True, session=mock_session())
 
     def test_executor_when_called_from_task_instance(self, mock_session, mock_task_instance):
         dag = DAG(dag_id="hello_world")
-        operator = HelloWorldOperator(task_id="hello_operator", retries=0, dag=dag)
+        operator = HelloWorldOperator(task_id="hello_operator", dag=dag)
 
         assert not operator.called
 
