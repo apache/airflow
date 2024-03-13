@@ -25,6 +25,13 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: '["ubuntu-22.04"]'
         type: string
+      do-build:
+        description: >
+          Whether to actually do the build (true/false). If set to false, the build is done
+          already in pull-request-target workflow, so we skip it here.
+        required: false
+        default: "true"
+        type: string
       platform:
         description: >
           Name of the platform for the build - 'amd64/arm64'
@@ -82,7 +89,9 @@ jobs:
       matrix:
         python-version: ${{fromJson(inputs.python-versions)}}
     timeout-minutes: 110
-    name: Build CI ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
+    name: >
+      ${{ inputs.do-build == 'true' && 'Build' || 'Skip build' }}
+      CI ${{inputs.build-type}} image ${{matrix.python-version}}:${{inputs.image-tag}}
     runs-on: ${{fromJson(inputs.runs-on)}}
     env:
       BACKEND: sqlite
@@ -92,23 +101,26 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.do-build == 'true'
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
+        if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
           python-version: ${{ inputs.breeze-python-version }}
+        if: inputs.do-build == 'true'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
           python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
-        if: inputs.upgrade-to-newer-dependencies != 'false'
+        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: inputs.platform == 'arm64'
+        if: inputs.do-build == 'true' && inputs.platform == 'arm64'
       - name: "Build & Push ${{ inputs.platform }}:${{ inputs.image-tag }} ${{ matrix.python-version }}"
         shell: bash
         run: >
@@ -122,15 +134,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_UV: ${{ inputs.use-uv }}
           BUILDER: ${{ inputs.platform == 'amd64' && 'default' || 'airflow_cache' }}
+        if: inputs.do-build == 'true'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && inputs.platform == 'arm64'
+        if: always() && inputs.do-build == 'true' && inputs.platform == 'arm64'
       - name: "Source constraints: ${{ matrix.python-version }}"
         shell: bash
         run: >
           breeze release-management generate-constraints --python "${{ matrix.python-version }}"
           --airflow-constraints-mode constraints-source-providers --answer yes
-        if: inputs.upload-constraints == 'true'
+        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@v4
         with:
@@ -138,4 +151,4 @@ jobs:
           path: ./files/constraints-*/constraints-source-providers-*.txt
           retention-days: 7
           if-no-files-found: error
-        if: inputs.upload-constraints == 'true'
+        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'

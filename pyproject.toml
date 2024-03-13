@@ -103,7 +103,9 @@ dependencies = [
     "gunicorn>=20.1.0",
     "httpx",
     "importlib_metadata>=1.7;python_version<\"3.9\"",
-    "importlib_resources>=5.2;python_version<\"3.9\"",
+    # Importib_resources 6.2.0 break pytest_rewrite
+    # see https://github.com/python/importlib_resources/issues/299
+    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -1416,6 +1418,7 @@ combine-as-imports = true
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
+"tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
 "airflow/callbacks/callback_requests.py" = ["D105"]

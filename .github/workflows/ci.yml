@@ -271,7 +271,9 @@ jobs:
         run: breeze shell --max-time 120
 
   build-ci-images:
-    name: Build CI images (in-workflow)
+    name: >
+      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+      CI images in-workflow
     needs: [build-info]
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
@@ -283,6 +285,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       upload-constraints: "true"
@@ -292,7 +295,6 @@ jobs:
       breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-    if: needs.build-info.outputs.in-workflow-build == 'true'
 
   run-breeze-tests:
     timeout-minutes: 10
@@ -438,12 +440,7 @@ jobs:
     name: "Wait for CI images"
     runs-on: ["ubuntu-22.04"]
     needs: [build-info, build-ci-images]
-    # This strange condition below is equivalent to: "all success or skipped"
-    # The "build-ci-images" step might be skipped, in case production building happens in the
-    # "build-images" workflow, and in this case we still want to wait for CI images and run dependent jobs
-    if: >
-      always() && !failure() && !cancelled() &&
-      needs.build-info.outputs.ci-image-build == 'true'
+    if: needs.build-info.outputs.ci-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
@@ -1858,7 +1855,9 @@ jobs:
           echo Total number of unique warnings $(cat ./artifacts/test-warnings*/* | sort | uniq | wc -l)
 
   build-prod-images:
-    name: Build PROD images (in-workflow)
+    name: >
+      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+      PROD images in-workflow
     needs: [build-info, build-ci-images]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
@@ -1871,6 +1870,7 @@ jobs:
     secrets: inherit
     with:
       build-type: "Regular"
+      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -1882,7 +1882,6 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-    if: needs.build-info.outputs.in-workflow-build == 'true'
 
   prod-image-extra-checks-main:
     name: PROD image extra checks (main)
@@ -1923,12 +1922,7 @@ jobs:
     name: "Wait for PROD images"
     runs-on: ["ubuntu-22.04"]
     needs: [build-info, wait-for-ci-images, build-prod-images]
-    # This strange condition below is equivalent to: "all success or skipped"
-    # The "build-prod-images" step might be skipped, in case production building happens in the
-    # "build-images" workflow, and in this case we still want to wait for PROD images and run dependent tests
-    if: >
-      always() && !failure() && !cancelled() &&
-      needs.build-info.outputs.prod-image-build == 'true'
+    if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
