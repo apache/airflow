@@ -145,9 +145,9 @@ class MSGraphAsyncOperator(BaseOperator):
         event: dict[Any, Any] | None = None,
     ) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        Callback method that gets executed when MSGraphTrigger finishes execution.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         self.log.debug("context: %s", context)
 

@@ -19,7 +19,7 @@ import locale
 from base64 import b64encode
 from unittest.mock import patch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base

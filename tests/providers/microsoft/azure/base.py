@@ -18,17 +18,19 @@ import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Iterable, Union, Optional
+from typing import Any, Iterable, Optional
 from unittest.mock import patch
 
 import pytest
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-from sqlalchemy.orm import Session  # type: ignore[TCH002]
+# type: ignore[TCH002]
+from sqlalchemy.orm import Session
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import Operator, TaskInstance
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent  # type: ignore[TCH001]
+# type: ignore[TCH001]
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -40,13 +42,13 @@ class MockedTaskInstance(TaskInstance):
 
     def xcom_pull(
         self,
-        task_ids: Optional[Union[Iterable[str], str]] = None,
+        task_ids: Iterable[str] | str | None = None,
         dag_id: Optional[str] = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
-        map_indexes: Optional[Union[Iterable[int], int]] = None,
+        map_indexes: Iterable[int] | int | None = None,
         default: Optional[Any] = None,
     ) -> Any:
         self.task_id = task_ids
@@ -57,7 +59,7 @@ class MockedTaskInstance(TaskInstance):
         self,
         key: str,
         value: Any,
-        execution_date: Optional[datetime] = None,
+        execution_date: datetime | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value

@@ -19,11 +19,9 @@ from __future__ import annotations
 
 from types import NoneType
 from typing import (
-    Optional,
     Any,
     AsyncIterator,
     Sequence,
-    Union,
     TYPE_CHECKING,
     Callable,
 )
@@ -32,7 +30,6 @@ from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_http.middleware.options import ResponseHandlerOption
-from msgraph_core import APIVersion
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.serialization.response_handler import (
@@ -51,6 +48,7 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
+    from msgraph_core import APIVersion
 
 
 class MSGraphTrigger(BaseTrigger):
@@ -89,9 +87,9 @@ class MSGraphTrigger(BaseTrigger):
         url: str | None = None,
         response_type: ResponseType | NoneType = None,
         response_handler: Callable[
-            [NativeResponseType, Optional[dict[str, Optional[ParsableFactory]]]], Any
+            [NativeResponseType, dict[str, ParsableFactory | NoneType] | None], Any
         ] = lambda response, error_map: response.json(),
-        path_parameters: Optional[dict[str, Any]] = None,
+        path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
@@ -241,7 +239,7 @@ class MSGraphTrigger(BaseTrigger):
         return request_information
 
     @staticmethod
-    def error_mapping() -> dict[str, Optional[ParsableFactory]]:
+    def error_mapping() -> dict[str, ParsableFactory | NoneType]:
         return {
             "4XX": APIError,
             "5XX": APIError,

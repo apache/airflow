@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from types import NoneType
 from typing import Optional, Union, TYPE_CHECKING, Tuple
 from urllib.parse import urljoin
 
@@ -75,7 +76,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
     @staticmethod
     def resolve_api_version_from_value(
-        api_version: Union[APIVersion, str], default: Optional[APIVersion] = None
+        api_version: APIVersion | str, default: APIVersion | NoneType = None
     ) -> APIVersion:
         if isinstance(api_version, APIVersion):
             return api_version
