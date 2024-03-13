@@ -887,6 +887,10 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: "Test airflow core issue generation automatically"
+        run: >
+          breeze release-management generate-issue-content-core
+          --previous-release 1.9.0 --current-release 1.10.0
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -1144,6 +1148,10 @@ jobs:
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:
           SIGN_WITH: dev@airflow.apache.org
+      - name: "Test helm chart issue generation automatically"
+        run: >
+          breeze release-management generate-issue-content-helm-chart
+          --previous-release 1.6.0 --current-release 1.8.0
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:
