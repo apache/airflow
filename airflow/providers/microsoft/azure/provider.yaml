@@ -97,6 +97,7 @@ dependencies:
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=9.0.0
+  - msgraph-core>=1.0.0
 
 devel-dependencies:
   - pywinrm
