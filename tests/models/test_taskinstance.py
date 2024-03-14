@@ -170,12 +170,14 @@ class TestTaskInstance:
 
         op1 = EmptyOperator(task_id="op_1")
 
-        assert op1.start_date is None and op1.end_date is None
+        assert op1.start_date is None
+        assert op1.end_date is None
 
         # dag should assign its dates to op1 because op1 has no dates
         dag.add_task(op1)
         dag_maker.create_dagrun()
-        assert op1.start_date == dag.start_date and op1.end_date == dag.end_date
+        assert op1.start_date == dag.start_date
+        assert op1.end_date == dag.end_date
 
         op2 = EmptyOperator(
             task_id="op_2",
@@ -185,7 +187,8 @@ class TestTaskInstance:
 
         # dag should assign its dates to op2 because they are more restrictive
         dag.add_task(op2)
-        assert op2.start_date == dag.start_date and op2.end_date == dag.end_date
+        assert op2.start_date == dag.start_date
+        assert op2.end_date == dag.end_date
 
         op3 = EmptyOperator(
             task_id="op_3",
@@ -2793,7 +2796,8 @@ class TestTaskInstance:
         ti1.handle_failure("test failure handling")
 
         context_arg_1 = mock_on_failure_1.call_args.args[0]
-        assert context_arg_1 and "task_instance" in context_arg_1
+        assert context_arg_1
+        assert "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
         mock_on_failure_2 = mock.MagicMock()
@@ -2814,7 +2818,8 @@ class TestTaskInstance:
         mock_on_failure_2.assert_not_called()
 
         context_arg_2 = mock_on_retry_2.call_args.args[0]
-        assert context_arg_2 and "task_instance" in context_arg_2
+        assert context_arg_2
+        assert "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
         mock_on_failure_3 = mock.MagicMock()
@@ -2833,7 +2838,8 @@ class TestTaskInstance:
         ti3.handle_failure("test force_fail handling", force_fail=True)
 
         context_arg_3 = mock_on_failure_3.call_args.args[0]
-        assert context_arg_3 and "task_instance" in context_arg_3
+        assert context_arg_3
+        assert "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
     def test_handle_failure_updates_queued_task_try_number(self, dag_maker):
