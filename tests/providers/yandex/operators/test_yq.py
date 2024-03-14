@@ -26,7 +26,7 @@ from responses import matchers
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.yandex.operators.yandexcloud_yq import YQExecuteQueryOperator
+from airflow.providers.yandex.operators.yq import YQExecuteQueryOperator
 
 OAUTH_TOKEN = "my_oauth_token"
 FOLDER_ID = "my_folder_id"

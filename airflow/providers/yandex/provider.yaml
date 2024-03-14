@@ -49,6 +49,9 @@ versions:
 dependencies:
   - apache-airflow>=2.6.0
   - yandexcloud>=0.228.0
+  - python-dateutil>=2.8.0
+  # Requests 3 if it will be released, will be heavily breaking.
+  - requests>=2.27.0,<3
 
 integrations:
   - integration-name: Yandex.Cloud
@@ -77,7 +80,7 @@ operators:
 
   - integration-name: Yandex.Cloud YQ
     python-modules:
-      - airflow.providers.yandex.operators.yandexcloud_yq
+      - airflow.providers.yandex.operators.yq
 
 hooks:
   - integration-name: Yandex.Cloud

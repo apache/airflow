@@ -33,8 +33,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
     :param sql: the SQL code to be executed as a single string
     :param name: name of the query in YandexQuery
     :param folder_id: cloud folder id where to create query
-    :param connection_id: Airflow connection ID to get parameters from
-    :param folder_id: cloud folder id where to create query
+    :param yandex_conn_id: Airflow connection ID to get parameters from
     """
 
     operator_extra_links = (YQLink(),)
@@ -48,7 +47,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         *,
         name: str | None = None,
         folder_id: str | None = None,
-        connection_id: str | None = None,
+        yandex_conn_id: str | None = None,
         public_ssh_key: str | None = None,
         service_account_id: str | None = None,
         **kwargs,
@@ -56,7 +55,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         super().__init__(**kwargs)
         self.name = name
         self.folder_id = folder_id
-        self.connection_id = connection_id
+        self.yandex_conn_id = yandex_conn_id
         self.public_ssh_key = public_ssh_key
         self.service_account_id = service_account_id
 
@@ -65,7 +64,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
 
     def execute(self, context: Context) -> Any:
         self.hook = YQHook(
-            yandex_conn_id=self.connection_id,
+            yandex_conn_id=self.yandex_conn_id,
             default_folder_id=self.folder_id,
             default_public_ssh_key=self.public_ssh_key,
             default_service_account_id=self.service_account_id,
