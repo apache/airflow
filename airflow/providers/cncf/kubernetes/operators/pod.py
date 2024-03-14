@@ -33,7 +33,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import kubernetes
-import pendulum
 from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -779,7 +778,11 @@ class KubernetesPodOperator(BaseOperator):
 
     def write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None):
         try:
-            since_seconds = math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+            since_seconds = (
+                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
+                if since_time
+                else None
+            )
             logs = self.pod_manager.read_pod_logs(
                 pod=pod,
                 container_name=self.base_container_name,
