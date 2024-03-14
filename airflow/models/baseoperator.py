@@ -540,7 +540,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
 @total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
-    """
+    r"""
     Abstract base class for all operators.
 
     Since operators create objects that become nodes in the DAG, BaseOperator
