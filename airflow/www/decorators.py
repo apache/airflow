@@ -94,7 +94,16 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user = get_auth_manager().get_user_name()
                     user_display = get_auth_manager().get_user_display_name()
 
-                fields_skip_logging = {"csrf_token", "_csrf_token", "is_paused"}
+                fields_skip_logging = {
+                    "csrf_token",
+                    "_csrf_token",
+                    "is_paused",
+                    "dag_id",
+                    "task_id",
+                    "dag_run_id",
+                    "run_id",
+                    "execution_date",
+                }
                 extra_fields = [
                     (k, secrets_masker.redact(v, k))
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
@@ -102,27 +111,32 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                 ]
                 if event and event.startswith("variable."):
                     extra_fields = _mask_variable_fields(extra_fields)
-                if event and event.startswith("connection."):
+                elif event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
 
                 params = {**request.values, **request.view_args}
+                if params and "is_paused" in params:
+                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
 
+                extra_fields = dict(extra_fields)
                 if request.blueprint == "/api/v1":
                     if f"{request.origin}/" == request.root_url:
                         event_name = f"ui.{event_name}"
                     else:
                         event_name = f"api.{event_name}"
 
-                if params and "is_paused" in params:
-                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
+                    if request.headers.get("content-type") == "application/json" and request.json:
+                        extra_fields.update({"body": request.json})
+
                 log = Log(
                     event=event_name,
                     task_instance=None,
                     owner=user,
                     owner_display_name=user_display,
-                    extra=str(extra_fields),
+                    extra=json.dumps(extra_fields),
                     task_id=params.get("task_id"),
                     dag_id=params.get("dag_id"),
+                    run_id=params.get("run_id") or params.get("dag_run_id"),
                 )
 
                 if "execution_date" in request.values:
