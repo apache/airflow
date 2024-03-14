@@ -911,3 +911,16 @@ it in three steps:
 * pause the DAG
 * delete the historical metadata from the database, via UI or API
 * delete the DAG file from the ``DAGS_FOLDER`` and wait until it becomes inactive
+
+DAG Auto-pausing (Experimental)
+-------------------------------
+Dags can be configured to be auto-paused as well.
+There is a Airflow configuration which allows for automatically disabling of a dag
+if it fails for `N` number of times consecutively.
+
+- :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
+
+we can also provide and override these configuration from DAG argument:
+
+- ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
+
