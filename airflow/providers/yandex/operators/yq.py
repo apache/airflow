@@ -68,11 +68,11 @@ class YQExecuteQueryOperator(BaseOperator):
     def hook(self) -> YQHook:
         """Get valid hook."""
         return YQHook(
-                yandex_conn_id=self.yandex_conn_id,
-                default_folder_id=self.folder_id,
-                default_public_ssh_key=self.public_ssh_key,
-                default_service_account_id=self.service_account_id,
-            )
+            yandex_conn_id=self.yandex_conn_id,
+            default_folder_id=self.folder_id,
+            default_public_ssh_key=self.public_ssh_key,
+            default_service_account_id=self.service_account_id,
+        )
 
     def execute(self, context: Context) -> Any:
         self.query_id = self.hook.create_query(query_text=self.sql, name=self.name)
