@@ -1151,7 +1151,7 @@ jobs:
       - name: "Test helm chart issue generation automatically"
         run: >
           breeze release-management generate-issue-content-helm-chart
-          --previous-release 1.6.0 --current-release 1.8.0
+          --previous-release helm-chart/1.6.0 --current-release helm-chart/1.8.0
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:
