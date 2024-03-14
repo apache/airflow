@@ -45,7 +45,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - zenpy>=2.0.24
+  - zenpy>=2.0.40
 
 integrations:
   - integration-name: Zendesk

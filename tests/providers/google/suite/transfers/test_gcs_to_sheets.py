@@ -26,6 +26,7 @@ SPREADSHEET_ID = "1234567890"
 VALUES = [[1, 2, 3]]
 BUCKET = "destination_bucket"
 PATH = "path/to/reports"
+DELEGATE_TO = "test_account@xxx.zzz"
 
 
 class TestGCSToGoogleSheets:
@@ -47,11 +48,13 @@ class TestGCSToGoogleSheets:
             object_name=PATH,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            delegate_to=DELEGATE_TO,
         )
         op.execute(None)
 
         mock_sheet_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
+            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_gcs_hook.assert_called_once_with(

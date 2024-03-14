@@ -1245,7 +1245,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": note,
         }
-        _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
+        _check_last_log(session, dag_id="TEST_DAG_ID", event="api.post_dag_run", execution_date=None)
 
     def test_raises_validation_error_for_invalid_request(self):
         self._create_dag("TEST_DAG_ID")

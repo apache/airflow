@@ -118,6 +118,11 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
         accessor: "endDate",
         disableSortBy: true,
       },
+      {
+        Header: "Try Number",
+        accessor: "tryNumber",
+        disableSortBy: true,
+      },
     ],
     []
   );

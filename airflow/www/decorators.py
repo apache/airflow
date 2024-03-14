@@ -77,7 +77,7 @@ def _mask_connection_fields(extra_fields):
     return result
 
 
-def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
+def action_logging(func: T | None = None, event: str | None = None) -> T | Callable:
     """Log user actions."""
 
     def log_action(f: T) -> T:
@@ -86,6 +86,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             with create_session() as session:
+                event_name = event or f.__name__
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
                     user_display = ""
@@ -106,10 +107,16 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
                 params = {**request.values, **request.view_args}
 
+                if request.blueprint == "/api/v1":
+                    if f"{request.origin}/" == request.root_url:
+                        event_name = f"ui.{event_name}"
+                    else:
+                        event_name = f"api.{event_name}"
+
                 if params and "is_paused" in params:
                     extra_fields.append(("is_paused", params["is_paused"] == "false"))
                 log = Log(
-                    event=event or f.__name__,
+                    event=event_name,
                     task_instance=None,
                     owner=user,
                     owner_display_name=user_display,

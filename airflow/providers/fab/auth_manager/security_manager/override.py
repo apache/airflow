@@ -727,8 +727,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
@@ -2445,8 +2445,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param ldap: The ldap module reference
         :param con: The ldap connection
         """
-        # always check AUTH_LDAP_BIND_USER is set before calling this method
-        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
+        if not self.auth_ldap_bind_user:
+            # always check AUTH_LDAP_BIND_USER is set before calling this method
+            raise ValueError("AUTH_LDAP_BIND_USER must be set")
 
         try:
             log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
@@ -2465,8 +2466,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param username: username to match with AUTH_LDAP_UID_FIELD
         :return: ldap object array
         """
-        # always check AUTH_LDAP_SEARCH is set before calling this method
-        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
+        if not self.auth_ldap_search:
+            # always check AUTH_LDAP_SEARCH is set before calling this method
+            raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:

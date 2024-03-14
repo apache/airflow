@@ -46,6 +46,26 @@ dependencies:
   - apache-airflow>=2.6.0
   - cassandra-driver>=3.13.0
 
+# Cassandra provider is not yet compatible with Python 3.12
+# The main issue is that python cassandra driver by default uses asyncore which has been deprecated since
+# Python 3.6 and removed in Python 3.12 (https://docs.python.org/3.11/library/asyncore.html)
+#
+# Currently the "wheel" package 3.29.0 distributed for manylinux platform is build without libev support (
+# which could be a viable asyncore replacement), and cassandra driver works in Python 3.12 if it is built
+# with libev support (using sdist, having gcc, libev4 and libev-dev installed). But it would be too much to
+# expect our users to build the driver from sources to use it with Python 3.12, so we are waiting for the
+# next release of cassandra-driver which will have libev support in the wheel package.
+# The issue is tracked here https://datastax-oss.atlassian.net/browse/PYTHON-1378
+#
+# Another option to get cassandra drive back is to have asyncio support in the driver instead of asyncore:
+# The issue is tracked here: https://datastax-oss.atlassian.net/browse/PYTHON-1375 and is scheduled
+# to be fixed in cassandra-driver 3.30.0.
+#
+# All Cassandra tests are automatically skipped if cassandra package is not present, so once you remove the
+# exclusion, they will start running for Python 3.12.
+#
+excluded-python-versions: ['3.12']
+
 integrations:
   - integration-name: Apache Cassandra
     external-doc-url: https://cassandra.apache.org/

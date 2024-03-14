@@ -34,7 +34,7 @@ class Log(Base):
     dag_id = Column(StringID())
     task_id = Column(StringID())
     map_index = Column(Integer)
-    event = Column(String(30))
+    event = Column(String(60))
     execution_date = Column(UtcDateTime)
     run_id = Column(StringID())
     owner = Column(String(500))

@@ -97,9 +97,12 @@ class TestJob:
     )
     def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
         """Ensure heartrate is set correctly after jobs are queried from the DB"""
-        with create_session() as session, conf_vars(
-            {(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}
-        ):
+        if job_type == "scheduler":
+            config_name = "scheduler_heartbeat_sec"
+        else:
+            config_name = "job_heartbeat_sec"
+
+        with create_session() as session, conf_vars({(job_type.lower(), config_name): job_heartbeat_sec}):
             job = Job()
             job_runner(job=job)
             session.add(job)

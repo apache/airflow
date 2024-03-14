@@ -79,7 +79,7 @@ function in_container_get_packaging_tool() {
             export EXTRA_UNINSTALL_FLAGS=""
         fi
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
-        export UPGRADE_IF_NEEDED="--upgrade --resolution lowest-direct"
+        export UPGRADE_IF_NEEDED="--upgrade"
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"

@@ -300,6 +300,23 @@ class _ExpandInputRef(NamedTuple):
         return create_expand_input(self.key, value)
 
 
+_orm_to_model = {
+    Job: JobPydantic,
+    TaskInstance: TaskInstancePydantic,
+    DagRun: DagRunPydantic,
+    DagModel: DagModelPydantic,
+    LogTemplate: LogTemplatePydantic,
+}
+_type_to_class = {
+    DAT.BASE_JOB: [JobPydantic, Job],
+    DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
+    DAT.DAG_RUN: [DagRunPydantic, DagRun],
+    DAT.DAG_MODEL: [DagModelPydantic, DagModel],
+    DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
+}
+_class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
+
+
 class BaseSerialization:
     """BaseSerialization provides utils for serialization."""
 
@@ -528,18 +545,11 @@ class BaseSerialization:
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
-            if isinstance(var, Job):
-                return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
-            elif isinstance(var, TaskInstance):
-                return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
-            elif isinstance(var, DagRun):
-                return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
-            elif isinstance(var, Dataset):
-                return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
-            elif isinstance(var, DagModel):
-                return cls._encode(_pydantic_model_dump(DagModelPydantic, var), type_=DAT.DAG_MODEL)
-            elif isinstance(var, LogTemplate):
-                return cls._encode(_pydantic_model_dump(LogTemplatePydantic, var), type_=DAT.LOG_TEMPLATE)
+            if var.__class__ in _class_to_type:
+                pyd_mod = _orm_to_model.get(var.__class__, var)
+                mod = _pydantic_model_dump(pyd_mod, var)
+                type_ = _class_to_type[var.__class__]
+                return cls._encode(mod, type_=type_)
             else:
                 return cls.default_serialization(strict, var)
         elif isinstance(var, ArgNotSet):

@@ -65,6 +65,7 @@ class TestAvpCommands:
 
         mock_boto3.get_paginator.return_value = paginator
         mock_boto3.create_policy_store.return_value = {"policyStoreId": policy_store_id}
+        mock_boto3.get_policy_store.return_value = {"description": policy_store_description}
 
         with conf_vars({("database", "check_migrations"): "False"}):
             params = [

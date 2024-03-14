@@ -3830,6 +3830,10 @@ components:
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
               nullable: true
+            dataset_expression:
+              type: object
+              description: Nested dataset any/all conditions
+              nullable: true
             doc_md:
               type: string
               readOnly: true

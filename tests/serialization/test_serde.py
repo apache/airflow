@@ -367,6 +367,11 @@ class TestSerDe:
                     import pyiceberg  # noqa: F401
                 except ImportError:
                     continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
+                except ImportError:
+                    continue
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):

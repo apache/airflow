@@ -518,11 +518,13 @@ class HiveMetastoreHook(BaseHook):
     def __getstate__(self) -> dict[str, Any]:
         # This is for pickling to work despite the thrift hive client not
         # being picklable
+        """Serialize object and omit non-serializable attributes."""
         state = dict(self.__dict__)
         del state["metastore"]
         return state
 
     def __setstate__(self, d: dict[str, Any]) -> None:
+        """Deserialize object and restore non-serializable attributes."""
         self.__dict__.update(d)
         self.__dict__["metastore"] = self.get_metastore_client()
 

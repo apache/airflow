@@ -142,6 +142,7 @@ PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 def _run_test(
     shell_params: ShellParams,
     extra_pytest_args: tuple,
+    python_version: str,
     db_reset: bool,
     output: Output | None,
     test_timeout: int,
@@ -191,6 +192,7 @@ def _run_test(
             enable_coverage=shell_params.enable_coverage,
             collect_only=shell_params.collect_only,
             parallelism=shell_params.parallelism,
+            python_version=python_version,
             parallel_test_types_list=shell_params.parallel_test_types_list,
             helm_test_package=None,
         )
@@ -304,6 +306,7 @@ def _run_tests_in_pool(
                     kwds={
                         "shell_params": shell_params.clone_with_test(test_type=test_type),
                         "extra_pytest_args": extra_pytest_args,
+                        "python_version": shell_params.python,
                         "db_reset": db_reset,
                         "output": outputs[index],
                         "test_timeout": test_timeout,
@@ -694,6 +697,7 @@ def _run_test_command(
         returncode, _ = _run_test(
             shell_params=shell_params,
             extra_pytest_args=extra_pytest_args,
+            python_version=python,
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
@@ -766,6 +770,7 @@ def integration_tests(
     returncode, _ = _run_test(
         shell_params=shell_params,
         extra_pytest_args=extra_pytest_args,
+        python_version=python,
         db_reset=db_reset,
         output=None,
         test_timeout=test_timeout,
@@ -833,6 +838,7 @@ def helm_tests(
         collect_only=False,
         parallelism=parallelism,
         parallel_test_types_list=[],
+        python_version=shell_params.python,
         helm_test_package=helm_test_package,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]

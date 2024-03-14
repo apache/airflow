@@ -282,6 +282,7 @@ def build_all_airflow_versions_base_image(
         "3.9": "e698dbfe25da10d09c5810938f586535633928a4",
         "3.10": "e698dbfe25da10d09c5810938f586535633928a4",
         "3.11": "e698dbfe25da10d09c5810938f586535633928a4",
+        "3.12": "e698dbfe25da10d09c5810938f586535633928a4",
     }
     """
     image_name = get_all_airflow_versions_image_name(python_version=python_version)

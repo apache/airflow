@@ -348,3 +348,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
             self._get_auth_manager_is_authorized_method(fab_resource_name=item)(action, resource_pk, user)
             for item in items
         )
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        pass
+
+    def add_permissions_menu(self, resource_name):
+        pass

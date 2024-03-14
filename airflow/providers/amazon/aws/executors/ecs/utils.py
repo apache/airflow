@@ -78,22 +78,22 @@ class RunTaskKwargsConfigKeys(BaseConfigKeys):
     ASSIGN_PUBLIC_IP = "assign_public_ip"
     CAPACITY_PROVIDER_STRATEGY = "capacity_provider_strategy"
     CLUSTER = "cluster"
+    CONTAINER_NAME = "container_name"
     LAUNCH_TYPE = "launch_type"
     PLATFORM_VERSION = "platform_version"
     SECURITY_GROUPS = "security_groups"
     SUBNETS = "subnets"
     TASK_DEFINITION = "task_definition"
-    CONTAINER_NAME = "container_name"
 
 
 class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     """All keys loaded into the config which are related to the ECS Executor."""
 
-    MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     AWS_CONN_ID = "conn_id"
-    RUN_TASK_KWARGS = "run_task_kwargs"
-    REGION_NAME = "region_name"
     CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
+    MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
+    REGION_NAME = "region_name"
+    RUN_TASK_KWARGS = "run_task_kwargs"
 
 
 class EcsExecutorException(Exception):
@@ -101,7 +101,7 @@ class EcsExecutorException(Exception):
 
 
 class EcsExecutorTask:
-    """Data Transfer Object for an ECS Fargate Task."""
+    """Data Transfer Object for an ECS Task."""
 
     def __init__(
         self,
@@ -111,6 +111,7 @@ class EcsExecutorTask:
         containers: list[dict[str, Any]],
         started_at: Any | None = None,
         stopped_reason: str | None = None,
+        external_executor_id: str | None = None,
     ):
         self.task_arn = task_arn
         self.last_status = last_status
@@ -118,6 +119,7 @@ class EcsExecutorTask:
         self.containers = containers
         self.started_at = started_at
         self.stopped_reason = stopped_reason
+        self.external_executor_id = external_executor_id
 
     def get_task_state(self) -> str:
         """

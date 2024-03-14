@@ -192,7 +192,7 @@ class TestAzureBlobToS3Operator:
         s3_extra_args = {"ContentLanguage": "value"}
 
         wasb_hook_mock.return_value.get_blobs_list_recursive.return_value = [wasb_blob_name]
-        wasb_hook_mock.return_value.download.return_value = RawIOBase(b"testing")
+        wasb_hook_mock.return_value.download.return_value = RawIOBase()
         mock_tempfile.return_value.__enter__.return_value.name = "test_temp_file"
 
         # with current S3_BUCKET url, parse_s3_url would complain

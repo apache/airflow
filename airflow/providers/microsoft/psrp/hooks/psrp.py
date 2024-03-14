@@ -20,7 +20,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
-from typing import Any, Callable, Generator
+from typing import TYPE_CHECKING, Any, Callable, Generator
 from warnings import warn
 from weakref import WeakKeyDictionary
 
@@ -173,7 +173,8 @@ class PsrpHook(BaseHook):
         if local_context:
             self.__enter__()
         try:
-            assert self._conn is not None
+            if TYPE_CHECKING:
+                assert self._conn is not None
             ps = PowerShell(self._conn)
             yield ps
             ps.begin_invoke()

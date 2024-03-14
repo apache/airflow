@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, Container, Sequence, cast
 
 from flask import session, url_for
 
@@ -443,6 +444,60 @@ class AwsAuthManager(BaseAuthManager):
         ]
         return self.avp_facade.batch_is_authorized(requests=facade_requests, user=self.get_user())
 
+    def filter_permitted_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+    ):
+        """
+        Filter readable or writable DAGs for user.
+
+        :param dag_ids: the list of DAG ids
+        :param methods: whether filter readable or writable
+        :param user: the current user
+        """
+        if not methods:
+            methods = ["PUT", "GET"]
+
+        if not user:
+            user = self.get_user()
+
+        requests: dict[str, dict[ResourceMethod, IsAuthorizedRequest]] = defaultdict(dict)
+        requests_list: list[IsAuthorizedRequest] = []
+        for dag_id in dag_ids:
+            for method in ["GET", "PUT"]:
+                if method in methods:
+                    request: IsAuthorizedRequest = {
+                        "method": cast(ResourceMethod, method),
+                        "entity_type": AvpEntities.DAG,
+                        "entity_id": dag_id,
+                    }
+                    requests[dag_id][cast(ResourceMethod, method)] = request
+                    requests_list.append(request)
+
+        batch_is_authorized_results = self.avp_facade.get_batch_is_authorized_results(
+            requests=requests_list, user=user
+        )
+
+        def _has_access_to_dag(request: IsAuthorizedRequest):
+            result = self.avp_facade.get_batch_is_authorized_single_result(
+                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+            )
+            return result["decision"] == "ALLOW"
+
+        return {
+            dag_id
+            for dag_id in dag_ids
+            if (
+                "GET" in methods
+                and _has_access_to_dag(requests[dag_id]["GET"])
+                or "PUT" in methods
+                and _has_access_to_dag(requests[dag_id]["PUT"])
+            )
+        }
+
     def filter_permitted_menu_items(self, menu_items: list[MenuItem]) -> list[MenuItem]:
         """
         Filter menu items based on user permissions.
@@ -465,19 +520,25 @@ class AwsAuthManager(BaseAuthManager):
             requests=list(requests.values()), user=user
         )
 
+        def _has_access_to_menu_item(request: IsAuthorizedRequest):
+            result = self.avp_facade.get_batch_is_authorized_single_result(
+                batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
+            )
+            return result["decision"] == "ALLOW"
+
         accessible_items = []
         for menu_item in menu_items:
             if menu_item.childs:
                 accessible_children = []
                 for child in menu_item.childs:
-                    if self._has_access_to_menu_item(batch_is_authorized_results, requests[child.name], user):
+                    if _has_access_to_menu_item(requests[child.name]):
                         accessible_children.append(child)
                 menu_item.childs = accessible_children
 
                 # Display the menu if the user has access to at least one sub item
                 if len(accessible_children) > 0:
                     accessible_items.append(menu_item)
-            elif self._has_access_to_menu_item(batch_is_authorized_results, requests[menu_item.name], user):
+            elif _has_access_to_menu_item(requests[menu_item.name]):
                 accessible_items.append(menu_item)
 
         return accessible_items
@@ -510,14 +571,6 @@ class AwsAuthManager(BaseAuthManager):
             return menu_item_request
         else:
             raise AirflowException(f"Unknown resource name {fab_resource_name}")
-
-    def _has_access_to_menu_item(
-        self, batch_is_authorized_results: list[dict], request: IsAuthorizedRequest, user: AwsAuthManagerUser
-    ):
-        result = self.avp_facade.get_batch_is_authorized_single_result(
-            batch_is_authorized_results=batch_is_authorized_results, request=request, user=user
-        )
-        return result["decision"] == "ALLOW"
 
 
 def get_parser() -> argparse.ArgumentParser:

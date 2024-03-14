@@ -278,8 +278,7 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                     console.print("[blue]Waiting for gunicorn to start ...")
                     time.sleep(1)
                 else:
-                    console.print("[red]Gunicorn processes not found after 120 seconds")
-                    assert False
+                    pytest.fail("Gunicorn processes not found after 120 seconds")
                 console.print("[blue]Running gunicorn processes:")
                 assert self._find_all_processes("^gunicorn", print_found_process=True)
                 console.print("[magenta]Webserver process started successfully.")

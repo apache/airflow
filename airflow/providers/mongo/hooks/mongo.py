@@ -118,6 +118,7 @@ class MongoHook(BaseHook):
             self.allow_insecure = False
 
     def __enter__(self):
+        """Return the object when a context manager is created."""
         return self
 
     def __exit__(
@@ -126,6 +127,7 @@ class MongoHook(BaseHook):
         exc_val: BaseException | None,
         exc_tb: TracebackType | None,
     ) -> None:
+        """Close mongo connection when exiting the context manager."""
         if self.client is not None:
             self.client.close()
             self.client = None

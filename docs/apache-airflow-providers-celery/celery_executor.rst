@@ -26,7 +26,8 @@ Celery Executor
 
 
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
-to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...) and
+to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...),
+install the required dependencies (such as ``librabbitmq``, ``redis`` ...) and
 change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 

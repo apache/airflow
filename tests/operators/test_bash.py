@@ -243,8 +243,7 @@ class TestBashOperator:
         for proc in psutil.process_iter():
             if proc.cmdline() == ["sleep", sleep_time]:
                 os.kill(proc.pid, signal.SIGTERM)
-                assert False, "BashOperator's subprocess still running after stopping on timeout!"
-                break
+                pytest.fail("BashOperator's subprocess still running after stopping on timeout!")
 
     @pytest.mark.db_test
     def test_templated_fields(self, create_task_instance_of_operator):

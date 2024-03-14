@@ -67,7 +67,8 @@ class BaseExtractor(ABC, LoggingMixin):
     @cached_property
     def disabled_operators(self) -> set[str]:
         return set(
-            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+            operator.strip()
+            for operator in conf.get("openlineage", "disabled_for_operators", fallback="").split(";")
         )
 
     @cached_property
@@ -76,9 +77,6 @@ class BaseExtractor(ABC, LoggingMixin):
             self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
         )
         return fully_qualified_class_name in self.disabled_operators
-
-    def validate(self):
-        assert self.operator.task_type in self.get_operator_classnames()
 
     @abstractmethod
     def _execute_extraction(self) -> OperatorLineage | None:

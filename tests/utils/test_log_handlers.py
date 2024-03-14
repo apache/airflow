@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 import tempfile
+from importlib import reload
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -32,6 +33,7 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models.dag import DAG
@@ -295,6 +297,7 @@ class TestFileTaskLogHandler:
         ti.state = state
         ti.triggerer_job = None
         with conf_vars({("core", "executor"): executor_name}):
+            reload(executor_loader)
             fth = FileTaskHandler("")
             fth._read(ti=ti, try_number=2)
         if state == TaskInstanceState.RUNNING:
@@ -316,6 +319,7 @@ class TestFileTaskLogHandler:
         ti.state = TaskInstanceState.RUNNING
         ti.try_number = 2
         with conf_vars({("core", "executor"): executor_name}):
+            reload(executor_loader)
             fth = FileTaskHandler("")
 
             fth._read_from_logs_server = mock.Mock()
@@ -362,6 +366,7 @@ class TestFileTaskLogHandler:
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
         with conf_vars({("core", "executor"): executor_name}):
+            reload(executor_loader)
             fth = FileTaskHandler("")
             if remote_logs:
                 fth._read_remote_logs = mock.Mock()

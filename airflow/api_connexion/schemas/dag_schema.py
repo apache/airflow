@@ -99,6 +99,7 @@ class DAGDetailSchema(DAGSchema):
     orientation = fields.String()
     concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer()
+    dataset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime()
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
     doc_md = fields.String()

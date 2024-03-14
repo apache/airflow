@@ -224,7 +224,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_python_operator_shallow_copy_attr(self):
         def not_callable(x):
-            assert False, "Should not be triggered"
+            raise RuntimeError("Should not be triggered")
 
         original_task = PythonOperator(
             python_callable=not_callable,

@@ -55,6 +55,7 @@ from urllib.parse import urlsplit
 import jinja2
 import pendulum
 import re2
+import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
@@ -109,6 +110,7 @@ from airflow.models.taskinstance import (
 )
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
+from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule
@@ -3115,6 +3117,11 @@ class DAG(LoggingMixin):
             )
             orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.timetable_description = dag.timetable.description
+            if (dataset_triggers := dag.dataset_triggers) is None:
+                orm_dag.dataset_expression = None
+            else:
+                orm_dag.dataset_expression = dataset_triggers.as_expression()
+
             orm_dag.processor_subdir = processor_subdir
 
             last_automated_run: DagRun | None = latest_runs.get(dag.dag_id)
@@ -3565,6 +3572,8 @@ class DagModel(Base):
     schedule_interval = Column(Interval)
     # Timetable/Schedule Interval description
     timetable_description = Column(String(1000), nullable=True)
+    # Dataset expression based on dataset triggers
+    dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     # Tags for view filter
     tags = relationship("DagTag", cascade="all, delete, delete-orphan", backref=backref("dag"))
     # Dag owner links for DAGs view

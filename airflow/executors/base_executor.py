@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -120,6 +121,7 @@ class BaseExecutor(LoggingMixin):
     serve_logs: bool = False
 
     job_id: None | int | str = None
+    name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
     def __init__(self, parallelism: int = PARALLELISM):
@@ -393,6 +395,15 @@ class BaseExecutor(LoggingMixin):
             span.set_attribute("try_number", key.try_number - 1)
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
+
+    def queued(self, key: TaskInstanceKey, info=None) -> None:
+        """
+        Set queued state for the event.
+
+        :param info: Executor information for the task instance
+        :param key: Unique key for the task instance
+        """
+        self.change_state(key, TaskInstanceState.QUEUED, info)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
