@@ -143,7 +143,9 @@ class YQResults:
         # If value is None than result is {"rows":[[[]]]}
         # So check if len equals 1 it means that it contains value
         # if len is 0 it means it has no value i.e. value is None
-        assert len(value) < 2, str(value)
+        if len(value) > 1:
+            raise RuntimeError(f"Value should have len 0 or 1, but has len {len(value)}, value: {value}")
+
         if len(value) == 1:
             return value[0]
 
@@ -228,9 +230,11 @@ class YQResults:
             inner_converters_list = [YQResults._get_converter(t) for t in inner_types_list]
 
             def convert(x):
-                assert len(x) == len(
-                    inner_converters_list
-                ), f"Wrong length for tuple value: {len(x)} != {len(inner_converters_list)}"
+                if len(x) != len(inner_converters_list):
+                    raise RuntimeError(
+                        f"Wrong length for tuple value: {len(x)} != {len(inner_converters_list)}"
+                    )
+
                 return tuple([c(v) for (c, v) in zip(inner_converters_list, x)])
 
             return convert
