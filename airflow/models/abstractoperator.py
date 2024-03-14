@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -69,8 +71,14 @@ DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
 )
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
-DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
-    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+DEFAULT_WEIGHT_RULE: WeightRule | None = (
+    WeightRule(conf.get("core", "default_task_weight_rule", fallback=None))
+    if conf.get("core", "default_task_weight_rule", fallback=None)
+    else None
+)
+
+DEFAULT_PRIORITY_WEIGHT_STRATEGY: str = conf.get(
+    "core", "default_task_priority_weight_strategy", fallback=WeightRule.DOWNSTREAM
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
@@ -97,7 +105,8 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str
+    weight_rule: str | None
+    priority_weight_strategy: str | PriorityWeightStrategy
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -196,6 +205,12 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def parsed_priority_weight_strategy(self) -> PriorityWeightStrategy:
+        from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
+
+        return validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
     def as_setup(self):
         self.is_setup = True
@@ -397,6 +412,12 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
+        warnings.warn(
+            "Accessing `priority_weight_total` from AbstractOperator instance is deprecated."
+            " Please use `priority_weight` from task instance instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if self.weight_rule == WeightRule.ABSOLUTE:
             return self.priority_weight
         elif self.weight_rule == WeightRule.DOWNSTREAM:

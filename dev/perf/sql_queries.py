@@ -28,9 +28,11 @@ from airflow.jobs.job import Job, run_job
 
 # Setup environment before any Airflow import
 DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
+PLUGINS_FOLDER = os.path.join(os.path.dirname(__file__), "plugins")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = DAG_FOLDER
 os.environ["AIRFLOW__DEBUG__SQLALCHEMY_STATS"] = "True"
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
+os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = PLUGINS_FOLDER
 
 # Here we setup simpler logger to avoid any code changes in
 # Airflow core code base

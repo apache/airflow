@@ -20,6 +20,11 @@ from datetime import datetime
 
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
 from airflow.operators.empty import EmptyOperator
+from tests.plugins.priority_weight_strategy import (
+    FactorPriorityWeightStrategy,
+    TestPriorityWeightStrategyPlugin,
+)
+from tests.test_utils.mock_plugins import mock_plugin_manager
 
 
 class TestTaskSchema:
@@ -46,6 +51,7 @@ class TestTaskSchema:
             "pool": "default_pool",
             "pool_slots": 1.0,
             "priority_weight": 1.0,
+            "priority_weight_strategy": "downstream",
             "queue": "default",
             "retries": 0.0,
             "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -57,7 +63,52 @@ class TestTaskSchema:
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
-            "weight_rule": "downstream",
+            "weight_rule": None,
+            "is_mapped": False,
+        }
+        assert expected == result
+
+    @mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin])
+    def test_serialize_priority_weight_strategy(self):
+        op = EmptyOperator(
+            task_id="task_id",
+            start_date=datetime(2020, 6, 16),
+            end_date=datetime(2020, 6, 26),
+            priority_weight_strategy=FactorPriorityWeightStrategy(2),
+        )
+        result = task_schema.dump(op)
+        expected = {
+            "class_ref": {
+                "module_path": "airflow.operators.empty",
+                "class_name": "EmptyOperator",
+            },
+            "depends_on_past": False,
+            "downstream_task_ids": [],
+            "end_date": "2020-06-26T00:00:00+00:00",
+            "execution_timeout": None,
+            "extra_links": [],
+            "owner": "airflow",
+            "operator_name": "EmptyOperator",
+            "params": {},
+            "pool": "default_pool",
+            "pool_slots": 1.0,
+            "priority_weight": 1.0,
+            "priority_weight_strategy": {
+                "__type": "tests.plugins.priority_weight_strategy.FactorPriorityWeightStrategy",
+                "__var": {"factor": 2},
+            },
+            "queue": "default",
+            "retries": 0.0,
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+            "retry_exponential_backoff": False,
+            "start_date": "2020-06-16T00:00:00+00:00",
+            "task_id": "task_id",
+            "template_fields": [],
+            "trigger_rule": "all_success",
+            "ui_color": "#e8f7e4",
+            "ui_fgcolor": "#000",
+            "wait_for_downstream": False,
+            "weight_rule": None,
             "is_mapped": False,
         }
         assert expected == result
@@ -93,6 +144,7 @@ class TestTaskCollectionSchema:
                     "pool": "default_pool",
                     "pool_slots": 1.0,
                     "priority_weight": 1.0,
+                    "priority_weight_strategy": "downstream",
                     "queue": "default",
                     "retries": 0.0,
                     "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
@@ -104,7 +156,7 @@ class TestTaskCollectionSchema:
                     "ui_color": "#e8f7e4",
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
-                    "weight_rule": "downstream",
+                    "weight_rule": None,
                     "is_mapped": False,
                 }
             ],

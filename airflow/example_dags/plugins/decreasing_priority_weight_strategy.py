@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,32 +16,22 @@
 # under the License.
 from __future__ import annotations
 
-from enum import Enum
+from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cache
+from airflow.plugins_manager import AirflowPlugin
+from airflow.task.priority_strategy import PriorityWeightStrategy
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
-class WeightRule(str, Enum):
-    """
-    Weight rules.
+class DecreasingPriorityStrategy(PriorityWeightStrategy):
+    """A priority weight strategy that decreases the priority weight with each attempt."""
 
-    This class is deprecated and will be removed in Airflow 3
-    """
+    def get_weight(self, ti: TaskInstance):
+        return max(3 - ti._try_number + 1, 1)
 
-    DOWNSTREAM = "downstream"
-    UPSTREAM = "upstream"
-    ABSOLUTE = "absolute"
 
-    @classmethod
-    def is_valid(cls, weight_rule: str) -> bool:
-        """Check if weight rule is valid."""
-        return weight_rule in cls.all_weight_rules()
-
-    @classmethod
-    @cache
-    def all_weight_rules(cls) -> set[str]:
-        """Return all weight rules."""
-        return set(cls.__members__.values())
-
-    def __str__(self) -> str:
-        return self.value
+class DecreasingPriorityWeightStrategyPlugin(AirflowPlugin):
+    name = "decreasing_priority_weight_strategy_plugin"
+    priority_weight_strategies = [DecreasingPriorityStrategy]

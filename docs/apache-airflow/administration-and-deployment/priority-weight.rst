@@ -22,10 +22,9 @@ Priority Weights
 
 ``priority_weight`` defines priorities in the executor queue. The default ``priority_weight`` is ``1``, and can be
 bumped to any integer. Moreover, each task has a true ``priority_weight`` that is calculated based on its
-``weight_rule`` which defines the weighting method used for the effective total priority weight of the task.
+``priority_weight_strategy`` which defines the weighting method used for the effective total priority weight of the task.
 
-Below are the weighting methods. By default, Airflow's weighting method is ``downstream``.
-
+Airflow has three weighting strategies:
 
 .. grid:: 3
 
@@ -59,6 +58,11 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
     Additionally, when set to ``absolute``, there is bonus effect of
     significantly speeding up the task creation process as for very
     large DAGs.
+
+You can also implement your own weighting strategy by extending the class
+:class:`~airflow.task.priority_strategy.PriorityWeightStrategy` and overriding the method
+:meth:`~airflow.task.priority_strategy.PriorityWeightStrategy.get_weight`, the providing the path of your class
+to the ``priority_weight_strategy`` parameter.
 
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.

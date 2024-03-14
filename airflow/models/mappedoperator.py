@@ -32,6 +32,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -78,6 +79,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.utils.context import Context
     from airflow.utils.operator_resources import Resources
@@ -315,6 +317,7 @@ class MappedOperator(AbstractOperator):
 
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg
+        from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
 
         if self.get_closest_mapped_task_group() is not None:
             raise NotImplementedError("operator expansion in an expanded task group is not yet supported")
@@ -332,6 +335,8 @@ class MappedOperator(AbstractOperator):
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
             )
+        # validate priority_weight_strategy
+        validate_and_load_priority_weight_strategy(self.priority_weight_strategy)
 
     @classmethod
     @cache
@@ -534,12 +539,27 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
+    def weight_rule(self) -> str | None:  # type: ignore[override]
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
     def weight_rule(self, value: str) -> None:
         self.partial_kwargs["weight_rule"] = value
+
+    @property  # type: ignore[override]
+    def priority_weight_strategy(self) -> str | PriorityWeightStrategy:  # type: ignore[override]
+        return (
+            self.weight_rule  # for backward compatibility
+            or self.partial_kwargs.get("priority_weight_strategy")
+            or DEFAULT_PRIORITY_WEIGHT_STRATEGY
+        )
+
+    @priority_weight_strategy.setter
+    def priority_weight_strategy(self, value: str | PriorityWeightStrategy) -> None:
+        from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
+
+        validate_and_load_priority_weight_strategy(value)
+        self.partial_kwargs["priority_weight_strategy"] = value
 
     @property
     def sla(self) -> datetime.timedelta | None:

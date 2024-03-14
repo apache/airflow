@@ -26,6 +26,8 @@ from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+from airflow.serialization.serialized_objects import _encode_priority_weight_strategy
+from airflow.task.priority_strategy import AbsolutePriorityWeightStrategy
 
 KUBERNETES_QUEUE = "kubernetes"
 
@@ -121,6 +123,7 @@ class TestCeleryKubernetesExecutor:
 
         ti = mock.MagicMock()
         ti.queue = test_queue
+        ti.priority_weight_strategy = _encode_priority_weight_strategy(AbsolutePriorityWeightStrategy())
 
         kwargs = dict(
             task_instance=ti,
