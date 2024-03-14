@@ -250,6 +250,7 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         "template_searchpath": None,
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
+        "max_consecutive_failed_dag_runs": 0,
         "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,
