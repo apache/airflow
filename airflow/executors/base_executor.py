@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
-from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -564,6 +563,7 @@ class BaseExecutor(LoggingMixin):
 
         :meta private:
         """
+        from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
         parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
         subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
         for group_command in cls.get_cli_commands():
