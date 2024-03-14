@@ -1,0 +1,157 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Build CI images
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      runs-on:
+        description: "The array of labels (in json form) determining type of the runner to use for the build."
+        required: false
+        default: '["ubuntu-22.04"]'
+        type: string
+      do-build:
+        description: >
+          Whether to actually do the build (true/false). If set to false, the build is done
+          already in pull-request-target workflow, so we skip it here.
+        required: false
+        default: "true"
+        type: string
+      platform:
+        description: >
+          Name of the platform for the build - 'amd64/arm64'
+        default: "amd64"
+        type: string
+      upload-constraints:
+        description: "Whether to upload constraints artifacts"
+        default: "false"
+        type: string
+      debian-version:
+        description: "Base Debian distribution to use for the build (bookworm/bullseye)"
+        type: string
+        default: "bookworm"
+      install-mysql-client-type:
+        description: "MySQL client type to use during build (mariadb/mysql)"
+        type: string
+        default: "mariadb"
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
+        required: true
+        type: string
+      image-tag:
+        description: "Tag to set for the image"
+        required: true
+        type: string
+      python-versions:
+        description: "JSON-formatted array of Python versions to build images from"
+        required: true
+        type: string
+      branch:
+        description: "Branch used to run the CI jobs in (main/v2_*_test)."
+        required: true
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Whether to attempt to upgrade image to newer dependencies (false/RANDOM_VALUE)"
+        required: true
+        type: string
+      breeze-python-version:
+        description: >
+          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
+        required: true
+        type: string
+      constraints-branch:
+        description: "Branch used to construct constraints URL from."
+        required: true
+        type: string
+      docker-cache:
+        description: "Docker cache specification to build the image (registry, local, disabled)."
+        required: true
+        type: string
+jobs:
+  build-ci-images:
+    strategy:
+      fail-fast: true
+      matrix:
+        # yamllint disable-line rule:line-length
+        python-version: ${{ inputs.do-build == 'true' && fromJson(inputs.python-versions) || fromJson('[""]') }}
+    timeout-minutes: 110
+    name: "\
+${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
+CI ${{inputs.build-type}} image\
+${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
+${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
+    runs-on: ${{fromJson(inputs.runs-on)}}
+    env:
+      BACKEND: sqlite
+      DEFAULT_BRANCH: ${{ inputs.branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: inputs.do-build == 'true'
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+        if: inputs.do-build == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          python-version: ${{ inputs.breeze-python-version }}
+        if: inputs.do-build == 'true'
+      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+        shell: bash
+        run: |
+          pip install rich>=12.4.4 pyyaml
+          python scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
+        if: inputs.do-build == 'true' && inputs.upgrade-to-newer-dependencies != 'false'
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: inputs.do-build == 'true' && inputs.platform == 'arm64'
+      - name: "Build & Push ${{ inputs.platform }}:${{ inputs.image-tag }} ${{ matrix.python-version }}"
+        shell: bash
+        run: >
+          breeze ci-image build --push --tag-as-latest --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}"
+          --platform "linux/${{ inputs.platform }}"
+        env:
+          DOCKER_CACHE: ${{ inputs.cache-directive }}
+          INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USE_UV: ${{ inputs.use-uv }}
+          BUILDER: ${{ inputs.platform == 'amd64' && 'default' || 'airflow_cache' }}
+        if: inputs.do-build == 'true'
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always() && inputs.do-build == 'true' && inputs.platform == 'arm64'
+      - name: "Source constraints: ${{ matrix.python-version }}"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --python "${{ matrix.python-version }}"
+          --airflow-constraints-mode constraints-source-providers --answer yes
+        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-constraints-${{ matrix.python-version }}
+          path: ./files/constraints-*/constraints-source-providers-*.txt
+          retention-days: 7
+          if-no-files-found: error
+        if: inputs.do-build == 'true' && inputs.upload-constraints == 'true'

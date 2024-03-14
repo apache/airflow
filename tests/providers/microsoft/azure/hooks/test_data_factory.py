@@ -190,10 +190,11 @@ def test_get_conn_by_default_azure_credential(mock_credential):
 
         connection = hook.get_conn()
         assert connection is not None
-        assert mock_credential.called_with(  # noqa: PGH005 (fixme: expected call not found)
-            None,
-            None,
-        )
+        mock_credential.assert_called()
+        args = mock_credential.call_args
+        assert args.kwargs["managed_identity_client_id"] is None
+        assert args.kwargs["workload_identity_tenant_id"] is None
+
         mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
 
 

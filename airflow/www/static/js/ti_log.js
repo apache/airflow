@@ -31,6 +31,8 @@ const DELAY = parseInt(getMetaValue("delay"), 10);
 const AUTO_TAILING_OFFSET = parseInt(getMetaValue("auto_tailing_offset"), 10);
 const ANIMATION_SPEED = parseInt(getMetaValue("animation_speed"), 10);
 const TOTAL_ATTEMPTS = parseInt(getMetaValue("total_attempts"), 10);
+const unfoldIdSuffix = "_unfold";
+const foldIdSuffix = "_fold";
 
 function recurse(delay = DELAY) {
   return new Promise((resolve) => {
@@ -115,6 +117,14 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
       const iso8601Regex =
         /\d{4}[./-]\d{2}[./-]\d{2}T\d{2}:\d{2}:\d{2}.\d{3}[+-]\d{4}/g;
+      // Detect log groups which can be collapsed
+      // Either in Github like format '::group::<group name>' to '::endgroup::'
+      // see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines
+      // Or in ADO pipeline like format '##[group]<group name>' to '##[endgroup]'
+      // see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
+      const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
+      const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
+      const logGroupStyle = "color:#0060df;cursor:pointer;font-weight: bold;";
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
@@ -151,6 +161,17 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
               `<time datetime="${date}" data-with-tz="true">${formatDateTime(
                 `${date}`
               )}</time>`
+          )
+          .replaceAll(logGroupStart, (line) => {
+            const gName = line.substring(17);
+            const gId = gName.replaceAll(/\W+/g, "_").toLowerCase();
+            const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${logGroupStyle}"> &#9654; ${gName}</span>`;
+            const fold = `<span style="display:none;"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
+            return unfold + fold;
+          })
+          .replaceAll(
+            logGroupEnd,
+            " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
           );
         logBlock.innerHTML += `${linkifiedMessage}`;
       });
@@ -167,6 +188,17 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
     }
     recurse().then(() => autoTailingLog(tryNumber, res.metadata, autoTailing));
   });
+}
+
+function handleLogGroupClick(e) {
+  if (e.target.id?.endsWith(unfoldIdSuffix)) {
+    e.target.style.display = "none";
+    e.target.nextSibling.style.display = "inline";
+  } else if (e.target.id?.endsWith(foldIdSuffix)) {
+    e.target.parentNode.style.display = "none";
+    e.target.parentNode.previousSibling.style.display = "inline";
+  }
+  return false;
 }
 
 function setDownloadUrl(tryNumber) {
@@ -204,4 +236,11 @@ $(document).ready(() => {
 
     setDownloadUrl(tryNumber);
   });
+
+  console.debug(
+    `Attaching log grouping event handler for ${TOTAL_ATTEMPTS} attempts`
+  );
+  for (let i = 1; i <= TOTAL_ATTEMPTS; i += 1) {
+    document.getElementById(`log-group-${i}`).onclick = handleLogGroupClick;
+  }
 });

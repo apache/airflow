@@ -50,7 +50,7 @@ ARG AIRFLOW_VERSION="2.8.2"
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
 ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.17
+ARG AIRFLOW_UV_VERSION=0.1.19
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -529,7 +529,7 @@ function common::get_packaging_tool() {
             export EXTRA_UNINSTALL_FLAGS=""
         fi
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
-        export UPGRADE_IF_NEEDED="--upgrade --resolution lowest-direct"
+        export UPGRADE_IF_NEEDED="--upgrade"
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -906,7 +906,7 @@ function install_airflow() {
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
-            echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
             set -x
             ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
@@ -1528,7 +1528,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="10"
+ARG AIRFLOW_CI_BUILD_EPOCH="11"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 
 

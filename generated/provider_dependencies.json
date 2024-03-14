@@ -90,7 +90,9 @@
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.12"
+    ],
     "state": "ready"
   },
   "apache.drill": {
@@ -375,7 +377,9 @@
     "cross-providers-deps": [
       "common.sql"
     ],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.12"
+    ],
     "state": "ready"
   },
   "datadog": {
@@ -1189,7 +1193,7 @@
   "zendesk": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "zenpy>=2.0.24"
+      "zenpy>=2.0.40"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
