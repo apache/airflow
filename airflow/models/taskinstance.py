@@ -2773,6 +2773,7 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ):
         """Handle Failure for the TaskInstance."""
+        ti.last_error = error  # save the error in the ti so that it's available in the callback
         get_listener_manager().hook.on_task_instance_failed(
             previous_state=TaskInstanceState.RUNNING, task_instance=ti, session=session
         )
