@@ -144,15 +144,10 @@ class OtelTrace:
 
         tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
 
-        tag_string = None
-        # merge attributes from tags and tracestate
-        if self.tag_string is not None:
-            tag_string = self.tag_string
-        if tracestate is not None:
-            if tag_string is None:
-                tag_string = tracestate
-            else:
-                tag_string = tag_string + "," + tracestate
+        if self.tag_string and tracestate:
+            tag_string = self.tag_string + "," + tracestate
+        else:
+            tag_string = self.tag_string or tracestate
 
         if span_name is None:
             span_name = dagrun.dag_id
