@@ -125,7 +125,7 @@ EMPTY_CTX = EmptyContext()
 class Tracer(Protocol):
     """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
-    instance: Tracer | DummyTrace | None = None
+    instance: Tracer | EmptyTrace | None = None
 
     @classmethod
     def get_tracer(cls, component):
@@ -179,8 +179,8 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
 
-class DummyTrace:
-    """If no Tracer is configured, DummyTracer is used as a fallback."""
+class EmptyTrace:
+    """If no Tracer is configured, EmptyTracer is used as a fallback."""
 
     @classmethod
     def get_tracer(
@@ -242,15 +242,15 @@ class DummyTrace:
 
 class _Trace(type):
     factory: Callable
-    instance: Tracer | DummyTrace | None = None
+    instance: Tracer | EmptyTrace | None = None
 
     def __getattr__(cls, name: str) -> str:
         if not cls.instance:
             try:
                 cls.instance = cls.factory()
             except (socket.gaierror, ImportError) as e:
-                log.error("Could not configure Trace: %s, using DummyTrace instead.", e)
-                cls.instance = DummyTrace()
+                log.error("Could not configure Trace: %s, using EmptyTrace instead.", e)
+                cls.instance = EmptyTrace()
         return getattr(cls.instance, name)
 
     def __init__(cls, *args, **kwargs) -> None:
@@ -261,7 +261,7 @@ class _Trace(type):
 
                 cls.__class__.factory = otel_tracer.get_otel_tracer
             else:
-                cls.__class__.factory = DummyTrace
+                cls.__class__.factory = EmptyTrace
 
     @classmethod
     def get_constant_tags(cls) -> str | None:
@@ -273,7 +273,7 @@ class _Trace(type):
 
 
 if TYPE_CHECKING:
-    Trace: DummyTrace
+    Trace: EmptyTrace
 else:
 
     class Trace(metaclass=_Trace):
