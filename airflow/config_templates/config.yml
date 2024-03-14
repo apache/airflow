@@ -337,7 +337,7 @@ core:
       version_added: 2.3.0
       type: integer
       example: ~
-      default: None
+      default: ""
     min_serialized_dag_update_interval:
       description: |
         Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
