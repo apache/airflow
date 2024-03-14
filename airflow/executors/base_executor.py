@@ -314,8 +314,8 @@ class BaseExecutor(LoggingMixin):
     @span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
-            task_instance = self.queued_tasks[key][3]
-            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))  # TaskInstance in fourth element
+            task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+            trace_id = int(gen_trace_id(task_instance.dag_run, as_int=True))
             span_id = int(gen_span_id_from_ti_key(key, as_int=True))
             links = [{"trace_id": trace_id, "span_id": span_id}]
 

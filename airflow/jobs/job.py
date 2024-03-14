@@ -212,29 +212,20 @@ class Job(Base, LoggingMixin):
                 self.log.debug("[heartbeat]")
             except OperationalError:
                 class_name = self.__class__.__name__
-                Stats.incr(convert_camel_to_snake(class_name) + "_heartbeat_failure", 1, 1)
+                Stats.incr(convert_camel_to_snake(class_name) + "_heartbeat_failure")
                 if not self.heartbeat_failed:
                     msg = f"{class_name} heartbeat got an exception"
                     self.log.exception(msg)
                     self.heartbeat_failed = True
-                    span.add_event(
-                        name="error",
-                        attributes={"message": msg},
-                    )
+                    span.add_event(name="error", attributes={"message": msg})
                 if self.is_alive():
                     msg = f"{class_name} heartbeat failed with error. Scheduler may go into unhealthy state"
                     self.log.error(msg)
-                    span.add_event(
-                        name="error",
-                        attributes={"message": msg},
-                    )
+                    span.add_event(name="error", attributes={"message": msg})
                 else:
                     msg = f"{class_name} heartbeat failed with error. Scheduler is in unhealthy state"
                     self.log.error(msg)
-                    span.add_event(
-                        name="error",
-                        attributes={"message": msg},
-                    )
+                    span.add_event(name="error", attributes={"message": msg})
                 # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
                 self.latest_heartbeat = previous_heartbeat
 
