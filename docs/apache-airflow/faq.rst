@@ -106,6 +106,18 @@ Operators or tasks also have configurations that improves efficiency and schedul
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
 - ``queue``: See :ref:`apache-airflow-providers-celery:celery_executor:queue` for CeleryExecutor deployments only.
 
+How to avoid consecutive failing DAG runs? (Experimental)
+------------------------------------------------------------------
+
+There is a Airflow configuration which allows for automatically disabling of a dag
+if it fails for `N` number of times consecutively.
+
+- :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
+
+we can also provide and override these configuration from DAG argument:
+
+- ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
+
 
 How to reduce DAG scheduling latency / task delay?
 --------------------------------------------------
