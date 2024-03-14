@@ -399,7 +399,7 @@ class ExecutorSafeguard:
             )
 
         def raise_or_warn(operator: BaseOperator, message: str):
-            if not operator.allow_mixing:
+            if not operator.allow_mixin:
                 raise AirflowException(message)
             operator.log.warning(message)
 
