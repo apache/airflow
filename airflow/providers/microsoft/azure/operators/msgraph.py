@@ -21,7 +21,7 @@ from typing import (
     Any,
     TYPE_CHECKING,
     Sequence,
-    Callable, List, )
+    Callable, )
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
@@ -114,7 +114,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.api_version = api_version
         self.result_processor = result_processor
         self.serializer: ResponseSerializer = serializer()
-        self.results: List[Any] | None = None
+        self.results: list[Any] | None = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing url '%s' as '%s'", self.url, self.method)
