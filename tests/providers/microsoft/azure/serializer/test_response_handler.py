@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,24 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, TYPE_CHECKING
-
-from kiota_abstractions.response_handler import NativeResponseType, ResponseHandler
-
-if TYPE_CHECKING:
-    from kiota_abstractions.serialization import ParsableFactory
+from airflow.providers.microsoft.azure.serialization.response_handler import CallableResponseHandler
+from tests.providers.microsoft.azure.base import Base
+from tests.providers.microsoft.conftest import load_json, mock_json_response
 
 
-class CallableResponseHandler(ResponseHandler):
-    """CallableResponseHandler executes the passed callable_function with response as parameter."""
+class TestResponseHandler(Base):
+    def test_handle_response_async(self):
+        users = load_json("resources", "users.json")
+        response = mock_json_response(200, users)
 
-    def __init__(
-        self,
-        callable_function: Callable[[NativeResponseType, dict[str, ParsableFactory | None] | None], Any],
-    ):
-        self.callable_function = callable_function
+        actual = self._loop.run_until_complete(
+            CallableResponseHandler(
+                lambda response, error_map: response.json()
+            ).handle_response_async(response, None)
+        )
 
-    async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
-    ) -> Any:
-        return self.callable_function(response, error_map)
+        assert isinstance(actual, dict)
+        assert actual == users

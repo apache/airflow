@@ -20,23 +20,23 @@ import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Iterable
+from typing import Any, Iterable, TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
-# type: ignore[TCH002]
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import Operator, TaskInstance
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-# type: ignore[TCH001]
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.providers.microsoft.conftest import get_airflow_connection
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class MockedTaskInstance(TaskInstance):
