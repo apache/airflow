@@ -218,6 +218,7 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "weight_rule": DEFAULT_WEIGHT_RULE,
     "inlets": [],
     "outlets": [],
+    "allow_mixin": False,
 }
 
 
@@ -797,6 +798,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_skipped_callback",
         "do_xcom_push",
         "multiple_outputs",
+        "allow_mixin",
     }
 
     # Defines if the operator supports lineage without manual definitions

@@ -653,6 +653,10 @@ class MappedOperator(AbstractOperator):
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
 
+    @property
+    def allow_mixin(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_mixin"))
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
