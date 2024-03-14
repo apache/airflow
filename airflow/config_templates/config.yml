@@ -123,7 +123,7 @@ core:
         which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
         If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
-      version_added: ~
+      version_added: 2.9.0
       type: string
       example: ~
       default: "0"
