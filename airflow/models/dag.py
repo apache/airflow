@@ -364,7 +364,7 @@ class DAG(LoggingMixin):
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
-    :param max_consecutive_failed_dag_runs:(experimental) maximum number of consecutive failed DAG runs,
+    :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created.
