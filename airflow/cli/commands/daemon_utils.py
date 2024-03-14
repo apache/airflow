@@ -48,11 +48,10 @@ def run_command_with_daemon_option(
         If not specified, a file path is generated with the default pattern.
     """
     if args.daemon:
+        pid = pid_file or args.pid if pid_file is not None or args.pid is not None else None
         pid, stdout, stderr, log_file = setup_locations(
-            process=process_name, stdout=args.stdout, stderr=args.stderr, log=args.log_file
+            process=process_name, pid=pid, stdout=args.stdout, stderr=args.stderr, log=args.log_file
         )
-        if pid_file or args.pid:
-            pid = pid_file or args.pid
 
         # Check if the process is already running; if not but a pidfile exists, clean it up
         check_if_pidfile_process_is_running(pid_file=pid, process_name=process_name)
