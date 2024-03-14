@@ -106,13 +106,17 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.do-build == 'true'
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
+        if: inputs.do-build == 'true'
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
         if: inputs.do-build == 'true'
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
