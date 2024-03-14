@@ -458,7 +458,8 @@ class DAG(LoggingMixin):
         concurrency: int | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-        max_consecutive_failed_dag_runs: int | None = None,
+        max_consecutive_failed_dag_runs: int = airflow_conf.getint("core",
+                                                                   "max_consecutive_failed_dag_runs_per_dag"),
         dagrun_timeout: timedelta | None = None,
         sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
@@ -621,7 +622,7 @@ class DAG(LoggingMixin):
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         self.max_consecutive_failed_dag_runs = max_consecutive_failed_dag_runs
-        if self.max_consecutive_failed_dag_runs is None:
+        if self.max_consecutive_failed_dag_runs == 0:
             self.max_consecutive_failed_dag_runs = airflow_conf.getint(
                 "core", "max_consecutive_failed_dag_runs_per_dag"
             )
@@ -3962,7 +3963,7 @@ def dag(
     concurrency: int | None = None,
     max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
     max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
-    max_consecutive_failed_dag_runs: int | None = None,
+    max_consecutive_failed_dag_runs: int = airflow_conf.getint("core", "max_consecutive_failed_dag_runs_per_dag"),
     dagrun_timeout: timedelta | None = None,
     sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),

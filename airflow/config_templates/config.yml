@@ -121,7 +121,7 @@ core:
         (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
         This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
         which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
-        If not specified, then the value is considered as None,
+        If not specified, then the value is considered as 0,
         meaning that the dags are never paused out by default.
       version_added: ~
       type: string

@@ -595,7 +595,7 @@ class DagRun(Base, LoggingMixin):
                 .execution_options(synchronize_session="fetch")
             )
         else:
-            self.log.info(
+            self.log.debug(
                 "Limit of consecutive DAG failed dag runs is not reached, DAG %s will not be paused.",
                 self.dag_id,
             )
