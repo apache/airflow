@@ -71,7 +71,7 @@ class TestMSGraphTrigger(Base):
             assert actual.payload["status"] == "failure"
             assert actual.payload["message"] == ""
 
-    def test_run_when_url_with_response_type_bytes(self):
+    def test_run_when_response_is_bytes(self):
         content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         response = mock_response(200, content)

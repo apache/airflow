@@ -30,7 +30,7 @@ from tests.providers.microsoft.conftest import load_file, load_json, mock_json_r
 
 
 class TestMSGraphAsyncOperator(Base):
-    def test_run_when_expression_is_valid(self):
+    def test_execute(self):
         users = load_json("resources", "users.json")
         next_users = load_json("resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
@@ -57,7 +57,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
 
-    def test_run_when_expression_is_valid_and_do_xcom_push_is_false(self):
+    def test_execute_when_do_xcom_push_is_false(self):
         users = load_json("resources", "users.json")
         users.pop("@odata.nextLink")
         response = mock_json_response(200, users)
@@ -79,7 +79,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.dict"
             assert events[0].payload["response"] == json.dumps(users)
 
-    def test_run_when_an_exception_occurs(self):
+    def test_execute_when_an_exception_occurs(self):
         with self.patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
@@ -91,7 +91,7 @@ class TestMSGraphAsyncOperator(Base):
             with pytest.raises(AirflowException):
                 self.execute_operator(operator)
 
-    def test_run_when_url_which_returns_bytes(self):
+    def test_execute_when_response_is_bytes(self):
         content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
