@@ -1239,6 +1239,7 @@ class TestStringifiedDAGs:
             "_log_config_logger_name": "airflow.task.operators",
             "_post_execute_hook": None,
             "_pre_execute_hook": None,
+            "allow_mixin": False,
             "depends_on_past": False,
             "do_xcom_push": True,
             "doc": None,
