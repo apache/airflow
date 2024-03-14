@@ -44,7 +44,7 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
 
     if not is_jsonable(template_field):
         if isinstance(template_field, (list, tuple)):
-            if sys.getsizeof(template_field[0]) > max_size:
+            if sum(sys.getsizeof(x) for x in template_field) > max_size:
                 return (
                     "Value redacted as it is too large to be stored in the database. "
                     "You can change this behaviour in [core]max_templated_field_size"
@@ -57,7 +57,7 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
         return str(template_field)
     else:
         if template_field and isinstance(template_field, (list, tuple)):
-            if len(template_field) and sys.getsizeof(template_field[0]) > max_size:
+            if sum(sys.getsizeof(x) for x in template_field) > max_size:
                 return (
                     "Value redacted as it is too large to be stored in the database. "
                     "You can change this behaviour in [core]max_templated_field_size"

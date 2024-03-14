@@ -25,6 +25,7 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.decorators import task as task_decorator
@@ -34,7 +35,7 @@ from airflow.operators.bash import BashOperator
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timezone import datetime
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom, clear_rendered_ti_fields
 
 pytestmark = pytest.mark.db_test
 
@@ -71,6 +72,7 @@ class TestRenderedTaskInstanceFields:
         clear_db_runs()
         clear_db_dags()
         clear_rendered_ti_fields()
+        clear_db_xcom()
 
     def setup_method(self):
         self.clean_db()
@@ -341,7 +343,9 @@ class TestRenderedTaskInstanceFields:
         ti, ti2 = dr.task_instances
         ti.xcom_push(value=large_string, key="return_value")
         rtif = RTIF(ti=ti2)
-        rtif.write()
+        rtif.write(session=session)
+        session.flush()
+        rtif = session.scalar(select(RTIF).where(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id))
         assert rtif.rendered_fields == {
             "op_args": "Value redacted as it is too large to be stored in the database. "
             "You can change this behaviour in [core]max_templated_field_size",
@@ -372,7 +376,9 @@ class TestRenderedTaskInstanceFields:
         ti, ti2 = dr.task_instances
         ti.xcom_push(value=large_dataframe, key="return_value")
         rtif = RTIF(ti=ti2)
-        rtif.write()
+        rtif.write(session=session)
+        session.flush()
+        rtif = session.scalar(select(RTIF).where(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id))
         assert rtif.rendered_fields == {
             "op_args": "Value redacted as it is too large to be stored in the database. "
             "You can change this behaviour in [core]max_templated_field_size",
