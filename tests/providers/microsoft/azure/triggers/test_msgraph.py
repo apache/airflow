@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import locale
 from base64 import b64encode
@@ -23,8 +25,13 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
-from tests.providers.microsoft.conftest import load_json, mock_json_response, get_airflow_connection, \
-    load_file, mock_response
+from tests.providers.microsoft.conftest import (
+    get_airflow_connection,
+    load_file,
+    load_json,
+    mock_json_response,
+    mock_response,
+)
 
 
 class TestMSGraphTrigger(Base):
@@ -70,7 +77,9 @@ class TestMSGraphTrigger(Base):
         response = mock_response(200, content)
 
         with self.patch_hook_and_request_adapter(response):
-            url = "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
+            url = (
+                "https://graph.microsoft.com/v1.0/me/drive/items/1b30fecf-4330-4899-b249-104c2afaf9ed/content"
+            )
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
             actual = next(iter(self._loop.run_until_complete(self.run_tigger(trigger))))
 
@@ -82,8 +91,8 @@ class TestMSGraphTrigger(Base):
 
     def test_serialize(self):
         with patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         ):
             url = "https://graph.microsoft.com/v1.0/me/drive/items"
             trigger = MSGraphTrigger(url, response_type="bytes", conn_id="msgraph_api")
@@ -96,12 +105,12 @@ class TestMSGraphTrigger(Base):
                 "url": "https://graph.microsoft.com/v1.0/me/drive/items",
                 "path_parameters": None,
                 "url_template": None,
-                "method": 'GET',
+                "method": "GET",
                 "query_parameters": None,
                 "headers": None,
                 "content": None,
-                "response_type": 'bytes',
-                "conn_id": 'msgraph_api',
+                "response_type": "bytes",
+                "conn_id": "msgraph_api",
                 "timeout": None,
                 "proxies": None,
                 "api_version": "v1.0",

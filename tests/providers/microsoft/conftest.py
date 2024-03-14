@@ -20,8 +20,8 @@ from __future__ import annotations
 import json
 import random
 import string
-from os.path import join, dirname
-from typing import TypeVar, Iterable, Any, Optional
+from os.path import dirname, join
+from typing import Any, Iterable, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -111,12 +111,13 @@ def load_file(*locations: Iterable[str], mode="r", encoding="utf-8"):
 
 
 def get_airflow_connection(
-        conn_id: str,
-        login: str = "client_id",
-        password: str = "client_secret",
-        tenant_id: str = "tenant-id",
-        proxies: dict | None = None,
-        api_version: APIVersion = APIVersion.v1):
+    conn_id: str,
+    login: str = "client_id",
+    password: str = "client_secret",
+    tenant_id: str = "tenant-id",
+    proxies: (dict, None) = None,
+    api_version: APIVersion = APIVersion.v1,
+):
     from airflow.models import Connection
 
     return Connection(

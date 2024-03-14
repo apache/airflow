@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest.mock import patch
 
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
@@ -26,8 +28,8 @@ from tests.providers.microsoft.conftest import get_airflow_connection, mock_conn
 class TestKiotaRequestAdapterHook:
     def test_get_conn(self):
         with (patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         )):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = hook.get_conn()
@@ -37,8 +39,8 @@ class TestKiotaRequestAdapterHook:
 
     def test_api_version(self):
         with (patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         )):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
 
@@ -46,8 +48,8 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_api_version_when_empty_config_dict(self):
         with (patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         )):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = hook.get_api_version({})
@@ -56,8 +58,8 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_api_version_when_api_version_in_config_dict(self):
         with (patch(
-                "airflow.hooks.base.BaseHook.get_connection",
-                side_effect=get_airflow_connection,
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
         )):
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
             actual = hook.get_api_version({"api_version": "beta"})

@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import locale
 from base64 import b64encode
@@ -24,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
-from tests.providers.microsoft.conftest import load_json, mock_json_response, load_file, mock_response
+from tests.providers.microsoft.conftest import load_file, load_json, mock_json_response, mock_response
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -38,7 +40,7 @@ class TestMSGraphAsyncOperator(Base):
                 task_id="users_delta",
                 conn_id="msgraph_api",
                 url="users",
-                result_processor=lambda context, result: result.get("value")
+                result_processor=lambda context, result: result.get("value"),
             )
 
             results, events = self.execute_operator(operator)
