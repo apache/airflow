@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import httpx
@@ -106,11 +106,18 @@ class KiotaRequestAdapterHook(BaseHook):
             proxies["https://"] = proxies.pop("https")
         return proxies
 
-    def get_conn(self) -> RequestAdapter:
-        if not self.conn_id:
+    @staticmethod
+    def assert_not_none(value: Any, message: str) -> None:
+        if not value:
             raise AirflowException(
                 "Failed to create the KiotaRequestAdapterHook. No conn_id provided!"
             )
+
+    def get_conn(self) -> RequestAdapter:
+        self.assert_not_none(
+            self.conn_id,
+            "Failed to create the KiotaRequestAdapterHook. No conn_id provided!",
+        )
 
         api_version, request_adapter = self.cached_request_adapters.get(
             self.conn_id, (None, None)
@@ -146,6 +153,20 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Timeout: %s", self.timeout)
             self.log.info("Trust env: %s", trust_env)
             self.log.info("Proxies: %s", json.dumps(proxies))
+
+            self.assert_not_none(
+                tenant_id,
+                "Failed to create the KiotaRequestAdapterHook. No tenant_id provided!",
+            )
+            self.assert_not_none(
+                connection.login,
+                "Failed to create the KiotaRequestAdapterHook. No client_id provided!",
+            )
+            self.assert_not_none(
+                connection.password,
+                "Failed to create the KiotaRequestAdapterHook. No client_secret provided!",
+            )
+
             credentials = identity.ClientSecretCredential(
                 tenant_id=tenant_id,
                 client_id=connection.login,
