@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
@@ -74,8 +76,9 @@ class Base:
 
     @contextmanager
     def patch_hook_and_request_adapter(self, response):
-        with patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection), \
-             patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
+        with patch(
+        "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection
+        ), patch.object(HttpxRequestAdapter, "get_http_response_message") as mock_get_http_response:
             if isinstance(response, Exception):
                 mock_get_http_response.side_effect = response
             else:
