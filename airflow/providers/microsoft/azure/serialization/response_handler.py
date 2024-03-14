@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from kiota_abstractions.response_handler import NativeResponseType, ResponseHandler
-
 # type: ignore[TCH002]
 from kiota_abstractions.serialization import ParsableFactory
 
@@ -32,11 +31,11 @@ class CallableResponseHandler(ResponseHandler):
 
     def __init__(
         self,
-        callable_function: Callable[[NativeResponseType, dict[str, (ParsableFactory, None)]], Any],
+        callable_function: Callable[[NativeResponseType, dict[str, ParsableFactory | None] | None], Any],
     ):
         self.callable_function = callable_function
 
     async def handle_response_async(
-        self, response: NativeResponseType, error_map: dict[str, (ParsableFactory, None)] = None
+        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
     ) -> Any:
         return self.callable_function(response, error_map)

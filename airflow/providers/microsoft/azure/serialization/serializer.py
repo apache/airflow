@@ -34,11 +34,11 @@ class ResponseSerializer:
     ResponseSerializer serializes the response as a string.
     """
 
-    def __init__(self, encoding: (str, None) = None):
+    def __init__(self, encoding: str | None = None):
         self.encoding = encoding or locale.getpreferredencoding()
 
-    def serialize(self, response) -> (str, None):
-        def convert(value) -> (str, None):
+    def serialize(self, response) -> str | None:
+        def convert(value) -> str | None:
             if value is not None:
                 if isinstance(value, UUID):
                     return str(value)
