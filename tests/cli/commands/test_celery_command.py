@@ -340,6 +340,7 @@ class TestFlowerCommand:
         assert mock_setup_locations.mock_calls == [
             mock.call(
                 process="flower",
+                pid="/tmp/flower.pid",
                 stdout="/tmp/flower-stdout.log",
                 stderr="/tmp/flower-stderr.log",
                 log="/tmp/flower.log",

@@ -244,7 +244,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.18",
+    "uv>=0.1.20",
 ]
 virtualenv = [
     "virtualenv",

@@ -414,6 +414,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
     def _execute_callable(context, **execute_callable_kwargs):
         try:
+            # Print a marker for log grouping of details before task execution
+            log.info("::endgroup::")
+
             return execute_callable(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
@@ -421,6 +424,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if e.code is not None and e.code != 0:
                 raise
             return None
+        finally:
+            # Print a marker post execution for internals of post task processing
+            log.info("::group::Post task execution logs")
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
