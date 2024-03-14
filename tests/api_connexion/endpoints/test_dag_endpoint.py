@@ -349,6 +349,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun": None,
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
