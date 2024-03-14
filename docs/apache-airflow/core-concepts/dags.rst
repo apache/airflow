@@ -923,4 +923,3 @@ if it fails for `N` number of times consecutively.
 we can also provide and override these configuration from DAG argument:
 
 - ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
-
