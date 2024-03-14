@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import locale
 from base64 import b64encode
@@ -32,11 +34,11 @@ class ResponseSerializer:
     ResponseSerializer serializes the response as a string.
     """
 
-    def __init__(self, encoding: str | None = None):
+    def __init__(self, encoding: (str, None) = None):
         self.encoding = encoding or locale.getpreferredencoding()
 
-    def serialize(self, response) -> str | None:
-        def convert(value) -> str | None:
+    def serialize(self, response) -> (str, None):
+        def convert(value) -> (str, None):
             if value is not None:
                 if isinstance(value, UUID):
                     return str(value)
@@ -44,9 +46,7 @@ class ResponseSerializer:
                     return value.isoformat()
                 if isinstance(value, pendulum.DateTime):
                     return value.to_iso8601_string()  # Adjust the format as needed
-                raise TypeError(
-                    f"Object of type {type(value)} is not JSON serializable!"
-                )
+                raise TypeError(f"Object of type {type(value)} is not JSON serializable!")
             return None
 
         if response is not None:
