@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Start docker servide
+# Start docker service
 sudo service docker start
 
 
