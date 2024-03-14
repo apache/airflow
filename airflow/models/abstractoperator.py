@@ -98,7 +98,7 @@ class AbstractOperator(Templater, DAGNode):
     operator_class: type[BaseOperator] | dict[str, Any]
 
     weight_rule: str
-    priority_weight: int
+    priority_weight: float | int
 
     # Defines the operator level extra links.
     operator_extra_links: Collection[BaseOperatorLink]
@@ -387,7 +387,7 @@ class AbstractOperator(Templater, DAGNode):
         raise NotImplementedError()
 
     @property
-    def priority_weight_total(self) -> int:
+    def priority_weight_total(self) -> float | int:
         """
         Total priority weight for the task. It might include all upstream or downstream tasks.
 

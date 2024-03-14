@@ -1253,7 +1253,7 @@ class TaskInstance(Base, LoggingMixin):
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
-    priority_weight = Column(Integer)
+    priority_weight = Column(Float)
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
@@ -3546,7 +3546,7 @@ class SimpleTaskInstance:
         queue: str,
         key: TaskInstanceKey,
         run_as_user: str | None = None,
-        priority_weight: int | None = None,
+        priority_weight: float | int | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
