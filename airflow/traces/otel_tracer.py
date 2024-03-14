@@ -103,10 +103,7 @@ class OtelTrace:
             component = self.otel_service
 
         trace_id = self.get_current_span().get_span_context().trace_id
-        if span_id is not None:
-            tracer = self.get_tracer(component=component, trace_id=trace_id, span_id=span_id)
-        else:
-            tracer = self.get_tracer(component)
+        tracer = self.get_tracer(component=component, trace_id=trace_id, span_id=span_id)
 
         attributes = parse_tracestate(self.tag_string) if self.tag_string else {}
 
