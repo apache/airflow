@@ -493,11 +493,11 @@ def pull(
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
-    check_remote_ghcr_io_commands()
     login_to_github_docker_registry(
         github_token=github_token,
         output=None,
     )
+    check_remote_ghcr_io_commands()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [

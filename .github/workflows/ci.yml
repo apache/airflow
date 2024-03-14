@@ -640,57 +640,22 @@ jobs:
           update-chart-dependencies
         if: always()
 
-  # Runs static checks for groups of files in the repository in a single process without passing .
-  # List of files
   mypy:
-    timeout-minutes: 45
-    name: "MyPy checks"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    name: "MyPy tests"
+    uses: ./.github/workflows/mypy.yml
     needs: [build-info, wait-for-ci-images]
-    strategy:
-      fail-fast: false
-      matrix:
-        mypy-folder: ${{fromJson(needs.build-info.outputs.mypy-folders)}}
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
     if: needs.build-info.outputs.latest-versions-only != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-        id: breeze
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
-        run: |
-          pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
-        env:
-          VERBOSE: "false"
-          COLUMNS: "250"
-          SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-          RUFF_FORMAT: "github"
-
-        if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
@@ -1064,93 +1029,23 @@ jobs:
           breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
 
   tests-helm:
-    timeout-minutes: 80
-    name: "Unit tests Helm: ${{matrix.helm-test-package}}"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    name: "Helm tests"
+    uses: ./.github/workflows/helm-tests.yml
     needs: [build-info, wait-for-ci-images]
-    strategy:
-      fail-fast: false
-      matrix:
-        helm-test-package: ${{fromJson(needs.build-info.outputs.helm-test-packages)}}
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "Helm"
-      BACKEND: "none"
-      DB_RESET: "false"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      JOB_ID: "helm-tests"
-      USE_XDIST: "true"
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
-        run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-
-  tests-helm-release:
-    timeout-minutes: 80
-    name: "Release Helm"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' && needs.build-info.outputs.default-branch == 'main'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ needs.build-info.outputs.breeze-python-version }}
-      - name: Setup git for tagging
-        run: |
-          git config --global user.email "name@example.com"
-          git config --global user.name "Your Name"
-      - name: "Remove old artifacts"
-        run: rm -rf dist/*
-      - name: "Setup k8s/helm environment"
-        run: breeze k8s setup-env
-      - name: "Install helm gpg plugin"
-        run: >
-          breeze k8s shell -c "helm plugin install https://github.com/technosophos/helm-gpg
-          --version 6303407eb63deaeb1b2f24de611e3468a27ec05b" || true
-      - name: "Helm release tarball"
-        run: >
-          breeze release-management prepare-helm-chart-tarball --ignore-version-check --override-tag
-          --skip-tag-signing --version 0.0.0 --version-suffix dev0
-      - name: Generate GPG key for signing
-        # Sometimes the key will be already added to the keyring, so we ignore the error
-        run: gpg --batch --passphrase '' --quick-gen-key dev@airflow.apache.org default default || true
-      - name: "Helm release package"
-        run: >
-          breeze release-management prepare-helm-chart-package --sign-email dev@airflow.apache.org
-      - name: "Sign artifacts for ASF distribution"
-        run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
-        env:
-          SIGN_WITH: dev@airflow.apache.org
-      - name: "Upload Helm artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: Helm artifacts
-          path: ./dist/airflow-*
-          retention-days: 7
-          if-no-files-found: error
 
   tests-postgres:
     timeout-minutes: 130

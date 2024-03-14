@@ -117,6 +117,7 @@ const Logs = ({
   const [fileSourceFilters, setFileSourceFilters] = useState<
     Array<FileSourceOption>
   >([]);
+  const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
@@ -148,9 +149,10 @@ const Logs = ({
         data,
         timezone,
         logLevelFilters.map((option) => option.value),
-        fileSourceFilters.map((option) => option.value)
+        fileSourceFilters.map((option) => option.value),
+        unfoldedLogGroups
       ),
-    [data, fileSourceFilters, logLevelFilters, timezone]
+    [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
   );
 
   const logAttemptDropdownLimit = 10;
@@ -315,6 +317,8 @@ const Logs = ({
                 parsedLogs={parsedLogs}
                 wrap={wrap}
                 tryNumber={taskTryNumber}
+                unfoldedGroups={unfoldedLogGroups}
+                setUnfoldedLogGroup={setUnfoldedLogGroup}
               />
             )
           )}
