@@ -564,6 +564,7 @@ class BaseExecutor(LoggingMixin):
         :meta private:
         """
         from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
         parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
         subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
         for group_command in cls.get_cli_commands():

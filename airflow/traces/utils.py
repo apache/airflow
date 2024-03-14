@@ -26,59 +26,38 @@ if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
+TRACE_ID = 0
+SPAN_ID = 16
+
 log = logging.getLogger(__name__)
+
+
+def _gen_id(seeds: list[str], as_int: bool = False, type: int = TRACE_ID) -> str | int:
+    seed_str = "_".join(seeds).encode("utf-8")
+    hash_hex = md5(seed_str).hexdigest()[type:]
+    return int(hash_hex, 16) if as_int else hash_hex
 
 
 def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate trace id from DagRun."""
-    dag_id = dag_run.dag_id
-    run_id = dag_run.run_id
-    start_dt = dag_run.start_date
-    hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
-    hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()
-    if as_int is True:
-        return int(hash_hex, 16)
-    return hash_hex
+    return _gen_id([dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())], as_int)
 
 
 def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> str | int:
     """Generate span id from TI key."""
-    dag_id = ti_key.dag_id
-    run_id = ti_key.run_id
-    task_id = ti_key.task_id
-    try_num = ti_key.try_number  # key always has next number, not current
-    hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
-    hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    if as_int is True:
-        return int(hash_hex, 16)
-    return hash_hex
+    return _gen_id([ti_key.dag_id, ti_key.run_id, ti_key.task_id, str(ti_key.try_number)], as_int, SPAN_ID)
 
 
 def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate dag's root span id using dag_run."""
-    dag_id = dag_run.dag_id
-    run_id = dag_run.run_id
-    start_dt = dag_run.start_date
-    hash_seed = f"{dag_id}_{run_id}_{start_dt.timestamp()}"
-    hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    if as_int is True:
-        return int(hash_hex, 16)
-    return hash_hex
+    return _gen_id([dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())], as_int, SPAN_ID)
 
 
 def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
-    dag_id = dag_run.dag_id
-    run_id = dag_run.run_id
-    task_id = ti.task_id
     """When this is called, the try_number of ti is already set to next(+1), hence the subtraction"""
-    try_num = ti.try_number - 1
-    hash_seed = f"{dag_id}_{run_id}_{task_id}_{try_num}"
-    hash_hex = md5(hash_seed.encode("utf-8")).hexdigest()[16:]
-    if as_int is True:
-        return int(hash_hex, 16)
-    return hash_hex
+    return _gen_id([dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number - 1)], as_int, SPAN_ID)
 
 
 def parse_traceparent(traceparent_str: str | None = None) -> dict:
