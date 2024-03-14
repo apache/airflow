@@ -1092,6 +1092,7 @@ oauth
 Oauthlib
 objectORfile
 objectstorage
+objectstore
 observability
 od
 odbc
