@@ -83,7 +83,7 @@ class MSGraphTrigger(BaseTrigger):
 
     def __init__(
         self,
-        url: str | None = None,
+        url: str,
         response_type: ResponseType | None = None,
         response_handler: Callable[
             [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
@@ -180,17 +180,13 @@ class MSGraphTrigger(BaseTrigger):
             if response:
                 response_type = type(response)
 
-                self.log.debug("response type: %s", type(response))
-
-                response = self.serializer.serialize(response)
-
-                self.log.debug("serialized response type: %s", type(response))
+                self.log.debug("response type: %s", response_type)
 
                 yield TriggerEvent(
                     {
                         "status": "success",
                         "type": f"{response_type.__module__}.{response_type.__name__}",
-                        "response": response,
+                        "response": self.serializer.serialize(response),
                     }
                 )
             else:
@@ -205,7 +201,7 @@ class MSGraphTrigger(BaseTrigger):
             self.log.exception("An error occurred: %s", e)
             yield TriggerEvent({"status": "failure", "message": str(e)})
 
-    def normalize_url(self) -> str:
+    def normalize_url(self) -> str | None:
         if self.url.startswith("/"):
             return self.url.replace("/", "", 1)
         return self.url

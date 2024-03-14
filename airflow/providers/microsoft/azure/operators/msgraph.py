@@ -21,7 +21,7 @@ from typing import (
     Any,
     TYPE_CHECKING,
     Sequence,
-    Callable, )
+    Callable, List, )
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
@@ -75,7 +75,7 @@ class MSGraphAsyncOperator(BaseOperator):
     def __init__(
         self,
         *,
-        url: str | None = None,
+        url: str,
         response_type: ResponseType | None = None,
         response_handler: Callable[
             [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
@@ -114,7 +114,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.api_version = api_version
         self.result_processor = result_processor
         self.serializer: ResponseSerializer = serializer()
-        self.results = None
+        self.results: List[Any] | None = None
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing url '%s' as '%s'", self.url, self.method)
@@ -162,19 +162,15 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.info("response: %s", response)
 
             if response:
-                self.log.debug("response type: %s", type(response))
-
                 response = self.serializer.deserialize(response)
 
-                self.log.debug("deserialized response type: %s", type(response))
+                self.log.debug("deserialize response: %s", response)
 
                 result = self.result_processor(context, response)
 
                 self.log.debug("processed response: %s", result)
 
                 event["response"] = result
-
-                self.log.debug("parsed response type: %s", type(response))
 
                 try:
                     self.trigger_next_link(
