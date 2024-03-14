@@ -122,6 +122,7 @@ class XComObjectStoreBackend(BaseXCom):
             suffix = "." + _get_compression_suffix(compression)
         else:
             suffix = ""
+            compression = None
 
         threshold = conf.getint(SECTION, "xcom_objectstore_threshold", fallback=-1)
 

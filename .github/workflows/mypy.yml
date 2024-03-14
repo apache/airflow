@@ -61,13 +61,17 @@ jobs:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.needs-mypy == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+        if: inputs.needs-mypy == 'true'
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
         if: inputs.needs-mypy == 'true'
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
