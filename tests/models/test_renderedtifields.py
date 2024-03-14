@@ -345,9 +345,10 @@ class TestRenderedTaskInstanceFields:
         rtif = RTIF(ti=ti2)
         rtif.write(session=session)
         session.flush()
-        rtif = session.scalar(select(RTIF).where(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id))
+        rtif = session.query(RTIF).filter(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id).first()
+
         assert rtif.rendered_fields == {
-            "op_args": "Value redacted as it is too large to be stored in the database. "
+            "op_args": "Value removed due to size. "
             "You can change this behaviour in [core]max_templated_field_size",
             "op_kwargs": {},
             "templates_dict": None,
@@ -357,14 +358,21 @@ class TestRenderedTaskInstanceFields:
         """
         Test that large objects are not stored in the database
         """
-        import pandas as pd
 
-        large_dataframe = pd.DataFrame({"a": range(1000)})
+        class A:
+            def __init__(self):
+                self.a = "a" * 2560
+
+            def __str__(self):
+                return self.a
+
+        large_data = A()
+
         with dag_maker("test_large_objects_are_not_stored"):
 
             @task_decorator
             def gentask():
-                return large_dataframe
+                return large_data
 
             @task_decorator
             def consumer_task(value):
@@ -374,13 +382,13 @@ class TestRenderedTaskInstanceFields:
 
         dr = dag_maker.create_dagrun()
         ti, ti2 = dr.task_instances
-        ti.xcom_push(value=large_dataframe, key="return_value")
+        ti.xcom_push(value=str(large_data), key="return_value")
         rtif = RTIF(ti=ti2)
         rtif.write(session=session)
         session.flush()
         rtif = session.scalar(select(RTIF).where(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id))
         assert rtif.rendered_fields == {
-            "op_args": "Value redacted as it is too large to be stored in the database. "
+            "op_args": "Value removed due to size. "
             "You can change this behaviour in [core]max_templated_field_size",
             "op_kwargs": {},
             "templates_dict": None,

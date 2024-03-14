@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 
 from airflow.configuration import conf
@@ -43,23 +42,17 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
     max_size = conf.getint("core", "max_templated_field_size")
 
     if not is_jsonable(template_field):
-        if isinstance(template_field, (list, tuple)):
-            if sum(sys.getsizeof(x) for x in template_field) > max_size:
-                return (
-                    "Value redacted as it is too large to be stored in the database. "
-                    "You can change this behaviour in [core]max_templated_field_size"
-                )
-        elif sys.getsizeof(template_field) > max_size:
+        serialized = str(template_field)
+        if len(serialized) > max_size:
             return (
-                "Value redacted as it is too large to be stored in the database. "
+                "Value removed due to size. "
                 "You can change this behaviour in [core]max_templated_field_size"
             )
-        return str(template_field)
+        return serialized
     else:
-        if template_field and isinstance(template_field, (list, tuple)):
-            if sum(sys.getsizeof(x) for x in template_field) > max_size:
-                return (
-                    "Value redacted as it is too large to be stored in the database. "
-                    "You can change this behaviour in [core]max_templated_field_size"
-                )
+        if template_field and len(str(template_field)) > max_size:
+            return (
+                "Value removed due to size. "
+                "You can change this behaviour in [core]max_templated_field_size"
+            )
         return template_field
