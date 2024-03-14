@@ -22,10 +22,11 @@ from typing import TYPE_CHECKING
 from urllib.parse import urljoin
 
 import httpx
-from azure import identity
+from azure.identity import ClientSecretCredential
 from httpx import Timeout
-from kiota_authentication_azure import azure_identity_authentication_provider
-from kiota_http import httpx_request_adapter
+from kiota_authentication_azure.azure_identity_authentication_provider import \
+    AzureIdentityAuthenticationProvider
+from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import GraphClientFactory
 from msgraph_core._enums import APIVersion, NationalClouds
 
@@ -146,10 +147,10 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Timeout: %s", self.timeout)
             self.log.info("Trust env: %s", trust_env)
             self.log.info("Proxies: %s", json.dumps(proxies))
-            credentials = identity.ClientSecretCredential(
-                tenant_id=tenant_id,
-                client_id=connection.login,
-                client_secret=connection.password,
+            credentials = ClientSecretCredential(
+                tenant_id=tenant_id,  # type: ignore
+                client_id=connection.login,  # type: ignore
+                client_secret=connection.password,  # type: ignore
                 proxies=proxies,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
@@ -162,10 +163,10 @@ class KiotaRequestAdapterHook(BaseHook):
                 ),
                 host=host,
             )
-            auth_provider = azure_identity_authentication_provider.AzureIdentityAuthenticationProvider(
+            auth_provider = AzureIdentityAuthenticationProvider(
                 credentials=credentials, scopes=scopes
             )
-            request_adapter = httpx_request_adapter.HttpxRequestAdapter(
+            request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
                 http_client=http_client,
                 base_url=base_url,
