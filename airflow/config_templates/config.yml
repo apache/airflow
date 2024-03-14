@@ -118,7 +118,7 @@ core:
       default: "16"
     max_consecutive_failed_dag_runs_per_dag:
       description: |
-        The maximum number of consecutive DAG failures before DAG is automatically paused.
+        (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
         This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
         which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
         If not specified, then the value is considered as None,
