@@ -52,7 +52,7 @@ def _mask_variable_fields(extra_fields):
         if k == "key":
             keyname = v
             result.update({k: v})
-        elif keyname and k == "val":
+        elif keyname and (k == "val" or k == "value"):
             x = secrets_masker.redact(v, keyname)
             result.update({k: x})
             keyname = None
@@ -65,7 +65,7 @@ def _mask_connection_fields(extra_fields):
     """Mask connection fields."""
     result = {}
     for k, v in extra_fields.items():
-        if k == "extra":
+        if k == "extra" and v:
             try:
                 extra = json.loads(v)
                 extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
@@ -94,6 +94,8 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user = get_auth_manager().get_user_name()
                     user_display = get_auth_manager().get_user_display_name()
 
+                isAPIRequest = request.blueprint == "/api/v1"
+
                 fields_skip_logging = {
                     "csrf_token",
                     "_csrf_token",
@@ -110,27 +112,21 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     if k not in fields_skip_logging
                 }
                 if event and event.startswith("variable."):
-                    extra_fields = _mask_variable_fields(extra_fields)
+                    extra_fields = _mask_variable_fields(request.json if isAPIRequest else extra_fields)
                 elif event and event.startswith("connection."):
-                    extra_fields = _mask_connection_fields(extra_fields)
+                    extra_fields = _mask_connection_fields(request.json if isAPIRequest else extra_fields)
+                elif request.headers.get("content-type") == "application/json" and request.json:
+                    extra_fields.update({"body": request.json})
 
                 params = {**request.values, **request.view_args}
                 if params and "is_paused" in params:
                     extra_fields.update({"is_paused": params["is_paused"] == "false"})
 
-                if request.blueprint == "/api/v1":
+                if isAPIRequest:
                     if f"{request.origin}/" == request.root_url:
                         event_name = f"ui.{event_name}"
                     else:
                         event_name = f"api.{event_name}"
-
-                    if (
-                        request.headers.get("content-type") == "application/json"
-                        and request.json
-                        and not event.startswith("variable.")
-                        and not event.startswith("connection.")
-                    ):
-                        extra_fields.update({"body": request.json})
 
                 log = Log(
                     event=event_name,
