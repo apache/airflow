@@ -54,10 +54,7 @@ pytestmark = pytest.mark.db_test
 
 class QueueListener_(logging.handlers.QueueListener):
     def __init__(self, queue, *handlers, respect_handler_level):
-        no_console_handlers = []
-        for h in handlers:
-            if h.name != "console":
-                no_console_handlers.append(h)
+        no_console_handlers = (h for h in handlers if h.name != "console")
         super().__init__(queue, *no_console_handlers, respect_handler_level=respect_handler_level)
 
 
@@ -152,8 +149,6 @@ def test_trigger_logging_sensitive_info(session, caplog):
     triggerer_job_runner.load_triggers()
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     triggerer_job_runner.daemon = True
-    # set job_id so that it can be used by FileTaskHandler.add_triggerer_suffix
-    triggerer_job_runner.trigger_runner.job_id = triggerer_job.id
     triggerer_job_runner.trigger_runner.start()
     try:
         # Wait for up to 3 seconds for it to fire and appear in the event queue
@@ -260,8 +255,6 @@ def test_trigger_lifecycle(session):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     job_runner.daemon = True
-    # set job_id so that it can be used by FileTaskHandler.add_triggerer_suffix
-    job_runner.trigger_runner.job_id = job.id
     job_runner.trigger_runner.start()
     try:
         # Wait for up to 3 seconds for it to appear in the TriggerRunner's storage
@@ -430,8 +423,6 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
     job.prepare_for_execution()
     job_runner = TriggererJob_(job)
     job_runner.trigger_runner = TriggerRunner_()
-    # set job_id so that it can be used by FileTaskHandler.add_triggerer_suffix
-    job_runner.trigger_runner.job_id = job.id
     thread = Thread(target=job_runner._execute)
     thread.start()
     try:
@@ -570,8 +561,6 @@ def test_trigger_firing(session):
     job.prepare_for_execution()
     job_runner = TriggererJobRunner(job)
     job_runner.load_triggers()
-    # set job_id so that it can be used by FileTaskHandler.add_triggerer_suffix
-    job_runner.trigger_runner.job_id = job.id
     # Now, start TriggerRunner up (and set it as a daemon thread during tests)
     job_runner.daemon = True
     job_runner.trigger_runner.start()
