@@ -916,7 +916,7 @@ DAG Auto-pausing (Experimental)
 -------------------------------
 Dags can be configured to be auto-paused as well.
 There is a Airflow configuration which allows for automatically disabling of a dag
-if it fails for `N` number of times consecutively.
+if it fails for ``N`` number of times consecutively.
 
 - :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
 
