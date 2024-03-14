@@ -95,7 +95,14 @@ class BaseDatasetEventInput(Protocol):
     def __and__(self, other: BaseDatasetEventInput) -> DatasetAll:
         return DatasetAll(self, other)
 
-    def as_expression(self) -> dict[str, Any]:
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        The return value is stored in DagModel for display purposes. It must be
+        JSON-compatible.
+
+        :meta private:
+        """
         raise NotImplementedError
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -129,10 +136,12 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
     def __hash__(self) -> int:
         return hash(self.uri)
 
-    def as_expression(self) -> dict[str, Any]:
-        if self.extra is None:
-            return {"uri": self.uri}
-        return {"uri": self.uri, "extra": self.extra}
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return self.uri
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
@@ -148,9 +157,6 @@ class _DatasetBooleanCondition(BaseDatasetEventInput):
 
     def __init__(self, *objects: BaseDatasetEventInput) -> None:
         self.objects = objects
-
-    def as_expression(self) -> dict[str, Any]:
-        return {"objects": [o.as_expression() for o in self.objects]}
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
@@ -177,6 +183,13 @@ class DatasetAny(_DatasetBooleanCondition):
     def __repr__(self) -> str:
         return f"DatasetAny({', '.join(map(str, self.objects))})"
 
+    def as_expression(self) -> dict[str, Any]:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"any": [o.as_expression() for o in self.objects]}
+
 
 class DatasetAll(_DatasetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
@@ -189,3 +202,10 @@ class DatasetAll(_DatasetBooleanCondition):
 
     def __repr__(self) -> str:
         return f"DatasetAll({', '.join(map(str, self.objects))})"
+
+    def as_expression(self) -> Any:
+        """Serialize the dataset into its scheduling expression.
+
+        :meta private:
+        """
+        return {"all": [o.as_expression() for o in self.objects]}
