@@ -411,12 +411,12 @@ class ExecutorSafeguard:
                     return func(self, *args, **kwargs)
                 raise_or_warn(
                     operator=self,
-                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!",
                 )
             else:
                 raise_or_warn(
                     operator=self,
-                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called directly!"
+                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called directly!",
                 )
 
         return wrapper
