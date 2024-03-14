@@ -879,7 +879,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
         logger_name: str | None = None,
-        allow_mixing: bool = False,
+        allow_mixin: bool = False,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -1035,7 +1035,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self._log_config_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
-        self.allow_mixing: bool = allow_mixing
+        self.allow_mixin: bool = allow_mixin
 
         # Lineage
         self.inlets: list = []
