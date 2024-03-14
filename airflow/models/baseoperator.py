@@ -268,6 +268,7 @@ def partial(
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
+    allow_mixin: bool = False,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -334,6 +335,7 @@ def partial(
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
         "logger_name": logger_name,
+        "allow_mixin": allow_mixin,
     }
 
     # Inject DAG-level default args into args provided to this function.
