@@ -72,7 +72,7 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref",
     "attrs>=22.1.0",
-    # Blicker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
+    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
