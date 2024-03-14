@@ -106,8 +106,8 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
         if: inputs.do-build == 'true'
       - uses: actions/checkout@v4
         with:

@@ -91,8 +91,8 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       COMMIT_SHA: ${{ github.sha }}
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -145,5 +145,3 @@ jobs:
           breeze prod-image build --tag-as-latest --install-packages-from-context
           --push --python ${{ matrix.python}} --platform "linux/amd64"
         if: inputs.push-latest-images == 'true'
-      - name: "Clean docker cache for ${{ matrix.platform }}"
-        run: docker system prune --all --force

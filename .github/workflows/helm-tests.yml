@@ -63,8 +63,8 @@ jobs:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
@@ -84,8 +84,8 @@ jobs:
       RUNS_ON: "${{inputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:

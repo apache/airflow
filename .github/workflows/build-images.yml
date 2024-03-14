@@ -113,8 +113,8 @@ jobs:
               }
             }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]' >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -183,8 +183,8 @@ jobs:
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       USE_UV: "true"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
@@ -262,8 +262,8 @@ jobs:
       INCLUDE_NOT_READY_PROVIDERS: "true"
       USE_UV: "true"
     steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: Cleanup
+        uses: ./.github/actions/cleanup
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
