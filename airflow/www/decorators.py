@@ -44,36 +44,36 @@ def _mask_variable_fields(extra_fields):
     Mask the 'val_content' field if 'key_content' is in the mask list.
 
     The variable requests values and args comes in this form:
-    [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
+    [{'key': 'key_content'},{'val': 'val_content'}, {'description': 'description_content'}]
     """
-    result = []
+    result = {}
     keyname = None
-    for k, v in extra_fields:
+    for k, v in extra_fields.items():
         if k == "key":
             keyname = v
-            result.append((k, v))
+            result.update({k: v})
         elif keyname and k == "val":
             x = secrets_masker.redact(v, keyname)
-            result.append((k, x))
+            result.update({k: x})
             keyname = None
         else:
-            result.append((k, v))
+            result.update({k: v})
     return result
 
 
 def _mask_connection_fields(extra_fields):
     """Mask connection fields."""
-    result = []
-    for k, v in extra_fields:
+    result = {}
+    for k, v in extra_fields.items():
         if k == "extra":
             try:
                 extra = json.loads(v)
-                extra = [(k, secrets_masker.redact(v, k)) for k, v in extra.items()]
-                result.append((k, json.dumps(dict(extra))))
+                extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
+                result.update({k: dict(extra)})
             except json.JSONDecodeError:
-                result.append((k, "Encountered non-JSON in `extra` field"))
+                result.update({k: "Encountered non-JSON in `extra` field"})
         else:
-            result.append((k, secrets_masker.redact(v, k)))
+            result.update({k: secrets_masker.redact(v, k)})
     return result
 
 
@@ -104,11 +104,11 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     "run_id",
                     "execution_date",
                 }
-                extra_fields = [
-                    (k, secrets_masker.redact(v, k))
+                extra_fields = {
+                    k: secrets_masker.redact(v, k)
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
-                ]
+                }
                 if event and event.startswith("variable."):
                     extra_fields = _mask_variable_fields(extra_fields)
                 elif event and event.startswith("connection."):
@@ -116,16 +116,20 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
 
                 params = {**request.values, **request.view_args}
                 if params and "is_paused" in params:
-                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
+                    extra_fields.update({"is_paused": params["is_paused"] == "false"})
 
-                extra_fields = dict(extra_fields)
                 if request.blueprint == "/api/v1":
                     if f"{request.origin}/" == request.root_url:
                         event_name = f"ui.{event_name}"
                     else:
                         event_name = f"api.{event_name}"
 
-                    if request.headers.get("content-type") == "application/json" and request.json:
+                    if (
+                        request.headers.get("content-type") == "application/json"
+                        and request.json
+                        and not event.startswith("variable.")
+                        and not event.startswith("connection.")
+                    ):
                         extra_fields.update({"body": request.json})
 
                 log = Log(
