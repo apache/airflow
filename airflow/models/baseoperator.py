@@ -732,16 +732,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         badly used (e.g. mixed within another one). In future releases of Airflow this parameter will be
         removed and an exception will always be thrown when operators are badly mixed within each other.
 
-        **Example**: example of a bad operator mixin usage
+        **Example**: example of a bad operator mixin usage::
 
             @task(provide_context=True)
             def say_hello_world(**context):
                 hello_world_task = BashOperator(
-                    task_id='hello_world_task',
-                    bash_command='python -c "print(\'Hello, world!\')"',
+                    task_id="hello_world_task",
+                    bash_command="python -c \"print('Hello, world!')\"",
                     dag=dag,
                 )
-                hello_world_task.execute(context)`
+                hello_world_task.execute(context)
     """
 
     # Implementing Operator.
@@ -1958,9 +1958,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            â•­â”€op2â”€â•® â•­â”€op4â”€â•®
-        op1â”€â”¤     â”œâ”€â”œâ”€op5â”€â”¤â”€op7
-            â•°-op3â”€â•¯ â•°-op6â”€â•¯
+            â•­â"€op2â"€â•® â•­â"€op4â"€â•®
+        op1â"€â"¤     â"œâ"€â"œâ"€op5â"€â"¤â"€op7
+            â•°-op3â"€â•¯ â•°-op6â"€â•¯
 
     Then you can accomplish like so::
 
