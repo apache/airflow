@@ -38,9 +38,18 @@ declare const filtersOptions: {
   taskStates: TaskState[];
 };
 
+const now = new Date();
+
 const FilterBar = () => {
   const {
-    filters,
+    filters: {
+      baseDate,
+      numRuns,
+      runState,
+      runStateOptions,
+      runType,
+      runTypeOptions,
+    },
     onBaseDateChange,
     onNumRunsChange,
     onRunTypeChange,
@@ -49,9 +58,16 @@ const FilterBar = () => {
     transformArrayToMultiSelectOptions,
   } = useFilters();
 
+  // @ts-ignore
+  const isBaseDateDefault = moment(now).isSame(baseDate, "minute");
+  const isRunStateDefault = !runState || !runState.length;
+  const isRunTypeDefault = !runType || !runType.length;
+  const areFiltersDefault =
+    isBaseDateDefault && isRunTypeDefault && isRunStateDefault;
+
   const { timezone } = useTimezone();
   // @ts-ignore
-  const time = moment(filters.baseDate);
+  const time = moment(baseDate);
   // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
@@ -61,17 +77,45 @@ const FilterBar = () => {
   };
 
   const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
-  const multiSelectStyles = useChakraSelectProps({
-    ...inputStyles,
+
+  const multiSelectStyles: Record<string, any> = {
+    size: "lg",
     isMulti: true,
     tagVariant: "solid",
     hideSelectedOptions: false,
     isClearable: false,
     selectedOptionStyle: "check",
+  };
+
+  const filteredStyles = {
+    borderColor: "blue.400",
+    borderWidth: 2,
+  };
+
+  const runTypeStyles = useChakraSelectProps({
+    ...multiSelectStyles,
     chakraStyles: {
-      container: (provided) => ({
+      control: (provided) => ({
         ...provided,
         bg: "white",
+        ...(isRunTypeDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunTypeDefault ? {} : filteredStyles),
+        },
+      }),
+    },
+  });
+
+  const runStateStyles = useChakraSelectProps({
+    ...multiSelectStyles,
+    chakraStyles: {
+      control: (provided) => ({
+        ...provided,
+        bg: "white",
+        ...(isRunStateDefault ? {} : filteredStyles),
+        _hover: {
+          ...(isRunStateDefault ? {} : filteredStyles),
+        },
       }),
     },
   });
@@ -90,26 +134,13 @@ const FilterBar = () => {
             type="datetime-local"
             value={formattedTime || ""}
             onChange={(e) => onBaseDateChange(e.target.value)}
+            {...(isBaseDateDefault ? {} : filteredStyles)}
           />
-        </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            placeholder="Runs"
-            value={filters.numRuns || ""}
-            onChange={(e) => onNumRunsChange(e.target.value)}
-          >
-            {filtersOptions.numRuns.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
         </Box>
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
-            {...multiSelectStyles}
-            value={transformArrayToMultiSelectOptions(filters.runType)}
+            {...runTypeStyles}
+            value={transformArrayToMultiSelectOptions(runType)}
             onChange={(typeOptions) => {
               if (
                 Array.isArray(typeOptions) &&
@@ -120,15 +151,15 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={transformArrayToMultiSelectOptions(filters.runTypeOptions)}
+            options={transformArrayToMultiSelectOptions(runTypeOptions)}
             placeholder="All Run Types"
           />
         </Box>
         <Box />
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
-            {...multiSelectStyles}
-            value={transformArrayToMultiSelectOptions(filters.runState)}
+            {...runStateStyles}
+            value={transformArrayToMultiSelectOptions(runState)}
             onChange={(stateOptions) => {
               if (
                 Array.isArray(stateOptions) &&
@@ -139,9 +170,7 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={transformArrayToMultiSelectOptions(
-              filters.runStateOptions
-            )}
+            options={transformArrayToMultiSelectOptions(runStateOptions)}
             placeholder="All Run States"
           />
         </Box>
@@ -152,13 +181,31 @@ const FilterBar = () => {
             background="white"
             variant="outline"
             onClick={clearFilters}
+            disabled={areFiltersDefault}
             size="lg"
           >
             Clear Filters
           </Button>
         </Box>
       </Flex>
-      <AutoRefresh />
+      <Flex>
+        <AutoRefresh />
+        <Box px={2}>
+          <Select
+            {...inputStyles}
+            placeholder="Runs"
+            value={numRuns || ""}
+            onChange={(e) => onNumRunsChange(e.target.value)}
+            aria-label="Number of runs to display in grid"
+          >
+            {filtersOptions.numRuns.map((value) => (
+              <option value={value} key={value}>
+                {value}
+              </option>
+            ))}
+          </Select>
+        </Box>
+      </Flex>
     </Flex>
   );
 };
