@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Any, Callable
+from types import NoneType
+from typing import Any, Callable
 
 from kiota_abstractions.response_handler import ResponseHandler, NativeResponseType
 # type: ignore[TCH002]
@@ -24,13 +25,13 @@ from kiota_abstractions.serialization import ParsableFactory
 
 class CallableResponseHandler(ResponseHandler):
     """
-        CallableResponseHandler executes the passed callable_function with the given response as parameter.
+        CallableResponseHandler executes the passed callable_function with response as parameter.
     """
 
     def __init__(
         self,
         callable_function: Callable[
-            [NativeResponseType, Optional[dict[str, Optional[ParsableFactory]]]], Any
+            [NativeResponseType, dict[str, ParsableFactory | NoneType] | None], Any
         ],
     ):
         self.callable_function = callable_function
@@ -38,6 +39,6 @@ class CallableResponseHandler(ResponseHandler):
     async def handle_response_async(
         self,
         response: NativeResponseType,
-        error_map: Optional[dict[str, Optional[ParsableFactory]]],
+        error_map: dict[str, ParsableFactory | NoneType] | None,
     ) -> Any:
         return self.callable_function(response, error_map)

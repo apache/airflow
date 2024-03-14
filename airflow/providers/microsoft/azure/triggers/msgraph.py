@@ -131,7 +131,7 @@ class MSGraphTrigger(BaseTrigger):
         return value or default
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes HttpTrigger arguments and classpath."""
+        """Serialize the HttpTrigger arguments and classpath."""
         api_version = self.api_version.value if self.api_version else None
         return (
             f"{self.__class__.__module__}.{self.__class__.__name__}",
@@ -172,7 +172,7 @@ class MSGraphTrigger(BaseTrigger):
         return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Makes a series of asynchronous http calls via a KiotaRequestAdapterHook."""
+        """ Make a series of asynchronous HTTP calls via a KiotaRequestAdapterHook."""
         try:
             response = await self.execute()
 

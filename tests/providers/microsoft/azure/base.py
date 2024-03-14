@@ -18,7 +18,7 @@ import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, Iterable, Optional
+from typing import Any, Iterable
 from unittest.mock import patch
 
 import pytest
@@ -43,13 +43,13 @@ class MockedTaskInstance(TaskInstance):
     def xcom_pull(
         self,
         task_ids: Iterable[str] | str | None = None,
-        dag_id: Optional[str] = None,
+        dag_id: str | None = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
         *,
         map_indexes: Iterable[int] | int | None = None,
-        default: Optional[Any] = None,
+        default: Any | None = None,
     ) -> Any:
         self.task_id = task_ids
         self.dag_id = dag_id

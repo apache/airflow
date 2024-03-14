@@ -80,9 +80,9 @@ class MSGraphAsyncOperator(BaseOperator):
         url: str | None = None,
         response_type: ResponseType | NoneType = None,
         response_handler: Callable[
-            [NativeResponseType, Optional[dict[str, Optional[ParsableFactory]]]], Any
+            [NativeResponseType, dict[str, ParsableFactory | NoneType] | None], Any
         ] = lambda response, error_map: response.json(),
-        path_parameters: Optional[dict[str, Any]] = None,
+        path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
