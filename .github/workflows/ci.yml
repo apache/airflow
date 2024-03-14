@@ -640,57 +640,22 @@ jobs:
           update-chart-dependencies
         if: always()
 
-  # Runs static checks for groups of files in the repository in a single process without passing .
-  # List of files
   mypy:
-    timeout-minutes: 45
-    name: "MyPy checks"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    name: "MyPy tests"
+    uses: ./.github/workflows/mypy.yml
     needs: [build-info, wait-for-ci-images]
-    strategy:
-      fail-fast: false
-      matrix:
-        mypy-folder: ${{fromJson(needs.build-info.outputs.mypy-folders)}}
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
+      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
     if: needs.build-info.outputs.latest-versions-only != 'true'
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-        id: breeze
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
-        if: needs.build-info.outputs.needs-mypy == 'true'
-      - name: "MyPy checks for ${{ matrix.mypy-folder }}"
-        run: |
-          pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual mypy-${{matrix.mypy-folder}} --all-files
-        env:
-          VERBOSE: "false"
-          COLUMNS: "250"
-          SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-          RUFF_FORMAT: "github"
-
-        if: needs.build-info.outputs.needs-mypy == 'true'
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
