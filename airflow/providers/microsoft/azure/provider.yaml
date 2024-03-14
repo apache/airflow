@@ -164,6 +164,10 @@ integrations:
     external-doc-url: https://azure.microsoft.com/en-us/products/storage/data-lake-storage/
     logo: /integration-logos/azure/Data Lake Storage.svg
     tags: [azure]
+  - integration-name: Microsoft Graph API
+    external-doc-url: https://learn.microsoft.com/en-us/graph/use-the-api/
+    logo: /integration-logos/azure/Microsoft-Graph.svg
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -193,6 +197,9 @@ operators:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.operators.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.msgraph
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -247,6 +254,9 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.msgraph
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -255,6 +265,9 @@ triggers:
   - integration-name: Microsoft Azure Blob Storage
     python-modules:
       - airflow.providers.microsoft.azure.triggers.wasb
+  - integration-name: Microsoft Graph API
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.msgraph
 
 transfers:
   - source-integration-name: Local
@@ -308,6 +321,8 @@ connection-types:
     connection-type: adls
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapsePipelineHook
     connection-type: azure_synapse_pipeline
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.msgraph.KiotaRequestAdapterHook
+    connection-type: http
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
