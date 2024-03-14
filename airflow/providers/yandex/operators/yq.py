@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yq import YQHook
 from airflow.providers.yandex.links.yq import YQLink
 
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class YQExecuteQueryOperator(SQLExecuteQueryOperator):
+class YQExecuteQueryOperator(BaseOperator):
     """
     Executes sql code using Yandex Query service.
 
@@ -50,6 +51,7 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         yandex_conn_id: str | None = None,
         public_ssh_key: str | None = None,
         service_account_id: str | None = None,
+        sql: str,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,18 +60,21 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         self.yandex_conn_id = yandex_conn_id
         self.public_ssh_key = public_ssh_key
         self.service_account_id = service_account_id
+        self.sql = sql
 
-        self.hook: YQHook | None = None
         self.query_id: str | None = None
 
-    def execute(self, context: Context) -> Any:
-        self.hook = YQHook(
-            yandex_conn_id=self.yandex_conn_id,
-            default_folder_id=self.folder_id,
-            default_public_ssh_key=self.public_ssh_key,
-            default_service_account_id=self.service_account_id,
-        )
+    @cached_property
+    def hook(self) -> YQHook:
+        """Get valid hook."""
+        return YQHook(
+                yandex_conn_id=self.yandex_conn_id,
+                default_folder_id=self.folder_id,
+                default_public_ssh_key=self.public_ssh_key,
+                default_service_account_id=self.service_account_id,
+            )
 
+    def execute(self, context: Context) -> Any:
         self.query_id = self.hook.create_query(query_text=self.sql, name=self.name)
 
         # pass to YQLink
@@ -85,4 +90,3 @@ class YQExecuteQueryOperator(SQLExecuteQueryOperator):
         if self.hook is not None and self.query_id is not None:
             self.hook.stop_query(self.query_id)
             self.hook.close()
-            self.hook = None
