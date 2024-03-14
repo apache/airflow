@@ -26,7 +26,7 @@ class TestResponseHandler(Base):
         users = load_json("resources", "users.json")
         response = mock_json_response(200, users)
 
-        actual = self._loop.run_until_complete(
+        actual = self.run_async(
             CallableResponseHandler(
                 lambda response, error_map: response.json()
             ).handle_response_async(response, None)

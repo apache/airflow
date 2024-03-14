@@ -86,11 +86,17 @@ class Base:
             yield
 
     @staticmethod
-    async def run_tigger(trigger: BaseTrigger) -> list[TriggerEvent]:
+    async def _run_tigger(trigger: BaseTrigger) -> list[TriggerEvent]:
         events = []
         async for event in trigger.run():
             events.append(event)
         return events
+
+    def run_trigger(self, trigger: BaseTrigger) -> list[TriggerEvent]:
+        return self.run_async(self._run_tigger(trigger))
+
+    def run_async(self, future: Any) -> Any:
+        return self._loop.run_until_complete(future)
 
     def execute_operator(self, operator: Operator) -> tuple[Any, Any]:
         task_instance = MockedTaskInstance(task=operator, run_id="run_id", state=TaskInstanceState.RUNNING)
@@ -104,7 +110,7 @@ class Base:
         task = deferred.value
 
         while task:
-            events = self._loop.run_until_complete(self.run_tigger(deferred.value.trigger))
+            events = self.run_trigger(deferred.value.trigger)
 
             if not events:
                 break
