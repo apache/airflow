@@ -516,7 +516,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/postgres versions
-            {"python-version": python_version, "postgres-version": postgres_version}
+            {"python-version": python_version, "backend-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
             )
@@ -529,7 +529,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/mysql versions
-            {"python-version": python_version, "mysql-version": mysql_version}
+            {"python-version": python_version, "backend-version": mysql_version}
             for python_version, mysql_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MYSQL_VERSIONS
             )

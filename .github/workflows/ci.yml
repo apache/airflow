@@ -1070,14 +1070,14 @@ jobs:
   tests-postgres:
     timeout-minutes: 130
     name: >
-      DB:Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
+      DB:Postgres${{matrix.backend-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
-        postgres-version: "${{fromJson(needs.build-info.outputs.postgres-versions)}}"
+        backend-version: "${{fromJson(needs.build-info.outputs.postgres-versions)}}"
         exclude: "${{fromJson(needs.build-info.outputs.postgres-exclude)}}"
       fail-fast: false
     env:
@@ -1088,9 +1088,8 @@ jobs:
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
-      POSTGRES_VERSION: "${{matrix.postgres-version}}"
-      BACKEND_VERSION: "${{matrix.postgres-version}}"
-      JOB_ID: "postgres-${{matrix.postgres-version}}-${{matrix.python-version}}"
+      BACKEND_VERSION: "${{matrix.backend-version}}"
+      JOB_ID: "postgres-${{matrix.backend-version}}-${{matrix.python-version}}"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1116,7 +1115,7 @@ jobs:
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         run: breeze testing db-tests --collect-only --remove-arm-packages
-        if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
+        if: matrix.backend-version == needs.build-info.outputs.default-postgres-version
       - name: >
           Post Tests success: Postgres"
         uses: ./.github/actions/post_tests_success
@@ -1144,7 +1143,6 @@ jobs:
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       DOWNGRADE_SQLALCHEMY: "true"
       JOB_ID: >
@@ -1195,7 +1193,6 @@ jobs:
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       UPGRADE_BOTO: "true"
       JOB_ID: >
@@ -1249,7 +1246,6 @@ jobs:
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       PYDANTIC: ${{ matrix.pydantic }}
       JOB_ID: >
@@ -1300,7 +1296,6 @@ jobs:
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       DOWNGRADE_PENDULUM: "true"
       JOB_ID: >
@@ -1353,7 +1348,6 @@ jobs:
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       AIRFLOW_ENABLE_AIP_44: "false"
       JOB_ID: >
@@ -1390,14 +1384,14 @@ jobs:
   tests-mysql:
     timeout-minutes: 130
     name: >
-      DB:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
+      DB:MySQL${{matrix.backend-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
-        mysql-version: "${{fromJson(needs.build-info.outputs.mysql-versions)}}"
+        backend-version: "${{fromJson(needs.build-info.outputs.mysql-versions)}}"
         exclude: "${{fromJson(needs.build-info.outputs.mysql-exclude)}}"
       fail-fast: false
     env:
@@ -1409,9 +1403,8 @@ jobs:
       BACKEND: "mysql"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
-      MYSQL_VERSION: "${{matrix.mysql-version}}"
-      BACKEND_VERSION: "${{matrix.mysql-version}}"
-      JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
+      BACKEND_VERSION: "${{matrix.backend-version}}"
+      JOB_ID: "mysql-${{matrix.backend-version}}-${{matrix.python-version}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -1511,7 +1504,6 @@ jobs:
       BACKEND: "postgres"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       JOB_ID: "integration-postgres"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
@@ -1588,7 +1580,6 @@ jobs:
       BACKEND: "mysql"
       ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       JOB_ID: "integration-mysql"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
@@ -1656,14 +1647,12 @@ jobs:
         env:
           BACKEND: "postgres"
           BACKEND_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
-          POSTGRES_VERSION: ${{needs.build-info.outputs.default-postgres-version}}
       - name: >
           Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "mysql"
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
-          MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
       - name: >
           Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
