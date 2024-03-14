@@ -30,9 +30,7 @@ import pendulum
 
 
 class ResponseSerializer:
-    """
-    ResponseSerializer serializes the response as a string.
-    """
+    """ResponseSerializer serializes the response as a string."""
 
     def __init__(self, encoding: str | None = None):
         self.encoding = encoding or locale.getpreferredencoding()

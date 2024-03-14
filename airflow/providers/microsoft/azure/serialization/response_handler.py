@@ -25,9 +25,7 @@ from kiota_abstractions.serialization import ParsableFactory
 
 
 class CallableResponseHandler(ResponseHandler):
-    """
-    CallableResponseHandler executes the passed callable_function with response as parameter.
-    """
+    """CallableResponseHandler executes the passed callable_function with response as parameter."""
 
     def __init__(
         self,
