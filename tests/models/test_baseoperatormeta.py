@@ -107,7 +107,7 @@ class TestExecutorSafeguard:
     def test_executor_when_called_directly_but_allow_mixing_is_enabled(self):
         dag = DAG(dag_id="hello_world")
         context = MagicMock(spec=Context)
-        operator = HelloWorldOperator(task_id="task_id", dag=dag, allow_mixing=True)
+        operator = HelloWorldOperator(task_id="task_id", dag=dag, allow_mixin=True)
 
         with patch.object(operator.log, "warning") as mock_warning:
             operator.execute(context=context)
