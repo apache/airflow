@@ -172,9 +172,5 @@ export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   );
 };
 
-export const CodeCell = ({ cell: { value } }: CellProps) => {
-  if (!value) return null;
-  const code =
-    typeof value !== "string" ? JSON.stringify(value, null, 2) : value;
-  return <Code>{code}</Code>;
-};
+export const CodeCell = ({ cell: { value } }: CellProps) =>
+  value ? <Code>{JSON.stringify(value)}</Code> : null;
