@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from types import NoneType
 from typing import (
     Any,
     AsyncIterator,
@@ -85,20 +84,20 @@ class MSGraphTrigger(BaseTrigger):
     def __init__(
         self,
         url: str | None = None,
-        response_type: ResponseType | NoneType = None,
+        response_type: ResponseType | None = None,
         response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | NoneType] | None], Any
+            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
         ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
         headers: dict[str, str] | None = None,
-        content: BytesIO | NoneType = None,
+        content: BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
-        api_version: APIVersion | NoneType = None,
+        api_version: APIVersion | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
     ):
         super().__init__()
@@ -239,7 +238,7 @@ class MSGraphTrigger(BaseTrigger):
         return request_information
 
     @staticmethod
-    def error_mapping() -> dict[str, ParsableFactory | NoneType]:
+    def error_mapping() -> dict[str, ParsableFactory | None]:
         return {
             "4XX": APIError,
             "5XX": APIError,

@@ -17,13 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from types import NoneType
 from typing import (
     Any,
     TYPE_CHECKING,
     Sequence,
-    Callable, Optional,
-)
+    Callable, )
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
@@ -78,21 +76,21 @@ class MSGraphAsyncOperator(BaseOperator):
         self,
         *,
         url: str | None = None,
-        response_type: ResponseType | NoneType = None,
+        response_type: ResponseType | None = None,
         response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | NoneType] | None], Any
+            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
         ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
         query_parameters: dict[str, QueryParams] | None = None,
         headers: dict[str, str] | None = None,
-        content: BytesIO | NoneType = None,
+        content: BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         key: str = XCOM_RETURN_KEY,
         timeout: float | None = None,
         proxies: dict | None = None,
-        api_version: APIVersion | NoneType = None,
+        api_version: APIVersion | None = None,
         result_processor: Callable[
             [Context, Any], Any
         ] = lambda context, result: result,
