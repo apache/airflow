@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-13T08:12:46.056714
+# This constraints file was automatically generated on 2024-03-15T17:19:34.757831
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -30,9 +30,9 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.3
 Js2Py==0.74
 Mako==1.3.2
-Markdown==3.5.2
+Markdown==3.6
 MarkupSafe==2.1.5
-PyAthena==3.3.0
+PyAthena==3.4.0
 PyGithub==2.2.0
 PyHive==0.7.0
 PyJWT==2.8.0
@@ -73,7 +73,7 @@ annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.3.0
 apache-beam==2.54.0
-apispec==6.5.0
+apispec==6.6.0
 apprise==1.7.4
 argcomplete==3.2.3
 asana==3.2.2
@@ -143,13 +143,13 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.54
+cohere==4.56
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.2
 confluent-kafka==2.3.0
 connexion==2.14.2
-coverage==7.4.3
+coverage==7.4.4
 crcmod==1.7
 cron-descriptor==1.4.3
 croniter==2.0.2
@@ -175,14 +175,13 @@ elastic-transport==8.12.0
 elasticsearch==8.12.1
 email-validator==1.3.1
 entrypoints==0.4
-enum34==1.1.10
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
 eventlet==0.35.2
 exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
-facebook_business==19.0.0
+facebook_business==19.0.1
 fastavro==1.9.4
 fasteners==0.19
 fastjsonschema==2.19.1
@@ -205,7 +204,7 @@ google-api-python-client==2.122.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.28.2
-google-cloud-aiplatform==1.43.0
+google-cloud-aiplatform==1.44.0
 google-cloud-appengine-logging==1.4.3
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.13.3
@@ -226,7 +225,7 @@ google-cloud-dataproc==5.9.3
 google-cloud-dlp==3.16.0
 google-cloud-kms==2.21.3
 google-cloud-language==2.13.3
-google-cloud-logging==3.9.0
+google-cloud-logging==3.10.0
 google-cloud-memcache==1.9.3
 google-cloud-monitoring==2.19.3
 google-cloud-orchestration-airflow==1.12.1
@@ -236,7 +235,7 @@ google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
 google-cloud-secret-manager==2.18.3
-google-cloud-spanner==3.43.0
+google-cloud-spanner==3.44.0
 google-cloud-speech==2.25.1
 google-cloud-storage-transfer==1.11.3
 google-cloud-storage==2.15.0
@@ -344,15 +343,15 @@ msrestazure==0.6.4
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.58
+mypy-boto3-rds==1.34.63
 mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.14
+mypy-boto3-s3==1.34.62
 mypy-extensions==1.0.0
 mypy==1.8.0
 mysql-connector-python==8.3.0
 mysqlclient==2.2.4
 nbclient==0.10.0
-nbformat==5.10.2
+nbformat==5.10.3
 neo4j==5.18.0
 nest-asyncio==1.6.0
 networkx==3.2.1
@@ -361,12 +360,12 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.13.3
+openai==1.14.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.9.1
-openlineage-python==1.9.1
-openlineage_sql==1.9.1
+openlineage-integration-common==1.10.2
+openlineage-python==1.10.2
+openlineage_sql==1.10.2
 openpyxl==3.1.2
 opensearch-py==2.4.2
 opentelemetry-api==1.23.0
@@ -398,7 +397,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.2.5
 pinecone-client==2.2.4
-pinotdb==5.1.3
+pinotdb==5.1.4
 pipdeptree==2.16.1
 pipx==1.4.3
 pkginfo==1.10.0
@@ -453,7 +452,7 @@ pytest-cov==4.1.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.12.0
-pytest-rerunfailures==13.0
+pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
 pytest==7.4.4
@@ -496,14 +495,14 @@ rpds-py==0.18.0
 rsa==4.9
 ruff==0.2.1
 s3fs==2023.12.2
-s3transfer==0.10.0
+s3transfer==0.10.1
 sarif-om==1.0.4
 scramp==1.4.4
 scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==1.41.0
+sentry-sdk==1.42.0
 setproctitle==1.3.3
 shapely==2.0.3
 shellingham==1.5.4
@@ -574,11 +573,11 @@ types-PyYAML==6.0.12.20240311
 types-aiofiles==23.2.0.20240311
 types-certifi==2021.10.8.3
 types-croniter==2.0.0.20240106
-types-docutils==0.20.0.20240311
+types-docutils==0.20.0.20240315
 types-paramiko==3.4.0.20240311
 types-protobuf==4.24.0.20240311
 types-pyOpenSSL==24.0.0.20240311
-types-python-dateutil==2.8.19.20240311
+types-python-dateutil==2.9.0.20240315
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240203
 types-redis==4.6.0.20240311
@@ -597,7 +596,7 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==1.26.18
 userpath==1.9.2
-uv==0.1.17
+uv==0.1.20
 validators==0.22.0
 vertica-python==1.3.8
 vine==5.1.0
@@ -610,11 +609,11 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.264.0
+yandexcloud==0.265.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.47
-zipp==3.18.0
+zipp==3.18.1
 zope.event==5.0
 zope.interface==6.2
 zstandard==0.22.0
