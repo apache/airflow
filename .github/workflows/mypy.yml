@@ -61,7 +61,8 @@ jobs:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: inputs.needs-mypy == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -69,20 +70,14 @@ jobs:
         with:
           persist-credentials: false
         if: inputs.needs-mypy == 'true'
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
+        if: inputs.needs-mypy == 'true'
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
         with:
           python-version: ${{ inputs.breeze-python-version }}
-        if: inputs.needs-mypy == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
         if: inputs.needs-mypy == 'true'
       - name: "MyPy checks for ${{ matrix.mypy-folder }}"
         run: |
@@ -94,4 +89,5 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.default-branch }}
           RUFF_FORMAT: "github"
+          INCLUDE_MYPY_VOLUME: "false"
         if: inputs.needs-mypy == 'true'

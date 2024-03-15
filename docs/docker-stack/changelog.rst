@@ -69,6 +69,9 @@ Airflow 2.9
 
 Airflow 2.8
 ~~~~~~~~~~~
+* 2.8.3
+
+   * Remove ``gosu`` binary from our images (#37677)
 
 * 2.8.3
 
