@@ -701,7 +701,8 @@
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
       "azure-synapse-artifacts>=0.17.0",
-      "azure-synapse-spark"
+      "azure-synapse-spark",
+      "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
       "pywinrm"
