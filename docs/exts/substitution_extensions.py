@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-OriginalCodeBlock: Directive = directives._directives["code-block"]
+OriginalCodeBlock: Directive = directives._directives["code-block"]  # type: ignore[attr-defined]
 
 _SUBSTITUTION_OPTION_NAME = "substitutions"
 
