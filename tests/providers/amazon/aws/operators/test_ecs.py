@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -679,6 +680,23 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+
+    @pytest.mark.db_test
+    def test_partial_deprecated_region(self, dag_maker):
+        with dag_maker("test_partial_deprecated_region_esc_run_task"):
+            EcsRunTaskOperator.partial(
+                task_id="fake-task-id",
+                region="ca-west-1",
+                cluster="foo",
+                task_definition="bar",
+            ).expand(overrides=[{}, {}, {}])
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        warning_match = r"`region` is deprecated and will be removed"
+        for ti in dr.task_instances:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                ti.render_templates()
+            assert ti.task.region_name == "ca-west-1"
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
