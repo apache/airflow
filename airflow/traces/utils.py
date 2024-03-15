@@ -40,24 +40,39 @@ def _gen_id(seeds: list[str], as_int: bool = False, type: int = TRACE_ID) -> str
 
 def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate trace id from DagRun."""
-    return _gen_id([dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())], as_int)
+    return _gen_id(
+        [dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())],
+        as_int,
+    )
 
 
 def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> str | int:
     """Generate span id from TI key."""
-    return _gen_id([ti_key.dag_id, ti_key.run_id, ti_key.task_id, str(ti_key.try_number)], as_int, SPAN_ID)
+    return _gen_id(
+        [ti_key.dag_id, ti_key.run_id, ti_key.task_id, str(ti_key.try_number)],
+        as_int,
+        SPAN_ID,
+    )
 
 
 def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate dag's root span id using dag_run."""
-    return _gen_id([dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())], as_int, SPAN_ID)
+    return _gen_id(
+        [dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())],
+        as_int,
+        SPAN_ID,
+    )
 
 
 def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
     """When this is called, the try_number of ti is already set to next(+1), hence the subtraction"""
-    return _gen_id([dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number - 1)], as_int, SPAN_ID)
+    return _gen_id(
+        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number - 1)],
+        as_int,
+        SPAN_ID,
+    )
 
 
 def parse_traceparent(traceparent_str: str | None = None) -> dict:
