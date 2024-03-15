@@ -149,10 +149,7 @@ class OtelTrace:
         if span_name is None:
             span_name = dagrun.dag_id
 
-        if links is not None:
-            _links = gen_links_from_kv_list(links)
-        else:
-            _links = []
+        _links = gen_links_from_kv_list(links) if links else []
 
         _links.append(
             Link(
