@@ -205,11 +205,12 @@ class OtelTrace:
         else:
             _links = []
 
-        a_link = Link(
-            context=trace.get_current_span().get_span_context(),
-            attributes={"meta.annotation_type": "link", "from": "parenttrace"},
-        )
-        _links.append(a_link)
+        _links.append(
+            Link(
+                context=trace.get_current_span().get_span_context(),
+                attributes={"meta.annotation_type": "link", "from": "parenttrace"},
+             )
+         )
 
         if child is False:
             tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
