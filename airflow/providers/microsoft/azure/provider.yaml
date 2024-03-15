@@ -168,6 +168,8 @@ integrations:
   - integration-name: Microsoft Graph API
     external-doc-url: https://learn.microsoft.com/en-us/graph/use-the-api/
     logo: /integration-logos/azure/Microsoft-Graph-API.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
     tags: [azure]
 
 operators:
