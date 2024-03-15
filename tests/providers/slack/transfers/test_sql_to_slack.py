@@ -199,7 +199,7 @@ class TestSqlToSlackApiFileOperator:
 
         with pytest.raises(AirflowSkipException):
             op.execute(mock.MagicMock())
-            mock_slack_hook_cls.assert_not_called()
+        mock_slack_hook_cls.assert_not_called()
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
@@ -220,9 +220,9 @@ class TestSqlToSlackApiFileOperator:
         mock_df.configure_mock(**{"empty.return_value": True})
         mock_get_query_results.return_value = mock_df
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="output df must be non-empty\. Failing"):
             op.execute(mock.MagicMock())
-            mock_slack_hook_cls.assert_not_called()
+        mock_slack_hook_cls.assert_not_called()
 
 
 def test_deprecated_sql_to_slack_operator():
