@@ -225,7 +225,10 @@ def _get_model_data_interval(
 def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
     if interval is NOTSET:
-        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
+        if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
+            return DeltaDataIntervalFixCatchupTimetable(DEFAULT_SCHEDULE_INTERVAL)
+        else:
+            return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
     if interval is None:
         return NullTimetable()
     if interval == "@once":
