@@ -26,7 +26,11 @@ if TYPE_CHECKING:
 
 
 class CallableResponseHandler(ResponseHandler):
-    """CallableResponseHandler executes the passed callable_function with response as parameter."""
+    """
+    CallableResponseHandler executes the passed callable_function with response as parameter.
+
+    :param callable_function: Function which allows you to handle the response before returning.
+    """
 
     def __init__(
         self,
