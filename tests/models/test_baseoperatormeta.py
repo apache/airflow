@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -25,8 +25,10 @@ import pytest
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import task
-from airflow.utils.context import Context
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class HelloWorldOperator(BaseOperator):
