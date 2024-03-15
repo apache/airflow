@@ -79,15 +79,6 @@ jobs:
         with:
           python-version: ${{ inputs.breeze-python-version }}
         if: inputs.needs-mypy == 'true'
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
-        if: inputs.needs-mypy == 'true'
       - name: "MyPy checks for ${{ matrix.mypy-folder }}"
         run: |
           pip install pre-commit
@@ -98,4 +89,5 @@ jobs:
           SKIP_GROUP_OUTPUT: "true"
           DEFAULT_BRANCH: ${{ inputs.default-branch }}
           RUFF_FORMAT: "github"
+          INCLUDE_MYPY_VOLUME: "false"
         if: inputs.needs-mypy == 'true'
