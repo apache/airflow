@@ -422,7 +422,7 @@ class GoogleBaseHook(BaseHook):
         """
         scope_value: str | None
         if self.impersonation_chain and self.impersonation_scopes:
-            scope_value = self.impersonation_scopes
+            scope_value = ",".join(self.impersonation_scopes)
         else:
             scope_value = self._get_field("scope", None)
         return _get_scopes(scope_value)
