@@ -51,6 +51,10 @@ class MSGraphAsyncOperator(BaseOperator):
 
     https://learn.microsoft.com/en-us/graph/use-the-api
 
+        .. seealso::
+            For more information on how to use this operator, take a look at the guide:
+            :ref:`howto/operator:MSGraphAsyncOperator`
+
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param key: The key that will be used to store XCOM's ("return_value" is default).
     :param url: The url being executed on the Microsoft Graph API (templated).
