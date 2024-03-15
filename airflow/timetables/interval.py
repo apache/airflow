@@ -283,3 +283,20 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
 
     def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         return DataInterval(start=self._get_prev(run_after), end=run_after)
+
+
+class DeltaDataIntervalFixCatchupTimetable(DeltaDataIntervalTimetable):
+    """Temporary solution to avoid one DAG run when first unpausing a DAG with catchup=False.
+
+    This timetable exists as a temporary solution to avoid running *one* DAG run when first unpausing a DAG
+    with ``catchup=False``. We aim to make this behaviour the default in Airflow 3.0, but have this as a
+    separate configurable Timetable to avoid breaking changes in Airflow 2.*.
+    """
+
+    def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
+        next_start = self._round(coerce_datetime(utcnow()))
+
+        if earliest is None:
+            return next_start
+        else:
+            return max(next_start, earliest)

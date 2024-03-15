@@ -117,6 +117,7 @@ from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.interval import (
     CronDataIntervalFixCatchupTimetable,
     CronDataIntervalTimetable,
+    DeltaDataIntervalFixCatchupTimetable,
     DeltaDataIntervalTimetable,
 )
 from airflow.timetables.simple import (
@@ -232,7 +233,10 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTi
     if interval == "@continuous":
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
-        return DeltaDataIntervalTimetable(interval)
+        if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
+            return DeltaDataIntervalFixCatchupTimetable(interval)
+        else:
+            return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
             if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
