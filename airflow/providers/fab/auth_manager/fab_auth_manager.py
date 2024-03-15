@@ -268,11 +268,12 @@ class FabAuthManager(BaseAuthManager):
         )
 
     def is_authorized_custom_view(
-        self, *, fab_action_name: str, fab_resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
     ):
         if not user:
             user = self.get_user()
-        return (fab_action_name, fab_resource_name) in self._get_user_permissions(user)
+        fab_action_name = get_fab_action_from_method_map()[method]
+        return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
     def get_permitted_dag_ids(
