@@ -194,10 +194,7 @@ class OtelTrace:
         if span_name is None:
             span_name = ti.task_id
 
-        if child is False:
-            parent_id = int(gen_dag_span_id(dag_run=dagrun, as_int=True))
-        else:
-            parent_id = span_id
+        parent_id = span_id if child else int(gen_dag_span_id(dag_run=dagrun, as_int=True))
 
         span_ctx = SpanContext(
             trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
