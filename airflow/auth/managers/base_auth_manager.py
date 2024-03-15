@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
 
 class BaseAuthManager(LoggingMixin):
@@ -235,24 +235,21 @@ class BaseAuthManager(LoggingMixin):
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
+    @abstractmethod
     def is_authorized_custom_view(
-        self, *, fab_action_name: str, fab_resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
     ):
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
-        A custom view is a view defined as part of the auth manager. This view is then only available when
-        the auth manager is used as part of the environment.
+        A custom view can be a view defined as part of the auth manager. This view is then only available when
+        the auth manager is used as part of the environment. It can also be a view defined as part of a
+        plugin defined by a user.
 
-        By default, it throws an exception because auth managers do not define custom views by default.
-        If an auth manager defines some custom views, it needs to override this method.
-
-        :param fab_action_name: the name of the FAB action defined in the view in ``base_permissions``
-        :param fab_resource_name: the name of the FAB resource defined in the view in
-            ``class_permission_name``
+        :param method: the method to perform
+        :param resource_name: the name of the resource
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
-        raise AirflowException(f"The resource `{fab_resource_name}` does not exist in the environment.")
 
     def batch_is_authorized_connection(
         self,
@@ -344,11 +341,30 @@ class BaseAuthManager(LoggingMixin):
         By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
         Can lead to some poor performance. It is recommended to override this method in the auth manager
         implementation to provide a more efficient implementation.
+
+        :param methods: whether filter readable or writable
+        :param user: the current user
+        :param session: the session
+        """
+        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+        return self.filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=user)
+
+    def filter_permitted_dag_ids(
+        self,
+        *,
+        dag_ids: set[str],
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+    ):
+        """
+        Filter readable or writable DAGs for user.
+
+        :param dag_ids: the list of DAG ids
+        :param methods: whether filter readable or writable
+        :param user: the current user
         """
         if not methods:
             methods = ["PUT", "GET"]
-
-        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
         if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
             "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)

@@ -16,16 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import typing
 
-from airflow.configuration import conf
-from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE, OpenLineageAdapter
+from airflow.providers.openlineage.utils.utils import get_job_name
 
 if typing.TYPE_CHECKING:
     from airflow.models import TaskInstance
-
-_JOB_NAMESPACE = conf.get("openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", "default"))
 
 
 def lineage_run_id(task_instance: TaskInstance):
@@ -46,21 +43,18 @@ def lineage_run_id(task_instance: TaskInstance):
     )
 
 
-def lineage_parent_id(run_id: str, task_instance: TaskInstance):
+def lineage_parent_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated job and run id for a given task.
+    Macro function which returns a unique identifier of given task that can be used to create ParentRunFacet.
 
-    This can be used to forward the ids from a task to a child run so the job
-    hierarchy is preserved. Child run can create ParentRunFacet from those ids.
+    This identifier is composed of the namespace, job name, and generated run id for given task, structured
+    as '{namespace}/{job_name}/{run_id}'. This can be used to forward task information from a task to a child
+    run so the job hierarchy is preserved. Child run can easily create ParentRunFacet from these information.
 
     .. seealso::
         For more information on how to use this macro, take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    job_name = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task.task_id,
-        execution_date=task_instance.execution_date,
-        try_number=task_instance.try_number,
-    )
-    return f"{_JOB_NAMESPACE}/{job_name}/{run_id}"
+    job_name = get_job_name(task_instance.task)
+    run_id = lineage_run_id(task_instance)
+    return f"{_DAG_NAMESPACE}/{job_name}/{run_id}"

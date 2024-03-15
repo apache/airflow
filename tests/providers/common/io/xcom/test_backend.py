@@ -49,7 +49,7 @@ def reset_db():
         session.query(airflow.models.xcom.XCom).delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance_factory(request, session: Session):
     def func(*, dag_id, task_id, execution_date):
         run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
@@ -76,7 +76,7 @@ def task_instance_factory(request, session: Session):
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance(task_instance_factory):
     return task_instance_factory(
         dag_id="dag",
@@ -181,7 +181,7 @@ class TestXcomObjectStoreBackend:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert self.path in qry.first().value
+        assert str(p) == qry.first().value
 
     @pytest.mark.db_test
     def test_clear(self, task_instance, session):

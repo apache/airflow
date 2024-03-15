@@ -51,8 +51,12 @@ with DAG(
     # [START howto_operator_python]
     def print_context(ds=None, **kwargs):
         """Print the Airflow context and ds variable from the context."""
+        print("::group::All kwargs")
         pprint(kwargs)
+        print("::endgroup::")
+        print("::group::Context variable ds")
         print(ds)
+        print("::endgroup::")
         return "Whatever you return gets printed in the logs"
 
     run_this = PythonOperator(task_id="print_the_context", python_callable=print_context)
@@ -60,7 +64,7 @@ with DAG(
 
     # [START howto_operator_python_render_sql]
     def log_sql(**kwargs):
-        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
 
     log_the_sql = PythonOperator(
         task_id="log_sql_query",

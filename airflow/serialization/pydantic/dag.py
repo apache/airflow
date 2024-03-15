@@ -125,12 +125,13 @@ class DagModelPydantic(BaseModelPydantic):
     default_view: Optional[str]
     schedule_interval: Optional[PydanticInterval]
     timetable_description: Optional[str]
-    tags: List[DagTagPydantic]  # noqa
-    dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa
+    tags: List[DagTagPydantic]  # noqa: UP006
+    dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006
     parent_dag: Optional[PydanticDag]
 
     max_active_tasks: int
     max_active_runs: Optional[int]
+    max_consecutive_failed_dag_runs: Optional[int]
 
     has_task_concurrency_limits: bool
     has_import_errors: Optional[bool] = False

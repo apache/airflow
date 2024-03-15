@@ -27,7 +27,6 @@ from unittest.mock import MagicMock
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
-from pytest import param
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
@@ -239,7 +238,7 @@ class TestKubernetesPodTrigger:
     @pytest.mark.parametrize(
         "logging_interval, exp_event",
         [
-            param(
+            pytest.param(
                 0,
                 {
                     "status": "running",

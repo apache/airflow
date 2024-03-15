@@ -45,16 +45,39 @@ Airflow 2.9
      ``apache/airflow:slim-2.9.0-python-3.8`` images respectively so while the change is potentially
      breaking, it is very easy to switch to the previous behaviour.
 
-Airflow 2.9
-~~~~~~~~~~~
+   * The ``PIP_USER`` flag is removed and replaced by ``VIRTUAL_ENV`` pointing to ``~/.local`` where Airflow
+     is installed. This has the effect that the Airflow installation is treated as a regular virtual environment,
+     but unlike a regular virtualenv, the ``~/.local`` directory is seen as ``system level`` and when the
+     worker creates dynamically the virtualenv with ``--system-site-packages`` flag, the Airflow installation and all
+     packages there are also present in the new virtualenv. When you do not use the flag, they are not
+     copied there which is a backwards-compatible behaviour with having ``PIP_USER`` set.
 
-The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
-``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
-security vulnerabilities as it was linked against older go standard libraries.
+   * The image contains latest ``uv`` binary (latest at the moment of release) - which is a new faster
+     replacement for ``pip``. While the image is still using ``pip`` by default, you can use ``uv``
+     to install packages and - experimentally - you can also build custom images with
+     ``--arg AIRFLOW_USE_UV=true`` which will us ``uv`` to perform the installation. This is an experimental
+     support, as ``uv`` is very fast but also a very new feature in the Python ecosystem.
 
+   * Constraints used to install the image are available in "${HOME}/constraints.txt" now - you can use them
+     to install additional packages in the image without having to find out which constraints you should use.
+
+   * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+     ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+     security vulnerabilities as it was linked against older Go standard libraries.
+
+   * The ``smtp`` provider is now included in the list of providers installed by default in the image.
 
 Airflow 2.8
 ~~~~~~~~~~~
+* 2.8.3
+
+   * Remove ``gosu`` binary from our images (#37677)
+
+* 2.8.3
+
+   * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+     ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+     security vulnerabilities as it was linked against older Go standard libraries.
 
 * 2.8.1
 
@@ -300,4 +323,8 @@ here so that users affected can find the reason for the changes.
 | 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
 |              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
 |              |                     |                                         | key expiry fiasco      |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
+|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
+|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+

@@ -39,7 +39,12 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # configuration is therefore initted early here, simply by importing it.
 from airflow import configuration, settings
 
-__all__ = ["__version__", "DAG", "Dataset", "XComArg"]
+__all__ = [
+    "__version__",
+    "DAG",
+    "Dataset",
+    "XComArg",
+]
 
 # Make `airflow` a namespace package, supporting installing
 # airflow.providers.* in different locations (i.e. one in site, and one in user
@@ -123,7 +128,6 @@ if not settings.LAZY_LOAD_PLUGINS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.exceptions import AirflowException
     from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
     from airflow.models.xcom_arg import XComArg

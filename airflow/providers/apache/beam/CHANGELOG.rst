@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 5.6.1
 .....
 

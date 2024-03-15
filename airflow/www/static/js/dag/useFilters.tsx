@@ -180,7 +180,6 @@ const useFilters = (): FilterHookReturn => {
 
   const clearFilters = () => {
     searchParams.delete(BASE_DATE_PARAM);
-    searchParams.delete(NUM_RUNS_PARAM);
     searchParams.delete(RUN_TYPE_PARAM);
     searchParams.delete(RUN_STATE_PARAM);
     setSearchParams(searchParams);

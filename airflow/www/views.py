@@ -116,6 +116,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
@@ -162,6 +163,8 @@ LINECHART_X_AXIS_TICKFORMAT = (
 )
 
 SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
+
+logger = logging.getLogger(__name__)
 
 
 def sanitize_args(args: dict[str, str]) -> dict[str, str]:
@@ -1358,7 +1361,7 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
 
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(execution_date=dttm)
         raw_task = dag.get_task(task_id).prepare_for_execution()
@@ -1477,14 +1480,14 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get("dag_id")
         task_id = request.args.get("task_id")
         if task_id is None:
-            logging.warning("Task id not passed in the request")
+            logger.warning("Task id not passed in the request")
             abort(400)
         execution_date = request.args.get("execution_date")
         dttm = _safe_parse_datetime(execution_date)
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         map_index = request.args.get("map_index", -1, type=int)
-        logging.info("Retrieving rendered templates.")
+        logger.info("Retrieving rendered templates.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
@@ -1552,7 +1555,7 @@ class Airflow(AirflowBaseView):
             execution_date = timezone.parse(execution_date_str, strict=True)
         except ValueError:
             error_message = (
-                f"Given execution date, {execution_date}, could not be identified as a date. "
+                f"Given execution date {execution_date_str!r} could not be identified as a date. "
                 "Example date format: 2015-11-16T14:34:15+00:00"
             )
             return {"error": error_message}, 400
@@ -2938,6 +2941,103 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
         )
 
+    @expose("/object/calendar_data")
+    @auth.has_access_dag("GET", DagAccessEntity.RUN)
+    @gzipped
+    @provide_session
+    def calendar_data(self, session: Session = NEW_SESSION):
+        """Get DAG runs as calendar."""
+        dag_id = request.args.get("dag_id")
+        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        if not dag:
+            return {"error": f"can't find dag {dag_id}"}, 404
+
+        dag_states = session.execute(
+            select(
+                func.date(DagRun.execution_date).label("date"),
+                DagRun.state,
+                func.max(DagRun.data_interval_start).label("data_interval_start"),
+                func.max(DagRun.data_interval_end).label("data_interval_end"),
+                func.count("*").label("count"),
+            )
+            .where(DagRun.dag_id == dag.dag_id)
+            .group_by(func.date(DagRun.execution_date), DagRun.state)
+            .order_by(func.date(DagRun.execution_date).asc())
+        ).all()
+
+        data_dag_states = [
+            {
+                # DATE() in SQLite and MySQL behave differently:
+                # SQLite returns a string, MySQL returns a date.
+                "date": dr.date if isinstance(dr.date, str) else dr.date.isoformat(),
+                "state": dr.state,
+                "count": dr.count,
+            }
+            for dr in dag_states
+        ]
+
+        # Interpret the schedule and show planned dag runs in calendar
+        if (
+            dag_states
+            and dag_states[-1].data_interval_start
+            and dag_states[-1].data_interval_end
+            and not isinstance(dag.timetable, ContinuousTimetable)
+        ):
+            last_automated_data_interval = DataInterval(
+                timezone.coerce_datetime(dag_states[-1].data_interval_start),
+                timezone.coerce_datetime(dag_states[-1].data_interval_end),
+            )
+
+            year = last_automated_data_interval.end.year
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            dates: dict[datetime.date, int] = collections.Counter()
+
+            if isinstance(dag.timetable, CronMixin):
+                # Optimized calendar generation for timetables based on a cron expression.
+                dates_iter: Iterator[datetime.datetime | None] = croniter(
+                    dag.timetable._expression,
+                    start_time=last_automated_data_interval.end,
+                    ret_type=datetime.datetime,
+                )
+                for dt in dates_iter:
+                    if dt is None:
+                        break
+                    if dt.year != year:
+                        break
+                    if dag.end_date and dt > dag.end_date:
+                        break
+                    dates[dt.date()] += 1
+            else:
+                prev_logical_date = DateTime.min
+                while True:
+                    curr_info = dag.timetable.next_dagrun_info(
+                        last_automated_data_interval=last_automated_data_interval,
+                        restriction=restriction,
+                    )
+                    if curr_info is None:
+                        break  # Reached the end.
+                    if curr_info.logical_date <= prev_logical_date:
+                        break  # We're not progressing. Maybe a malformed timetable? Give up.
+                    if curr_info.logical_date.year != year:
+                        break  # Crossed the year boundary.
+                    last_automated_data_interval = curr_info.data_interval
+                    dates[curr_info.logical_date.date()] += 1
+                    prev_logical_date = curr_info.logical_date
+
+            data_dag_states.extend(
+                {"date": date.isoformat(), "state": "planned", "count": count}
+                for (date, count) in dates.items()
+            )
+
+        data = {
+            "dag_states": data_dag_states,
+        }
+
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
     @expose("/graph")
     def legacy_graph(self):
         """Redirect from url param."""
@@ -3405,6 +3505,31 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
+    @expose("/object/task_fails")
+    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+    @provide_session
+    def task_fails(self, session):
+        """Return task fails."""
+        dag_id = request.args.get("dag_id")
+        task_id = request.args.get("task_id")
+        run_id = request.args.get("run_id")
+
+        query = select(
+            TaskFail.task_id, TaskFail.run_id, TaskFail.map_index, TaskFail.start_date, TaskFail.end_date
+        ).where(TaskFail.dag_id == dag_id)
+
+        if run_id:
+            query = query.where(TaskFail.run_id == run_id)
+        if task_id:
+            query = query.where(TaskFail.task_id == task_id)
+
+        task_fails = [dict(tf) for tf in session.execute(query).all()]
+
+        return (
+            htmlsafe_json_dumps(task_fails, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
     @expose("/object/task_instances")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def task_instances(self):
@@ -3568,7 +3693,9 @@ class Airflow(AirflowBaseView):
             return {"error": f"can't find dag {dag_id}"}, 404
 
         with create_session() as session:
-            data = [
+            dag_model = DagModel.get_dagmodel(dag_id, session=session)
+
+            events = [
                 dict(info)
                 for info in session.execute(
                     select(
@@ -3597,6 +3724,7 @@ class Airflow(AirflowBaseView):
                     .order_by(DatasetModel.uri)
                 )
             ]
+            data = {"dataset_expression": dag_model.dataset_expression, "events": events}
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},
@@ -4006,7 +4134,7 @@ class AirflowModelView(ModelView):
         # Maintains compatibility but refuses to delete on GET methods if CSRF is enabled
         if not self.is_get_mutation_allowed():
             self.update_redirect()
-            logging.warning("CSRF is enabled and a delete using GET was invoked")
+            logger.warning("CSRF is enabled and a delete using GET was invoked")
             flash(as_unicode(FLAMSG_ERR_SEC_ACCESS_DENIED), "danger")
             return self.post_delete_redirect()
         pk = self._deserialize_pk_if_composite(pk)
@@ -4507,7 +4635,7 @@ class ConnectionModelView(AirflowModelView):
             extra_dictionary = {}
 
         if not isinstance(extra_dictionary, dict):
-            logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
+            logger.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
         for field_key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
@@ -4894,20 +5022,20 @@ class VariableModelView(AirflowModelView):
             if action_on_existing == "fail" and existing_keys:
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logger.error("Failed. The variables with these keys: %s already exists.", failed_repr)
                 self.update_redirect()
                 return redirect(self.get_redirect())
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
                 if action_on_existing == "skip" and k in existing_keys:
-                    logging.warning("Variable: %s already exists, skipping.", k)
+                    logger.warning("Variable: %s already exists, skipping.", k)
                     skipped.add(k)
                     continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
-                    logging.info("Variable import failed: %r", exc)
+                    logger.info("Variable import failed: %r", exc)
                     fail_count += 1
                 else:
                     suc_count += 1
@@ -5238,6 +5366,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5248,6 +5377,7 @@ class LogModelView(AirflowModelView):
         "dttm",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
@@ -5841,7 +5971,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 def restrict_to_dev(f):
     def wrapper(*args, **kwargs):
         if not os.environ.get("AIRFLOW_ENV", None) == "development":
-            logging.error(
+            logger.error(
                 "You can only access this view in development mode. Set AIRFLOW_ENV=development to view it."
             )
             return abort(404)

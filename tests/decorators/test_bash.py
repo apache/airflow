@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import stat
+import warnings
 from contextlib import nullcontext as no_raise
 from unittest import mock
 
@@ -35,7 +36,7 @@ DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
 @pytest.mark.db_test
 class TestBashDecorator:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
@@ -382,19 +383,46 @@ class TestBashDecorator:
             ti, _ = self.execute_task(bash_task)
             self.validate_bash_command_rtif(ti, "set -e; something-that-isnt-on-path")
 
-    @pytest.mark.parametrize(argnames="multiple_outputs", argvalues=[True, False])
-    def test_multiple_outputs(self, multiple_outputs):
+    def test_multiple_outputs_true(self):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
 
         with self.dag:
 
-            @task.bash(multiple_outputs=multiple_outputs)
+            @task.bash(multiple_outputs=True)
             def bash():
                 return "echo"
 
             with pytest.warns(
-                UserWarning, match="`multiple_outputs` is not supported in @task.bash tasks. Ignoring."
+                UserWarning, match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring."
             ):
+                bash_task = bash()
+
+                assert bash_task.operator.bash_command == NOTSET
+
+                ti, _ = self.execute_task(bash_task)
+
+        assert bash_task.operator.multiple_outputs is False
+        self.validate_bash_command_rtif(ti, "echo")
+
+    @pytest.mark.parametrize(
+        "multiple_outputs", [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")]
+    )
+    def test_multiple_outputs(self, multiple_outputs):
+        """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
+
+        decorator_kwargs = {}
+        if multiple_outputs is not NOTSET:
+            decorator_kwargs["multiple_outputs"] = multiple_outputs
+
+        with self.dag:
+
+            @task.bash(**decorator_kwargs)
+            def bash():
+                return "echo"
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=UserWarning)
+
                 bash_task = bash()
 
                 assert bash_task.operator.bash_command == NOTSET

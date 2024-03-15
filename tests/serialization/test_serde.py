@@ -45,7 +45,7 @@ from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture()
+@pytest.fixture
 def recalculate_patterns():
     _get_patterns.cache_clear()
     _get_regexp_patterns.cache_clear()
@@ -323,7 +323,7 @@ class TestSerDe:
         """
         Verify deserialization of old-style encoded Xcom values including nested ones
         """
-        uri = "s3://does_not_exist"
+        uri = "s3://does/not/exist"
         data = {
             "__type": "airflow.datasets.Dataset",
             "__source": None,
@@ -365,6 +365,11 @@ class TestSerDe:
             if name == "airflow.serialization.serializers.iceberg":
                 try:
                     import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
                 except ImportError:
                     continue
             mod = import_module(name)

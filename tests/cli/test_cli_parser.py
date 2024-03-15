@@ -37,6 +37,7 @@ from airflow.cli import cli_config, cli_parser
 from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_command
 from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
+from airflow.executors import executor_loader
 from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
 
@@ -156,6 +157,7 @@ class TestCli:
         ]
         with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
+            reload(executor_loader)
             reload(cli_parser)
 
     def test_falsy_default_value(self):
@@ -240,6 +242,7 @@ class TestCli:
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             StringIO()
         ) as stderr:
+            reload(executor_loader)
             reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
@@ -270,6 +273,7 @@ class TestCli:
             with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
                 StringIO()
             ) as stderr:
+                reload(executor_loader)
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
                 with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that

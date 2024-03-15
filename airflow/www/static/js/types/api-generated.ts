@@ -684,31 +684,8 @@ export interface paths {
   "/datasets/events": {
     /** Get dataset events */
     get: operations["get_dataset_events"];
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-        /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
-         *
-         * *New in version 2.1.0*
-         */
-        order_by?: components["parameters"]["OrderBy"];
-        /** The Dataset ID that updated the dataset. */
-        dataset_id?: components["parameters"]["FilterDatasetID"];
-        /** The DAG ID that updated the dataset. */
-        source_dag_id?: components["parameters"]["FilterSourceDAGID"];
-        /** The task ID that updated the dataset. */
-        source_task_id?: components["parameters"]["FilterSourceTaskID"];
-        /** The DAG run ID that updated the dataset. */
-        source_run_id?: components["parameters"]["FilterSourceRunID"];
-        /** The map index that updated the dataset. */
-        source_map_index?: components["parameters"]["FilterSourceMapIndex"];
-      };
-    };
+    /** Create dataset event */
+    post: operations["create_dataset_event"];
   };
   "/config": {
     get: operations["get_config"];
@@ -1221,8 +1198,10 @@ export interface components {
       when?: string;
       /** @description The DAG ID */
       dag_id?: string | null;
-      /** @description The DAG ID */
+      /** @description The Task ID */
       task_id?: string | null;
+      /** @description The DAG Run ID */
+      run_id?: string | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -1557,6 +1536,8 @@ export interface components {
        */
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      /** @description Nested dataset any/all conditions */
+      dataset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**
@@ -1824,6 +1805,12 @@ export interface components {
       created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
       timestamp?: string;
+    };
+    CreateDatasetEvent: {
+      /** @description The URI of the dataset */
+      dataset_uri: string;
+      /** @description The dataset event extra */
+      extra?: { [key: string]: unknown } | null;
     };
     QueuedEvent: {
       /** @description The datata uri. */
@@ -2555,6 +2542,8 @@ export interface components {
     FilterDAGID: string;
     /** @description Returns objects matched by the Task ID. */
     FilterTaskID: string;
+    /** @description Returns objects matched by the Run ID. */
+    FilterRunID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -3508,6 +3497,8 @@ export interface operations {
         dag_id?: components["parameters"]["FilterDAGID"];
         /** Returns objects matched by the Task ID. */
         task_id?: components["parameters"]["FilterTaskID"];
+        /** Returns objects matched by the Run ID. */
+        run_id?: components["parameters"]["FilterRunID"];
         /** The name of event log. */
         event?: components["parameters"]["Event"];
         /** The owner's name of event log. */
@@ -4598,6 +4589,26 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
+  /** Create dataset event */
+  create_dataset_event: {
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetEvent"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDatasetEvent"];
+      };
+    };
+  };
   get_config: {
     parameters: {
       query: {
@@ -5167,6 +5178,9 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
+export type CreateDatasetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["CreateDatasetEvent"]
+>;
 export type QueuedEvent = CamelCasedPropertiesDeep<
   components["schemas"]["QueuedEvent"]
 >;
@@ -5480,6 +5494,9 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
+  operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]

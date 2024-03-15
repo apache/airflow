@@ -58,7 +58,7 @@ class TestGCSTaskHandler:
             base_log_folder=local_log_location,
             gcs_log_folder="gs://bucket/remote/log/location",
         )
-        yield self.gcs_task_handler
+        return self.gcs_task_handler
 
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")

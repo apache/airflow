@@ -66,6 +66,13 @@ spec:
   shutdownAfterJobFinishes: true
 """
 
+TEST_NOT_NAMESPACED_CRD_YAML = """
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: default-flavor-test
+"""
+
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook"
 
 
@@ -188,4 +195,44 @@ class TestKubernetesXResourceOperator:
             "default",
             "rayjobs",
             "rayjob-sample",
+        )
+
+    @patch("kubernetes.client.api.CustomObjectsApi.create_cluster_custom_object")
+    def test_create_not_namespaced_custom_app_from_yaml(self, mock_create_cluster_custom_object, context):
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_NOT_NAMESPACED_CRD_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            custom_resource_definition=True,
+            namespaced=False,
+        )
+
+        op.execute(context)
+
+        mock_create_cluster_custom_object.assert_called_once_with(
+            "kueue.x-k8s.io",
+            "v1beta1",
+            "resourceflavors",
+            yaml.safe_load(TEST_NOT_NAMESPACED_CRD_YAML),
+        )
+
+    @patch("kubernetes.client.api.CustomObjectsApi.delete_cluster_custom_object")
+    def test_delete_not_namespaced_custom_app_from_yaml(self, mock_delete_cluster_custom_object, context):
+        op = KubernetesDeleteResourceOperator(
+            yaml_conf=TEST_NOT_NAMESPACED_CRD_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            custom_resource_definition=True,
+            namespaced=False,
+        )
+
+        op.execute(context)
+
+        mock_delete_cluster_custom_object.assert_called_once_with(
+            "kueue.x-k8s.io",
+            "v1beta1",
+            "resourceflavors",
+            "default-flavor-test",
         )

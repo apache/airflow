@@ -23,6 +23,7 @@ import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, TypeVar
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
@@ -66,7 +67,11 @@ FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 NON_COMMITTER_BUILD_LABEL = "non committer build"
+DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
+LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
+DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
@@ -398,13 +403,24 @@ class SelectiveChecks:
                     output.append(get_ga_output(field_name, value))
         return "\n".join(output)
 
-    default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     default_postgres_version = DEFAULT_POSTGRES_VERSION
     default_mysql_version = DEFAULT_MYSQL_VERSION
 
     default_kubernetes_version = DEFAULT_KUBERNETES_VERSION
     default_kind_version = KIND_VERSION
     default_helm_version = HELM_VERSION
+
+    @cached_property
+    def latest_versions_only(self) -> bool:
+        return LATEST_VERSIONS_ONLY_LABEL in self._pr_labels
+
+    @cached_property
+    def default_python_version(self) -> str:
+        return (
+            CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1]
+            if LATEST_VERSIONS_ONLY_LABEL in self._pr_labels
+            else DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+        )
 
     @cached_property
     def default_branch(self) -> str:
@@ -444,11 +460,14 @@ class SelectiveChecks:
 
     @cached_property
     def python_versions(self) -> list[str]:
-        return (
-            CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
+        if self.full_tests_needed:
+            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
+            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[-1:]
+            else:
+                return CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
+        return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
     def python_versions_list_as_string(self) -> str:
@@ -456,11 +475,19 @@ class SelectiveChecks:
 
     @cached_property
     def all_python_versions(self) -> list[str]:
-        return (
-            ALL_PYTHON_MAJOR_MINOR_VERSIONS
-            if self.full_tests_needed
-            else [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
-        )
+        """
+        All python versions include all past python versions available in previous branches
+        Even if we remove them from the main version. This is needed to make sure we can cherry-pick
+        changes from main to the previous branch.
+        """
+        if self.full_tests_needed:
+            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
+            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return ALL_PYTHON_MAJOR_MINOR_VERSIONS[-1:]
+            else:
+                return ALL_PYTHON_MAJOR_MINOR_VERSIONS
+        return [DEFAULT_PYTHON_MAJOR_MINOR_VERSION]
 
     @cached_property
     def all_python_versions_list_as_string(self) -> str:
@@ -489,7 +516,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/postgres versions
-            {"python-version": python_version, "postgres-version": postgres_version}
+            {"python-version": python_version, "backend-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
             )
@@ -502,7 +529,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/mysql versions
-            {"python-version": python_version, "mysql-version": mysql_version}
+            {"python-version": python_version, "backend-version": mysql_version}
             for python_version, mysql_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MYSQL_VERSIONS
             )
@@ -514,7 +541,14 @@ class SelectiveChecks:
 
     @cached_property
     def kubernetes_versions(self) -> list[str]:
-        return CURRENT_KUBERNETES_VERSIONS if self.full_tests_needed else [DEFAULT_KUBERNETES_VERSION]
+        if self.full_tests_needed:
+            if DEFAULT_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return [DEFAULT_KUBERNETES_VERSION]
+            elif LATEST_VERSIONS_ONLY_LABEL in self._pr_labels:
+                return CURRENT_KUBERNETES_VERSIONS[-1:]
+            else:
+                return CURRENT_KUBERNETES_VERSIONS
+        return [DEFAULT_KUBERNETES_VERSION]
 
     @cached_property
     def kubernetes_versions_list_as_string(self) -> str:
@@ -719,6 +753,11 @@ class SelectiveChecks:
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
 
+        for file in self._files:
+            if file.endswith("bash.py") and Path(file).parent.name == "operators":
+                candidate_test_types.add("Serialization")
+                candidate_test_types.add("Core")
+                break
         if count_remaining_files > 0:
             get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "
@@ -962,7 +1001,7 @@ class SelectiveChecks:
         # whole package rather than for individual files. That's why we skip those checks in CI
         # and run them via `mypy-all` command instead and dedicated CI job in matrix
         # This will also speed up static-checks job usually as the jobs will be running in parallel
-        pre_commits_to_skip.update({"mypy-providers", "mypy-core", "mypy-docs", "mypy-dev"})
+        pre_commits_to_skip.update({"mypy-providers", "mypy-airflow", "mypy-docs", "mypy-dev"})
         if self._default_branch != "main":
             # Skip those tests on all "release" branches
             pre_commits_to_skip.update(
@@ -1016,7 +1055,11 @@ class SelectiveChecks:
 
     @cached_property
     def cache_directive(self) -> str:
-        return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
+        return (
+            "disabled"
+            if (self._github_event == GithubEvents.SCHEDULE or DISABLE_IMAGE_CACHE_LABEL in self._pr_labels)
+            else "registry"
+        )
 
     @cached_property
     def debug_resources(self) -> bool:

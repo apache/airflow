@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import urllib
 from typing import Generator
+from unittest.mock import ANY
 
 import pytest
 import time_machine
@@ -40,6 +41,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -53,6 +55,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -577,6 +580,53 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         }
 
 
+class TestPostDatasetEvents(TestDatasetEndpoint):
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, session):
+        self._create_dataset(session)
+        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
+        response = self.client.post(
+            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "id": ANY,
+            "created_dagruns": [],
+            "dataset_uri": event_payload["dataset_uri"],
+            "dataset_id": ANY,
+            "extra": {"foo": "bar", "from_rest_api": True},
+            "source_dag_id": None,
+            "source_task_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "timestamp": self.default_time,
+        }
+
+    def test_order_by_raises_400_for_invalid_attr(self, session):
+        self._create_dataset(session)
+        event_invalid_payload = {"dataset_uri": "TEST_DATASET_URI", "extra": {"foo": "bar"}, "fake": {}}
+        response = self.client.post(
+            "/api/v1/datasets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400
+
+    def test_should_raises_401_unauthenticated(self, session):
+        self._create_dataset(session)
+        response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "TEST_DATASET_URI"})
+        assert_401(response)
+
+
 class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     @pytest.mark.parametrize(
         "url, expected_event_runids",
@@ -768,6 +818,9 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(
+            session, dag_id=dag_id, event="api.delete_dag_dataset_queued_event", execution_date=None
+        )
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -972,6 +1025,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(session, dag_id=None, event="api.delete_dataset_queued_events", execution_date=None)
 
     def test_should_respond_404(self):
         dataset_uri = "not_exists"

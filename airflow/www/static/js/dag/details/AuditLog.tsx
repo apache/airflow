@@ -60,6 +60,7 @@ const AuditLog = ({ taskId, run }: Props) => {
   const { data, isLoading } = useEventLogs({
     dagId,
     taskId,
+    runId: run?.runId || undefined,
     before: run?.lastSchedulingDecision || undefined,
     after: run?.queuedAt || undefined,
     orderBy,
@@ -77,6 +78,10 @@ const AuditLog = ({ taskId, run }: Props) => {
       Header: "Task ID",
       accessor: "taskId",
     };
+    const runId = {
+      Header: "Run ID",
+      accessor: "runId",
+    };
     const rest = [
       {
         Header: "Event",
@@ -92,8 +97,13 @@ const AuditLog = ({ taskId, run }: Props) => {
         Cell: CodeCell,
       },
     ];
-    return !taskId ? [when, task, ...rest] : [when, ...rest];
-  }, [taskId]);
+    return [
+      when,
+      ...(!run ? [runId] : []),
+      ...(!taskId ? [task] : []),
+      ...rest,
+    ];
+  }, [taskId, run]);
 
   const memoData = useMemo(() => data?.eventLogs, [data?.eventLogs]);
   const memoSort = useMemo(() => sortBy, [sortBy]);
@@ -140,6 +150,11 @@ const AuditLog = ({ taskId, run }: Props) => {
               Before selected DAG Run Last Scheduling Decision
             </FormHelperText>
           )}
+        </FormControl>
+        <FormControl>
+          <FormLabel>Filter by Run ID</FormLabel>
+          <Input placeholder={run?.runId} isDisabled />
+          <FormHelperText />
         </FormControl>
         <FormControl>
           <FormLabel>Filter by Task ID</FormLabel>

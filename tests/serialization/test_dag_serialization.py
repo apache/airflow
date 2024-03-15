@@ -26,11 +26,12 @@ import multiprocessing
 import os
 import pickle
 import re
+import sys
 from datetime import datetime, timedelta
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import attr
@@ -169,7 +170,7 @@ serialized_simple_dag_ground_truth = {
                 "ui_color": "#f0ede4",
                 "ui_fgcolor": "#000",
                 "template_ext": [".sh", ".bash"],
-                "template_fields": ["bash_command", "env"],
+                "template_fields": ["bash_command", "env", "cwd"],
                 "template_fields_renderers": {"bash_command": "bash", "env": "json"},
                 "bash_command": "echo {{ task.task_id }}",
                 "_task_type": "BashOperator",
@@ -305,6 +306,17 @@ def make_user_defined_macro_filter_dag():
     return {dag.dag_id: dag}
 
 
+def get_excluded_patterns() -> Generator[str, None, None]:
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    all_providers = json.loads((repo_root / "generated" / "provider_dependencies.json").read_text())
+    for provider, provider_info in all_providers.items():
+        if python_version in provider_info.get("excluded-python-versions"):
+            provider_path = provider.replace(".", "/")
+            yield f"airflow/providers/{provider_path}/"
+            yield f"tests/providers/{provider_path}/"
+            yield f"tests/system/providers/{provider_path}/"
+
+
 def collect_dags(dag_folder=None):
     """Collects DAGs to test."""
     dags = {}
@@ -324,8 +336,11 @@ def collect_dags(dag_folder=None):
             "tests/system/providers/*/",
             "tests/system/providers/*/*/",
         ]
+    excluded_patterns = [f"{ROOT_FOLDER}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()]
     for pattern in patterns:
         for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
+                continue
             dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
@@ -349,7 +364,7 @@ def serialize_subprocess(queue, dag_folder):
     queue.put(None)
 
 
-@pytest.fixture()
+@pytest.fixture
 def timetable_plugin(monkeypatch):
     """Patch plugins manager to always and only return our custom timetable."""
     from airflow import plugins_manager
@@ -2150,7 +2165,7 @@ def test_operator_expand_serde():
         },
         "task_id": "a",
         "operator_extra_links": [],
-        "template_fields": ["bash_command", "env"],
+        "template_fields": ["bash_command", "env", "cwd"],
         "template_ext": [".sh", ".bash"],
         "template_fields_renderers": {"bash_command": "bash", "env": "json"},
         "ui_color": "#f0ede4",
@@ -2168,7 +2183,7 @@ def test_operator_expand_serde():
         "downstream_task_ids": [],
         "task_id": "a",
         "template_ext": [".sh", ".bash"],
-        "template_fields": ["bash_command", "env"],
+        "template_fields": ["bash_command", "env", "cwd"],
         "template_fields_renderers": {"bash_command": "bash", "env": "json"},
         "ui_color": "#f0ede4",
         "ui_fgcolor": "#000",

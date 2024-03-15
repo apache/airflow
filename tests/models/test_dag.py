@@ -1096,10 +1096,10 @@ class TestDag:
         dag_id1 = "test_dataset_dag1"
         dag_id2 = "test_dataset_dag2"
         task_id = "test_dataset_task"
-        uri1 = "s3://dataset1"
+        uri1 = "s3://dataset/1"
         d1 = Dataset(uri1, extra={"not": "used"})
-        d2 = Dataset("s3://dataset2")
-        d3 = Dataset("s3://dataset3")
+        d2 = Dataset("s3://dataset/2")
+        d3 = Dataset("s3://dataset/3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
@@ -1350,6 +1350,52 @@ class TestDag:
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         assert orm_dag.is_paused
         session.close()
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+        },
+    )
+    def test_existing_dag_is_paused_config(self):
+        # config should be set properly
+        assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
+        # checking the default value is coming from config
+        dag = DAG("test_dag")
+        assert dag.max_consecutive_failed_dag_runs == 4
+        # but we can override the value using params
+        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        assert dag.max_consecutive_failed_dag_runs == 2
+
+    def test_existing_dag_is_paused_after_limit(self):
+        def add_failed_dag_run(id, execution_date):
+            dr = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id="run_id_" + id,
+                execution_date=execution_date,
+                state=State.FAILED,
+            )
+            ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+            ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
+            dr.update_state(session=session)
+
+        dag_id = "dag_paused_after_limit"
+        dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        assert not dag.get_is_paused()
+
+        # dag should be paused after 2 failed dag_runs
+        add_failed_dag_run(
+            "1",
+            TEST_DATE,
+        )
+        add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
+        assert dag.get_is_paused()
+        dag.clear()
+        self._clean_up(dag_id)
 
     def test_existing_dag_default_view(self):
         with create_session() as session:
@@ -1842,17 +1888,12 @@ class TestDag:
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.DUMMY
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
         )
         non_fail_stop_dag = DAG(
             dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=False
         )
-        try:
-            non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"dag add_task() raises FailStopDagInvalidTriggerRule for non fail stop dag: {exception}"
+        non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
@@ -1863,12 +1904,7 @@ class TestDag:
         task_with_default_trigger_rule = EmptyOperator(
             task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
         )
-        try:
-            fail_stop_dag.add_task(task_with_default_trigger_rule)
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
+        fail_stop_dag.add_task(task_with_default_trigger_rule)
 
         # a fail stop dag should not allow a non-default trigger rule
         with pytest.raises(FailStopDagInvalidTriggerRule):
@@ -2887,6 +2923,43 @@ class TestDagModel:
         first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
+
+    def test_dataset_expression(self, session):
+        dataset_expr = {
+            "__type": "dataset_any",
+            "__var": [
+                {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
+                {
+                    "__type": "dataset_all",
+                    "__var": [
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
+                        },
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
+                        },
+                    ],
+                },
+            ],
+        }
+        dag_id = "test_dag_dataset_expression"
+        orm_dag = DagModel(
+            dag_id=dag_id,
+            dataset_expression=dataset_expr,
+            is_active=True,
+            is_paused=False,
+            next_dagrun=timezone.utcnow(),
+            next_dagrun_create_after=timezone.utcnow() + timedelta(days=1),
+        )
+        session.add(orm_dag)
+        session.commit()
+        retrieved_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        assert retrieved_dag.dataset_expression == dataset_expr
+
+        session.rollback()
+        session.close()
 
 
 class TestQueries:

@@ -67,7 +67,8 @@ class BaseExtractor(ABC, LoggingMixin):
     @cached_property
     def disabled_operators(self) -> set[str]:
         return set(
-            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+            operator.strip()
+            for operator in conf.get("openlineage", "disabled_for_operators", fallback="").split(";")
         )
 
     @cached_property
@@ -77,9 +78,6 @@ class BaseExtractor(ABC, LoggingMixin):
         )
         return fully_qualified_class_name in self.disabled_operators
 
-    def validate(self):
-        assert self.operator.task_type in self.get_operator_classnames()
-
     @abstractmethod
     def _execute_extraction(self) -> OperatorLineage | None:
         ...
@@ -87,8 +85,9 @@ class BaseExtractor(ABC, LoggingMixin):
     def extract(self) -> OperatorLineage | None:
         if self._is_operator_disabled:
             self.log.debug(
-                f"Skipping extraction for operator {self.operator.task_type} "
-                "due to its presence in [openlineage] openlineage_disabled_for_operators."
+                "Skipping extraction for operator %s "
+                "due to its presence in [openlineage] openlineage_disabled_for_operators.",
+                self.operator.task_type,
             )
             return None
         return self._execute_extraction()
@@ -121,16 +120,17 @@ class DefaultExtractor(BaseExtractor):
             return None
         except AttributeError:
             self.log.debug(
-                f"Operator {self.operator.task_type} does not have the "
-                "get_openlineage_facets_on_start method."
+                "Operator %s does not have the get_openlineage_facets_on_start method.",
+                self.operator.task_type,
             )
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         if self._is_operator_disabled:
             self.log.debug(
-                f"Skipping extraction for operator {self.operator.task_type} "
-                "due to its presence in [openlineage] openlineage_disabled_for_operators."
+                "Skipping extraction for operator %s "
+                "due to its presence in [openlineage] openlineage_disabled_for_operators.",
+                self.operator.task_type,
             )
             return None
         if task_instance.state == TaskInstanceState.FAILED:
