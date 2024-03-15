@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -54,6 +54,7 @@ class TestExecutorSafeguard:
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_decorated_task(self, dag_maker):
         with dag_maker() as dag:
+
             @task(task_id="task_id", dag=dag)
             def say_hello(**context):
                 operator = HelloWorldOperator(task_id="hello_operator")
@@ -67,9 +68,12 @@ class TestExecutorSafeguard:
     @pytest.mark.db_test
     @patch.object(HelloWorldOperator, "log")
     def test_executor_when_classic_operator_called_from_decorated_task_with_allow_mixin(
-        self, mock_log, dag_maker,
+        self,
+        mock_log,
+        dag_maker,
     ):
         with dag_maker() as dag:
+
             @task(task_id="task_id", dag=dag)
             def say_hello(**context):
                 operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
