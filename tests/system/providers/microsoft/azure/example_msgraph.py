@@ -48,7 +48,7 @@ with models.DAG(
             % "{{ ti.xcom_pull(task_ids='news_site') }}"
         ),
     )
-    # [START howto_operator_graph_site_pages]
+    # [END howto_operator_graph_site_pages]
 
     site_task >> site_pages_task
 
