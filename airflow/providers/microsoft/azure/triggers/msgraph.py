@@ -88,6 +88,12 @@ class ResponseSerializer:
 
 
 class CallableResponseHandler(ResponseHandler):
+    """
+    CallableResponseHandler executes the passed callable_function with response as parameter.
+
+    :param callable_function: Function which allows you to handle the response before returning.
+    """
+
     def __init__(
         self,
         callable_function: Callable[[NativeResponseType, dict[str, ParsableFactory | None] | None], Any],
