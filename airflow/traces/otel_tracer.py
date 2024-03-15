@@ -200,10 +200,7 @@ class OtelTrace:
             trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
         )
 
-        if links is not None:
-            _links = gen_links_from_kv_list(links)
-        else:
-            _links = []
+        _links = gen_links_from_kv_list(links) if links else []
 
         _links.append(
             Link(
