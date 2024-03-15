@@ -27,9 +27,9 @@ class TestResponseHandler(Base):
         response = mock_json_response(200, users)
 
         actual = self.run_async(
-            CallableResponseHandler(
-                lambda response, error_map: response.json()
-            ).handle_response_async(response, None)
+            CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
+                response, None
+            )
         )
 
         assert isinstance(actual, dict)

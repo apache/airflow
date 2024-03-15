@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from kiota_abstractions.response_handler import NativeResponseType, ResponseHandler
 

@@ -114,5 +114,5 @@ class TestMSGraphTrigger(Base):
                 "timeout": None,
                 "proxies": None,
                 "api_version": "v1.0",
-                "serializer": "airflow.providers.microsoft.azure.serialization.serializer.ResponseSerializer"
+                "serializer": "airflow.providers.microsoft.azure.serialization.serializer.ResponseSerializer",
             }

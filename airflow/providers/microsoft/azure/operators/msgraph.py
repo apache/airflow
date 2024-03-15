@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from typing import (
-    Any,
     TYPE_CHECKING,
+    Any,
+    Callable,
     Sequence,
-    Callable, )
+)
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
@@ -33,13 +34,15 @@ from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from msgraph_core import APIVersion
     from io import BytesIO
-    from airflow.utils.context import Context
+
     from kiota_abstractions.request_adapter import ResponseType
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
+    from msgraph_core import APIVersion
+
+    from airflow.utils.context import Context
 
 
 class MSGraphAsyncOperator(BaseOperator):
@@ -91,9 +94,7 @@ class MSGraphAsyncOperator(BaseOperator):
         timeout: float | None = None,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
-        result_processor: Callable[
-            [Context, Any], Any
-        ] = lambda context, result: result,
+        result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
     ):
@@ -150,9 +151,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.log.debug("context: %s", context)
 
         if event:
-            self.log.info(
-                "%s completed with %s: %s", self.task_id, event.get("status"), event
-            )
+            self.log.info("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
             if event.get("status") == "failure":
                 raise AirflowException(event.get("message"))
@@ -173,9 +172,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 event["response"] = result
 
                 try:
-                    self.trigger_next_link(
-                        response, method_name="pull_execute_complete"
-                    )
+                    self.trigger_next_link(response, method_name="pull_execute_complete")
                 except TaskDeferred as exception:
                     self.append_result(
                         result=result,
@@ -217,9 +214,7 @@ class MSGraphAsyncOperator(BaseOperator):
             self.log.info("Pushing XCom with key '%s': %s", self.key, value)
             self.xcom_push(context=context, key=self.key, value=value)
 
-    def pull_execute_complete(
-        self, context: Context, event: dict[Any, Any] | None = None
-    ) -> Any:
+    def pull_execute_complete(self, context: Context, event: dict[Any, Any] | None = None) -> Any:
         self.results = list(
             self.xcom_pull(
                 context=context,
@@ -227,7 +222,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 dag_id=self.dag_id,
                 key=self.key,
             )
-            or []  # noqa: W503
+            or []
         )
         self.log.info(
             "Pulled XCom with task_id '%s' and dag_id '%s' and key '%s': %s",
@@ -238,9 +233,7 @@ class MSGraphAsyncOperator(BaseOperator):
         )
         return self.execute_complete(context, event)
 
-    def trigger_next_link(
-        self, response, method_name="execute_complete"
-    ) -> None:
+    def trigger_next_link(self, response, method_name="execute_complete") -> None:
         if isinstance(response, dict):
             odata_next_link = response.get("@odata.nextLink")
 

@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterator,
-    Sequence,
-    TYPE_CHECKING,
     Callable,
+    Sequence,
 )
 
 from kiota_abstractions.api_error import APIError
@@ -42,6 +42,7 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from io import BytesIO
+
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.request_information import QueryParams
     from kiota_abstractions.response_handler import NativeResponseType
@@ -116,9 +117,7 @@ class MSGraphTrigger(BaseTrigger):
         self.query_parameters = query_parameters
         self.headers = headers
         self.content = content
-        self.serializer: ResponseSerializer = self.resolve_type(
-            serializer, default=ResponseSerializer
-        )()
+        self.serializer: ResponseSerializer = self.resolve_type(serializer, default=ResponseSerializer)()
 
     @classmethod
     def resolve_type(cls, value: str | type, default) -> type:
@@ -171,7 +170,7 @@ class MSGraphTrigger(BaseTrigger):
         return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """ Make a series of asynchronous HTTP calls via a KiotaRequestAdapterHook."""
+        """Make a series of asynchronous HTTP calls via a KiotaRequestAdapterHook."""
         try:
             response = await self.execute()
 
@@ -216,21 +215,13 @@ class MSGraphTrigger(BaseTrigger):
         request_information.http_method = Method(self.method.strip().upper())
         request_information.query_parameters = self.query_parameters or {}
         if not self.response_type:
-            request_information.request_options[
-                ResponseHandlerOption.get_key()
-            ] = ResponseHandlerOption(
+            request_information.request_options[ResponseHandlerOption.get_key()] = ResponseHandlerOption(
                 response_handler=CallableResponseHandler(self.response_handler)
             )
         request_information.content = self.content
-        headers = (
-            {**self.DEFAULT_HEADERS, **self.headers}
-            if self.headers
-            else self.DEFAULT_HEADERS
-        )
+        headers = {**self.DEFAULT_HEADERS, **self.headers} if self.headers else self.DEFAULT_HEADERS
         for header_name, header_value in headers.items():
-            request_information.headers.try_add(
-                header_name=header_name, header_value=header_value
-            )
+            request_information.headers.try_add(header_name=header_name, header_value=header_value)
         return request_information
 
     @staticmethod

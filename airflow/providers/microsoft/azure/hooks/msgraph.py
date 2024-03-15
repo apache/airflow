@@ -24,8 +24,9 @@ from urllib.parse import urljoin
 import httpx
 from azure.identity import ClientSecretCredential
 from httpx import Timeout
-from kiota_authentication_azure.azure_identity_authentication_provider import \
-    AzureIdentityAuthenticationProvider
+from kiota_authentication_azure.azure_identity_authentication_provider import (
+    AzureIdentityAuthenticationProvider,
+)
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import GraphClientFactory
 from msgraph_core._enums import APIVersion, NationalClouds
@@ -34,8 +35,9 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models import Connection
     from kiota_abstractions.request_adapter import RequestAdapter
+
+    from airflow.models import Connection
 
 
 class KiotaRequestAdapterHook(BaseHook):
@@ -109,13 +111,9 @@ class KiotaRequestAdapterHook(BaseHook):
 
     def get_conn(self) -> RequestAdapter:
         if not self.conn_id:
-            raise AirflowException(
-                "Failed to create the KiotaRequestAdapterHook. No conn_id provided!"
-            )
+            raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
-        api_version, request_adapter = self.cached_request_adapters.get(
-            self.conn_id, (None, None)
-        )
+        api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
@@ -163,9 +161,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 ),
                 host=host,
             )
-            auth_provider = AzureIdentityAuthenticationProvider(
-                credentials=credentials, scopes=scopes
-            )
+            auth_provider = AzureIdentityAuthenticationProvider(credentials=credentials, scopes=scopes)
             request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
                 http_client=http_client,
