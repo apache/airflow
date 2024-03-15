@@ -18,11 +18,16 @@ from __future__ import annotations
 
 import json
 import locale
-from base64 import b64encode
+from base64 import b64encode, b64decode
+from datetime import datetime
 from unittest.mock import patch
+from uuid import uuid4
+
+import pendulum
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
+from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, CallableResponseHandler, \
+    ResponseSerializer
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import (
@@ -114,5 +119,64 @@ class TestMSGraphTrigger(Base):
                 "timeout": None,
                 "proxies": None,
                 "api_version": "v1.0",
-                "serializer": "airflow.providers.microsoft.azure.serialization.serializer.ResponseSerializer",
+                "serializer": "airflow.providers.microsoft.azure.triggers.msgraph.ResponseSerializer",
             }
+
+
+class TestResponseHandler(Base):
+    def test_handle_response_async(self):
+        users = load_json("resources", "users.json")
+        response = mock_json_response(200, users)
+
+        actual = self.run_async(
+            CallableResponseHandler(lambda response, error_map: response.json()).handle_response_async(
+                response, None
+            )
+        )
+
+        assert isinstance(actual, dict)
+        assert actual == users
+
+
+class TestResponseSerializer:
+    def test_serialize_when_bytes_then_base64_encoded(self):
+        response = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        content = b64encode(response).decode(locale.getpreferredencoding())
+
+        actual = ResponseSerializer().serialize(response)
+
+        assert isinstance(actual, str)
+        assert actual == content
+
+    def test_serialize_when_dict_with_uuid_datatime_and_pendulum_then_json(self):
+        id = uuid4()
+        response = {
+            "id": id,
+            "creationDate": datetime(2024, 2, 5),
+            "modificationTime": pendulum.datetime(2024, 2, 5),
+        }
+
+        actual = ResponseSerializer().serialize(response)
+
+        assert isinstance(actual, str)
+        assert (
+            actual
+            == f'{{"id": "{id}", "creationDate": "2024-02-05T00:00:00", "modificationTime": "2024-02-05T00:00:00+00:00"}}'
+        )
+
+    def test_deserialize_when_json(self):
+        response = load_file("resources", "users.json")
+
+        actual = ResponseSerializer().deserialize(response)
+
+        assert isinstance(actual, dict)
+        assert actual == load_json("resources", "users.json")
+
+    def test_deserialize_when_base64_encoded_string(self):
+        content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
+        response = b64encode(content).decode(locale.getpreferredencoding())
+
+        actual = ResponseSerializer().deserialize(response)
+
+        assert actual == response
+        assert b64decode(actual) == content

@@ -27,7 +27,7 @@ from typing import (
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.providers.microsoft.azure.serialization.serializer import (
+from airflow.providers.microsoft.azure.triggers.msgraph import (
     ResponseSerializer,
 )
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger

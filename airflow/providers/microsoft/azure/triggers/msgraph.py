@@ -17,26 +17,29 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import locale
+from base64 import b64encode
+from contextlib import suppress
+from datetime import datetime
+from json import JSONDecodeError
+from typing import Any
 from typing import (
     TYPE_CHECKING,
-    Any,
     AsyncIterator,
     Callable,
     Sequence,
 )
+from uuid import UUID
 
+import pendulum
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
+from kiota_abstractions.response_handler import ResponseHandler
 from kiota_http.middleware.options import ResponseHandlerOption
 
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.providers.microsoft.azure.serialization.response_handler import (
-    CallableResponseHandler,
-)
-from airflow.providers.microsoft.azure.serialization.serializer import (
-    ResponseSerializer,
-)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
 
@@ -49,6 +52,58 @@ if TYPE_CHECKING:
     from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
+
+
+class ResponseSerializer:
+    """ResponseSerializer serializes the response as a string."""
+
+    def __init__(self, encoding: str | None = None):
+        self.encoding = encoding or locale.getpreferredencoding()
+
+    def serialize(self, response) -> str | None:
+        def convert(value) -> str | None:
+            if value is not None:
+                if isinstance(value, UUID):
+                    return str(value)
+                if isinstance(value, datetime):
+                    return value.isoformat()
+                if isinstance(value, pendulum.DateTime):
+                    return value.to_iso8601_string()  # Adjust the format as needed
+                raise TypeError(f"Object of type {type(value)} is not JSON serializable!")
+            return None
+
+        if response is not None:
+            if isinstance(response, bytes):
+                return b64encode(response).decode(self.encoding)
+            with suppress(JSONDecodeError):
+                return json.dumps(response, default=convert)
+            return response
+        return None
+
+    def deserialize(self, response) -> Any:
+        if isinstance(response, str):
+            with suppress(JSONDecodeError):
+                response = json.loads(response)
+        return response
+
+
+class CallableResponseHandler(ResponseHandler):
+    """
+    CallableResponseHandler executes the passed callable_function with response as parameter.
+
+    :param callable_function: Function which allows you to handle the response before returning.
+    """
+
+    def __init__(
+        self,
+        callable_function: Callable[[NativeResponseType, dict[str, ParsableFactory | None] | None], Any],
+    ):
+        self.callable_function = callable_function
+
+    async def handle_response_async(
+        self, response: NativeResponseType, error_map: dict[str, ParsableFactory | None] | None = None
+    ) -> Any:
+        return self.callable_function(response, error_map)
 
 
 class MSGraphTrigger(BaseTrigger):
