@@ -378,6 +378,7 @@ Currently, **officially** using Airflow:
 1. [Pretius](https://www.pretius.com) [[@lmaczulajtys](https://github.com/lmaczulajtys)]
 1. [Promofarma](https://www.promofarma.com/) [[@JavierLopezT](https://github.com/JavierLopezT)]
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
+1. [Prophecy.io](https://www.prophecy.io/) [[@pateash](https://github.com/pateash)]
 1. [ProSiebenSat.1](https://www.prosiebensat1.com/) [[@nicolamarangoni](https://github.com/nicolamarangoni)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
@@ -531,4 +532,3 @@ Currently, **officially** using Airflow:
 1. [Zynga](https://www.zynga.com)
 1. [Ørsted](https://orsted.com/en) [[@arjunanan6](https://github.com/arjunanan6)]
 1. [好大夫在线](https://www.haodf.com/) [[@leiguorui](https://github.com/leiguorui)]
-1. [Prophecy.io](https://www.prophecy.io/) [[@pateash](https://github.com/pateash)]
