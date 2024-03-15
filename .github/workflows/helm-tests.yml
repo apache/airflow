@@ -121,10 +121,10 @@ jobs:
         env:
           SIGN_WITH: dev@airflow.apache.org
       - name: "Test helm chart issue generation automatically"
+        # Adding same tags for now, will address in a follow-up
         run: >
-          git tag
-#          breeze release-management generate-issue-content-helm-chart
-#          --previous-release helm-chart/0.0.0 --current-release helm-chart/0.0.0dev0
+          breeze release-management generate-issue-content-helm-chart
+          --previous-release helm-chart/0.0.0dev0 --current-release helm-chart/0.0.0dev0
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:
