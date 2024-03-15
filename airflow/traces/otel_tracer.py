@@ -135,7 +135,7 @@ class OtelTrace:
         trace_id = int(gen_trace_id(dag_run=dagrun, as_int=True))
         span_id = int(gen_dag_span_id(dag_run=dagrun, as_int=True))
 
-        if conf is not None:
+        if conf:
             traceparent = conf.get(TRACEPARENT)
             tracestate = conf.get(TRACESTATE)
 
