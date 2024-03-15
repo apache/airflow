@@ -710,7 +710,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
     @pytest.mark.db_test
     def test_partial_ambiguous_region(self, dag_maker, session):
-        with dag_maker("test_partial_ambiguous_region_ecs"):
+        with dag_maker("test_partial_ambiguous_region_ecs", session=session):
             EcsRunTaskOperator.partial(
                 task_id="fake-task-id",
                 region="eu-west-1",
