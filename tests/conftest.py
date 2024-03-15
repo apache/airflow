@@ -40,8 +40,13 @@ assert "airflow" not in sys.modules, "No airflow module can be imported before t
 # Clear all Environment Variables that might have side effect,
 # For example, defined in /files/airflow-breeze-config/variables.env
 _AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__.+__.+$")
+_AIRFLOW_CONFIG_EXCLUSIONS = {
+    "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
+    "AIRFLOW__CELERY__BROKER_URL",
+    "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
+}
 for env_key in os.environ.copy():
-    if _AIRFLOW_CONFIG_PATTERN.match(env_key) and "sql_alchemy_conn" not in env_key.lower():
+    if _AIRFLOW_CONFIG_PATTERN.match(env_key) and env_key not in _AIRFLOW_CONFIG_EXCLUSIONS:
         del os.environ[env_key]
 
 DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
