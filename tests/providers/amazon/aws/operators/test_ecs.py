@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -679,6 +680,54 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "region, region_name, expected_region_name",
+        [
+            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
+            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
+        ],
+    )
+    def test_partial_deprecated_region(self, region, region_name, expected_region_name, dag_maker, session):
+        with dag_maker(dag_id="test_partial_deprecated_region_ecs", session=session):
+            EcsRunTaskOperator.partial(
+                task_id="fake-task-id",
+                region=region,
+                region_name=region_name,
+                cluster="foo",
+                task_definition="bar",
+            ).expand(overrides=[{}, {}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`region` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                    ti.render_templates()
+                assert ti.task.region_name == expected_region_name
+
+    @pytest.mark.db_test
+    def test_partial_ambiguous_region(self, dag_maker, session):
+        with dag_maker("test_partial_ambiguous_region_ecs"):
+            EcsRunTaskOperator.partial(
+                task_id="fake-task-id",
+                region="eu-west-1",
+                region_name="us-west-1",
+                cluster="foo",
+                task_definition="bar",
+            ).expand(overrides=[{}, {}, {}])
+
+        dr = dag_maker.create_dagrun(session=session)
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`region` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                    ValueError, match="Conflicting `region_name` provided"
+                ):
+                    ti.render_templates()
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):

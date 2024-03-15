@@ -210,6 +210,9 @@ class TestAwsBaseSensor:
             ).expand(value=[1, 2, 3])
 
         dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        warning_match = r"`region` is deprecated and will be removed"
         for ti in dr.task_instances:
-            with pytest.raises(ValueError, match="Conflicting `region_name` provided"):
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                ValueError, match="Conflicting `region_name` provided"
+            ):
                 ti.run()
