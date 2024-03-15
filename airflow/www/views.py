@@ -3004,7 +3004,6 @@ class Airflow(AirflowBaseView):
 
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @provide_session
     def landing_times(self, dag_id: str):
         """Redirect to run duration page."""
         kwargs = {
