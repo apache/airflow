@@ -84,10 +84,7 @@ def parse_tracestate(tracestate_str: str | None = None) -> dict:
 
 def is_valid_trace_id(trace_id: str) -> bool:
     """Check whether trace id is valid."""
-    if trace_id is not None and len(trace_id) == 34 and int(trace_id, 16) != 0:
-        return True
-    else:
-        return False
+    return trace_id and len(trace_id) == 34 and int(trace_id, 16) != 0
 
 
 def is_valid_span_id(span_id: str) -> bool:
