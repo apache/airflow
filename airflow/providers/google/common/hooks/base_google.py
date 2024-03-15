@@ -190,6 +190,7 @@ class GoogleBaseHook(BaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param impersonation_scopes: Optional list of scopes for impersonated account. Will override scopes from connection.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -243,11 +244,13 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        impersonation_scopes: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.impersonation_scopes = impersonation_scopes
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: google.auth.credentials.Credentials | None = None
         self._cached_project_id: str | None = None
@@ -415,10 +418,13 @@ class GoogleBaseHook(BaseHook):
         """
         Return OAuth 2.0 scopes.
 
-        :return: Returns the scope defined in the connection configuration, or the default scope
+        :return: Returns the scope defined in impersonation_scopes, the connection configuration, or the default scope
         """
-        scope_value: str | None = self._get_field("scope", None)
-
+        scope_value: str | None
+        if self.impersonation_chain and self.impersonation_scopes:
+            scope_value = self.impersonation_scopes
+        else:
+            scope_value = self._get_field("scope", None)
         return _get_scopes(scope_value)
 
     @staticmethod
