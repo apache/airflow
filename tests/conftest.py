@@ -338,6 +338,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
+    config.addinivalue_line("markers", "platform(name): mark test to run with specific platform/environment")
     config.addinivalue_line("markers", "long_running: mark test that run for a long time (many minutes)")
     config.addinivalue_line(
         "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
@@ -394,6 +395,26 @@ def skip_if_not_marked_with_backend(selected_backend, item):
         f"The test is skipped because it does not have the right backend marker. "
         f"Only tests marked with pytest.mark.backend('{selected_backend}') are run: {item}"
     )
+
+
+def skip_if_platform_doesnt_match(marker):
+    allowed_platforms = ("linux", "breeze")
+    if not (args := marker.args):
+        pytest.fail(f"No platform specified, expected one of: {', '.join(map(repr, allowed_platforms))}")
+    elif not all(a in allowed_platforms for a in args):
+        pytest.fail(
+            f"Allowed platforms {', '.join(map(repr, allowed_platforms))}; "
+            f"but got: {', '.join(map(repr, args))}"
+        )
+    if "linux" in args:
+        if not sys.platform.startswith("linux"):
+            pytest.skip("Test expected to run on Linux platform.")
+    if "breeze" in args:
+        if not os.path.isfile("/.dockerenv") or os.environ.get("BREEZE", "").lower() != "true":
+            raise pytest.skip(
+                "Test expected to run into Airflow Breeze container. "
+                "Maybe because it is to dangerous to run it outside."
+            )
 
 
 def skip_if_not_marked_with_system(selected_systems, item):
@@ -539,6 +560,8 @@ def pytest_runtest_setup(item):
         skip_if_not_marked_with_system(selected_systems_list, item)
     else:
         skip_system_test(item)
+    for marker in item.iter_markers(name="platform"):
+        skip_if_platform_doesnt_match(marker)
     for marker in item.iter_markers(name="backend"):
         skip_if_wrong_backend(marker, item)
     selected_backend = item.config.option.backend
