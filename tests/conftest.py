@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import warnings
@@ -36,6 +37,12 @@ from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
+# Clear all Environment Variables that might have side effect,
+# For example, defined in /files/airflow-breeze-config/variables.env
+_AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__.+__.+$")
+for env_key in os.environ.copy():
+    if _AIRFLOW_CONFIG_PATTERN.match(env_key) and "sql_alchemy_conn" not in env_key.lower():
+        del os.environ[env_key]
 
 DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
 
