@@ -166,7 +166,7 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Graph API
     external-doc-url: https://learn.microsoft.com/en-us/graph/use-the-api/
-    logo: /integration-logos/azure/Microsoft-Graph.svg
+    logo: /integration-logos/azure/Microsoft-Graph-API.png
     tags: [azure]
 
 operators:
