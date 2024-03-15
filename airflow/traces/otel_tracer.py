@@ -161,7 +161,7 @@ class OtelTrace:
             )
         )
 
-        if traceparent is not None:
+        if traceparent:
             # add the trace parent as the link
             _links.append(gen_link_from_traceparent(traceparent))
 
