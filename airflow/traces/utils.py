@@ -89,7 +89,4 @@ def is_valid_trace_id(trace_id: str) -> bool:
 
 def is_valid_span_id(span_id: str) -> bool:
     """Check whether span id is valid."""
-    if span_id is not None and len(span_id) == 18 and int(span_id, 16) != 0:
-        return True
-    else:
-        return False
+    return span_id and len(span_id) == 18 and int(span_id, 16) != 0
