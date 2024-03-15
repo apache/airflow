@@ -75,6 +75,13 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
     otel_ssl_active = False
 
+    [traces]
+    otel_on = False
+    otel_host = localhost
+    otel_port = 8889
+    otel_application = airflow
+    otel_ssl_active = False
+
 Enable Https
 -----------------
 

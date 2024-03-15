@@ -480,19 +480,19 @@ You can connect to these ports/databases using:
 * Prometheus Targets: http://127.0.0.1:29090/targets
 * Grafana Dashboards: http://127.0.0.1:23000/dashboards
 
-Running Breeze with an OpenTelemetry Metrics Stack
-..................................................
+Running Breeze with an OpenTelemetry Stack
+..........................................
 
 ----
 
 [Work in Progress]
 NOTE:  This will launch the stack as described below but Airflow integration is
 still a Work in Progress.  This should be considered experimental and likely to
-change by the time Airflow fully supports emitting metrics via OpenTelemetry.
+change by the time Airflow fully supports emitting telemetry via OpenTelemetry.
 
 ----
 
-You can launch an instance of Breeze pre-configured to emit OpenTelemetry metrics
+You can launch an instance of Breeze pre-configured to emit OpenTelemetry telemetry
 using ``breeze start-airflow --integration otel``.  This will launch Airflow within
 the Breeze environment as well as containers running OpenTelemetry-Collector,
 Prometheus, and Grafana.  The integration handles all configuration of the

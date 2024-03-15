@@ -14,39 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-# Based on the default config found here:
-# https://github.com/open-telemetry/opentelemetry-collector-releases/blob/main/configs/otelcol-contrib.yaml
+from __future__ import annotations
 
-receivers:
-  otlp:
-    protocols:
-      http:
-
-processors:
-  batch:
-
-exporters:
-  otlp/jaeger:
-    endpoint: breeze-jaeger:4317
-    tls:
-      insecure: true
-
-  logging:
-    verbosity: detailed
-  prometheus:
-    endpoint: 0.0.0.0:8889
-
-service:
-
-  pipelines:
-
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [logging, otlp/jaeger]
-
-    metrics:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [logging, prometheus]
+TRACEPARENT = "traceparent"
+TRACESTATE = "tracestate"
