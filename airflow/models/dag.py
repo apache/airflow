@@ -114,7 +114,11 @@ from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalFixCatchupTimetable,
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+)
 from airflow.timetables.simple import (
     ContinuousTimetable,
     DatasetTriggeredTimetable,
@@ -231,7 +235,10 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTi
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
-            return CronDataIntervalTimetable(interval, timezone)
+            if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
+                return CronDataIntervalFixCatchupTimetable(interval, timezone)
+            else:
+                return CronDataIntervalTimetable(interval, timezone)
         else:
             return CronTriggerTimetable(interval, timezone=timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")

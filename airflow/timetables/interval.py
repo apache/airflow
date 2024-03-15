@@ -167,6 +167,24 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         return DataInterval(start=self._get_prev(end), end=end)
 
 
+class CronDataIntervalFixCatchupTimetable(CronDataIntervalTimetable):
+    """Temporary solution to avoid one DAG run when first unpausing a DAG with catchup=False.
+
+    This timetable exists as a temporary solution to avoid running *one* DAG run when first unpausing a DAG
+    with ``catchup=False``. We aim to make this behaviour the default in Airflow 3.0, but have this as a
+    separate configurable Timetable to avoid breaking changes in Airflow 2.*.
+    """
+
+    def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
+        current_time = DateTime.utcnow()
+        start = self._get_prev(current_time)
+
+        if earliest is None:
+            return start
+        else:
+            return max(start, self._align_to_next(earliest))
+
+
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     """Timetable that schedules data intervals with a time delta.
 

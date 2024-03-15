@@ -2270,6 +2270,20 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
+    catchup_false_no_dagrun_airflow_2_fix:
+      description: |
+        Prevent built-in timetables from immediately running one DAG run when first unpausing a DAG with
+        ``catchup=False``. This is a temporary fix introduced in Airflow 2.9.0 which will be removed in
+        Airflow 3.0.0, where this will become the default behaviour.
+      version_added: 2.9.0
+      version_deprecated: 2.9.0
+      deprecation_reason: |
+        This option is a temporary solution to enable Timetables where ``catchup=False`` does *not* run one
+        DAG run when first unpausing a DAG. This option will be removed in Airflow 3.0.0, where it will become
+        the default behaviour.
+      type: boolean
+      example: ~
+      default: "False"
     ignore_first_depends_on_past_by_default:
       description: |
         Setting this to True will make first task instance of a task
