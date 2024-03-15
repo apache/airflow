@@ -1028,6 +1028,30 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             metadata=METADATA,
         )
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            DeleteAutoMLTrainingJobOperator,
+            # Templated fields
+            training_pipeline_id="{{ 'training-pipeline-id' }}",
+            region="{{ 'region' }}",
+            project_id="{{ 'project-id' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: DeleteAutoMLTrainingJobOperator = ti.task
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.region == "region"
+        assert task.project_id == "project-id"
+        assert task.impersonation_chain == "impersonation-chain"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.training_pipeline == "training-pipeline-id"
+
 
 class TestVertexAIListAutoMLTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
