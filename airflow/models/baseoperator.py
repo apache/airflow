@@ -55,6 +55,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
+import airflow
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -410,17 +411,10 @@ class ExecutorSafeguard:
             stack_trace = traceback.extract_stack()
             if next(filter(find_task_instance, stack_trace), None):
                 frame = next(filter(find_decorator_operator, stack_trace), None)
-                if not frame:
-                    return func(self, *args, **kwargs)
-                raise_or_warn(
-                    operator=self,
-                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!",
-                )
-            else:
-                raise_or_warn(
-                    operator=self,
-                    message=f"{self.__class__.__name__}.{func.__name__} cannot be called directly!",
-                )
+                if frame and not isinstance(self, airflow.decorators.python.DecoratedOperator):
+                    message = f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                    raise_or_warn(operator=self, message=message)
+            return func(self, *args, **kwargs)
 
         return wrapper
 
