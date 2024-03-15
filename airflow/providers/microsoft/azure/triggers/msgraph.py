@@ -88,11 +88,7 @@ class ResponseSerializer:
 
 
 class CallableResponseHandler(ResponseHandler):
-    """
-    CallableResponseHandler executes the passed callable_function with response as parameter.
-
-    :param callable_function: Function which allows you to handle the response before returning.
-    """
+    """CallableResponseHandler executes the passed callable_function with response as parameter."""
 
     def __init__(
         self,
