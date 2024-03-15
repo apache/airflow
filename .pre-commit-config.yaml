@@ -337,7 +337,6 @@ repos:
               ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service.py$|
               ^airflow\/providers\/apache\/spark\/operators\/spark_submit.py\.py$|
               ^airflow\/providers\/apache\/spark\/operators\/spark_submit\.py$|
-              ^airflow\/providers\/databricks\/operators\/databricks_sql\.py$|
           )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
