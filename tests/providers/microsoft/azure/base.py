@@ -36,6 +36,7 @@ from tests.providers.microsoft.conftest import get_airflow_connection
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
