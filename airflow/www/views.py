@@ -2979,12 +2979,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/duration")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def duration(self, dag_id: str):
-        """Redirect to Grid view"""
-        kwargs = {
-            **sanitize_args(request.args),
-            "dag_id": dag_id,
-        }
-        return redirect(url_for("Airflow.grid", **kwargs))
+        """Redirect to Grid view."""
+        return redirect(url_for("Airflow.grid", dag_id=dag_id))
 
     @expose("/tries")
     def legacy_tries(self):
@@ -2994,7 +2990,7 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/tries")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def tries(self, dag_id: str):
-        """Redirect to grid view"""
+        """Redirect to grid view."""
         kwargs = {
             **sanitize_args(request.args),
             "dag_id": dag_id,
@@ -3009,14 +3005,11 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     @provide_session
-    def landing_times(self, dag_id: str, session: Session = NEW_SESSION):
-        """Redirect to run duration page"""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        run_id = dag.get_last_dagrun().run_id
+    def landing_times(self, dag_id: str):
+        """Redirect to run duration page."""
         kwargs = {
             **sanitize_args(request.args),
             "dag_id": dag_id,
-            "dag_run_id": run_id,
             "tab": "run_duration",
         }
 
