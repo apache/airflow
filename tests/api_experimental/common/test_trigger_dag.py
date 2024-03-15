@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.api.common.trigger_dag import _trigger_dag
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, DagRunAlreadyExists
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
@@ -108,6 +108,29 @@ class TestTriggerDag:
         triggers = _trigger_dag(dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0))
 
         assert len(triggers) == 1
+
+    @mock.patch("airflow.models.DagBag")
+    def test_trigger_dag_with_same_start_date_different_run_id(self, dag_bag_mock):
+        dag_id = "trigger_dag_with_same_start_date_different_run_id"
+        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag_bag_mock.dags = [dag_id]
+        dag_bag_mock.get_dag.return_value = dag
+        dag_bag_mock.dags_hash = {}
+
+        triggers = _trigger_dag(
+            dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0), run_id="a"
+        )
+
+        assert len(triggers) == 1
+        triggers = _trigger_dag(
+            dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0), run_id="b"
+        )
+
+        assert len(triggers) == 1
+        with pytest.raises(DagRunAlreadyExists):
+            _trigger_dag(
+                dag_id, dag_bag_mock, execution_date=timezone.datetime(2018, 7, 5, 10, 10, 0), run_id="b"
+            )
 
     @pytest.mark.parametrize(
         "conf, expected_conf",

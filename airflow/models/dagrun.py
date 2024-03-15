@@ -156,7 +156,7 @@ class DagRun(Base, LoggingMixin):
 
     __table_args__ = (
         Index("dag_id_state", dag_id, _state),
-        UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
+        UniqueConstraint("dag_id", "execution_date", "run_id", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
         Index("idx_last_scheduling_decision", last_scheduling_decision),
         Index("idx_dag_run_dag_id", dag_id),
@@ -513,7 +513,8 @@ class DagRun(Base, LoggingMixin):
         return session.scalars(
             select(cls).where(
                 cls.dag_id == dag_id,
-                or_(cls.run_id == run_id, cls.execution_date == execution_date),
+                cls.run_id == run_id,
+                cls.execution_date == execution_date,
             )
         ).one_or_none()
 
