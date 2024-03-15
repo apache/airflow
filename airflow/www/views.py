@@ -164,7 +164,7 @@ SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 logger = logging.getLogger(__name__)
 
 
-def sanitize_args(args: dict[str, str]) -> dict[str, str]:
+def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
     """
     Remove all parameters starting with `_`.
 
