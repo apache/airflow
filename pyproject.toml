@@ -346,7 +346,8 @@ devel-tests = [
     "aioresponses>=0.7.6",
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
-    "coverage>=7.2",
+    # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
+    "coverage>=7.4.0",
     "pytest-asyncio>=0.23.3",
     "pytest-cov>=4.1.0",
     "pytest-icdiff>=0.9",
@@ -665,12 +666,12 @@ common-sql = [ # source: airflow/providers/common/sql/provider.yaml
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.9.2, <4;python_version != \"3.12\"",
-  "apache-airflow[common_sql];python_version != \"3.12\"",
-  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0;python_version != \"3.12\"",
-  "requests>=2.27.0,<3;python_version != \"3.12\"",
+  "aiohttp>=3.9.2, <4",
+  "apache-airflow[common_sql]",
+  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
+  "requests>=2.27.0,<3",
   # Devel dependencies for the databricks provider
-  "deltalake>=0.12.0;python_version != \"3.12\"",
+  "deltalake>=0.12.0",
 ]
 datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
