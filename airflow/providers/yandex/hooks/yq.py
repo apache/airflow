@@ -27,7 +27,7 @@ from urllib3.util.retry import Retry
 from airflow.exceptions import AirflowException
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
-from airflow.providers.yandex.yq_client.http_client import YQHttpClient, YQHttpClientConfig
+from yandex_query_client import YQHttpClient, YQHttpClientConfig
 
 
 class YQHook(YandexCloudBaseHook):

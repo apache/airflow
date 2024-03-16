@@ -63,7 +63,7 @@ class TestYandexCloudYqHook:
         assert query_id == "query1"
 
         with mock.patch(
-            "airflow.providers.yandex.yq_client.http_client.YQHttpClient.compose_query_web_link"
+            "yandex_query_client.YQHttpClient.compose_query_web_link"
         ) as m:
             m.return_value = "http://gg.zz"
             assert self.hook.compose_query_web_link("query1") == "http://gg.zz"
@@ -83,7 +83,7 @@ class TestYandexCloudYqHook:
         mock_sdk.return_value = DummySDK()
 
         with mock.patch.multiple(
-            "airflow.providers.yandex.yq_client.http_client.YQHttpClient",
+            "yandex_query_client.YQHttpClient",
             create_query=mock.DEFAULT,
             wait_query_to_succeed=mock.DEFAULT,
             get_query_all_result_sets=mock.DEFAULT,
