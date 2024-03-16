@@ -71,6 +71,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
 jobs:
   push-ci-image-cache:
+    name: "Push CI image cache"
     runs-on: ["self-hosted", "Linux", "X64"]
     strategy:
       fail-fast: false
