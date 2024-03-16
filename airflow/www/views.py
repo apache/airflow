@@ -2324,6 +2324,7 @@ class Airflow(AirflowBaseView):
         dag_id = request.form.get("dag_id")
         dag_run_id = request.form.get("dag_run_id")
         confirmed = request.form.get("confirmed") == "true"
+        only_failed = request.form.get("only_failed") == "true"
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         dr = dag.get_dagrun(run_id=dag_run_id)
@@ -2337,6 +2338,7 @@ class Airflow(AirflowBaseView):
             origin=None,
             recursive=True,
             confirmed=confirmed,
+            only_failed=only_failed,
             session=session,
         )
 
