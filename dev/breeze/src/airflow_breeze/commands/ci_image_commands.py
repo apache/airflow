@@ -104,7 +104,6 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
     fix_group_permissions,
@@ -366,7 +365,7 @@ def build(
     def run_build(ci_image_params: BuildCiParams) -> None:
         return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params,
-            param_description=ci_image_params.python + ci_image_params.platform,
+            param_description=ci_image_params.python + ":" + ci_image_params.platform,
             output=None,
         )
         if return_code != 0:
@@ -394,13 +393,6 @@ def build(
             os.setpgid(0, 0)
 
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     fix_group_permissions()
     base_build_params = BuildCiParams(
@@ -513,13 +505,6 @@ def pull(
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -640,13 +625,6 @@ def verify(
 ):
     """Verify CI image."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if (pull or image_name) and run_in_parallel:
         get_console().print(

@@ -87,6 +87,8 @@ jobs:
         id: breeze
         with:
           python-version: ${{ inputs.breeze-python-version }}
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Pull PROD images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:

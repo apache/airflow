@@ -133,7 +133,6 @@ jobs:
       DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
       DOWN_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
-      GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       # yamllint disable rule:line-length
@@ -144,6 +143,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       RUNS_ON: "${{inputs.runs-on}}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
