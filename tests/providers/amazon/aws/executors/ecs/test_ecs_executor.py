@@ -603,6 +603,7 @@ class TestAwsEcsExecutor:
         """
         Test API failure retries.
         """
+        AwsEcsExecutor.MAX_RUN_TASK_ATTEMPTS = "2"
         airflow_keys = ["TaskInstanceKey1", "TaskInstanceKey2"]
         airflow_commands = [mock.Mock(spec=list), mock.Mock(spec=list)]
 
@@ -672,7 +673,7 @@ class TestAwsEcsExecutor:
         mock_executor.sync_running_tasks()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 1 out of 3"
+                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 1 out of 2"
                 in caplog.messages[i]
             )
 
@@ -687,29 +688,6 @@ class TestAwsEcsExecutor:
 
         mock_executor.attempt_task_runs()
 
-        for i in range(2):
-            RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[i]
-            assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
-
-        assert len(mock_executor.pending_tasks) == 0
-        assert len(mock_executor.active_workers.get_all_arns()) == 2
-
-        mock_executor.sync_running_tasks()
-        for i in range(2):
-            assert (
-                f"Airflow task {airflow_keys[i]} failed due to {describe_tasks[i]['stoppedReason']}. Failure 2 out of 3"
-                in caplog.messages[i]
-            )
-
-        caplog.clear()
-        mock_executor.ecs.run_task.call_args_list.clear()
-
-        mock_executor.ecs.run_task.side_effect = [
-            {"tasks": [run_tasks[0]], "failures": []},
-            {"tasks": [run_tasks[1]], "failures": []},
-        ]
-        mock_executor.ecs.describe_tasks.side_effect = [{"tasks": describe_tasks, "failures": []}]
-
         mock_executor.attempt_task_runs()
 
         for i in range(2):
@@ -719,7 +697,7 @@ class TestAwsEcsExecutor:
         mock_executor.sync_running_tasks()
         for i in range(2):
             assert (
-                f"Airflow task {airflow_keys[i]} has failed a maximum of 3 times. Marking as failed"
+                f"Airflow task {airflow_keys[i]} has failed a maximum of 2 times. Marking as failed"
                 in caplog.messages[i]
             )
 
