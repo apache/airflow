@@ -72,7 +72,7 @@ jobs:
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
-      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
       runs-on: ${{steps.selective-checks.outputs.runs-on}}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-committer-build: ${{ steps.selective-checks.outputs.is-committer-build }}
