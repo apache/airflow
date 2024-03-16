@@ -2453,6 +2453,19 @@ my_postgres_conn:
         next_subdag_info = subdag.next_dagrun_info(None)
         assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
 
+    def test_next_dagrun_info_on_29_feb(self):
+        dag = DAG(
+            "test_scheduler_dagrun_29_feb", start_date=timezone.datetime(2024, 1, 1), schedule="0 0 29 2 *"
+        )
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.logical_date == timezone.datetime(2024, 2, 29)
+
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info.logical_date == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
+
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {
             "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},

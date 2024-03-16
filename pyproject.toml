@@ -87,7 +87,7 @@ dependencies = [
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
     "connexion[flask]>=2.10.0,<3.0",
     "cron-descriptor>=1.2.24",
-    "croniter>=0.3.17",
+    "croniter>=2.0.2",
     "cryptography>=0.9.3",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
