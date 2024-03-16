@@ -80,6 +80,11 @@ on:  # yamllint disable-line rule:truthy
           Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
         required: true
         type: string
+      include-success-outputs:
+        description: "Whether to include success outputs or not (true/false)"
+        required: false
+        default: "false"
+        type: string
       downgrade-sqlalchemy:
         description: "Whether to downgrade SQLAlchemy or not (true/false)"
         required: false
@@ -129,6 +134,7 @@ jobs:
       DOWN_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
       GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       # yamllint disable rule:line-length
       JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"

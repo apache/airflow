@@ -73,6 +73,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -95,6 +96,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -117,6 +119,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -139,6 +142,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -161,6 +165,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -183,6 +188,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -204,6 +210,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
@@ -225,6 +232,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       breeze-python-version: ${{ inputs.breeze-python-version }}
