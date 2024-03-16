@@ -134,6 +134,7 @@ jobs:
       DOWN_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
       GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       # yamllint disable rule:line-length
       JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
