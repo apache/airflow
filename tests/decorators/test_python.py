@@ -258,7 +258,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_fails_context_parameter_other_than_none(self):
         """Fail if a context parameter has a default and it's not None."""
-        with pytest.raises(ValueError):
+        error_message = "Context key parameter try_number can't have a default other than None"
+        with pytest.raises(ValueError, match=error_message):
 
             @task_decorator
             def add_number_to_try_number(num: int, try_number: int = 0):

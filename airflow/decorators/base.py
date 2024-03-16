@@ -210,11 +210,14 @@ class DecoratedOperator(BaseOperator):
         signature = inspect.signature(python_callable)
 
         # Don't allow context argument defaults other than None to avoid ambiguities.
-        if any(
-            param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+        faulty_parameters = [
+            param.name
             for param in signature.parameters.values()
-        ):
-            raise ValueError("Context key parameters can't have a default other than None")
+            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+        ]
+        if faulty_parameters:
+            message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
+            raise ValueError(message)
 
         parameters = [
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
@@ -236,7 +239,7 @@ class DecoratedOperator(BaseOperator):
                 which isn't valid: {err}
                 """
             )
-            raise ValueError(message)
+            raise ValueError(message) from err
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
