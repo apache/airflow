@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import os
 import platform
+import re
 import subprocess
 import sys
 import warnings
@@ -36,6 +37,34 @@ from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 
+# Clear all Environment Variables that might have side effect,
+# For example, defined in /files/airflow-breeze-config/variables.env
+_AIRFLOW_CONFIG_PATTERN = re.compile(r"^AIRFLOW__(.+)__(.+)$")
+_KEEP_CONFIGS_SETTINGS: dict[str, dict[str, set[str]]] = {
+    # Keep always these configurations
+    "always": {
+        "database": {"sql_alchemy_conn"},
+        "core": {"sql_alchemy_conn"},
+        "celery": {"result_backend", "broker_url"},
+    },
+    # Keep per enabled integrations
+    "celery": {"celery": {"*"}, "celery_broker_transport_options": {"*"}},
+    "kerberos": {"kerberos": {"*"}},
+}
+_ENABLED_INTEGRATIONS = {e.split("_", 1)[-1].lower() for e in os.environ if e.startswith("INTEGRATION_")}
+_KEEP_CONFIGS: dict[str, set[str]] = {}
+for keep_settings_key in ("always", *_ENABLED_INTEGRATIONS):
+    if keep_settings := _KEEP_CONFIGS_SETTINGS.get(keep_settings_key):
+        for section, options in keep_settings.items():
+            if section not in _KEEP_CONFIGS:
+                _KEEP_CONFIGS[section] = options
+            else:
+                _KEEP_CONFIGS[section].update(options)
+for env_key in os.environ.copy():
+    if m := _AIRFLOW_CONFIG_PATTERN.match(env_key):
+        section, option = m.group(1).lower(), m.group(2).lower()
+        if not (ko := _KEEP_CONFIGS.get(section)) or not ("*" in ko or option in ko):
+            del os.environ[env_key]
 
 DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
 
