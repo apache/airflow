@@ -34,9 +34,9 @@ def login_to_github_docker_registry(github_token: str | None, output: Output | N
     if os.environ.get("CI"):
         if not github_token:
             get_console(output=output).print(
-                "\n[info]Skip logging in to GitHub Registry. No Token available!"
+                "\n[error]Skip logging in to GitHub Registry. No Token available!"
             )
-            return 0, "Docker login skipped as no token available"
+            return 1, "Docker login skipped as no token available"
         run_command(
             ["docker", "logout", "ghcr.io"],
             output=output,

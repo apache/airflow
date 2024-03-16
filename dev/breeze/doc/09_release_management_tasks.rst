@@ -127,6 +127,16 @@ When we prepare final release, we automate some of the steps we need to do.
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
+Generating airflow core Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a airflow core issue when you release new airflow.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-core
+
 
 Preparing Python Clients
 """"""""""""""""""""""""
@@ -226,6 +236,16 @@ This prepares helm chart .tar.gz package in the dist folder.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-helm-chart-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-helm-chart-package
+
+Generating helm chart Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a helm chart issue when you release new helm chart.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-helm-chart
 
 
 Provider release commands
