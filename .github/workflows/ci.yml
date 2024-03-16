@@ -48,7 +48,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
-  INCLUDE_SUCCESS_OUTPUTS: "true"
   INCLUDE_NOT_READY_PROVIDERS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
   MOUNT_SOURCES: "skip"
@@ -98,6 +97,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
@@ -421,6 +421,7 @@ jobs:
       BACKEND: sqlite
       # Force more parallelism for pull even on public images
       PARALLELISM: 6
+      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -459,6 +460,7 @@ jobs:
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      INCLUDE_SUCCESS_OUTPUTS: "true"
     if: needs.build-info.outputs.ci-image-build == 'true'
     steps:
       - name: "Cleanup repo"
@@ -724,6 +726,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -914,6 +917,7 @@ jobs:
       backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -938,6 +942,7 @@ jobs:
       backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -964,6 +969,7 @@ jobs:
       backend-versions: "['']"
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -990,6 +996,7 @@ jobs:
       backend-versions: "['']"
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
@@ -1246,6 +1253,7 @@ jobs:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       # Force more parallelism for pull on public images
       PARALLELISM: 6
+      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -1323,6 +1331,7 @@ jobs:
     if: needs.build-info.outputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -1365,6 +1374,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true')
