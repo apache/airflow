@@ -334,9 +334,7 @@ repos:
         #       https://github.com/apache/airflow/issues/36484
         exclude: |
           (?x)^(
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit.py\.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit\.py$|
+              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service.py$
           )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
