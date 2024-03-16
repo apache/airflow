@@ -26,6 +26,7 @@ import uuid
 from decimal import Decimal
 
 import pendulum
+from slugify import slugify
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -114,11 +115,21 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
 
     def _unique_name(self):
         """
-        Generates a deterministic UUID for the cursor name,
-        using the combination of DAG ID and task ID.
+        Generate a non-deterministic UUID for the cursor name using the task_id and dag_id.
+
+        Ensures the resulting name fits within the maximum length allowed for an identifier in Postgres.
         """
         if self.use_server_side_cursor:
-            return str(uuid5(uuid5(NAMESPACE_OID, self.dag_id), self.task_id))
+            separator = "__"
+            random_sufix = str(uuid.uuid4())
+            available_length = 63 - len(random_sufix) - (len(separator) * 2)
+            return separator.join(
+                (
+                    slugify(self.dag_id, allow_unicode=False, max_length=available_length // 2),
+                    slugify(self.task_id, allow_unicode=False, max_length=available_length // 2),
+                    random_sufix,
+                )
+            )
         return None
 
     def query(self):

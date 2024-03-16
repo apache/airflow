@@ -770,6 +770,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "pandas-gbq",
   "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
+  "python-slugify>=5.0",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
 ]

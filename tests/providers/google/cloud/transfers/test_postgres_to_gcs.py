@@ -153,11 +153,11 @@ class TestPostgresToGoogleCloudStorageOperator:
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_exec_success_server_side_cursor_unique_name(self, gcs_hook_mock_class):
         """
-        Test that the server side cursor unique name generator is sucessfull
+        Test that the server side cursor unique name generator is successful
         with a task id that surpasses postgres identifier limit.
         """
         op = PostgresToGCSOperator(
-            task_id= LONG_TASK_ID,
+            task_id=LONG_TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
             bucket=BUCKET,
