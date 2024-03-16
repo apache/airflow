@@ -25,7 +25,6 @@ import textwrap
 import zipfile
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
-from typing import Iterator
 from unittest import mock
 from unittest.mock import patch
 
@@ -164,7 +163,7 @@ class TestDagBag:
             def my_flow():
                 pass
 
-            my_dag = my_flow()  # noqa
+            my_dag = my_flow()  # noqa: F841
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
         path1 = tmp_path / "testfile1"
@@ -262,16 +261,16 @@ class TestDagBag:
         ):
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_default_views.py"))
 
-    @pytest.fixture()
+    @pytest.fixture
     def invalid_cron_dag(self) -> str:
         return os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
 
-    @pytest.fixture()
-    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> Iterator[str]:
+    @pytest.fixture
+    def invalid_cron_zipped_dag(self, invalid_cron_dag: str, tmp_path: pathlib.Path) -> str:
         zipped = tmp_path / "test_zip_invalid_cron.zip"
         with zipfile.ZipFile(zipped, "w") as zf:
             zf.write(invalid_cron_dag, os.path.basename(invalid_cron_dag))
-        yield os.fspath(zipped)
+        return os.fspath(zipped)
 
     @pytest.mark.parametrize("invalid_dag_name", ["invalid_cron_dag", "invalid_cron_zipped_dag"])
     def test_process_file_cron_validity_check(
@@ -385,15 +384,15 @@ class TestDagBag:
         found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_task.py"))
         assert [] == found
 
-    @pytest.fixture()
-    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> Iterator[str]:
+    @pytest.fixture
+    def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> str:
         failing_dag_file = TEST_DAGS_FOLDER / "test_invalid_dup_task.py"
         working_dag_file = TEST_DAGS_FOLDER / "test_example_bash_operator.py"
         zipped = tmp_path / "test_zip_invalid_dup_task.zip"
         with zipfile.ZipFile(zipped, "w") as zf:
             zf.write(failing_dag_file, failing_dag_file.name)
             zf.write(working_dag_file, working_dag_file.name)
-        yield os.fspath(zipped)
+        return os.fspath(zipped)
 
     def test_dag_registration_with_failure_zipped(self, zip_with_valid_dag_and_dup_tasks):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)

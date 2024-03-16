@@ -190,7 +190,11 @@ def test_get_conn_by_default_azure_credential(mock_credential):
 
         connection = hook.get_conn()
         assert connection is not None
-        assert mock_credential.called_with(None, None)
+        mock_credential.assert_called()
+        args = mock_credential.call_args
+        assert args.kwargs["managed_identity_client_id"] is None
+        assert args.kwargs["workload_identity_tenant_id"] is None
+
         mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
 
 
@@ -687,7 +691,7 @@ class TestAzureDataFactoryAsyncHook:
         response = await hook.get_async_conn()
         assert isinstance(response, DataFactoryManagementClient)
 
-        assert mock_default_azure_credential.called_with(
+        mock_default_azure_credential.assert_called_with(
             managed_identity_client_id="test_client_id", workload_identity_tenant_id="test_tenant_id"
         )
 

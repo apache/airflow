@@ -218,7 +218,7 @@ on how to implement task and DAG docs, as well as screenshots:
 
 Setting up Dependencies
 -----------------------
-We have tasks ``t1``, ``t2`` and ``t3`` that do not depend on each other. Here's a few ways
+We have tasks ``t1``, ``t2`` and ``t3`` that depend on each other. Here's a few ways
 you can define dependencies between them:
 
 .. code-block:: python

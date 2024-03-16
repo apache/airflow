@@ -99,7 +99,7 @@ def diagnose_operation_trigger():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_cluster():
     def func(**kwargs):
         m = mock.MagicMock()
@@ -111,7 +111,7 @@ def async_get_cluster():
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_batch():
     def func(**kwargs):
         m = mock.MagicMock()
@@ -123,7 +123,7 @@ def async_get_batch():
     return func
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_operation():
     def func(**kwargs):
         m = mock.MagicMock()

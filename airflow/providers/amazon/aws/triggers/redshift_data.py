@@ -63,7 +63,7 @@ class RedshiftDataTrigger(BaseTrigger):
         self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes RedshiftDataTrigger arguments and classpath."""
+        """Serialize RedshiftDataTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.redshift_data.RedshiftDataTrigger",
             {

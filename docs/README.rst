@@ -258,6 +258,19 @@ warning to report the wrong line in the file for your missing white space. If yo
 and the line number it reports is wrong, this is a known error. You can find the missing blank space by searching for the syntax you used to make your
 list, code block, or other whitespace-sensitive markup element.
 
+
+spelling error with class or method name
+****************************************
+When a spelling error occurs that has a class/function/method name as incorrectly spelled,
+instead of whitelisting it in docs/spelling_wordlist.txt you should make sure that
+this name is quoted with backticks "`" - this should exclude it from spellchecking process.
+
+In this example error, You should change the line with error so that the whole path is inside backticks "`".
+.. code-block:: text
+
+    Incorrect Spelling: 'BaseAsyncSessionFactory'
+    Line with Error: ' airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated'
+
 Support
 =======
 

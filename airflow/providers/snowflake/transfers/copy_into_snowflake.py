@@ -153,7 +153,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     def _extract_openlineage_unique_dataset_paths(
         query_result: list[dict[str, Any]],
     ) -> tuple[list[tuple[str, str]], list[str]]:
-        """Extracts and returns unique OpenLineage dataset paths and file paths that failed to be parsed.
+        """Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
 
         Each row in the results is expected to have a 'file' field, which is a URI.
         The function parses these URIs and constructs a set of unique OpenLineage (namespace, name) tuples.
@@ -254,8 +254,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         run_facets = {}
         if extraction_error_files:
             self.log.debug(
-                f"Unable to extract Dataset namespace and name "
-                f"for the following files: `{extraction_error_files}`."
+                "Unable to extract Dataset namespace and name for the following files: `%s`.",
+                extraction_error_files,
             )
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(query_results),

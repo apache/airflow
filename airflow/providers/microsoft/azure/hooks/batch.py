@@ -53,7 +53,7 @@ class AzureBatchHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -64,7 +64,7 @@ class AzureBatchHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -136,7 +136,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> PoolAddParameter:
         """
-        Configures a pool.
+        Configure a pool.
 
         :param pool_id: A string that uniquely identifies the Pool within the Account
 
@@ -221,7 +221,7 @@ class AzureBatchHook(BaseHook):
 
     def create_pool(self, pool: PoolAddParameter) -> None:
         """
-        Creates a pool if not already existing.
+        Create a pool if not already existing.
 
         :param pool: the pool object to create
 
@@ -296,7 +296,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> JobAddParameter:
         """
-        Configures a job for use in the pool.
+        Configure a job for use in the pool.
 
         :param job_id: A string that uniquely identifies the job within the account
         :param pool_id: A string that identifies the pool
@@ -312,7 +312,7 @@ class AzureBatchHook(BaseHook):
 
     def create_job(self, job: JobAddParameter) -> None:
         """
-        Creates a job in the pool.
+        Create a job in the pool.
 
         :param job: The job object to create
         """
@@ -334,7 +334,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> TaskAddParameter:
         """
-        Creates a task.
+        Create a task.
 
         :param task_id: A string that identifies the task to create
         :param command_line: The command line of the Task.

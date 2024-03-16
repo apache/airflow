@@ -27,6 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -69,7 +70,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         database_name: str = "default",
         poke_interval: int = 60 * 3,
@@ -111,7 +112,9 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         return self.hook.check_for_partition(self.database_name, self.table_name, self.expression)
 
     def execute_complete(self, context: Context, event: dict | None = None) -> None:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Trigger error: event is {event}"
             if self.soft_fail:

@@ -309,7 +309,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
     # Create issue for testing the RC
-    ./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
+    --current-release ${VERSION}
     ```
 
 ## Prepare production Docker Image RC
@@ -458,24 +459,27 @@ VERSION=X.Y.Zrc1
 git checkout ${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
-breeze release-management prepare-airflow-tarball --version ${VERSION}
 breeze release-management prepare-airflow-package --package-format both
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-The last - build step - by default will use Dockerized build and building of Python client packages
+The `prepare-airflow-package` by default will use Dockerized approach and building of the packages
 will be done in a docker container.  However, if you have  `hatch` installed locally you can use
 `--use-local-hatch` flag and it will build and use  docker image that has `hatch` installed.
 
 ```bash
 breeze release-management prepare-airflow-package --package-format both --use-local-hatch
+breeze release-management prepare-airflow-tarball --version ${VERSION}
 ```
 
-This is generally faster and requires less resources/network bandwidth.
-
-The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
+This is generally faster and requires less resources/network bandwidth. Note that you have to
+do it before preparing the tarball as preparing packages cleans up dist folder from
+apache-airflow artifacts as it uses hatch's `-c` build flag.
 
 The `prepare-airflow-package` command (no matter if docker or local hatch is used) should produce the
 reproducible `.whl`, `.tar.gz` packages in the dist folder.
+
+The tarball command should produce reproducible `-source.tar.gz` tarball of sources.
 
 Change to the directory where you have the packages from svn:
 
@@ -486,7 +490,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow
 
 # Then compare the packages
-cd asf-dist/dev/airflow/X.Y.Zrc1
+cd asf-dist/dev/airflow/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -782,7 +786,7 @@ git push -f apache constraints-X.Y.Z
    that have >= ``X.Y.0`` in the corresponding provider.yaml file.
 
 
-3. In case the provider should also be installed in the image (it is part of ``dev/prod_image_installed_providers.txt``)
+3. In case the provider should also be installed in the image (it is part of ``prod_image_installed_providers.txt``)
    it should also be added at this moment to ``Dockerfile`` to the list of default extras in the line with ``AIRFLOW_EXTRAS``:
 
 ```Dockerfile
@@ -819,7 +823,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.8 3.9 3.10 3.11
+for PYTHON in 3.8 3.9 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -848,7 +852,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build
+    breeze build-docs apache-airflow docker-stack --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -860,7 +864,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
-    breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management publish-docs apache-airflow docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
     breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
     cd "${AIRFLOW_SITE_DIRECTORY}"

@@ -51,10 +51,11 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_reference: str | None = None
     install_airflow_version: str | None = None
     install_packages_from_context: bool = False
-    use_constraints_for_context_packages: bool = False
     installation_method: str = "."
     runtime_apt_command: str | None = None
     runtime_apt_deps: str | None = None
+    use_constraints_for_context_packages: bool = False
+    use_uv: bool = True
 
     @property
     def airflow_version(self) -> str:
@@ -206,6 +207,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_README_URL", self.airflow_image_readme_url)
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._opt_arg("AIRFLOW_USE_UV", self.use_uv)
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)

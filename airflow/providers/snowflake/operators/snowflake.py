@@ -449,7 +449,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
     :param deferrable: Run operator in the deferrable mode.
-    """  # noqa
+    """  # noqa: D205, D400
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
     RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
@@ -573,7 +573,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute callback when the trigger fires; returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

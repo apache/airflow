@@ -263,36 +263,155 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
     @pytest.mark.parametrize(
-        "status, should_requeue",
+        "response, task_publish_max_retries, should_requeue, task_expected_state",
         [
-            pytest.param(403, True, id="403 Forbidden"),
-            pytest.param(12345, True, id="12345 fake-unhandled-reason"),
-            pytest.param(422, False, id="422 Unprocessable Entity"),
-            pytest.param(400, False, id="400 BadRequest"),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                0,
+                False,
+                State.FAILED,
+                id="400 BadRequest",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=400),
+                1,
+                False,
+                State.FAILED,
+                id="400 BadRequest (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=403),
+                0,
+                False,
+                State.FAILED,
+                id="403 Forbidden (permission denied)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=403),
+                1,
+                False,
+                State.FAILED,
+                id="403 Forbidden (permission denied) (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                0,
+                False,
+                State.FAILED,
+                id="403 Forbidden (exceeded quota)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                1,
+                True,
+                State.SUCCESS,
+                id="403 Forbidden (exceeded quota) (task_publish_max_retries=1) (retry succeeded)",
+            ),
+            pytest.param(
+                HTTPResponse(
+                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
+                    "resouece-quota, requested: pods=1, used: pods=10, "
+                    'limited: pods=10"}',
+                    status=403,
+                ),
+                1,
+                True,
+                State.FAILED,
+                id="403 Forbidden (exceeded quota) (task_publish_max_retries=1)  (retry failed)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=404),
+                0,
+                False,
+                State.FAILED,
+                id="404 Not Found",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=404),
+                1,
+                False,
+                State.FAILED,
+                id="404 Not Found (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=422),
+                0,
+                False,
+                State.FAILED,
+                id="422 Unprocessable Entity",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=422),
+                1,
+                False,
+                State.FAILED,
+                id="422 Unprocessable Entity (task_publish_max_retries=1)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                0,
+                False,
+                State.FAILED,
+                id="12345 fake-unhandled-reason",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                1,
+                False,
+                State.FAILED,
+                id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry succeeded)",
+            ),
+            pytest.param(
+                HTTPResponse(body='{"message": "any message"}', status=12345),
+                1,
+                False,
+                State.FAILED,
+                id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry failed)",
+            ),
         ],
     )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_run_next_exception_requeue(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
+        self,
+        mock_get_kube_client,
+        mock_kubernetes_job_watcher,
+        response,
+        task_publish_max_retries,
+        should_requeue,
+        task_expected_state,
     ):
         """
-        When pod scheduling fails with either reason 'Forbidden', or any reason not yet
-        handled in the relevant try-except block, the task should stay in the ``task_queue``
-        and be attempted on a subsequent executor sync.  When reason is 'Unprocessable Entity'
-        or 'BadRequest', the task should be failed without being re-queued.
+        When pod scheduling fails with any reason not yet
+        handled in the relevant try-except block and task publish retries not exhausted, the task should stay
+        in the ``task_queue`` and be attempted on a subsequent executor sync.
+        When reason is 'Unprocessable Entity' or 'BadRequest' or task publish retries exhausted,
+        the task should be failed without being re-queued.
 
         Note on error scenarios:
 
-        - 403 Forbidden will be returned when your request exceeds namespace quota.
-        - 422 Unprocessable Entity is returned when your parameters are valid but unsupported
-            e.g. limits lower than requests.
-        - 400 BadRequest is returned when your parameters are invalid e.g. asking for cpu=100ABC123.
+        - 400 BadRequest will returns in scenarios like
+            - your request parameters are invalid e.g. asking for cpu=100ABC123.
+        - 403 Forbidden will returns in scenarios like
+            - your request exceeds the namespace quota
+            - scheduler role doesn't have permission to launch the pod
+        - 404 Not Found will returns in scenarios like
+            - your requested namespace doesn't exists
+        - 422 Unprocessable Entity will returns in scenarios like
+            - your request parameters are valid but unsupported e.g. limits lower than requests.
 
         """
         path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
-
-        response = HTTPResponse(body='{"message": "any message"}', status=status)
 
         # A mock kube_client that throws errors when making a pod
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
@@ -306,6 +425,7 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
+            kubernetes_executor.task_publish_max_retries = task_publish_max_retries
             kubernetes_executor.start()
             try:
                 # Execute a task while the Api Throws errors
@@ -324,16 +444,19 @@ class TestKubernetesExecutor:
                     assert not kubernetes_executor.task_queue.empty()
 
                     # Disable the ApiException
-                    mock_kube_client.create_namespaced_pod.side_effect = None
+                    if task_expected_state == State.SUCCESS:
+                        mock_kube_client.create_namespaced_pod.side_effect = None
 
                     # Execute the task without errors should empty the queue
                     mock_kube_client.create_namespaced_pod.reset_mock()
                     kubernetes_executor.sync()
                     assert mock_kube_client.create_namespaced_pod.called
                     assert kubernetes_executor.task_queue.empty()
+                    if task_expected_state != State.SUCCESS:
+                        assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
                 else:
                     assert kubernetes_executor.task_queue.empty()
-                    assert kubernetes_executor.event_buffer[task_instance_key][0] == State.FAILED
+                    assert kubernetes_executor.event_buffer[task_instance_key][0] == task_expected_state
             finally:
                 kubernetes_executor.end()
 
@@ -450,7 +573,7 @@ class TestKubernetesExecutor:
         try:
             assert executor.event_buffer == {}
             executor.execute_async(
-                key=("dag", "task", datetime.utcnow(), 1),
+                key=("dag", "task", timezone.utcnow(), 1),
                 queue=None,
                 command=["airflow", "tasks", "run", "true", "some_parameter"],
                 executor_config=k8s.V1Pod(
@@ -1365,6 +1488,14 @@ class TestKubernetesJobWatcher:
             scheduler_job_id="123",
             kube_config=mock.MagicMock(),
         )
+        self.watcher.kube_config.worker_pod_pending_fatal_container_state_reasons = [
+            "CreateContainerConfigError",
+            "CrashLoopBackOff",
+            "ErrImagePull",
+            "CreateContainerError",
+            "ImageInspectError",
+            "InvalidImageName",
+        ]
         self.kube_client = mock.MagicMock()
         self.core_annotations = {
             "dag_id": "dag",
@@ -1409,15 +1540,190 @@ class TestKubernetesJobWatcher:
             )
         )
 
-    def test_process_status_pending(self):
-        self.events.append({"type": "MODIFIED", "object": self.pod})
+    @pytest.mark.parametrize(
+        "raw_object, is_watcher_queue_called",
+        [
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "CreateContainerConfigError",
+                                        "message": 'secret "my-secret" not found',
+                                    }
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                True,
+                id="CreateContainerConfigError",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {"reason": "ErrImagePull", "message": "pull QPS exceeded"}
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                False,
+                id="ErrImagePull Image QPS Exceeded",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "ErrImagePull",
+                                        "message": "rpc error: code = Unknown desc = Error response from daemon: manifest for dockerhub.com/apache/airflow:xyz not found: manifest unknown: Requested image not found",
+                                    }
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:xyz",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                True,
+                id="ErrImagePull Image Not Found",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "CreateContainerError",
+                                        "message": 'Error: Error response from daemon: create \invalid\path: "\\invalid\path" includes invalid characters for a local volume name, only "[a-zA-Z0-9][a-zA-Z0-9_.-]" are allowed. If you intended to pass a host directory, use absolute path',
+                                    }
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                True,
+                id="CreateContainerError",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "ImageInspectError",
+                                        "message": 'Failed to inspect image "dockerhub.com/apache/airflow:latest": rpc error: code = Unknown desc = Error response from daemon: readlink /var/lib/docker/overlay2: invalid argument',
+                                    }
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                True,
+                id="ImageInspectError",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {
+                                    "waiting": {
+                                        "reason": "InvalidImageName",
+                                        "message": 'Failed to apply default image tag "dockerhub.com/apache/airflow:latest+07": couldnot parse image reference "dockerhub.com/apache/airflow:latest+07": invalid reference format',
+                                    }
+                                },
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest+07",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                True,
+                id="InvalidImageName",
+            ),
+            pytest.param(
+                {
+                    "status": {
+                        "startTime": "2020-05-12T03:49:57Z",
+                        "containerStatuses": [
+                            {
+                                "name": "base",
+                                "state": {"waiting": {"reason": "OtherReasons", "message": ""}},
+                                "lastState": {},
+                                "ready": False,
+                                "restartCount": 0,
+                                "image": "dockerhub.com/apache/airflow:latest",
+                                "imageID": "",
+                            }
+                        ],
+                    }
+                },
+                False,
+                id="OtherReasons",
+            ),
+        ],
+    )
+    def test_process_status_pending(self, raw_object, is_watcher_queue_called):
+        self.events.append({"type": "MODIFIED", "object": self.pod, "raw_object": raw_object})
 
         self._run()
-        self.watcher.watcher_queue.put.assert_not_called()
+        if is_watcher_queue_called:
+            self.assert_watcher_queue_called_once_with_state(State.FAILED)
+        else:
+            self.watcher.watcher_queue.put.assert_not_called()
 
     def test_process_status_pending_deleted(self):
         self.events.append({"type": "DELETED", "object": self.pod})
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
@@ -1447,7 +1753,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_succeeded_dedup_timestamp(self):
         self.pod.status.phase = "Succeeded"
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
@@ -1481,7 +1787,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
-        self.pod.metadata.deletion_timestamp = datetime.utcnow()
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
         self.events.append({"type": "DELETED", "object": self.pod})
 
         self._run()
@@ -1531,7 +1837,7 @@ class TestKubernetesJobWatcher:
         def effect():
             yield "500"
             while True:
-                yield Exception("sentinel")
+                yield SystemError("sentinel")
 
         mock_underscore_run.side_effect = effect()
 
@@ -1540,12 +1846,9 @@ class TestKubernetesJobWatcher:
         with mock.patch(
             "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.get_kube_client"
         ):
-            try:
+            with pytest.raises(SystemError, match="sentinel"):
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()
-                assert False, "Should have raised Exception"
-            except Exception as e:
-                assert e.args == ("sentinel",)
 
             # both resource_version should be 0 after _run raises an exception
             assert self.watcher.resource_version == "0"
@@ -1553,9 +1856,7 @@ class TestKubernetesJobWatcher:
 
             # check that in the next run, _run is invoked with resource_version = 0
             mock_underscore_run.reset_mock()
-            try:
+            with pytest.raises(SystemError, match="sentinel"):
                 self.watcher.run()
-            except Exception as e:
-                assert e.args == ("sentinel",)
 
             mock_underscore_run.assert_called_once_with(mock.ANY, "0", mock.ANY, mock.ANY)

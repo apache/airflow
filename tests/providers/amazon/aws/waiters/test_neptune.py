@@ -38,7 +38,7 @@ class TestCustomNeptuneWaiters:
         hook_waiters = NeptuneHook(aws_conn_id=None).list_waiters()
         assert "cluster_available" in hook_waiters
 
-    @pytest.fixture()
+    @pytest.fixture
     def mock_describe_clusters(self):
         with mock.patch.object(self.client, "describe_db_clusters") as m:
             yield m

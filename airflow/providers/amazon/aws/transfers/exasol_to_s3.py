@@ -68,7 +68,7 @@ class ExasolToS3Operator(BaseOperator):
         query_params: dict | None = None,
         export_params: dict | None = None,
         exasol_conn_id: str = "exasol_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

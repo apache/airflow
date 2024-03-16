@@ -38,22 +38,22 @@ from tests.test_utils.config import conf_vars
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection1():
     return Connection()
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection2():
     return Connection(host="apache.org", extra={})
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection3():
     return Connection(conn_type="foo", login="", password="p@$$")
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection4():
     return Connection(
         conn_type="bar",
@@ -67,7 +67,7 @@ def get_connection4():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection5():
     return Connection(uri="aws://")
 

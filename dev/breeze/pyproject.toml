@@ -51,6 +51,9 @@ dependencies = [
     "flit>=3.5.0",
     "gitpython>=3.1.40",
     "hatch==1.9.1",
+    # Importib_resources 6.2.0 break pytest_rewrite
+    # see https://github.com/python/importlib_resources/issues/299
+    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
@@ -69,6 +72,7 @@ dependencies = [
     "rich>=13.6.0",
     "semver>=3.0.2",
     "tabulate>=0.9.0",
+    "tomli>=2.0.1; python_version < '3.11'",
     "twine>=4.0.2",
 ]
 
@@ -80,7 +84,7 @@ name = "airflow_breeze"
 
 [tool.black]
 line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 [tool.pytest.ini_options]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"

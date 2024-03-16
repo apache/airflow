@@ -27,6 +27,7 @@ from dateutil.parser import parse
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
+from airflow.executors import executor_loader
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -36,6 +37,7 @@ class TestGenerateDagYamlCommand:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(executor_loader)
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 
@@ -66,6 +68,7 @@ class TestCleanUpPodsCommand:
     @classmethod
     def setup_class(cls):
         with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(executor_loader)
             importlib.reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 

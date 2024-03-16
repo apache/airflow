@@ -21,8 +21,9 @@ from unittest import mock
 from unittest.mock import call
 
 import pytest
+from _pytest.outcomes import importorskip
 
-from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
+cassandra = importorskip("cassandra")
 
 TMP_FILE_NAME = "temp-file"
 TEST_BUCKET = "test-bucket"
@@ -34,50 +35,63 @@ TASK_ID = "test-cas-to-gcs"
 
 class TestCassandraToGCS:
     @pytest.mark.db_test
-    @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile")
-    @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
-    @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")
-    def test_execute(self, mock_hook, mock_upload, mock_tempfile):
+    def test_execute(self):
         test_bucket = TEST_BUCKET
         schema = SCHEMA
         filename = FILENAME
         gzip = True
         query_timeout = 20
-        mock_tempfile.return_value.name = TMP_FILE_NAME
+        try:
+            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
+        except cassandra.DependencyException:
+            pytest.skip("cassandra-driver not installed with libev support. Skipping test.")
 
-        operator = CassandraToGCSOperator(
-            task_id=TASK_ID,
-            cql=CQL,
-            bucket=test_bucket,
-            filename=filename,
-            schema_filename=schema,
-            gzip=gzip,
-            query_timeout=query_timeout,
-        )
-        operator.execute(None)
-        mock_hook.return_value.get_conn.assert_called_once_with()
-        mock_hook.return_value.get_conn.return_value.execute.assert_called_once_with(
-            "select * from keyspace1.table1",
-            timeout=20,
-        )
+        with mock.patch(
+            "airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile"
+        ) as mock_tempfile, mock.patch(
+            "airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload"
+        ) as mock_upload, mock.patch(
+            "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook"
+        ) as mock_hook:
+            mock_tempfile.return_value.name = TMP_FILE_NAME
+            operator = CassandraToGCSOperator(
+                task_id=TASK_ID,
+                cql=CQL,
+                bucket=test_bucket,
+                filename=filename,
+                schema_filename=schema,
+                gzip=gzip,
+                query_timeout=query_timeout,
+            )
+            operator.execute(None)
+            mock_hook.return_value.get_conn.assert_called_once_with()
+            mock_hook.return_value.get_conn.return_value.execute.assert_called_once_with(
+                "select * from keyspace1.table1",
+                timeout=20,
+            )
 
-        call_schema = call(
-            bucket_name=test_bucket,
-            object_name=schema,
-            filename=TMP_FILE_NAME,
-            mime_type="application/json",
-            gzip=gzip,
-        )
-        call_data = call(
-            bucket_name=test_bucket,
-            object_name=filename,
-            filename=TMP_FILE_NAME,
-            mime_type="application/json",
-            gzip=gzip,
-        )
-        mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
+            call_schema = call(
+                bucket_name=test_bucket,
+                object_name=schema,
+                filename=TMP_FILE_NAME,
+                mime_type="application/json",
+                gzip=gzip,
+            )
+            call_data = call(
+                bucket_name=test_bucket,
+                object_name=filename,
+                filename=TMP_FILE_NAME,
+                mime_type="application/json",
+                gzip=gzip,
+            )
+            mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
+        try:
+            from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
+        except cassandra.DependencyException:
+            pytest.skip("cassandra-driver not installed with libev support. Skipping test.")
+
         op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME)
         unencoded_uuid_op = CassandraToGCSOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME, encode_uuid=False

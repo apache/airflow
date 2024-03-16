@@ -1046,7 +1046,7 @@ class BuildProcessor:
 
     def process_body(self) -> Build:
         """
-        Processes the body passed in the constructor.
+        Process the body passed in the constructor.
 
         :return: the body.
         """

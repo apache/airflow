@@ -87,7 +87,7 @@ class OSSHook(BaseHook):
     def __init__(self, region: str | None = None, oss_conn_id="oss_default", *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
-        self.region = self.get_default_region() if region is None else region
+        self.region = region or self.get_default_region()
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> Connection:
@@ -137,7 +137,6 @@ class OSSHook(BaseHook):
         :return: the bucket object to the bucket name.
         """
         auth = self.get_credential()
-        assert self.region is not None
         return oss2.Bucket(auth, f"https://oss-{self.region}.aliyuncs.com", bucket_name)
 
     @provide_bucket_name
@@ -353,7 +352,7 @@ class OSSHook(BaseHook):
 
         return oss2.Auth(oss_access_key_id, oss_access_key_secret)
 
-    def get_default_region(self) -> str | None:
+    def get_default_region(self) -> str:
         extra_config = self.oss_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:

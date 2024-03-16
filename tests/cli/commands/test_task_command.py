@@ -385,6 +385,27 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
+    @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
+    @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.sensors.filesystem.FileSensor.poke", return_value=False)
+    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_is_file, mock_glob, mock_getmtime):
+        with redirect_stdout(StringIO()) as stdout:
+            task_command.task_test(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "test",
+                        "example_sensors",
+                        "wait_for_file_async",
+                        DEFAULT_DATE.isoformat(),
+                    ]
+                )
+            )
+        output = stdout.getvalue()
+        assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
+
     @pytest.mark.parametrize(
         "option",
         [

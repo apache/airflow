@@ -32,6 +32,7 @@ from jwt.exceptions import (
     InvalidSignatureError,
 )
 from setproctitle import setproctitle
+from werkzeug.exceptions import HTTPException
 
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
@@ -96,6 +97,8 @@ def create_app():
                     token_filename,
                 )
                 abort(403)
+        except HTTPException:
+            raise
         except InvalidAudienceError:
             logger.warning("Invalid audience for the request", exc_info=True)
             abort(403)
