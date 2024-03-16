@@ -54,12 +54,15 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
       VERBOSE: true
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks
@@ -90,12 +93,15 @@ jobs:
       "potiuk",
       ]'), github.event.sender.login)
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Free space

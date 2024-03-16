@@ -23,7 +23,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
@@ -84,6 +84,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 VERTEX_AI_LINKS_PATH = "airflow.providers.google.cloud.links.vertex_ai.{}"
@@ -476,6 +477,35 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            DeleteCustomTrainingJobOperator,
+            # Templated fields
+            training_pipeline_id="{{ 'training-pipeline-id' }}",
+            custom_job_id="{{ 'custom_job_id' }}",
+            region="{{ 'region' }}",
+            project_id="{{ 'project_id' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: DeleteCustomTrainingJobOperator = ti.task
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.custom_job_id == "custom_job_id"
+        assert task.region == "region"
+        assert task.project_id == "project_id"
+        assert task.impersonation_chain == "impersonation-chain"
+
+        # Deprecated aliases
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.training_pipeline == "training-pipeline-id"
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.custom_job == "custom_job_id"
 
 
 class TestVertexAIListCustomTrainingJobOperator:
@@ -997,6 +1027,30 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            DeleteAutoMLTrainingJobOperator,
+            # Templated fields
+            training_pipeline_id="{{ 'training-pipeline-id' }}",
+            region="{{ 'region' }}",
+            project_id="{{ 'project-id' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: DeleteAutoMLTrainingJobOperator = ti.task
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.region == "region"
+        assert task.project_id == "project-id"
+        assert task.impersonation_chain == "impersonation-chain"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.training_pipeline == "training-pipeline-id"
 
 
 class TestVertexAIListAutoMLTrainingJobOperator:

@@ -841,6 +841,8 @@ def helm_tests(
         python_version=shell_params.python,
         helm_test_package=helm_test_package,
     )
+    if sys.version_info >= (3, 12):
+        env["COVERAGE_CORE"] = "sysmon"
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)
     fix_ownership_using_docker()
