@@ -167,7 +167,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           name: source-constraints-${{ matrix.python-version }}
           path: ./docker-context-files
         if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
-      - name: "Download constraints from the Generate & Verify build"
+      - name: "Download constraints"
         uses: actions/download-artifact@v4
         with:
           name: constraints
