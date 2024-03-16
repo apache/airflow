@@ -112,6 +112,9 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: Login to ghcr.io
+        shell: bash
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Pull PROD image ${{ inputs.default-python-version}}:${{ inputs.image-tag }}
         run: breeze prod-image pull --tag-as-latest
         env:
@@ -136,9 +139,9 @@ jobs:
     name: "Docker-compose quick start with PROD image verifying"
     runs-on: ["ubuntu-22.04"]
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       IMAGE_TAG: "${{ inputs.image-tag }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -152,6 +155,9 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: Login to ghcr.io
+        shell: bash
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Pull image ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
         run: breeze prod-image pull --tag-as-latest
       - name: "Test docker-compose quick start"

@@ -105,6 +105,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_BRANCH: ${{ inputs.branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -173,6 +174,10 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           name: constraints
           path: ./docker-context-files
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: Login to ghcr.io
+        shell: bash
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        if: inputs.do-build == 'true'
       - name: "Build PROD images w/ source providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         shell: bash
         run: >
@@ -187,7 +192,6 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_UV: ${{ inputs.use-uv }}
         if: inputs.do-build == 'true' && inputs.build-provider-packages == 'true'
       - name: "Build PROD images with PyPi providers ${{ matrix.python-version }}:${{ inputs.image-tag }}"
@@ -204,6 +208,9 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           INCLUDE_NOT_READY_PROVIDERS: "true"
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           USE_UV: ${{ inputs.use-uv }}
         if: inputs.do-build == 'true' && inputs.build-provider-packages != 'true'
+      - name: Verify PROD image ${{ matrix.python-version }}:${{ inputs.image-tag }}
+        run: >
+          breeze prod-image verify --image-tag "${{ inputs.image-tag }}"
+          --python "${{ matrix.python-version }}"

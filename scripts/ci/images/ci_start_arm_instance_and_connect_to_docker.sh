@@ -29,6 +29,8 @@ METADATA_ADDRESS="http://169.254.169.254/latest/meta-data"
 MAC_ADDRESS=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/" | head -n1 | tr -d '/')
 CIDR=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/${MAC_ADDRESS}/vpc-ipv4-cidr-block/")
 
+: "${GITHUB_TOKEN:?Should be set}"
+
 function start_arm_instance() {
     set -x
     mkdir -p "${WORKING_DIR}"
@@ -69,11 +71,20 @@ function start_arm_instance() {
         -i "${WORKING_DIR}/my_key" "${EC2_USER}@${INSTANCE_PRIVATE_DNS_NAME}"
 
     bash -c 'echo -n "Waiting port 12357 .."; for _ in `seq 1 40`; do echo -n .; sleep 0.25; nc -z localhost 12357 && echo " Open." && exit ; done; echo " Timeout!" >&2; exit 1'
+}
 
+function create_context() {
+    echo
+    echo "Creating buildx context: airflow_cache"
+    echo
     docker buildx rm --force airflow_cache || true
     docker buildx create --name airflow_cache
     docker buildx create --name airflow_cache --append localhost:12357
     docker buildx ls
+    echo
+    echo "Context created"
+    echo
 }
 
 start_arm_instance
+create_context

@@ -304,6 +304,9 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'false'
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
         id: wait-for-images
         run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
@@ -342,6 +345,8 @@ jobs:
         uses: ./.github/actions/breeze
         with:
           python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
         run: breeze ci-image pull --run-in-parallel --tag-as-latest
       - name: Verify CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
@@ -694,41 +699,6 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: needs.build-info.outputs.run-tests == 'true'
 
-  summarize-warnings:
-    timeout-minutes: 15
-    name: "Summarize warnings"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs:
-      - build-info
-      - tests-postgres
-      - tests-sqlite
-      - tests-mysql
-      - tests-non-db
-      - tests-special
-      - tests-integration
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-      - name: "Summarize all warnings"
-        run: |
-          ls -R ./artifacts/
-          cat ./artifacts/test-warnings*/* | sort | uniq
-          echo
-          echo Total number of unique warnings $(cat ./artifacts/test-warnings*/* | sort | uniq | wc -l)
-
   build-prod-images:
     name: >
       ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
@@ -788,6 +758,9 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: needs.build-info.outputs.in-workflow-build == 'false'
+      - name: Login to ghcr.io
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        if: needs.build-info.outputs.in-workflow-build == 'false'
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images (or build-prod-images-release-branch) above.
@@ -796,13 +769,8 @@ jobs:
         run: breeze prod-image pull --wait-for-image --run-in-parallel
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        run: breeze prod-image verify --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
 
   all-prod-image-tests:
     name: "All PROD image tests"
@@ -842,13 +810,12 @@ jobs:
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
       needs.build-info.outputs.needs-helm-tests == 'true')
 
-  update-constraints:
+  finalize-tests:
+    name: Finalize tests
     permissions:
       contents: write
       packages: write
-    timeout-minutes: 80
-    name: "Update constraints"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    secrets: inherit
     needs:
       - build-info
       - docs
@@ -863,113 +830,17 @@ jobs:
       - tests-special
       - tests-integration
       - generate-constraints
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          # Needed to perform push action
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Set constraints branch name"
-        id: constraints-branch
-        run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
-      - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
-        uses: actions/checkout@v4
-        with:
-          path: "constraints"
-          ref: ${{ steps.constraints-branch.outputs.branch }}
-          persist-credentials: true
-          fetch-depth: 0
-      - name: "Download constraints from the constraints generated by build CI image"
-        uses: actions/download-artifact@v4
-        with:
-          name: constraints
-          path: ./files
-      - name: "Diff in constraints for ${{needs.build-info.outputs.python-versions}}"
-        run: ./scripts/ci/constraints/ci_diff_constraints.sh
-      # only commit and push constraints in canary runs (main)
-      - name: "Commit changed constraint files for ${{needs.build-info.outputs.python-versions}}"
-        run: ./scripts/ci/constraints/ci_commit_constraints.sh
-        if: needs.build-info.outputs.canary-run == 'true'
-      - name: "Push changes"
-        if: needs.build-info.outputs.canary-run == 'true'
-        working-directory: "constraints"
-        run:
-          git push
-  # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
-  # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
-  # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
-  # It will automatically check if a new python image was released and will pull the latest one if needed
-  push-buildx-cache-to-github-registry:
-    name: Push Regular Image Cache
-    needs: [build-info, update-constraints]
-    uses: ./.github/workflows/push-image-cache.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
+    uses: ./.github/workflows/finalize-tests.yml
     with:
-      cache-type: "Regular"
-      include-prod-images: "true"
-      push-latest-images: "true"
-      use-uv: "true"
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-    if: needs.build-info.outputs.canary-run == 'true'
-
-  # This is only a check if ARM images are successfully building when committer runs PR from
-  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
-  # There is no point in running this one in "canary" run, because the above step is doing the
-  # same build anyway.
-  build-ci-arm-images:
-    name: Build CI ARM images (in-workflow)
-    needs:
-      - build-info
-      - docs
-      - static-checks
-      - mypy
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-non-db
-      - tests-integration
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      platform: "arm64"
-      runs-on: ${{needs.build-info.outputs.runs-on}}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-    if: >
-      needs.build-info.outputs.in-workflow-build == 'true' &&
-      needs.build-info.outputs.canary-run != 'true'
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
