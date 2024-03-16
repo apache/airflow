@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -163,7 +163,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         return "\n".join(self._event_to_str(event) for event in events)
 
     def _event_to_str(self, event: dict) -> str:
-        event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
+        event_dt = datetime.fromtimestamp(event["timestamp"] / 1000.0, tz=timezone.utc)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"

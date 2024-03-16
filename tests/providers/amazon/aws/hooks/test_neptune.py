@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Generator
 
 import pytest
-from moto import mock_neptune
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 
@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
 @pytest.fixture
 def neptune_hook() -> Generator[NeptuneHook, None, None]:
     """Returns a NeptuneHook mocked with moto"""
-    with mock_neptune():
+    with mock_aws():
         yield NeptuneHook(aws_conn_id="aws_default")
 
 

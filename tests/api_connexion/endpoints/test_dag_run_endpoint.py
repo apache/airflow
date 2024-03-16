@@ -1245,7 +1245,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": note,
         }
-        _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
+        _check_last_log(session, dag_id="TEST_DAG_ID", event="api.post_dag_run", execution_date=None)
 
     def test_raises_validation_error_for_invalid_request(self):
         self._create_dag("TEST_DAG_ID")
@@ -1600,11 +1600,11 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "conf": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
-            "end_date": dr.end_date.isoformat(),
+            "end_date": dr.end_date.isoformat() if state != State.QUEUED else None,
             "execution_date": dr.execution_date.isoformat(),
             "external_trigger": False,
             "logical_date": dr.execution_date.isoformat(),
-            "start_date": dr.start_date.isoformat(),
+            "start_date": dr.start_date.isoformat() if state != State.QUEUED else None,
             "state": state,
             "data_interval_start": dr.data_interval_start.isoformat(),
             "data_interval_end": dr.data_interval_end.isoformat(),

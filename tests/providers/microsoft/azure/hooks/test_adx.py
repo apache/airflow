@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from azure.kusto.data import ClientRequestProperties, KustoClient
 from packaging.version import Version
 
 from airflow.exceptions import AirflowException
@@ -97,11 +97,12 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_creds(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_aad_user_password_authentication(
-                "https://help.kusto.windows.net", "client_id", "client secret", "tenant"
-            )
-        )
+        mock_init.assert_called()
+        args = mock_init.call_args
+        assert args[0][0].data_source == "https://help.kusto.windows.net"
+        assert args[0][0].aad_user_id == "client_id"
+        assert args[0][0].password == "client secret"
+        assert args[0][0].authority_id == "tenant"
 
     @pytest.mark.parametrize(
         "mocked_connection",
@@ -166,11 +167,12 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_app(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_aad_application_key_authentication(
-                "https://help.kusto.windows.net", "app_id", "app key", "tenant"
-            )
-        )
+        mock_init.assert_called()
+        arg = mock_init.call_args
+        assert arg[0][0].data_source == "https://help.kusto.windows.net"
+        assert arg[0][0].application_client_id == "app_id"
+        assert arg[0][0].application_key == "app key"
+        assert arg[0][0].authority_id == "tenant"
 
     @pytest.mark.parametrize(
         "mocked_connection",
@@ -193,11 +195,13 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_app_cert(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_aad_application_certificate_authentication(
-                "https://help.kusto.windows.net", "client_id", "PEM", "thumbprint", "tenant"
-            )
-        )
+        mock_init.assert_called()
+        arg = mock_init.call_args
+        assert arg[0][0].data_source == "https://help.kusto.windows.net"
+        assert arg[0][0].application_client_id == "app_id"
+        assert arg[0][0].application_key == "app key"
+        assert arg[0][0].aad_federated_security
+        assert arg[0][0].authority_id == "tenant"
 
     @pytest.mark.parametrize(
         "mocked_connection",
@@ -215,9 +219,9 @@ class TestAzureDataExplorerHook:
     def test_conn_method_aad_device(self, mock_init, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_aad_device_authentication("https://help.kusto.windows.net")
-        )
+        mock_init.assert_called()
+        arg = mock_init.call_args
+        assert arg[0][0].data_source == "https://help.kusto.windows.net"
 
     @pytest.mark.parametrize(
         "mocked_connection",
@@ -240,13 +244,14 @@ class TestAzureDataExplorerHook:
     def test_conn_method_azure_token_cred(self, mock_init, mock_default_azure_credential, mocked_connection):
         mock_init.return_value = None
         AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
-        assert mock_default_azure_credential.called_with("test_id", "test_tenant_id")
-        assert mock_init.called_with(
-            KustoConnectionStringBuilder.with_azure_token_credential(
-                connection_string="https://help.kusto.windows.net",
-                credential=mock_default_azure_credential,
-            )
-        )
+        mock_init.assert_called()
+        args = mock_init.call_args
+        assert args[0][0].data_source == "https://help.kusto.windows.net"
+
+        mock_default_azure_credential.assert_called()
+        args = mock_default_azure_credential.call_args
+        assert args[1]["managed_identity_client_id"] == "test_id"
+        assert args[1]["workload_identity_tenant_id"] == "test_tenant_id"
 
     @pytest.mark.parametrize(
         "mocked_connection",
@@ -267,7 +272,11 @@ class TestAzureDataExplorerHook:
         hook.run_query("Database", "Logs | schema", options={"option1": "option_value"})
         properties = ClientRequestProperties()
         properties.set_option("option1", "option_value")
-        assert mock_execute.called_with("Database", "Logs | schema", properties=properties)
+        mock_execute.assert_called()
+        args = mock_execute.call_args
+        assert args[0][0] == "Logs | schema"
+        assert args[0][1] == "Database"
+        assert args[1]["properties"]._options["option1"] == "option_value"
 
     @pytest.mark.parametrize(
         "mocked_connection",

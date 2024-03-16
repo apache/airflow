@@ -26,17 +26,17 @@ import warnings
 import weakref
 from dataclasses import dataclass
 from inspect import signature
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
 
 import attrs
 import lazy_object_proxy
-import pendulum
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAll, DatasetAny
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.jobs.job import Job
 from airflow.models.baseoperator import BaseOperator
@@ -65,13 +65,11 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
-from airflow.utils.timezone import parse_timezone
+from airflow.utils.timezone import from_timestamp, parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from inspect import Parameter
-
-    from pydantic import BaseModel
 
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
@@ -80,6 +78,7 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
+    from airflow.utils.pydantic import BaseModel
 
     HAS_KUBERNETES: bool
     try:
@@ -197,12 +196,14 @@ class _TimetableNotRegistered(ValueError):
         )
 
 
-def _encode_timetable(var: Timetable) -> dict[str, Any]:
+def encode_timetable(var: Timetable) -> dict[str, Any]:
     """
     Encode a timetable instance.
 
     This delegates most of the serialization work to the type, so the behavior
     can be completely controlled by a custom subclass.
+
+    :meta private:
     """
     timetable_class = type(var)
     importable_string = qualname(timetable_class)
@@ -211,12 +212,14 @@ def _encode_timetable(var: Timetable) -> dict[str, Any]:
     return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
 
 
-def _decode_timetable(var: dict[str, Any]) -> Timetable:
+def decode_timetable(var: dict[str, Any]) -> Timetable:
     """
     Decode a previously serialized timetable.
 
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
+
+    :meta private:
     """
     importable_string = var[Encoding.TYPE]
     timetable_class = _get_registered_timetable(importable_string)
@@ -295,6 +298,23 @@ class _ExpandInputRef(NamedTuple):
         else:
             value = [v.deref(dag) if isinstance(v, _XComRef) else v for v in self.value]
         return create_expand_input(self.key, value)
+
+
+_orm_to_model = {
+    Job: JobPydantic,
+    TaskInstance: TaskInstancePydantic,
+    DagRun: DagRunPydantic,
+    DagModel: DagModelPydantic,
+    LogTemplate: LogTemplatePydantic,
+}
+_type_to_class = {
+    DAT.BASE_JOB: [JobPydantic, Job],
+    DAT.TASK_INSTANCE: [TaskInstancePydantic, TaskInstance],
+    DAT.DAG_RUN: [DagRunPydantic, DagRun],
+    DAT.DAG_MODEL: [DagModelPydantic, DagModel],
+    DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
+}
+_class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
 
 
 class BaseSerialization:
@@ -401,7 +421,9 @@ class BaseSerialization:
             elif key in decorated_fields:
                 serialized_object[key] = cls.serialize(value)
             elif key == "timetable" and value is not None:
-                serialized_object[key] = _encode_timetable(value)
+                serialized_object[key] = encode_timetable(value)
+            elif key == "dataset_triggers":
+                serialized_object[key] = cls.serialize(value)
             else:
                 value = cls.serialize(value)
                 if isinstance(value, dict) and Encoding.TYPE in value:
@@ -461,7 +483,7 @@ class BaseSerialization:
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
             return cls._encode(var.total_seconds(), type_=DAT.TIMEDELTA)
-        elif isinstance(var, Timezone):
+        elif isinstance(var, (Timezone, FixedTimezone)):
             return cls._encode(encode_timezone(var), type_=DAT.TIMEZONE)
         elif isinstance(var, relativedelta.relativedelta):
             return cls._encode(encode_relativedelta(var), type_=DAT.RELATIVEDELTA)
@@ -495,6 +517,22 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
             return cls._encode({"uri": var.uri, "extra": var.extra}, type_=DAT.DATASET)
+        elif isinstance(var, DatasetAll):
+            return cls._encode(
+                [
+                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
+                    for x in var.objects
+                ],
+                type_=DAT.DATASET_ALL,
+            )
+        elif isinstance(var, DatasetAny):
+            return cls._encode(
+                [
+                    cls.serialize(x, strict=strict, use_pydantic_models=use_pydantic_models)
+                    for x in var.objects
+                ],
+                type_=DAT.DATASET_ANY,
+            )
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
@@ -507,18 +545,11 @@ class BaseSerialization:
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
 
-            if isinstance(var, Job):
-                return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
-            elif isinstance(var, TaskInstance):
-                return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
-            elif isinstance(var, DagRun):
-                return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
-            elif isinstance(var, Dataset):
-                return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
-            elif isinstance(var, DagModel):
-                return cls._encode(_pydantic_model_dump(DagModelPydantic, var), type_=DAT.DAG_MODEL)
-            elif isinstance(var, LogTemplate):
-                return cls._encode(_pydantic_model_dump(LogTemplatePydantic, var), type_=DAT.LOG_TEMPLATE)
+            if var.__class__ in _class_to_type:
+                pyd_mod = _orm_to_model.get(var.__class__, var)
+                mod = _pydantic_model_dump(pyd_mod, var)
+                type_ = _class_to_type[var.__class__]
+                return cls._encode(mod, type_=type_)
             else:
                 return cls.default_serialization(strict, var)
         elif isinstance(var, ArgNotSet):
@@ -563,7 +594,7 @@ class BaseSerialization:
         elif type_ == DAT.OP:
             return SerializedBaseOperator.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
-            return pendulum.from_timestamp(var)
+            return from_timestamp(var)
         elif type_ == DAT.POD:
             if not _has_kubernetes():
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
@@ -585,6 +616,10 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
+        elif type_ == DAT.DATASET_ANY:
+            return DatasetAny(*(cls.deserialize(x) for x in var))
+        elif type_ == DAT.DATASET_ALL:
+            return DatasetAll(*(cls.deserialize(x) for x in var))
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
@@ -607,7 +642,7 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = pendulum.from_timestamp
+    _deserialize_datetime = from_timestamp
     _deserialize_timezone = parse_timezone
 
     @classmethod
@@ -761,12 +796,14 @@ class DependencyDetector:
         """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
-        for x in dag.dataset_triggers:
+        if not dag.dataset_triggers:
+            return
+        for uri, _ in dag.dataset_triggers.iter_datasets():
             yield DagDependency(
                 source="dataset",
                 target=dag.dag_id,
                 dependency_type="dataset",
-                dependency_id=x.uri,
+                dependency_id=uri,
             )
 
 
@@ -886,7 +923,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
-                    raise AirflowException(f"Cannot template BaseOperator field: {template_field!r}")
+                    raise AirflowException(
+                        dedent(
+                            f"""Cannot template BaseOperator field:
+                        {template_field!r} {op.__class__.__name__=} {op.template_fields=}"""
+                        )
+                    )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)
@@ -1368,7 +1410,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = _decode_timetable(v)
+                v = decode_timetable(v)
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":

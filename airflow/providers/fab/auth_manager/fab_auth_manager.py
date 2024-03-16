@@ -54,8 +54,6 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.security import permissions
 from airflow.security.permissions import (
-    ACTION_CAN_ACCESS_MENU,
-    ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -84,6 +82,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
@@ -97,7 +96,6 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
-    DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
@@ -116,6 +114,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
 _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.CLUSTER_ACTIVITY: RESOURCE_CLUSTER_ACTIVITY,
     AccessView.DOCS: RESOURCE_DOCS,
+    AccessView.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
     AccessView.JOBS: RESOURCE_JOB,
     AccessView.PLUGINS: RESOURCE_PLUGIN,
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
@@ -156,9 +155,7 @@ class FabAuthManager(BaseAuthManager):
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
-            options={
-                "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            },
+            options={"swagger_ui": SWAGGER_ENABLED, "swagger_path": SWAGGER_BUNDLE.__fspath__()},
             strict_validation=True,
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
@@ -264,16 +261,19 @@ class FabAuthManager(BaseAuthManager):
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
     def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
+        # "Docs" are only links in the menu, there is no page associated
+        method: ResourceMethod = "MENU" if access_view == AccessView.DOCS else "GET"
         return self._is_authorized(
-            method="GET", resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
+            method=method, resource_type=_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[access_view], user=user
         )
 
     def is_authorized_custom_view(
-        self, *, fab_action_name: str, fab_resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
     ):
         if not user:
             user = self.get_user()
-        return (fab_action_name, fab_resource_name) in self._get_user_permissions(user)
+        fab_action_name = get_fab_action_from_method_map()[method]
+        return (fab_action_name, resource_name) in self._get_user_permissions(user)
 
     @provide_session
     def get_permitted_dag_ids(
@@ -446,7 +446,7 @@ class FabAuthManager(BaseAuthManager):
 
     def _resource_name_for_dag(self, dag_id: str) -> str:
         """
-        Returns the FAB resource name for a DAG id.
+        Return the FAB resource name for a DAG id.
 
         :param dag_id: the DAG id
 
@@ -464,18 +464,11 @@ class FabAuthManager(BaseAuthManager):
         """
         Return the user permissions.
 
-        ACTION_CAN_READ and ACTION_CAN_ACCESS_MENU are merged into because they are very similar.
-        We can assume that if a user has permissions to read variables, they also have permissions to access
-        the menu "Variables".
-
         :param user: the user to get permissions for
 
         :meta private:
         """
-        perms = getattr(user, "perms") or []
-        return [
-            (ACTION_CAN_READ if perm[0] == ACTION_CAN_ACCESS_MENU else perm[0], perm[1]) for perm in perms
-        ]
+        return getattr(user, "perms") or []
 
     def _get_root_dag_id(self, dag_id: str) -> str:
         """

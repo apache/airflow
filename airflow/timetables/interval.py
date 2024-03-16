@@ -25,7 +25,7 @@ from pendulum import DateTime
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils.timezone import convert_to_utc
+from airflow.utils.timezone import coerce_datetime, convert_to_utc, utcnow
 
 if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
@@ -146,7 +146,7 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         If the next schedule should start *right now*, we want the data interval
         that start now, not the one that ends now.
         """
-        current_time = DateTime.utcnow()
+        current_time = coerce_datetime(utcnow())
         last_start = self._get_prev(current_time)
         next_start = self._get_next(last_start)
         if next_start == current_time:  # Current time is on interval boundary.
@@ -257,7 +257,7 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
 
         This is slightly different from the cron version at terminal values.
         """
-        round_current_time = self._round(DateTime.utcnow())
+        round_current_time = self._round(coerce_datetime(utcnow()))
         new_start = self._get_prev(round_current_time)
         if earliest is None:
             return new_start

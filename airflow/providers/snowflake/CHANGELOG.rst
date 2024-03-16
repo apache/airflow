@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add d401 support to snowflake provider (#37299)``
+
 5.3.0
 .....
 

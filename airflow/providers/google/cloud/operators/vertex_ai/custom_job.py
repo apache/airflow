@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -445,9 +447,19 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         self,
         *,
         command: Sequence[str] = [],
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.command = command
 
     def execute(self, context: Context):
@@ -524,7 +536,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -816,9 +828,19 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         *,
         python_package_gcs_uri: str,
         python_module_name: str,
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
 
@@ -896,7 +918,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Cancel any running job. Callback called when the operator is killed."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -1190,9 +1212,19 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         *,
         script_path: str,
         requirements: Sequence[str] | None = None,
+        region: str,
+        parent_model: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        dataset_id: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region,
+            parent_model=parent_model,
+            impersonation_chain=impersonation_chain,
+            dataset_id=dataset_id,
+            **kwargs,
+        )
         self.requirements = requirements
         self.script_path = script_path
 
@@ -1271,7 +1303,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Cancel any running job. Callback called when the operator is killed."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -1298,7 +1330,7 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("training_pipeline", "custom_job", "region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline_id", "custom_job_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -1315,8 +1347,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.training_pipeline = training_pipeline_id
-        self.custom_job = custom_job_id
+        self.training_pipeline_id = training_pipeline_id
+        self.custom_job_id = custom_job_id
         self.region = region
         self.project_id = project_id
         self.retry = retry
@@ -1324,6 +1356,26 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+
+    @property
+    @deprecated(
+        reason="`training_pipeline` is deprecated and will be removed in the future. "
+        "Please use `training_pipeline_id` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def training_pipeline(self):
+        """Alias for ``training_pipeline_id``, used for compatibility (deprecated)."""
+        return self.training_pipeline_id
+
+    @property
+    @deprecated(
+        reason="`custom_job` is deprecated and will be removed in the future. "
+        "Please use `custom_job_id` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def custom_job(self):
+        """Alias for ``custom_job_id``, used for compatibility (deprecated)."""
+        return self.custom_job_id
 
     def execute(self, context: Context):
         hook = CustomJobHook(

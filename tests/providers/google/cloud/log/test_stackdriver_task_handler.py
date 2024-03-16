@@ -36,7 +36,7 @@ def _create_list_log_entries_response_mock(messages, token):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def clean_stackdriver_handlers():
     yield
     for handler_ref in reversed(logging._handlerList[:]):

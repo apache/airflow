@@ -107,7 +107,8 @@ def revision_suffix(rev: Script):
 
 def ensure_airflow_version(revisions: Iterable[Script]):
     for rev in revisions:
-        assert rev.module.__file__ is not None  # For Mypy.
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
         if not has_version(content):
@@ -174,9 +175,9 @@ def ensure_filenames_are_sorted(revisions):
             "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
         )
         raise SystemExit(
-            "You have multiple alembic heads; please merge them with the `alembic merge` command "
-            f"and re-run pre-commit. It should fail once more before succeeding. "
-            f"\nhint: `{alembic_command}`"
+            "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
+            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:
         os.rename(old, new)

@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding optional SSL verification for druid operator (#37629)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SSL verification in druid operator (#37673)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
 3.8.0
 .....
 

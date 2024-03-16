@@ -22,7 +22,7 @@ export const defaultFormat = "YYYY-MM-DD, HH:mm:ss";
 export const isoFormatWithoutTZ = "YYYY-MM-DDTHH:mm:ss.SSS";
 export const defaultFormatWithTZ = "YYYY-MM-DD, HH:mm:ss z";
 export const defaultTZFormat = "z (Z)";
-export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssTZD";
+export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssZ";
 
 export const TimezoneEvent = "timezone";
 

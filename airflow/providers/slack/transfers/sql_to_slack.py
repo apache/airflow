@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
+from deprecated import deprecated
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -154,6 +154,14 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             )
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` has been renamed "
+        "and moved `airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` "
+        "this operator deprecated and will be removed in future"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SqlToSlackOperator(SqlToSlackWebhookOperator):
     """
     Executes an SQL statement in a given SQL connection and sends the results to Slack Incoming Webhook.
@@ -162,11 +170,4 @@ class SqlToSlackOperator(SqlToSlackWebhookOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` has been renamed "
-            "and moved `airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` "
-            "this operator deprecated and will be removed in future",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)

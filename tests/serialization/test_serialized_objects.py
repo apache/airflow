@@ -17,8 +17,10 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import datetime, timedelta
+from importlib import import_module
 
 import pytest
 from dateutil import relativedelta
@@ -29,8 +31,9 @@ from airflow.datasets import Dataset
 from airflow.exceptions import SerializationError
 from airflow.jobs.job import Job
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.models.dataset import DatasetEvent
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
@@ -38,13 +41,17 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.pydantic.dag import DagModelPydantic
+from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dataset import DatasetEventPydantic, DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
+from airflow.utils import timezone
 from airflow.utils.operator_resources import Resources
+from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -113,14 +120,14 @@ TI_WITH_START_DAY = TaskInstance(
     run_id="fake_run",
     state=State.RUNNING,
 )
-TI_WITH_START_DAY.start_date = datetime.utcnow()
+TI_WITH_START_DAY.start_date = timezone.utcnow()
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
     run_id="test_dag_run_id",
     run_type=DagRunType.MANUAL,
-    execution_date=datetime.utcnow(),
-    start_date=datetime.utcnow(),
+    execution_date=timezone.utcnow(),
+    start_date=timezone.utcnow(),
     external_trigger=True,
     state=DagRunState.SUCCESS,
 )
@@ -140,7 +147,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
     [
         ("test_str", None, equals),
         (1, None, equals),
-        (datetime.utcnow(), DAT.DATETIME, equal_time),
+        (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
         (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
@@ -151,7 +158,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=datetime.utcnow()
+                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
                 )
             ),
             DAT.POD,
@@ -162,7 +169,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
                 "fake-dag",
                 schedule="*/10 * * * *",
                 default_args={"depends_on_past": True},
-                start_date=datetime.utcnow(),
+                start_date=timezone.utcnow(),
                 catchup=False,
             ),
             DAT.DAG,
@@ -236,24 +243,43 @@ def test_backcompat_deserialize_connection(conn_uri):
     assert deserialized.get_uri() == conn_uri
 
 
+sample_objects = {
+    JobPydantic: Job(state=State.RUNNING, latest_heartbeat=timezone.utcnow()),
+    TaskInstancePydantic: TI_WITH_START_DAY,
+    DagRunPydantic: DAG_RUN,
+    DagModelPydantic: DagModel(
+        dag_id="TEST_DAG_1",
+        fileloc="/tmp/dag_1.py",
+        schedule_interval="2 2 * * *",
+        is_paused=True,
+    ),
+    LogTemplatePydantic: LogTemplate(
+        id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
+    ),
+    DagTagPydantic: DagTag(),
+    DatasetPydantic: Dataset("uri", {}),
+    DatasetEventPydantic: DatasetEvent(),
+}
+
+
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
     [
         (
-            Job(state=State.RUNNING, latest_heartbeat=datetime.utcnow()),
+            sample_objects.get(JobPydantic),
             JobPydantic,
             DAT.BASE_JOB,
             lambda a, b: equal_time(a.latest_heartbeat, b.latest_heartbeat),
         ),
         (
-            TI_WITH_START_DAY,
+            sample_objects.get(TaskInstancePydantic),
             TaskInstancePydantic,
             DAT.TASK_INSTANCE,
             lambda a, b: equal_time(a.start_date, b.start_date),
         ),
         (
-            DAG_RUN,
+            sample_objects.get(DagRunPydantic),
             DagRunPydantic,
             DAT.DAG_RUN,
             lambda a, b: equal_time(a.execution_date, b.execution_date)
@@ -270,18 +296,13 @@ def test_backcompat_deserialize_connection(conn_uri):
         #     lambda a, b: a.uri == b.uri and a.extra == b.extra,
         # ),
         (
-            DagModel(
-                dag_id="TEST_DAG_1",
-                fileloc="/tmp/dag_1.py",
-                schedule_interval="2 2 * * *",
-                is_paused=True,
-            ),
+            sample_objects.get(DagModelPydantic),
             DagModelPydantic,
             DAT.DAG_MODEL,
             lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
         ),
         (
-            LogTemplate(id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()),
+            sample_objects.get(LogTemplatePydantic),
             LogTemplatePydantic,
             DAT.LOG_TEMPLATE,
             lambda a, b: a.id == b.id and a.filename == b.filename and equal_time(a.created_at, b.created_at),
@@ -290,6 +311,7 @@ def test_backcompat_deserialize_connection(conn_uri):
 )
 def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp_func):
     """If use_pydantic_models=True the objects should be serialized to Pydantic objects."""
+    pytest.importorskip("pydantic", minversion="2.0.0")
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -302,9 +324,66 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
     assert isinstance(deserialized, pydantic_class)
     assert cmp_func(input, deserialized)
 
+    # verify that when we round trip a pydantic model we get the same thing
+    reserialized = BaseSerialization.serialize(deserialized, use_pydantic_models=True)
+    dereserialized = BaseSerialization.deserialize(reserialized, use_pydantic_models=True)
+    assert isinstance(dereserialized, pydantic_class)
+    assert dereserialized == deserialized
+
     # Verify recursive behavior
     obj = [[input]]
     BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
+
+
+def test_all_pydantic_models_round_trip():
+    pytest.importorskip("pydantic", minversion="2.0.0")
+    if not _ENABLE_AIP_44:
+        pytest.skip("AIP-44 is disabled")
+    classes = set()
+    mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
+    for p in mods_folder.iterdir():
+        if p.name.startswith("__"):
+            continue
+        relpath = str(p.relative_to(REPO_ROOT).stem)
+        mod = import_module(f"airflow.serialization.pydantic.{relpath}")
+        for name, obj in inspect.getmembers(mod):
+            if inspect.isclass(obj) and issubclass(obj, BaseModel):
+                if obj == BaseModel:
+                    continue
+                classes.add(obj)
+    exclusion_list = {
+        "DatasetPydantic",
+        "DagTagPydantic",
+        "DagScheduleDatasetReferencePydantic",
+        "TaskOutletDatasetReferencePydantic",
+        "DagOwnerAttributesPydantic",
+        "DatasetEventPydantic",
+    }
+    for c in sorted(classes, key=str):
+        if c.__name__ in exclusion_list:
+            continue
+        orm_instance = sample_objects.get(c)
+        if not orm_instance:
+            pytest.fail(
+                f"Class {c.__name__} not set up for testing. Either (1) add"
+                f" to `sample_objects` an object for testing roundtrip or"
+                f" (2) add class name to `exclusion list` if it does not"
+                f" need to be serialized directly."
+            )
+        orm_ser = BaseSerialization.serialize(orm_instance, use_pydantic_models=True)
+        pydantic_instance = BaseSerialization.deserialize(orm_ser, use_pydantic_models=True)
+        if isinstance(pydantic_instance, str):
+            pytest.fail(
+                f"The model object {orm_instance.__class__} came back as a string "
+                f"after round trip. Probably you need to define a DagAttributeType "
+                f"for it and define it in mappings `_orm_to_model` and `_type_to_class` "
+                f"in `serialized_objects.py`"
+            )
+        assert isinstance(pydantic_instance, c)
+        serialized = BaseSerialization.serialize(pydantic_instance, use_pydantic_models=True)
+        deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)
+        assert isinstance(deserialized, c)
+        assert pydantic_instance == deserialized
 
 
 @pytest.mark.db_test

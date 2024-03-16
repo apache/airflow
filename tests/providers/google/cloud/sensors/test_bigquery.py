@@ -271,13 +271,13 @@ class TestBigqueryTablePartitionExistenceSensor:
         )
 
 
-@pytest.fixture()
+@pytest.fixture
 def context():
     """
     Creates an empty context.
     """
     context = {}
-    yield context
+    return context
 
 
 class TestBigQueryTableExistenceAsyncSensor:

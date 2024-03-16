@@ -83,7 +83,6 @@ if TYPE_CHECKING:
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
-    TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -270,11 +269,75 @@ class DagRun(Base, LoggingMixin):
         return self._state
 
     def set_state(self, state: DagRunState) -> None:
+        """Change the state of the DagRan.
+
+        Changes to attributes are implemented in accordance with the following table
+        (rows represent old states, columns represent new states):
+
+        .. list-table:: State transition matrix
+           :header-rows: 1
+           :stub-columns: 1
+
+           * -
+             - QUEUED
+             - RUNNING
+             - SUCCESS
+             - FAILED
+           * - None
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - QUEUED
+             - queued_at = timezone.utcnow()
+             - if empty: start_date = timezone.utcnow()
+               end_date = None
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - RUNNING
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             -
+             - end_date = timezone.utcnow()
+             - end_date = timezone.utcnow()
+           * - SUCCESS
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+           * - FAILED
+             - queued_at = timezone.utcnow()
+               start_date = None
+               end_date = None
+             - start_date = timezone.utcnow()
+               end_date = None
+             -
+             -
+
+        """
         if state not in State.dag_states:
             raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
+            if state == DagRunState.QUEUED:
+                self.queued_at = timezone.utcnow()
+                self.start_date = None
+                self.end_date = None
+            if state == DagRunState.RUNNING:
+                if self._state in State.finished_dr_states:
+                    self.start_date = timezone.utcnow()
+                else:
+                    self.start_date = self.start_date or timezone.utcnow()
+                self.end_date = None
+            if self._state in State.unfinished_dr_states or self._state is None:
+                if state in State.finished_dr_states:
+                    self.end_date = timezone.utcnow()
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished_dr_states else None
+        else:
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
@@ -498,6 +561,45 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
+    @internal_api_call
+    def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
+        """Check if last N dags failed."""
+        dag_runs = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == dag_id)
+            .order_by(DagRun.execution_date.desc())
+            .limit(max_consecutive_failed_dag_runs)
+            .all()
+        )
+        """ Marking dag as paused, if needed"""
+        to_be_paused = len(dag_runs) >= max_consecutive_failed_dag_runs and all(
+            dag_run.state == DagRunState.FAILED for dag_run in dag_runs
+        )
+
+        if to_be_paused:
+            from airflow.models.dag import DagModel
+
+            self.log.info(
+                "Pausing DAG %s because last %s DAG runs failed.",
+                self.dag_id,
+                max_consecutive_failed_dag_runs,
+            )
+            filter_query = [
+                DagModel.dag_id == self.dag_id,
+                DagModel.root_dag_id == self.dag_id,  # for sub-dags
+            ]
+            session.execute(
+                update(DagModel)
+                .where(or_(*filter_query))
+                .values(is_paused=True)
+                .execution_options(synchronize_session="fetch")
+            )
+        else:
+            self.log.debug(
+                "Limit of consecutive DAG failed dag runs is not reached, DAG %s will not be paused.",
+                self.dag_id,
+            )
+
     @provide_session
     def get_task_instances(
         self,
@@ -505,7 +607,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
@@ -548,7 +650,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param dag_id: the DAG id
         :param dag_run_id: the DAG run id
@@ -723,6 +825,16 @@ class DagRun(Base, LoggingMixin):
                     processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="task_failure",
                 )
+
+            # Check if the max_consecutive_failed_dag_runs has been provided and not 0
+            # and last consecutive failures are more
+            if dag.max_consecutive_failed_dag_runs > 0:
+                self.log.debug(
+                    "Checking consecutive failed DAG runs for DAG %s, limit is %s",
+                    self.dag_id,
+                    dag.max_consecutive_failed_dag_runs,
+                )
+                self._check_last_n_dagruns_failed(dag.dag_id, dag.max_consecutive_failed_dag_runs, session)
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
@@ -1217,7 +1329,7 @@ class DagRun(Base, LoggingMixin):
     def _create_tasks(
         self,
         tasks: Iterable[Operator],
-        task_creator: TaskCreator,
+        task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
         *,
         session: Session,
     ) -> CreatedTasks:
@@ -1358,7 +1470,7 @@ class DagRun(Base, LoggingMixin):
         return session.scalar(
             select(DagRun).where(
                 DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa
+                DagRun.external_trigger == False,  # noqa: E712
                 DagRun.execution_date == execution_date,
             )
         )

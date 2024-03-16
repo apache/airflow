@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import tempfile
@@ -216,11 +217,50 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
-def test_sqlite_relative_path():
+@pytest.mark.parametrize(
+    ["value", "expectation"],
+    [
+        (
+            "sqlite:///./relative_path.db",
+            pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
+        ),
+        # Should not raise an exception
+        ("sqlite://", contextlib.nullcontext()),
+    ],
+)
+def test_sqlite_relative_path(value, expectation):
     from airflow import settings
 
-    with patch("airflow.settings.conf.get") as conf_get_mock:
-        conf_get_mock.return_value = "sqlite:///./relative_path.db"
-        with pytest.raises(AirflowConfigException) as exc:
-            settings.configure_vars()
-        assert "Cannot use relative path:" in str(exc.value)
+    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
+        "airflow.settings.SQL_ALCHEMY_CONN", value
+    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+        with expectation:
+            settings.configure_orm()
+
+
+class TestEngineArgs:
+    @staticmethod
+    @patch("airflow.settings.conf")
+    @patch("airflow.settings.is_sqlalchemy_v1")
+    def test_encoding_present_in_v1(is_v1, mock_conf):
+        from airflow import settings
+
+        is_v1.return_value = True
+        mock_conf.getjson.return_value = {}
+
+        engine_args = settings.prepare_engine_args()
+
+        assert "encoding" in engine_args
+
+    @staticmethod
+    @patch("airflow.settings.conf")
+    @patch("airflow.settings.is_sqlalchemy_v1")
+    def test_encoding_absent_in_v2(is_v1, mock_conf):
+        from airflow import settings
+
+        is_v1.return_value = False
+        mock_conf.getjson.return_value = {}
+
+        engine_args = settings.prepare_engine_args()
+
+        assert "encoding" not in engine_args

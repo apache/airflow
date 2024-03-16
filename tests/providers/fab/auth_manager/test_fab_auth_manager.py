@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from itertools import chain
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
@@ -39,6 +40,7 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -48,6 +50,9 @@ from airflow.security.permissions import (
     RESOURCE_WEBSITE,
 )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
@@ -81,7 +86,6 @@ class TestFabAuthManager:
             (1, "First", "Last", None, None, "First Last"),
             (1, "First", None, "user", None, "First"),
             (1, None, "Last", "user", "email", "Last"),
-            (1, None, None, None, "email", ""),
             (1, None, None, None, "email", ""),
         ],
     )
@@ -141,10 +145,10 @@ class TestFabAuthManager:
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    # With permission
                     (
                         api_name,
-                        "GET",
+                        "MENU",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
@@ -347,12 +351,55 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
                 False,
             ),
+            # Docs (positive)
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DOCS)],
+                True,
+            ),
+            # Without permission
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_READ, RESOURCE_DOCS)],
+                False,
+            ),
         ],
     )
     def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
         user = Mock()
         user.perms = user_permissions
         result = auth_manager.is_authorized_view(access_view=access_view, user=user)
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "method, resource_name, user_permissions, expected_result",
+        [
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_READ, "custom_resource")],
+                True,
+            ),
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_EDIT, "custom_resource")],
+                False,
+            ),
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_READ, "custom_resource2")],
+                False,
+            ),
+        ],
+    )
+    def test_is_authorized_custom_view(
+        self, method: ResourceMethod, resource_name: str, user_permissions, expected_result, auth_manager
+    ):
+        user = Mock()
+        user.perms = user_permissions
+        result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
         assert result == expected_result
 
     @pytest.mark.db_test

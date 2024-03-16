@@ -22,8 +22,11 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1705911803
+source-date-epoch: 1709554658
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.19.0
+  - 8.18.0
   - 8.17.0
   - 8.16.0
   - 8.15.0
@@ -98,7 +101,11 @@ dependencies:
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=1.2.5
+      # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+      # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+      # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+      # In addition FAB also limit sqlalchemy to < 2.0
+      - pandas>=1.2.5,<2.2
   # There is conflict between boto3 and aiobotocore dependency botocore.
   # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
   # boto3 have native async support and we move away from aio aiobotocore
@@ -118,15 +125,14 @@ additional-extras:
 devel-dependencies:
   - aiobotocore>=2.7.0
   - aws_xray_sdk>=2.12.0
-  # Moto 5 replaced all decorators with single mock_aws decorator and we need to
-  # Replace the usage of mock decorators in our tests to be able to use moto 5
-  # See https://github.com/apache/airflow/issues/37053
-  - moto[cloudformation,glue]>=4.2.12,<5.0.0
+  - moto[cloudformation,glue]>=5.0.0
   - mypy-boto3-appflow>=1.33.0
   - mypy-boto3-rds>=1.33.0
   - mypy-boto3-redshift-data>=1.33.0
   - mypy-boto3-s3>=1.33.0
   - s3fs>=2023.10.0
+  - openapi-schema-validator>=0.6.2
+  - openapi-spec-validator>=0.7.1
 
 integrations:
   - integration-name: Amazon Athena
@@ -496,6 +502,10 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+dataset-uris:
+  - schemes: [s3]
+    handler: null
+
 filesystems:
   - airflow.providers.amazon.aws.fs.s3
 
@@ -764,6 +774,10 @@ extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
   - airflow.providers.amazon.aws.links.emr.EmrClusterLink
   - airflow.providers.amazon.aws.links.emr.EmrLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessCloudWatchLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessDashboardLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessLogsLink
+  - airflow.providers.amazon.aws.links.emr.EmrServerlessS3LogsLink
   - airflow.providers.amazon.aws.links.glue.GlueJobRunDetailsLink
   - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
   - airflow.providers.amazon.aws.links.step_function.StateMachineDetailsLink
@@ -825,6 +839,79 @@ config:
         version_added: 8.7.2
         example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
         default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
+  aws_batch_executor:
+    description: |
+      This section only applies if you are using the AwsBatchExecutor in
+      Airflow's ``[core]`` configuration.
+      For more information on any of these execution parameters, see the link below:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.submit_job
+      For boto3 credential management, see
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the Batch executor to make API calls to AWS Batch.
+        version_added: "8.11"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Batch is configured. Required.
+        version_added: "8.11"
+        type: string
+        example: "us-east-1"
+        default: ~
+      max_submit_job_attempts:
+        description: |
+          The maximum number of times the Batch Executor should attempt to run a Batch Job.
+        version_added: "8.11"
+        type: integer
+        example: "3"
+        default: "3"
+      check_health_on_startup:
+        description: |
+          Whether or not to check the Batch Executor health on startup.
+        version_added: "8.11"
+        type: boolean
+        example: "True"
+        default: "True"
+      job_name:
+        description: |
+          The name of the job submitted to AWS Batch. It can be up to 128 letters long.
+          The first character must be alphanumeric, can contain uppercase and lowercase
+          letters, numbers, hyphens (-), and underscores (_).
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job"
+        default: ~
+      job_queue:
+        description: |
+          The job queue where the job is submitted. You can specify either the name
+          or the Amazon Resource Name (ARN) of the queue.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-queue"
+        default: ~
+      job_definition:
+        description: |
+          The job definition used by the job. You can specify either the name
+          or the Amazon Resource Name (ARN) of the job definition with or
+          without the revision. If the revision is not specified, then the
+          latest active revision is used.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-definition"
+        default: ~
+      submit_job_kwargs:
+        description: |
+          Additional parameters to pass to the submit_job method of the
+          AWS Batch client.
+        version_added: "8.11"
+        type: string
+        example: '{"Tags": [{"Key": "key", "Value": "value"}]}'
+        default: ~
+
   aws_ecs_executor:
     description: |
       This section only applies if you are using the AwsEcsExecutor in
