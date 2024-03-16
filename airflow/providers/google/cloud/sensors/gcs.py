@@ -89,6 +89,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.use_glob = use_glob
         self.google_cloud_conn_id = google_cloud_conn_id
         self._matches: list[str] = []
+        self._exists: bool = False
         self.impersonation_chain = impersonation_chain
         self.retry = retry
 
@@ -104,12 +105,15 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             self._matches = hook.list(self.bucket, match_glob=self.object)
             return bool(self._matches)
         else:
-            return hook.exists(self.bucket, self.object, self.retry)
+            self._exists = hook.exists(self.bucket, self.object, self.retry)
+            return self._exists
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context):
         """Airflow runs this method on the worker and defers using the trigger."""
         if not self.deferrable:
             super().execute(context)
+            if self._exists:
+                return "success"
         else:
             if not self.poke(context=context):
                 self.defer(
@@ -126,6 +130,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
+            else:
+                if self._exists:
+                    return "success"
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> str:
         """
