@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.cosmos.partition_key import PartitionKey
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 from airflow.exceptions import AirflowBadRequest, AirflowException
@@ -225,7 +226,7 @@ class AzureCosmosDBHook(BaseHook):
         # Only create if we did not find it already existing
         if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
-                collection_name, partition_key=partition_key
+                collection_name, partition_key=PartitionKey(partition_key) if partition_key else None
             )
 
     def does_database_exist(self, database_name: str) -> bool:
