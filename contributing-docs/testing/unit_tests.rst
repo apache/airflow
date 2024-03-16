@@ -1075,6 +1075,18 @@ This prepares airflow .whl package in the dist folder.
 
      breeze --use-airflow-version wheel --use-packages-from-dist --mount-sources skip
 
+Other Settings
+--------------
+
+Skip test on unsupported platform / environment
+...............................................
+
+You can apply the marker ``pytest.mark.platform(name)`` to the specific test case, class or module
+for prevent to run on unsupported platform.
+
+- ``linux``: Run test only on linux platform
+- ``breeze``: Run test only inside of Breeze container, it might be useful in case of run
+  some potential dangerous things in tests or if it expects to use common Breeze things.
 
 Code Coverage
 -------------

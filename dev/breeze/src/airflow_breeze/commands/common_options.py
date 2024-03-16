@@ -37,11 +37,12 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
+    BackendVersionChoice,
     BetterChoice,
     CacheableChoice,
     CacheableDefault,
     DryRunOption,
-    MySQLBackendVersionType,
+    MySQLBackendVersionChoice,
     NotVerifiedBetterChoice,
     UseAirflowVersionType,
     VerboseOption,
@@ -245,7 +246,7 @@ option_mysql_version = click.option(
     "-M",
     "--mysql-version",
     help="Version of MySQL used.",
-    type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
+    type=MySQLBackendVersionChoice(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
     show_default=True,
@@ -269,7 +270,7 @@ option_parallelism = click.option(
 option_postgres_version = click.option(
     "-P",
     "--postgres-version",
-    type=CacheableChoice(ALLOWED_POSTGRES_VERSIONS),
+    type=BackendVersionChoice(ALLOWED_POSTGRES_VERSIONS),
     default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
     envvar="POSTGRES_VERSION",
     show_default=True,

@@ -1351,6 +1351,52 @@ class TestDag:
         assert orm_dag.is_paused
         session.close()
 
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+        },
+    )
+    def test_existing_dag_is_paused_config(self):
+        # config should be set properly
+        assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
+        # checking the default value is coming from config
+        dag = DAG("test_dag")
+        assert dag.max_consecutive_failed_dag_runs == 4
+        # but we can override the value using params
+        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        assert dag.max_consecutive_failed_dag_runs == 2
+
+    def test_existing_dag_is_paused_after_limit(self):
+        def add_failed_dag_run(id, execution_date):
+            dr = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id="run_id_" + id,
+                execution_date=execution_date,
+                state=State.FAILED,
+            )
+            ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+            ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
+            dr.update_state(session=session)
+
+        dag_id = "dag_paused_after_limit"
+        dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        assert not dag.get_is_paused()
+
+        # dag should be paused after 2 failed dag_runs
+        add_failed_dag_run(
+            "1",
+            TEST_DATE,
+        )
+        add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
+        assert dag.get_is_paused()
+        dag.clear()
+        self._clean_up(dag_id)
+
     def test_existing_dag_default_view(self):
         with create_session() as session:
             session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
@@ -2497,6 +2543,19 @@ my_postgres_conn:
 
         next_subdag_info = subdag.next_dagrun_info(None)
         assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
+
+    def test_next_dagrun_info_on_29_feb(self):
+        dag = DAG(
+            "test_scheduler_dagrun_29_feb", start_date=timezone.datetime(2024, 1, 1), schedule="0 0 29 2 *"
+        )
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.logical_date == timezone.datetime(2024, 2, 29)
+
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info.logical_date == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
 
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {

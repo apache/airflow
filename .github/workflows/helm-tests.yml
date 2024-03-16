@@ -45,7 +45,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-helm:
     timeout-minutes: 80
-    name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
+    name: "Unit tests Helm: ${{ matrix.helm-test-package }}:${{ inputs.image-tag }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
@@ -63,12 +63,15 @@ jobs:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
       - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -84,12 +87,15 @@ jobs:
       RUNS_ON: "${{inputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{inputs.default-python-version}}"
     steps:
-      - name: Cleanup repo
+      - name: "Cleanup repo"
+        shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Cleanup docker
+        uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:

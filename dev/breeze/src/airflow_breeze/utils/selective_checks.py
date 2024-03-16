@@ -70,6 +70,7 @@ NON_COMMITTER_BUILD_LABEL = "non committer build"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 
@@ -516,7 +517,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/postgres versions
-            {"python-version": python_version, "postgres-version": postgres_version}
+            {"python-version": python_version, "backend-version": postgres_version}
             for python_version, postgres_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_POSTGRES_VERSIONS
             )
@@ -529,7 +530,7 @@ class SelectiveChecks:
             return []
         return [
             # Exclude all combinations that are repeating python/mysql versions
-            {"python-version": python_version, "mysql-version": mysql_version}
+            {"python-version": python_version, "backend-version": mysql_version}
             for python_version, mysql_version in excluded_combos(
                 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS, CURRENT_MYSQL_VERSIONS
             )
@@ -832,6 +833,12 @@ class SelectiveChecks:
 
         self._extract_long_provider_tests(current_test_types)
         return " ".join(sorted(current_test_types))
+
+    @cached_property
+    def include_success_outputs(
+        self,
+    ) -> bool:
+        return INCLUDE_SUCCESS_OUTPUTS_LABEL in self._pr_labels
 
     @cached_property
     def basic_checks_only(self) -> bool:
