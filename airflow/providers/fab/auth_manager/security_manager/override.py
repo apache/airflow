@@ -203,7 +203,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
@@ -233,7 +232,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
@@ -250,6 +248,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_user_perms]
 
@@ -276,11 +275,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 
     # [START security_admin_perms]
     ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
@@ -339,7 +342,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def register_views(self):
         """Register FAB auth manager related views."""
-        if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
+        if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
 
         if self.auth_user_registration:
@@ -416,7 +419,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 category="Security",
             )
         self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
             self.appbuilder.add_view(
                 self.actionmodelview,
                 "Actions",
@@ -424,7 +427,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Actions"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
             self.appbuilder.add_view(
                 self.resourcemodelview,
                 "Resources",
@@ -432,7 +435,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Resources"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
                 "Permission Pairs",
@@ -517,27 +520,27 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_type(self):
         """Get the auth type."""
-        return self.appbuilder.app.config["AUTH_TYPE"]
+        return self.appbuilder.get_app.config["AUTH_TYPE"]
 
     @property
     def is_auth_limited(self) -> bool:
         """Is the auth rate limited."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMITED"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
 
     @property
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMIT"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
 
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
 
     @property
     def oauth_providers(self):
         """Oauth providers."""
-        return self.appbuilder.app.config["OAUTH_PROVIDERS"]
+        return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
     def auth_ldap_tls_cacertdir(self):
@@ -698,7 +701,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def create_builtin_roles(self):
         """Return FAB builtin roles."""
-        return self.appbuilder.app.config.get("FAB_ROLES", {})
+        return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
     @property
     def builtin_roles(self):
@@ -724,8 +727,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
@@ -859,7 +862,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 Base.metadata.create_all(engine)
                 log.info(const.LOGMSG_INF_SEC_ADD_DB)
 
-            roles_mapping = self.appbuilder.app.config.get("FAB_ROLES_MAPPING", {})
+            roles_mapping = self.appbuilder.get_app.config.get("FAB_ROLES_MAPPING", {})
             for pk, name in roles_mapping.items():
                 self.update_role(pk, name)
             for role_name in self._builtin_roles:
@@ -1246,8 +1249,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
-                Permission.action == None,  # noqa
-                Permission.resource == None,  # noqa
+                Permission.action == None,  # noqa: E711
+                Permission.resource == None,  # noqa: E711
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -2442,8 +2445,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param ldap: The ldap module reference
         :param con: The ldap connection
         """
-        # always check AUTH_LDAP_BIND_USER is set before calling this method
-        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
+        if not self.auth_ldap_bind_user:
+            # always check AUTH_LDAP_BIND_USER is set before calling this method
+            raise ValueError("AUTH_LDAP_BIND_USER must be set")
 
         try:
             log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
@@ -2462,8 +2466,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param username: username to match with AUTH_LDAP_UID_FIELD
         :return: ldap object array
         """
-        # always check AUTH_LDAP_SEARCH is set before calling this method
-        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
+        if not self.auth_ldap_search:
+            # always check AUTH_LDAP_SEARCH is set before calling this method
+            raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:

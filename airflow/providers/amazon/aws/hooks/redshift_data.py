@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa: F401
     from mypy_boto3_redshift_data.type_defs import DescribeStatementResponseTypeDef
 
 FINISHED_STATE = "FINISHED"

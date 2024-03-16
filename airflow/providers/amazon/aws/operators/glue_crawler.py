@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -44,7 +45,11 @@ class GlueCrawlerOperator(BaseOperator):
         :ref:`howto/operator:GlueCrawlerOperator`
 
     :param config: Configurations for the AWS Glue crawler
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
     :param wait_for_completion: Whether to wait for crawl execution completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -107,7 +112,9 @@ class GlueCrawlerOperator(BaseOperator):
 
         return crawler_name
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in glue crawl: {event}")
         return self.config["Name"]

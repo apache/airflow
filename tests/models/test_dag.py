@@ -24,6 +24,7 @@ import os
 import pickle
 import re
 import sys
+import warnings
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
@@ -39,6 +40,7 @@ import time_machine
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect
+from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
@@ -1094,10 +1096,10 @@ class TestDag:
         dag_id1 = "test_dataset_dag1"
         dag_id2 = "test_dataset_dag2"
         task_id = "test_dataset_task"
-        uri1 = "s3://dataset1"
+        uri1 = "s3://dataset/1"
         d1 = Dataset(uri1, extra={"not": "used"})
-        d2 = Dataset("s3://dataset2")
-        d3 = Dataset("s3://dataset3")
+        d2 = Dataset("s3://dataset/2")
+        d3 = Dataset("s3://dataset/3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
@@ -1348,6 +1350,52 @@ class TestDag:
         # Since the dag didn't exist before, it should follow the pause flag upon creation
         assert orm_dag.is_paused
         session.close()
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+        },
+    )
+    def test_existing_dag_is_paused_config(self):
+        # config should be set properly
+        assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
+        # checking the default value is coming from config
+        dag = DAG("test_dag")
+        assert dag.max_consecutive_failed_dag_runs == 4
+        # but we can override the value using params
+        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        assert dag.max_consecutive_failed_dag_runs == 2
+
+    def test_existing_dag_is_paused_after_limit(self):
+        def add_failed_dag_run(id, execution_date):
+            dr = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id="run_id_" + id,
+                execution_date=execution_date,
+                state=State.FAILED,
+            )
+            ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+            ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
+            dr.update_state(session=session)
+
+        dag_id = "dag_paused_after_limit"
+        dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        assert not dag.get_is_paused()
+
+        # dag should be paused after 2 failed dag_runs
+        add_failed_dag_run(
+            "1",
+            TEST_DATE,
+        )
+        add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
+        assert dag.get_is_paused()
+        dag.clear()
+        self._clean_up(dag_id)
 
     def test_existing_dag_default_view(self):
         with create_session() as session:
@@ -1840,17 +1888,12 @@ class TestDag:
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
-            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.DUMMY
+            task_id="task_with_non_default_trigger_rule", trigger_rule=TriggerRule.ALWAYS
         )
         non_fail_stop_dag = DAG(
             dag_id="test_dag_add_task_checks_trigger_rule", start_date=DEFAULT_DATE, fail_stop=False
         )
-        try:
-            non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"dag add_task() raises FailStopDagInvalidTriggerRule for non fail stop dag: {exception}"
+        non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
@@ -1861,12 +1904,7 @@ class TestDag:
         task_with_default_trigger_rule = EmptyOperator(
             task_id="task_with_default_trigger_rule", trigger_rule=DEFAULT_TRIGGER_RULE
         )
-        try:
-            fail_stop_dag.add_task(task_with_default_trigger_rule)
-        except FailStopDagInvalidTriggerRule as exception:
-            assert (
-                False
-            ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
+        fail_stop_dag.add_task(task_with_default_trigger_rule)
 
         # a fail stop dag should not allow a non-default trigger rule
         with pytest.raises(FailStopDagInvalidTriggerRule):
@@ -2506,6 +2544,19 @@ my_postgres_conn:
         next_subdag_info = subdag.next_dagrun_info(None)
         assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
 
+    def test_next_dagrun_info_on_29_feb(self):
+        dag = DAG(
+            "test_scheduler_dagrun_29_feb", start_date=timezone.datetime(2024, 1, 1), schedule="0 0 29 2 *"
+        )
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info and next_info.logical_date == timezone.datetime(2024, 2, 29)
+
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info.logical_date == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
+
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {
             "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
@@ -2885,6 +2936,43 @@ class TestDagModel:
         first_queued_time, last_queued_time = dataset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
+
+    def test_dataset_expression(self, session):
+        dataset_expr = {
+            "__type": "dataset_any",
+            "__var": [
+                {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
+                {
+                    "__type": "dataset_all",
+                    "__var": [
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
+                        },
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
+                        },
+                    ],
+                },
+            ],
+        }
+        dag_id = "test_dag_dataset_expression"
+        orm_dag = DagModel(
+            dag_id=dag_id,
+            dataset_expression=dataset_expr,
+            is_active=True,
+            is_paused=False,
+            next_dagrun=timezone.utcnow(),
+            next_dagrun_create_after=timezone.utcnow() + timedelta(days=1),
+        )
+        session.add(orm_dag)
+        session.commit()
+        retrieved_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        assert retrieved_dag.dataset_expression == dataset_expr
+
+        session.rollback()
+        session.close()
 
 
 class TestQueries:
@@ -4148,34 +4236,35 @@ class TestTaskClearingSetupTeardownBehavior:
                 dag.validate_setup_teardown()
 
 
-def test_get_latest_runs_query_one_dag(dag_maker, session):
-    with dag_maker(dag_id="dag1") as dag1:
-        ...
-    query = DAG._get_latest_runs_query(dags=[dag1.dag_id])
-    actual = [x.strip() for x in str(query.compile()).splitlines()]
-    expected = [
-        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
-    ]
-    assert actual == expected
+def test_statement_latest_runs_one_dag():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=SAWarning)
+
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
+        expected = [
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.execution_date = (SELECT max(dag_run.execution_date) AS max_execution_date",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
+        ]
+        assert actual == expected, compiled_stmt
 
 
-def test_get_latest_runs_query_two_dags(dag_maker, session):
-    with dag_maker(dag_id="dag1") as dag1:
-        ...
-    with dag_maker(dag_id="dag2") as dag2:
-        ...
-    query = DAG._get_latest_runs_query(dags=[dag1.dag_id, dag2.dag_id])
-    actual = [x.strip() for x in str(query.compile()).splitlines()]
-    print("\n".join(actual))
-    expected = [
-        "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
-        "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
-        "FROM dag_run",
-        "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
-        "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
-    ]
-    assert actual == expected
+def test_statement_latest_runs_many_dag():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=SAWarning)
+
+        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
+        compiled_stmt = str(stmt.compile())
+        actual = [x.strip() for x in compiled_stmt.splitlines()]
+        expected = [
+            "SELECT dag_run.id, dag_run.dag_id, dag_run.execution_date, dag_run.data_interval_start, dag_run.data_interval_end",
+            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.execution_date) AS max_execution_date",
+            "FROM dag_run",
+            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
+            "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.execution_date = anon_1.max_execution_date",
+        ]
+        assert actual == expected, compiled_stmt

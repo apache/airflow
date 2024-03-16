@@ -58,7 +58,7 @@ def callable():
 CODE = "def callable():\n    print(10)\n"
 
 
-@pytest.fixture(autouse=True, scope="function")
+@pytest.fixture(autouse=True)
 def clear_cache():
     is_source_enabled.cache_clear()
     try:
@@ -86,6 +86,8 @@ def test_python_extraction_disabled_operator():
     operator = PythonOperator(task_id="taskid", python_callable=callable)
     extractor = PythonExtractor(operator)
     metadata = extractor.extract()
+    assert metadata is None
+    metadata = extractor.extract_on_complete(None)
     assert metadata is None
 
 

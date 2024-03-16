@@ -60,8 +60,8 @@ Airflow uses :class:`~airflow.executors.sequential_executor.SequentialExecutor` 
 nature, the user is limited to executing at most one task at a time. ``Sequential Executor`` also pauses
 the scheduler when it runs a task, hence it is not recommended in a production setup. You should use the
 :class:`~airflow.executors.local_executor.LocalExecutor` for a single machine.
-For a multi-node setup, you should use the :doc:`Kubernetes executor <../core-concepts/executor/kubernetes>` or
-the :doc:`Celery executor <../core-concepts/executor/celery>`.
+For a multi-node setup, you should use the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or
+the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
@@ -170,19 +170,19 @@ of the executor you use:
   the tasks it runs - then you will need to clear and restart those tasks manually after the upgrade
   is completed (or rely on ``retry`` being set for stopped tasks).
 
-* For the :doc:`Celery executor <../core-concepts/executor/celery>`, you have to first put your workers in
+* For the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`, you have to first put your workers in
   offline mode (usually by setting a single ``TERM`` signal to the workers), wait until the workers
   finish all the running tasks, and then upgrade the code (for example by replacing the image the workers run
   in and restart the workers). You can monitor your workers via ``flower`` monitoring tool and see the number
   of running tasks going down to zero. Once the workers are upgraded, they will be automatically put in online
   mode and start picking up new tasks. You can then upgrade the ``Scheduler`` in a rolling restart mode.
 
-* For the :doc:`Kubernetes executor <../core-concepts/executor/kubernetes>`, you can upgrade the scheduler
+* For the :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`, you can upgrade the scheduler
   triggerer, webserver in a rolling restart mode, and generally you should not worry about the workers, as they
   are managed by the Kubernetes cluster and will be automatically adopted by ``Schedulers`` when they are
   upgraded and restarted.
 
-* For the :doc:``CeleryKubernetesExecutor <../core-concepts/executor/celery-kubernetes>``, you follow the
+* For the :doc:``CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>``, you follow the
   same procedure as for the ``CeleryExecutor`` - you put the workers in offline mode, wait for the running
   tasks to complete, upgrade the workers, and then upgrade the scheduler, triggerer and webserver in a
   rolling restart mode - which should also adopt tasks run via the ``KubernetesExecutor`` part of the

@@ -22,16 +22,16 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.41",
+    "GitPython==3.1.42",
     "editables==0.5",
     "gitdb==4.0.11",
     "hatchling==1.21.1",
-    "packaging==23.2",
+    "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.31",
+    "trove-classifiers==2024.3.3",
 ]
 build-backend = "hatchling.build"
 
@@ -42,7 +42,7 @@ dynamic = ["version"]
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8"
+requires-python = "~=3.8,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -72,7 +72,9 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref",
     "attrs>=22.1.0",
-    "blinker",
+    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
+    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
+    "blinker>=1.6.2",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
     "colorlog>=4.0.2, <5.0",
@@ -85,8 +87,8 @@ dependencies = [
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
     "connexion[flask]>=2.10.0,<3.0",
     "cron-descriptor>=1.2.24",
-    "croniter>=0.3.17",
-    "cryptography>=0.9.3",
+    "croniter>=2.0.2",
+    "cryptography>=39.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=1.5.0",
@@ -103,7 +105,9 @@ dependencies = [
     "gunicorn>=20.1.0",
     "httpx",
     "importlib_metadata>=1.7;python_version<\"3.9\"",
-    "importlib_resources>=5.2;python_version<\"3.9\"",
+    # Importib_resources 6.2.0 break pytest_rewrite
+    # see https://github.com/python/importlib_resources/issues/299
+    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -111,7 +115,6 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "markdown-it-py>=2.1.0",
-    "markdown>=3.0",
     "markupsafe>=1.1.1",
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
@@ -122,7 +125,6 @@ dependencies = [
     "pendulum>=2.1.2,<4.0",
     "pluggy>=1.0",
     "psutil>=4.2.0",
-    "pydantic>=2.3.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -139,7 +141,7 @@ dependencies = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.28,<2.0",
+    "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "tabulate>=0.7.5",
     "tenacity>=6.2.0,!=8.2.0",
@@ -150,14 +152,7 @@ dependencies = [
     # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    # In 0.1. *It was not very well defined for extension, so the way how we use it for 0.1.*
-    # so we used a lot of private methods and attributes that were not defined in the interface
-    # an they are broken with version 0.2.0 which is much better suited for extension and supports
-    # Python 3.12. We should limit it, unti we migrate to 0.2.0
-    # See: https://github.com/fsspec/universal_pathlib/pull/173#issuecomment-1937090528
-    # This is prerequistite to make Airflow compatible with Python 3.12
-    # Tracked in https://github.com/apache/airflow/pull/36755
-    "universal-pathlib>=0.1.4,<0.2.0",
+    "universal-pathlib>=0.2.2",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
@@ -216,11 +211,18 @@ otel = [
     "opentelemetry-exporter-prometheus",
 ]
 pandas = [
-    "pandas>=1.2.5",
+    # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+    # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+    # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+    # In addition FAB also limit sqlalchemy to < 2.0
+    "pandas>=1.2.5,<2.2",
 ]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
+]
+pydantic = [
+    "pydantic>=2.3.0",
 ]
 rabbitmq = [
     "amqp",
@@ -242,6 +244,9 @@ sentry = [
 ]
 statsd = [
     "statsd>=3.3.0",
+]
+uv = [
+    "uv>=0.1.20",
 ]
 virtualenv = [
     "virtualenv",
@@ -270,6 +275,7 @@ all-core = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
@@ -295,7 +301,9 @@ devel-devscripts = [
     "twine>=4.0.2",
 ]
 devel-duckdb = [
-    "duckdb>=0.9.0",
+    # Python 3.12 support was added in 0.10.0
+    "duckdb>=0.10.0; python_version >= '3.12'",
+    "duckdb>=0.9.0; python_version < '3.12'",
 ]
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
 # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
@@ -351,6 +359,7 @@ devel-tests = [
     "pytest>=8.0.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
+    "wheel>=0.42.0",
 ]
 # END OF devel extras
 # START OF doc extras
@@ -415,8 +424,10 @@ all-dbs = [
     "apache-airflow[vertica]",
 ]
 devel = [
-    "apache-airflow[common.io]",
-    "apache-airflow[common.sql]",
+    "apache-airflow[celery]",
+    "apache-airflow[cncf-kubernetes]",
+    "apache-airflow[common-io]",
+    "apache-airflow[common-sql]",
     "apache-airflow[devel-debuggers]",
     "apache-airflow[devel-devscripts]",
     "apache-airflow[devel-duckdb]",
@@ -485,7 +496,7 @@ cassandra = [
 crypto = [
 ]
 druid = [
-    "pache-airflow[apache-druid]",
+    "apache-airflow[apache-druid]",
 ]
 gcp = [
     "apache-airflow[google]",
@@ -559,13 +570,15 @@ amazon = [ # source: airflow/providers/amazon/provider.yaml
   "mypy-boto3-redshift-data>=1.33.0",
   "mypy-boto3-s3>=1.33.0",
   "s3fs>=2023.10.0",
+  "openapi-schema-validator>=0.6.2",
+  "openapi-spec-validator>=0.7.1",
 ]
 apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
-  "apache-beam>=2.53.0",
-  "pyarrow>=14.0.1",
+  "apache-beam>=2.53.0;python_version != \"3.12\"",
+  "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0",
+  "cassandra-driver>=3.13.0;python_version != \"3.12\"",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
@@ -585,7 +598,7 @@ apache-hdfs = [ # source: airflow/providers/apache/hdfs/provider.yaml
 apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
   "apache-airflow[common_sql]",
   "hmsclient>=0.1.0",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyhive[hive_pure_sasl]>=0.7.0",
   "thrift>=0.9.2",
 ]
@@ -607,7 +620,7 @@ apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
 apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
 apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
   "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
+  "pinotdb>=5.1.0",
 ]
 apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
   "grpcio-status>=1.59.0",
@@ -647,15 +660,16 @@ cohere = [ # source: airflow/providers/cohere/provider.yaml
 ]
 common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
+  "more-itertools>=9.0.0",
   "sqlparse>=0.4.2",
 ]
 databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.9.2, <4",
-  "apache-airflow[common_sql]",
-  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
-  "requests>=2.27.0,<3",
+  "aiohttp>=3.9.2, <4;python_version != \"3.12\"",
+  "apache-airflow[common_sql];python_version != \"3.12\"",
+  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0;python_version != \"3.12\"",
+  "requests>=2.27.0,<3;python_version != \"3.12\"",
   # Devel dependencies for the databricks provider
-  "deltalake>=0.12.0",
+  "deltalake>=0.12.0;python_version != \"3.12\"",
 ]
 datadog = [ # source: airflow/providers/datadog/provider.yaml
   "datadog>=0.14.0",
@@ -672,7 +686,7 @@ discord = [ # source: airflow/providers/discord/provider.yaml
   "apache-airflow[http]",
 ]
 docker = [ # source: airflow/providers/docker/provider.yaml
-  "docker>=5.0.3",
+  "docker>=6",
   "python-dotenv>=0.21.0",
 ]
 elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
@@ -681,7 +695,7 @@ elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
 ]
 exasol = [ # source: airflow/providers/exasol/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
@@ -705,13 +719,13 @@ google = [ # source: airflow/providers/google/provider.yaml
   "gcloud-aio-bigquery>=6.1.2",
   "gcloud-aio-storage>=9.0.0",
   "gcsfs>=2023.10.0",
-  "google-ads>=22.1.0",
+  "google-ads>=23.1.0",
   "google-analytics-admin",
   "google-api-core>=2.11.0,!=2.16.0",
   "google-api-python-client>=1.6.0",
   "google-auth-httplib2>=0.0.1",
   "google-auth>=1.0.0",
-  "google-cloud-aiplatform>=1.22.1",
+  "google-cloud-aiplatform>=1.42.1",
   "google-cloud-automl>=2.12.0",
   "google-cloud-batch>=0.13.0",
   "google-cloud-bigquery-datatransfer>=3.13.0",
@@ -752,7 +766,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "json-merge-patch>=0.2",
   "looker-sdk>=22.2.0",
   "pandas-gbq",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
@@ -787,7 +801,7 @@ microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "adal>=1.2.7",
   "adlfs>=2023.10.0",
   "azure-batch>=8.0.0",
-  "azure-cosmos>=4.0.0",
+  "azure-cosmos>=4.0.0,<4.6.0",
   "azure-datalake-store>=0.0.45",
   "azure-identity>=1.3.1",
   "azure-keyvault-secrets>=4.1.0",
@@ -860,9 +874,9 @@ pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
   "pdpyras>=4.1.2",
 ]
 papermill = [ # source: airflow/providers/papermill/provider.yaml
-  "ipykernel",
-  "papermill[all]>=2.4.0",
-  "scrapbook[all]",
+  "ipykernel;python_version != \"3.12\"",
+  "papermill[all]>=2.4.0;python_version != \"3.12\"",
+  "scrapbook[all];python_version != \"3.12\"",
 ]
 pgvector = [ # source: airflow/providers/pgvector/provider.yaml
   "apache-airflow[postgres]",
@@ -877,7 +891,7 @@ postgres = [ # source: airflow/providers/postgres/provider.yaml
 ]
 presto = [ # source: airflow/providers/presto/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "presto-python-client>=0.8.4",
 ]
 qdrant = [ # source: airflow/providers/qdrant/provider.yaml
@@ -887,7 +901,7 @@ redis = [ # source: airflow/providers/redis/provider.yaml
   "redis>=4.5.2,<5.0.0,!=4.5.5",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "simple-salesforce>=1.0.0",
 ]
 samba = [ # source: airflow/providers/samba/provider.yaml
@@ -934,9 +948,14 @@ tabular = [ # source: airflow/providers/tabular/provider.yaml
 telegram = [ # source: airflow/providers/telegram/provider.yaml
   "python-telegram-bot>=20.2",
 ]
+teradata = [ # source: airflow/providers/teradata/provider.yaml
+  "apache-airflow[common_sql]",
+  "teradatasql>=17.20.0.28",
+  "teradatasqlalchemy>=17.20.0.0",
+]
 trino = [ # source: airflow/providers/trino/provider.yaml
   "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "trino>=0.318.0",
 ]
 vertica = [ # source: airflow/providers/vertica/provider.yaml
@@ -944,14 +963,14 @@ vertica = [ # source: airflow/providers/vertica/provider.yaml
   "vertica-python>=0.5.1",
 ]
 weaviate = [ # source: airflow/providers/weaviate/provider.yaml
-  "pandas>=1.2.5",
+  "pandas>=1.2.5,<2.2",
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
-  "zenpy>=2.0.24",
+  "zenpy>=2.0.40",
 ]
 all = [
     # core extras
@@ -968,11 +987,13 @@ all = [
     "apache-airflow[otel]",
     "apache-airflow[pandas]",
     "apache-airflow[password]",
+    "apache-airflow[pydantic]",
     "apache-airflow[rabbitmq]",
     "apache-airflow[s3fs]",
     "apache-airflow[saml]",
     "apache-airflow[sentry]",
     "apache-airflow[statsd]",
+    "apache-airflow[uv]",
     "apache-airflow[virtualenv]",
     # Apache no provider extras
     "apache-airflow[apache-atlas]",
@@ -1062,6 +1083,7 @@ all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
@@ -1162,6 +1184,7 @@ devel-all = [
     "apache-airflow[tableau]",
     "apache-airflow[tabular]",
     "apache-airflow[telegram]",
+    "apache-airflow[teradata]",
     "apache-airflow[trino]",
     "apache-airflow[vertica]",
     "apache-airflow[weaviate]",
@@ -1215,17 +1238,24 @@ platforms = ["linux", "macos"]
 description = "Environment with Python 3.11. No devel installed"
 features = []
 
+[tool.hatch.envs.airflow-312]
+python = "3.12"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.12. No devel installed"
+features = []
+
+
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
 [tool.hatch.build.targets.wheel.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.hooks.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.custom]
-path = "./dev/hatch_build.py"
+path = "./hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -1239,7 +1269,8 @@ exclude = [
 artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
-    "/generated/"
+    "/generated/",
+    "/airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1258,7 +1289,7 @@ artifacts = [
 ## black settings ##
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
@@ -1281,28 +1312,37 @@ namespace-packages = ["airflow/providers"]
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 extend-select = [
+    # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "TCH", # Rules around TYPE_CHECKING blocks
+    "G", # flake8-logging-format rules
+    "LOG", # flake8-logging rules, most of them autofixable
+    "PT", # flake8-pytest-style rules
+    # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
+    # We add modules that do not follow the rule `Missing docstring in magic method`
+    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
+    # See: https://github.com/apache/airflow/issues/10742
+    "D105",
     "D106",
     "D2",
     "D3",
     "D400",
-    # We add modules that do not follow the rule `First line should be in imperative mood`
-    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
-    # See: https://github.com/apache/airflow/issues/10742
     "D401",
     "D402",
     "D403",
     "D412",
     "D419",
-    "TCH",  # Rules around TYPE_CHECKING blocks
     "TID251",  # Specific modules or module members that may not be imported or accessed
     "TID253",  # Ban certain modules from being imported at module level
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "PGH004",  # Use specific rule codes when using noqa
+    "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
 ]
 ignore = [
     "D203",
@@ -1312,6 +1352,20 @@ ignore = [
     "D215",
     "E731",
     "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
+    "PT004", # Fixture does not return anything, add leading underscore
+    "PT005", # Fixture returns a value, remove leading underscore
+    "PT006", # Wrong type of names in @pytest.mark.parametrize
+    "PT007", # Wrong type of values in @pytest.mark.parametrize
+    "PT008", # Use return_value= instead of patching with lambda
+    "PT011", # pytest.raises() is too broad, set the match parameter
+    "PT012", # [controversial rule] pytest.raises() block should contain a single simple statement.
+    "PT018", # assertion should be broken down into multiple parts
+    "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
+]
+unfixable = [
+    # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
+    # In addition, it can't do anything with invalid typing annotations, protected by mypy.
+    "PT022",
 ]
 
 [tool.ruff.format]
@@ -1322,6 +1376,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
+"airflow/__init__.py" = ["F401"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1341,11 +1396,15 @@ combine-as-imports = true
 "provider_packages/*" = ["D"]
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
-# In addition ignore top level imports, e.g. pandas, numpy in tests and dev
-"dev/*" = ["D", "TID253"]
-"tests/*" = ["D", "TID253"]
-"docker_tests/*" = ["D", "TID253"]
-"kubernetes_tests/*" = ["D", "TID253"]
+"dev/*" = ["D"]
+# In addition, ignore top level imports, e.g. pandas, numpy (TID253) and use of assert (S101) in tests
+"dev/perf/*" = ["TID253"]
+"dev/check_files.py" = ["S101"]
+"dev/breeze/tests/*" = ["TID253", "S101"]
+"tests/*" = ["D", "TID253", "S101"]
+"docker_tests/*" = ["D", "TID253", "S101"]
+"kubernetes_tests/*" = ["D", "TID253", "S101"]
+"helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -1355,108 +1414,77 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/openai/hooks/test_openai.py" = ["E402"]
+"tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
+"tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
+"tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
-# All the modules which do not follow D401 yet, please remove as soon as it becomes compatible
-"airflow/providers/airbyte/hooks/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/operators/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/sensors/airbyte.py" = ["D401"]
-"airflow/providers/airbyte/triggers/airbyte.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/callbacks.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/operators/custom_object_launcher.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/operators/spark_kubernetes.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/configmap.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/env_variable.py" = ["D401"]
-"airflow/providers/cncf/kubernetes/resource_convert/secret.py" = ["D401"]
-"airflow/providers/common/io/xcom/backend.py" = ["D401"]
-"airflow/providers/databricks/hooks/databricks.py" = ["D401"]
-"airflow/providers/databricks/operators/databricks.py" = ["D401"]
-"airflow/providers/google/cloud/links/vertex_ai.py" = ["D401"]
-"airflow/providers/google/cloud/log/stackdriver_task_handler.py" = ["D401"]
-"airflow/providers/google/cloud/operators/bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/operators/bigquery_dts.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_base.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_build.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_sql.py" = ["D401"]
-"airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataflow.py" = ["D401"]
-"airflow/providers/google/cloud/operators/datafusion.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataplex.py" = ["D401"]
-"airflow/providers/google/cloud/operators/dataproc.py" = ["D401"]
-"airflow/providers/google/cloud/operators/functions.py" = ["D401"]
-"airflow/providers/google/cloud/operators/gcs.py" = ["D401"]
-"airflow/providers/google/cloud/operators/kubernetes_engine.py" = ["D401"]
-"airflow/providers/google/cloud/operators/mlengine.py" = ["D401"]
-"airflow/providers/google/cloud/operators/spanner.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/auto_ml.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/batch_prediction_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/custom_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/hyperparameter_tuning_job.py" = ["D401"]
-"airflow/providers/google/cloud/operators/vertex_ai/pipeline_job.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/cloud_composer.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/gcs.py" = ["D401"]
-"airflow/providers/google/cloud/sensors/pubsub.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/bigquery_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/bigquery_to_sql.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/cassandra_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/gcs_to_bigquery.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/gcs_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/local_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/s3_to_gcs.py" = ["D401"]
-"airflow/providers/google/cloud/transfers/trino_to_gcs.py" = ["D401"]
-"airflow/providers/google/common/auth_backend/google_openid.py" = ["D401"]
-"airflow/providers/hashicorp/_internal_client/vault_client.py" = ["D401"]
-"airflow/providers/hashicorp/hooks/vault.py" = ["D401"]
-"airflow/providers/imap/hooks/imap.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/adx.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/asb.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/base_azure.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/batch.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_instance.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_registry.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/container_volume.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/cosmos.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/data_lake.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/fileshare.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/synapse.py" = ["D401"]
-"airflow/providers/microsoft/azure/hooks/wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/log/wasb_task_handler.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/adx.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/asb.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/operators/synapse.py" = ["D401"]
-"airflow/providers/microsoft/azure/sensors/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/sensors/wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/transfers/sftp_to_wasb.py" = ["D401"]
-"airflow/providers/microsoft/azure/triggers/data_factory.py" = ["D401"]
-"airflow/providers/microsoft/azure/triggers/wasb.py" = ["D401"]
-"airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D401"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D401"]
-"airflow/providers/mysql/hooks/mysql.py" = ["D401"]
-"airflow/providers/mysql/transfers/s3_to_mysql.py" = ["D401"]
-"airflow/providers/neo4j/hooks/neo4j.py" = ["D401"]
-"airflow/providers/openfaas/hooks/openfaas.py" = ["D401"]
-"airflow/providers/opensearch/hooks/opensearch.py" = ["D401"]
-"airflow/providers/opensearch/operators/opensearch.py" = ["D401"]
-"airflow/providers/oracle/hooks/oracle.py" = ["D401"]
-"airflow/providers/pagerduty/hooks/pagerduty.py" = ["D401"]
-"airflow/providers/pagerduty/hooks/pagerduty_events.py" = ["D401"]
-"airflow/providers/papermill/hooks/kernel.py" = ["D401"]
-"airflow/providers/postgres/hooks/postgres.py" = ["D401"]
-"airflow/providers/presto/hooks/presto.py" = ["D401"]
-"airflow/providers/qdrant/hooks/qdrant.py" = ["D401"]
-"airflow/providers/salesforce/hooks/salesforce.py" = ["D401"]
-"airflow/providers/salesforce/operators/bulk.py" = ["D401"]
-"airflow/providers/salesforce/operators/salesforce_apex_rest.py" = ["D401"]
-"airflow/providers/samba/hooks/samba.py" = ["D401"]
-"airflow/providers/samba/transfers/gcs_to_samba.py" = ["D401"]
-"airflow/providers/segment/hooks/segment.py" = ["D401"]
-"airflow/providers/telegram/hooks/telegram.py" = ["D401"]
-"airflow/providers/telegram/operators/telegram.py" = ["D401"]
-"airflow/providers/trino/hooks/trino.py" = ["D401"]
-"airflow/providers/weaviate/hooks/weaviate.py" = ["D401"]
-
+# All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
+"airflow/callbacks/callback_requests.py" = ["D105"]
+"airflow/cli/commands/task_command.py" = ["D105"]
+"airflow/datasets/__init__.py" = ["D105"]
+"airflow/decorators/base.py" = ["D105"]
+"airflow/decorators/setup_teardown.py" = ["D105"]
+"airflow/exceptions.py" = ["D105"]
+"airflow/executors/base_executor.py" = ["D105"]
+"airflow/io/path.py" = ["D105"]
+"airflow/io/store/__init__.py" = ["D105"]
+"airflow/kubernetes/pre_7_4_0_compatibility/secret.py" = ["D105"]
+"airflow/metrics/protocols.py" = ["D105"]
+"airflow/metrics/validators.py" = ["D105"]
+"airflow/models/abstractoperator.py" = ["D105"]
+"airflow/models/baseoperator.py" = ["D105"]
+"airflow/models/connection.py" = ["D105"]
+"airflow/models/dag.py" = ["D105"]
+"airflow/models/dagrun.py" = ["D105"]
+"airflow/models/dagwarning.py" = ["D105"]
+"airflow/models/dataset.py" = ["D105"]
+"airflow/models/expandinput.py" = ["D105"]
+"airflow/models/log.py" = ["D105"]
+"airflow/models/mappedoperator.py" = ["D105"]
+"airflow/models/param.py" = ["D105"]
+"airflow/models/pool.py" = ["D105"]
+"airflow/models/renderedtifields.py" = ["D105"]
+"airflow/models/serialized_dag.py" = ["D105"]
+"airflow/models/slamiss.py" = ["D105"]
+"airflow/models/taskfail.py" = ["D105"]
+"airflow/models/taskinstance.py" = ["D105"]
+"airflow/models/tasklog.py" = ["D105"]
+"airflow/models/taskmixin.py" = ["D105"]
+"airflow/models/variable.py" = ["D105"]
+"airflow/models/xcom.py" = ["D105"]
+"airflow/models/xcom_arg.py" = ["D105"]
+"airflow/plugins_manager.py" = ["D105"]
+"airflow/providers_manager.py" = ["D105"]
+"airflow/sensors/base.py" = ["D105"]
+"airflow/sensors/external_task.py" = ["D105"]
+"airflow/timetables/events.py" = ["D105"]
+"airflow/triggers/base.py" = ["D105"]
+"airflow/utils/context.py" = ["D105"]
+"airflow/utils/db.py" = ["D105"]
+"airflow/utils/log/secrets_masker.py" = ["D105"]
+"airflow/utils/operator_resources.py" = ["D105"]
+"airflow/utils/sqlalchemy.py" = ["D105"]
+"airflow/utils/state.py" = ["D105"]
+"airflow/utils/task_group.py" = ["D105"]
+"airflow/utils/timeout.py" = ["D105"]
+"airflow/utils/trigger_rule.py" = ["D105"]
+"airflow/utils/types.py" = ["D105"]
+"airflow/utils/weight_rule.py" = ["D105"]
+"airflow/providers/cncf/kubernetes/secret.py" = ["D105"]
+"airflow/providers/cncf/kubernetes/utils/delete_from.py" = ["D105"]
+"airflow/providers/databricks/hooks/databricks.py" = ["D105"]
+"airflow/providers/databricks/hooks/databricks_base.py" = ["D105"]
+"airflow/providers/databricks/operators/databricks_repos.py" = ["D105"]
+"airflow/providers/fab/auth_manager/models/__init__.py" = ["D105"]
+"airflow/providers/ftp/hooks/ftp.py" = ["D105"]
+"airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
+"airflow/providers/imap/hooks/imap.py" = ["D105"]
+"airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
+"airflow/providers/samba/hooks/samba.py" = ["D105"]
+"airflow/providers/smtp/hooks/smtp.py" = ["D105"]
+"airflow/providers/tableau/hooks/tableau.py" = ["D105"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring
@@ -1464,14 +1492,54 @@ combine-as-imports = true
 banned-module-level-imports = ["numpy", "pandas"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+# Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
+"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
+"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
+"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
+"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
+"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
+"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
+# Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+# Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
+# Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
+"locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
+# Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
+"datetime.datetime.utcnow".msg = "Use airflow.utils.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
+"datetime.datetime.utcfromtimestamp".msg = "Use airflow.utils.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
+# Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
+"typing.Hashable".msg = "Use collections.abc.Hashable"
+"typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
 "pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
+# Flask deprecations, worthwhile to keep it until we migrate to Flask 3.0+
+"flask._app_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask._request_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
+"flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
+"flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
+# Use root logger by a mistake / IDE autosuggestion
+# If for some reason root logger required it could obtained by logging.getLogger("root")
+"logging.debug".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.info".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.warning".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.error".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.exception".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+# Some specific cases
+"unittest.TestCase".msg = "Use pytest compatible classes"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
+
+[tool.ruff.lint.flake8-pytest-style]
+mark-parentheses = false
+fixture-parentheses = false
 
 ## pytest settings ##
 [tool.pytest.ini_options]

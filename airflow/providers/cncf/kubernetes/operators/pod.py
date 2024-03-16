@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import re
@@ -26,16 +27,23 @@ import string
 import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import kubernetes
+from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
@@ -64,6 +72,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
+    PodNotFoundException,
     PodOperatorHookProtocol,
     PodPhase,
     container_is_succeeded,
@@ -72,11 +81,11 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
-from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+    from pendulum import DateTime
     from typing_extensions import Literal
 
     from airflow.providers.cncf.kubernetes.secret import Secret
@@ -85,6 +94,13 @@ if TYPE_CHECKING:
 alphanum_lower = string.ascii_lowercase + string.digits
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+
+
+class PodEventType(Enum):
+    """Type of Events emitted by kubernetes pod."""
+
+    WARNING = "Warning"
+    NORMAL = "Normal"
 
 
 class PodReattachFailure(AirflowException):
@@ -203,6 +219,9 @@ class KubernetesPodOperator(BaseOperator):
         of KubernetesPodOperator.
     :param progress_callback: Callback function for receiving k8s container logs.
         `progress_callback` is deprecated, please use :param `callbacks` instead.
+    :param logging_interval: max time in seconds that task should be in deferred state before
+        resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
+        is done, and no logs will be visible until that time.
     """
 
     # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
@@ -297,6 +316,7 @@ class KubernetesPodOperator(BaseOperator):
         active_deadline_seconds: int | None = None,
         callbacks: type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
+        logging_interval: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -387,6 +407,7 @@ class KubernetesPodOperator(BaseOperator):
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
+        self.logging_interval = logging_interval
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
@@ -535,8 +556,7 @@ class KubernetesPodOperator(BaseOperator):
             )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
-                for event in self.pod_manager.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                self._read_pod_events(pod, reraise=False)
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
@@ -641,13 +661,13 @@ class KubernetesPodOperator(BaseOperator):
 
         self.invoke_defer_method()
 
-    def invoke_defer_method(self):
+    def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
-        trigger_start_time = utcnow()
+        trigger_start_time = datetime.datetime.now(tz=datetime.timezone.utc)
         self.defer(
             trigger=KubernetesPodTrigger(
-                pod_name=self.pod.metadata.name,
-                pod_namespace=self.pod.metadata.namespace,
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
@@ -659,54 +679,99 @@ class KubernetesPodOperator(BaseOperator):
                 startup_check_interval=self.startup_check_interval_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
+                last_log_time=last_log_time,
+                logging_interval=self.logging_interval,
             ),
-            method_name="execute_complete",
+            method_name="trigger_reentry",
         )
 
-    def execute_complete(self, context: Context, event: dict, **kwargs):
-        self.log.debug("Triggered with event: %s", event)
-        pod = None
+    def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Point of re-entry from trigger.
+
+        If ``logging_interval`` is None, then at this point, the pod should be done, and we'll just fetch
+        the logs and exit.
+
+        If ``logging_interval`` is not None, it could be that the pod is still running, and we'll just
+        grab the latest logs and defer back to the trigger again.
+        """
+        self.pod = None
         try:
-            pod = self.hook.get_pod(
-                event["name"],
-                event["namespace"],
-            )
-            if self.callbacks:
+            pod_name = event["name"]
+            pod_namespace = event["namespace"]
+
+            self.pod = self.hook.get_pod(pod_name, pod_namespace)
+
+            if not self.pod:
+                raise PodNotFoundException("Could not find pod after resuming from deferral")
+
+            if self.callbacks and event["status"] != "running":
                 self.callbacks.on_operator_resuming(
-                    pod=pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
                 )
+
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
-                    self.write_logs(pod)
-                if "stack_trace" in event:
-                    message = f"{event['message']}\n{event['stack_trace']}"
-                else:
-                    message = event["message"]
+                    self.write_logs(self.pod)
+
                 if self.do_xcom_push:
-                    # In the event of base container failure, we need to kill the xcom sidecar.
-                    # We disregard xcom output and do that here
-                    _ = self.extract_xcom(pod=pod)
+                    _ = self.extract_xcom(pod=self.pod)
+
+                message = event.get("stack_trace", event["message"])
                 raise AirflowException(message)
+
+            elif event["status"] == "running":
+                if self.get_logs:
+                    last_log_time = event.get("last_log_time")
+                    self.log.info("Resuming logs read from time %r", last_log_time)
+
+                    pod_log_status = self.pod_manager.fetch_container_logs(
+                        pod=self.pod,
+                        container_name=self.BASE_CONTAINER_NAME,
+                        follow=self.logging_interval is None,
+                        since_time=last_log_time,
+                    )
+
+                    if pod_log_status.running:
+                        self.log.info("Container still running; deferring again.")
+                        self.invoke_defer_method(pod_log_status.last_log_time)
+                else:
+                    self.invoke_defer_method()
+
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
-                    self.write_logs(pod)
+                    self.write_logs(self.pod)
 
                 if self.do_xcom_push:
-                    xcom_sidecar_output = self.extract_xcom(pod=pod)
+                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
                     return xcom_sidecar_output
+                return
+        except TaskDeferred:
+            raise
         finally:
-            istio_enabled = self.is_istio_enabled(pod)
-            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
-            # on the ErrImagePull or ContainerCreating step and it will never complete
-            if event["status"] != "timeout":
-                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
-            if pod is not None:
-                self.post_complete_action(
-                    pod=pod,
-                    remote_pod=pod,
-                )
+            self._clean(event)
+
+    def _clean(self, event: dict[str, Any]):
+        if event["status"] == "running":
+            return
+        istio_enabled = self.is_istio_enabled(self.pod)
+        # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+        # on the ErrImagePull or ContainerCreating step and it will never complete
+        if event["status"] != "timeout":
+            self.pod = self.pod_manager.await_pod_completion(
+                self.pod, istio_enabled, self.base_container_name
+            )
+        if self.pod is not None:
+            self.post_complete_action(
+                pod=self.pod,
+                remote_pod=self.pod,
+            )
+
+    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        self.trigger_reentry(context=context, event=event)
 
     def write_logs(self, pod: k8s.V1Pod):
         try:
@@ -735,9 +800,11 @@ class KubernetesPodOperator(BaseOperator):
             self.callbacks.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
-        # If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
+        # Skip cleaning the pod in the following scenarios.
+        # 1. If a task got marked as failed, "on_kill" method would be called and the pod will be cleaned up
         # there. Cleaning it up again will raise an exception (which might cause retry).
-        if self._killed:
+        # 2. remote pod is null (ex: pod creation failed)
+        if self._killed or not remote_pod:
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)
@@ -795,7 +862,10 @@ class KubernetesPodOperator(BaseOperator):
         """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
-                self.log.error("Pod Event: %s - %s", event.reason, event.message)
+                if event.type == PodEventType.NORMAL.value:
+                    self.log.info("Pod Event: %s - %s", event.reason, event.message)
+                else:
+                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def is_istio_enabled(self, pod: V1Pod) -> bool:
         """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""

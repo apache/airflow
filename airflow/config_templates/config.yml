@@ -116,6 +116,17 @@ core:
       type: string
       example: ~
       default: "16"
+    max_consecutive_failed_dag_runs_per_dag:
+      description: |
+        (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+        This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
+        which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
+        If not specified, then the value is considered as 0,
+        meaning that the dags are never paused out by default.
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "0"
     mp_start_method:
       description: |
         The name of the method used in order to start Python processes via the multiprocessing module.
@@ -252,7 +263,7 @@ core:
         What classes can be imported during deserialization. This is a multi line value.
         The individual items will be parsed as regexp patterns.
         This is a secondary option to ``allowed_deserialization_classes``.
-      version_added: 2.8.1
+      version_added: 2.8.2
       type: string
       default: ''
       example: ~
@@ -857,6 +868,13 @@ logging:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/logs/dag_processor_manager/dag_processor_manager.log"
+    dag_processor_manager_log_stdout:
+      description: |
+        Whether DAG processor manager will write logs to stdout
+      version_added: 2.9.0
+      type: boolean
+      example: ~
+      default: "False"
     task_log_reader:
       description: |
         Name of handler to read task instance logs.
@@ -1830,8 +1848,8 @@ webserver:
         The audit logs in the db will not be affected by this parameter.
       version_added: 2.3.0
       type: string
-      example: ~
-      default: "gantt,landing_times,tries,duration,calendar,graph,grid,tree,tree_data"
+      example: "cli_task_run,running,success"
+      default: ~
     audit_view_included_events:
       description: |
         Comma separated string of view events to include in dag audit view.

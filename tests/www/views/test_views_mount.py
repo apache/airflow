@@ -38,7 +38,7 @@ def app():
     return app
 
 
-@pytest.fixture()
+@pytest.fixture
 def client(app):
     return werkzeug.test.Client(app, werkzeug.wrappers.response.Response)
 

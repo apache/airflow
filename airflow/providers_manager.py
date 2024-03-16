@@ -84,6 +84,8 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
 
 if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -301,9 +303,7 @@ def log_import_warning(class_name, e, provider_package):
 KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
-def _correctness_check(
-    provider_package: str, class_name: str, provider_info: ProviderInfo
-) -> type[BaseHook] | None:
+def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
     """
     Perform coherence check on provider classes.
 
@@ -418,6 +418,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
+        self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -513,6 +514,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers filesystems."""
         self.initialize_providers_list()
         self._discover_filesystems()
+
+    @provider_info_cache("dataset_uris")
+    def initializa_providers_dataset_uri_handlers(self):
+        """Lazy initialization of provider dataset URI handlers."""
+        self.initialize_providers_list()
+        self._discover_dataset_uri_handlers()
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -650,7 +657,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     seen.add(path)
                     self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
-                log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
+                log.warning("Error when loading 'provider.yaml' files from %s airflow sources: %s", path, e)
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
@@ -859,9 +866,25 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all filesystems defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             for fs_module_name in provider.data.get("filesystems", []):
-                if _correctness_check(provider_package, fs_module_name + ".get_fs", provider):
+                if _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
                     self._fs_set.add(fs_module_name)
         self._fs_set = set(sorted(self._fs_set))
+
+    def _discover_dataset_uri_handlers(self) -> None:
+        from airflow.datasets import normalize_noop
+
+        for provider_package, provider in self._provider_dict.items():
+            for handler_info in provider.data.get("dataset-uris", []):
+                try:
+                    schemes = handler_info["schemes"]
+                    handler_path = handler_info["handler"]
+                except KeyError:
+                    continue
+                if handler_path is None:
+                    handler = normalize_noop
+                elif not (handler := _correctness_check(provider_package, handler_path, provider)):
+                    continue
+                self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -939,7 +962,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        hook_class = _correctness_check(package_name, hook_class_name, provider_info)
+        hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
         try:
@@ -1261,6 +1284,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._fs_set)
 
     @property
+    def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
+        self.initializa_providers_dataset_uri_handlers()
+        return self._dataset_uri_handlers
+
+    @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_providers_configuration()
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
@@ -1268,3 +1296,26 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    def _cleanup(self):
+        self._initialized_cache.clear()
+        self._provider_dict.clear()
+        self._hooks_dict.clear()
+        self._fs_set.clear()
+        self._taskflow_decorators.clear()
+        self._hook_provider_dict.clear()
+        self._hooks_lazy_dict.clear()
+        self._connection_form_widgets.clear()
+        self._field_behaviours.clear()
+        self._extra_link_class_name_set.clear()
+        self._logging_class_name_set.clear()
+        self._auth_manager_class_name_set.clear()
+        self._secrets_backend_class_name_set.clear()
+        self._executor_class_name_set.clear()
+        self._provider_configs.clear()
+        self._api_auth_backend_module_names.clear()
+        self._trigger_info_set.clear()
+        self._notification_info_set.clear()
+        self._plugins_set.clear()
+        self._initialized = False
+        self._initialization_stack_trace = None

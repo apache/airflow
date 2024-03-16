@@ -152,7 +152,7 @@ class User(Model, BaseUser):
         String(512).with_variant(String(512, collation="NOCASE"), "sqlite"), unique=True, nullable=False
     )
     password = Column(String(256))
-    active = Column(Boolean)
+    active = Column(Boolean, default=True)
     email = Column(String(512), unique=True, nullable=False)
     last_login = Column(DateTime)
     login_count = Column(Integer)

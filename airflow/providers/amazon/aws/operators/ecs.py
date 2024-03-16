@@ -21,7 +21,7 @@ import re
 import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -580,7 +581,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             return None
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
@@ -596,6 +599,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             )
             if len(one_log["events"]) > 0:
                 return one_log["events"][0]["message"]
+        return None
 
     def _after_execution(self):
         self._check_success_task()

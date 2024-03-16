@@ -22,8 +22,10 @@ description: |
     `Databricks <https://databricks.com/>`__
 
 state: ready
-source-date-epoch: 1705912006
+source-date-epoch: 1707636345
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 6.2.0
   - 6.1.0
   - 6.0.0
   - 5.0.1
@@ -57,6 +59,12 @@ versions:
   - 2.0.0
   - 1.0.1
   - 1.0.0
+
+
+# Databricks is excluded for Python 3.12 because running databricks-sql-python imports on Python 3.12
+# Cause extremely long import times  https://github.com/databricks/databricks-sql-python/issues/369
+# and until the problem is fixed, we exclude Python 3.12 for Databricks provider
+excluded-python-versions: ['3.12']
 
 dependencies:
   - apache-airflow>=2.6.0

@@ -274,8 +274,9 @@ describe("Test ToggleGroups", () => {
     );
 
     const group2Task1 = getByTestId("group_2.task_1");
+    const groupToggleButton = group2Task1.querySelector("svg");
 
-    fireEvent.click(group2Task1);
+    if (groupToggleButton) fireEvent.click(groupToggleButton);
 
     // We only expect group_2.task_1 to be affected, not group_1.task_1
     await waitFor(() =>

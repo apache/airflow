@@ -97,7 +97,7 @@ class RedshiftToS3Operator(BaseOperator):
         table: str | None = None,
         select_query: str | None = None,
         redshift_conn_id: str = "redshift_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         unload_options: list | None = None,
         autocommit: bool = False,
@@ -109,35 +109,19 @@ class RedshiftToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
-        self.s3_key = f"{s3_key}/{table}_" if (table and table_as_file_name) else s3_key
+        self.s3_key = s3_key
         self.schema = schema
         self.table = table
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.unload_options: list = unload_options or []
+        self.unload_options = unload_options or []
         self.autocommit = autocommit
         self.include_header = include_header
         self.parameters = parameters
         self.table_as_file_name = table_as_file_name
         self.redshift_data_api_kwargs = redshift_data_api_kwargs or {}
-
-        if select_query:
-            self.select_query = select_query
-        elif self.schema and self.table:
-            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
-        else:
-            raise ValueError(
-                "Please provide both `schema` and `table` params or `select_query` to fetch the data."
-            )
-
-        if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = [*self.unload_options, "HEADER"]
-
-        if self.redshift_data_api_kwargs:
-            for arg in ["sql", "parameters"]:
-                if arg in self.redshift_data_api_kwargs:
-                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
+        self.select_query = select_query
 
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
@@ -153,13 +137,30 @@ class RedshiftToS3Operator(BaseOperator):
         """
 
     def execute(self, context: Context) -> None:
+        if self.table and self.table_as_file_name:
+            self.s3_key = f"{self.s3_key}/{self.table}_"
+
+        if self.schema and self.table:
+            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
+
+        if self.select_query is None:
+            raise ValueError(
+                "Please provide both `schema` and `table` params or `select_query` to fetch the data."
+            )
+
+        if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
+            self.unload_options = [*self.unload_options, "HEADER"]
+
         redshift_hook: RedshiftDataHook | RedshiftSQLHook
         if self.redshift_data_api_kwargs:
             redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs:
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
         else:
             redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
-        conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-        if conn.extra_dejson.get("role_arn", False):
+        conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
+        if conn and conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)

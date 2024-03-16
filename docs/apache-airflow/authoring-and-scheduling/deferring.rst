@@ -78,7 +78,7 @@ When writing a deferrable operators these are the main points to consider:
             self, deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False), **kwargs
         ) -> None:
             super().__init__(**kwargs)
-            self.deferrable = deferable
+            self.deferrable = deferrable
 
         def execute(self, context: Context) -> None:
             if self.deferrable:
@@ -109,7 +109,7 @@ If you want to trigger deferral, at any place in your operator, you can call ``s
 
 When you opt to defer, your operator will stop executing at that point and be removed from its current worker. No state will persist, such as local variables or attributes set on ``self``. When your operator resumes, it resumes as a new instance of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
 
-When your operator resumes, Airflow adds an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
+When your operator resumes, Airflow adds a ``context`` object and an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``context`` and ``event`` as a keyword argument.
 
 If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
 

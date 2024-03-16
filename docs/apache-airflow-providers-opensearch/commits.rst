@@ -35,16 +35,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.2
+.....
+
+Latest change: 2024-02-29
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`a538e02d01 <https://github.com/apache/airflow/commit/a538e02d01a0ead0c6f9242067aeffbaf8b67038>`_  2024-02-29   ``Fix "Exception statement has no effect" (#37722)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+`7aa8f466f6 <https://github.com/apache/airflow/commit/7aa8f466f698b261dbfaa8fc9c743c1378d532c6>`_  2024-02-10   ``Add missing header into 'opensearch' changelog (#37313)``
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
+`2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+`19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+=================================================================================================  ===========  ============================================================================
+
 1.1.1
 .....
 
-Latest change: 2023-12-11
+Latest change: 2023-12-23
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+`f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
 `cd476acd8f <https://github.com/apache/airflow/commit/cd476acd8f1684f613c20dddaa9e988bcfb3ac1c>`_  2023-12-11   ``Follow BaseHook connection fields method signature in child classes (#36086)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 1.1.0
 .....

@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. _set-up-database-backend:
 
 Set up a Database Backend
 =========================
@@ -259,6 +259,10 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    .. code-block:: text
 
       sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
 
 
 

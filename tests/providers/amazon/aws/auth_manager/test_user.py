@@ -21,7 +21,7 @@ import pytest
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 
 
-@pytest.fixture()
+@pytest.fixture
 def user():
     return AwsAuthManagerUser(user_id="user_id", groups=[])
 

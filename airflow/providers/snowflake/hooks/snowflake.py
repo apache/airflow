@@ -256,6 +256,15 @@ class SnowflakeHook(DbApiHook):
             conn_config["private_key"] = pkb
             conn_config.pop("password", None)
 
+        refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        if refresh_token:
+            conn_config["refresh_token"] = refresh_token
+            conn_config["authenticator"] = "oauth"
+            conn_config["client_id"] = conn.login
+            conn_config["client_secret"] = conn.password
+            conn_config.pop("login", None)
+            conn_config.pop("password", None)
+
         return conn_config
 
     def get_uri(self) -> str:
@@ -341,10 +350,8 @@ class SnowflakeHook(DbApiHook):
         """Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
-        execute sequentially. The variable ``execution_info`` is returned so
-        that it can be used in the Operators to modify the behavior depending on
-        the result of the query (i.e fail the operator if the copy has processed
-        0 files).
+        execute sequentially. The result of the queries is returned if the
+        ``handler`` callable is set.
 
         :param sql: The SQL string to be executed with possibly multiple
             statements, or a list of sql statements to execute

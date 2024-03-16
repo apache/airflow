@@ -29,14 +29,15 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Basic usage",
             "options": [
-                "--python",
-                "--install-airflow-version",
-                "--image-tag",
-                "--tag-as-latest",
-                "--docker-cache",
-                "--version-suffix-for-pypi",
                 "--build-progress",
+                "--docker-cache",
                 "--docker-host",
+                "--image-tag",
+                "--install-airflow-version",
+                "--python",
+                "--tag-as-latest",
+                "--use-uv",
+                "--version-suffix-for-pypi",
             ],
         },
         {
@@ -53,10 +54,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Advanced build options (for power users)",
             "options": [
+                "--additional-pip-install-flags",
+                "--commit-sha",
                 "--debian-version",
                 "--python-image",
-                "--commit-sha",
-                "--additional-pip-install-flags",
             ],
         },
         {

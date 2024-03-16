@@ -36,7 +36,7 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
 
 
-@pytest.fixture()
+@pytest.fixture
 def parser():
     return cli_parser.get_parser()
 
@@ -354,7 +354,7 @@ class TestCliUsers:
             user_command.users_export(args)
             return f.name
 
-    @pytest.fixture()
+    @pytest.fixture
     def create_user_test4(self):
         args = self.parser.parse_args(
             [
