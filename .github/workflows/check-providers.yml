@@ -105,6 +105,10 @@ jobs:
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+      - name: "Test airflow core issue generation automatically"
+        run: >
+          breeze release-management generate-issue-content-core
+          --previous-release 1.9.0 --current-release 1.10.0
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >

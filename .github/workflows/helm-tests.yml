@@ -45,7 +45,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-helm:
     timeout-minutes: 80
-    name: "Unit tests Helm: ${{ matrix.helm-test-package }}"
+    name: "Unit tests Helm: ${{ matrix.helm-test-package }}:${{ inputs.image-tag }}"
     runs-on: ${{ fromJSON(inputs.runs-on) }}
     strategy:
       fail-fast: false
@@ -126,6 +126,11 @@ jobs:
         run: ./dev/sign.sh dist/airflow-*.tgz dist/airflow-*-source.tar.gz
         env:
           SIGN_WITH: dev@airflow.apache.org
+      - name: "Test helm chart issue generation automatically"
+        # Adding same tags for now, will address in a follow-up
+        run: >
+          breeze release-management generate-issue-content-helm-chart
+          --previous-release helm-chart/0.0.0dev0 --current-release helm-chart/0.0.0dev0
       - name: "Upload Helm artifacts"
         uses: actions/upload-artifact@v4
         with:
