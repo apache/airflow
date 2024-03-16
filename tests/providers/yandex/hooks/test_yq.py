@@ -62,9 +62,7 @@ class TestYandexCloudYqHook:
         query_id = self.hook.create_query(query_text="select 777", name="my query")
         assert query_id == "query1"
 
-        with mock.patch(
-            "yandex_query_client.YQHttpClient.compose_query_web_link"
-        ) as m:
+        with mock.patch("yandex_query_client.YQHttpClient.compose_query_web_link") as m:
             m.return_value = "http://gg.zz"
             assert self.hook.compose_query_web_link("query1") == "http://gg.zz"
             m.assert_called_once_with("query1")

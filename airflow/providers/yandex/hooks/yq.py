@@ -23,11 +23,11 @@ from typing import Any
 import jwt
 import requests
 from urllib3.util.retry import Retry
+from yandex_query_client import YQHttpClient, YQHttpClientConfig
 
 from airflow.exceptions import AirflowException
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
-from yandex_query_client import YQHttpClient, YQHttpClientConfig
 
 
 class YQHook(YandexCloudBaseHook):
