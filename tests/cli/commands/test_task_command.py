@@ -619,14 +619,13 @@ class TestCliTasks:
         task_states_for_dag_run should return an AirflowException when invalid dag id is passed
         """
         with pytest.raises(DagRunNotFound):
-            default_date2 = timezone.datetime(2016, 1, 9)
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
                         "tasks",
                         "states-for-dag-run",
                         "not_exists_dag",
-                        default_date2.isoformat(),
+                        timezone.datetime(2016, 1, 9).isoformat(),
                         "--output",
                         "json",
                     ]

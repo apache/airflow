@@ -237,15 +237,15 @@ class TestExternalTaskSensor:
     def test_external_task_group_not_exists_without_check_existence(self):
         self.add_time_sensor()
         self.add_dummy_task_group()
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id="fake-task-group",
+            timeout=0.001,
+            dag=self.dag,
+            poke_interval=0.1,
+        )
         with pytest.raises(AirflowException, match="Sensor has timed out"):
-            op = ExternalTaskSensor(
-                task_id="test_external_task_sensor_check",
-                external_dag_id=TEST_DAG_ID,
-                external_task_group_id="fake-task-group",
-                timeout=0.001,
-                dag=self.dag,
-                poke_interval=0.1,
-            )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_group_sensor_success(self):
@@ -320,9 +320,9 @@ class TestExternalTaskSensor:
             dag=self.dag,
         )
         error_message = rf"Some of the external tasks \['{TEST_TASK_ID}'\] in DAG {TEST_DAG_ID} failed\."
-        with pytest.raises(AirflowException, match=error_message):
-            with caplog.at_level(logging.INFO, logger=op.log.name):
-                caplog.clear()
+        with caplog.at_level(logging.INFO, logger=op.log.name):
+            caplog.clear()
+            with pytest.raises(AirflowException, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}'] in dag {TEST_DAG_ID} on {DEFAULT_DATE.isoformat()} ... "
@@ -423,9 +423,9 @@ class TestExternalTaskSensor:
             rf"Some of the external tasks \['{TEST_TASK_ID}'\, \'{TEST_TASK_ID_ALTERNATE}\'] "
             rf"in DAG {TEST_DAG_ID} failed\."
         )
-        with pytest.raises(AirflowException, match=error_message):
-            with caplog.at_level(logging.INFO, logger=op.log.name):
-                caplog.clear()
+        with caplog.at_level(logging.INFO, logger=op.log.name):
+            caplog.clear()
+            with pytest.raises(AirflowException, match=error_message):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert (
             f"Poking for tasks ['{TEST_TASK_ID}', '{TEST_TASK_ID_ALTERNATE}'] "
@@ -725,8 +725,8 @@ exit 0
             allowed_states=["success"],
             dag=self.dag,
         )
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         with pytest.raises(ValueError):
-            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_duplicate_task_ids_with_multiple_xcom_args(self):
@@ -746,8 +746,8 @@ exit 0
             allowed_states=["success"],
             dag=self.dag,
         )
+        op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         with pytest.raises(ValueError):
-            op1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_catch_invalid_allowed_states(self):

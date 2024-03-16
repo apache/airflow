@@ -757,9 +757,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         def f():
             raise Exception("Custom error message")
 
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(AirflowException, match="Custom error message"):
             self.run_as_task(f)
-            assert "Custom error message" in str(e)
 
     def test_string_args(self):
         def f():
@@ -913,11 +912,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     def test_virtualenv_not_installed(self, importlib_mock, which_mock):
         which_mock.return_value = None
         importlib_mock.util.find_spec.return_value = None
+
+        def f():
+            pass
+
         with pytest.raises(AirflowException, match="requires virtualenv"):
-
-            def f():
-                pass
-
             self.run_as_task(f)
 
     def test_add_dill(self):

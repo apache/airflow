@@ -104,8 +104,7 @@ class TestApp:
         with conf_vars({("webserver", "base_url"): base_url}):
             if expected_exception:
                 with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
-                    app = application.cached_app(testing=True)
-                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                    application.cached_app(testing=True)
                 return
             app = application.cached_app(testing=True)
             app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -167,8 +166,7 @@ class TestApp:
         with conf_vars({("webserver", "base_url"): base_url}):
             if expected_exception:
                 with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
-                    app = application.cached_app(testing=True)
-                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                    application.cached_app(testing=True)
                 return
             app = application.cached_app(testing=True)
             app.url_map.add(Rule("/debug", endpoint="debug"))
@@ -279,7 +277,7 @@ class TestApp:
         with conf_vars({("webserver", "caching_hash_method"): hash_method}):
             if exception:
                 with pytest.raises(expected_exception=exception):
-                    app = application.cached_app(testing=True)
+                    application.cached_app(testing=True)
             else:
                 app = application.cached_app(testing=True)
                 assert next(iter(app.extensions["cache"])).cache._hash_method == result
@@ -290,11 +288,12 @@ class TestFlaskCli:
     def test_flask_cli_should_display_routes(self, capsys):
         with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"), mock.patch.object(
             sys, "argv", ["flask", "routes"]
-        ), pytest.raises(SystemExit):
+        ):
             from flask import __main__
 
             # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
-            runpy.run_path(__main__.__file__, run_name="main")
+            with pytest.raises(SystemExit):
+                runpy.run_path(__main__.__file__, run_name="main")
 
         output = capsys.readouterr()
         assert "/login/" in output.out

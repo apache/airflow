@@ -310,43 +310,38 @@ class TestBaseOperator:
         assert result == expected_output
 
     def test_mapped_dag_slas_disabled_classic(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        class MyOp(BaseOperator):
+            def __init__(self, x, **kwargs):
+                self.x = x
+                super().__init__(**kwargs)
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            def execute(self, context):
+                print(self.x)
 
-                task1 = get_values()
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                class MyOp(BaseOperator):
-                    def __init__(self, x, **kwargs):
-                        self.x = x
-                        super().__init__(**kwargs)
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                    def execute(self, context):
-                        print(self.x)
-
+            task1 = get_values()
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 MyOp.partial(task_id="hi").expand(x=task1)
 
     def test_mapped_dag_slas_disabled_taskflow(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                task1 = get_values()
+            task1 = get_values()
 
-                @dag.task
-                def print_val(x):
-                    print(x)
+            @dag.task
+            def print_val(x):
+                print(x)
 
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 print_val.expand(x=task1)
 
     @pytest.mark.db_test
@@ -749,8 +744,8 @@ class TestBaseOperator:
         assert op1 in op2.upstream_list
 
     def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        op1 = BaseOperator(task_id="op1")
         with pytest.raises(AirflowException):
-            op1 = BaseOperator(task_id="op1")
             MockOperator(task_id="op2", arg1=op1.output)
 
     def test_invalid_trigger_rule(self):

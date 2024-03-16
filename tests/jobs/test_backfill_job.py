@@ -1046,10 +1046,10 @@ class TestBackfillJob:
 
         # raises backwards
         expected_msg = "You cannot backfill backwards because one or more tasks depend_on_past: test_dop_task"
+        executor = MockExecutor()
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
         with pytest.raises(AirflowException, match=expected_msg):
-            executor = MockExecutor()
-            job = Job(executor=executor)
-            job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
             run_job(job=job, execute_callable=job_runner._execute)
 
     def test_cli_receives_delay_arg(self):
