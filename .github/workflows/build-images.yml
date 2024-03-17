@@ -55,11 +55,6 @@ jobs:
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      # Version of Python used for reproducibility of the packages built
-      # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
-      # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
-      # TODO: remove me when we switch to Python 3.9 as minimal version
-      breeze-python-version: "3.9"
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
@@ -317,8 +312,6 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       - name: Build PROD Image ${{ matrix.python-version }}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
         with:

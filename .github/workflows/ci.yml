@@ -67,11 +67,6 @@ jobs:
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
-      # Version of Python used for reproducibility of the packages built
-      # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
-      # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
-      # TODO: remove me when we switch to Python 3.9 as minimal version
-      breeze-python-version: "3.9"
       image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       affected-providers-list-as-string: >-
@@ -179,7 +174,6 @@ jobs:
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
       default-python-version: ${{needs.build-info.outputs.default-python-version}}
-      breeze-python-version: ${{needs.build-info.outputs.breeze-python-version}}
       basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
@@ -207,7 +201,6 @@ jobs:
       branch: ${{ needs.build-info.outputs.default-branch }}
       use-uv: "true"
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
 
@@ -261,7 +254,6 @@ jobs:
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
@@ -324,7 +316,6 @@ jobs:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
     if: needs.build-info.outputs.latest-versions-only != 'true'
@@ -363,7 +354,6 @@ jobs:
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
@@ -420,7 +410,6 @@ jobs:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
@@ -449,7 +438,6 @@ jobs:
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-mysql:
@@ -474,7 +462,6 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-sqlite:
@@ -501,7 +488,6 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-non-db:
@@ -527,7 +513,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-special:
@@ -546,7 +531,6 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-integration:
@@ -594,7 +578,6 @@ jobs:
       use-uv: "true"
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
@@ -654,7 +637,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
     if: needs.build-info.outputs.prod-image-build == 'true'
@@ -673,7 +655,6 @@ jobs:
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
       kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: >
@@ -709,7 +690,6 @@ jobs:
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
       in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}

@@ -55,11 +55,6 @@ on:  # yamllint disable-line rule:truthy
         description: "JSON-formatted array of Python versions to build images from"
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
 jobs:
   prepare-install-verify-provider-packages-wheel:
     timeout-minutes: 80
@@ -83,8 +78,6 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider documentation"
@@ -151,8 +144,6 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
         uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: sdist"
@@ -223,8 +214,6 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider packages: wheel"
