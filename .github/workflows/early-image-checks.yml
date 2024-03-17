@@ -65,6 +65,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
+      include-success-outputs:
+        description: "Whether to include success outputs (true/false)"
+        required: true
+        type: string
       debug-resources:
         description: "Whether to debug resources (true/false)"
         required: true
@@ -89,6 +93,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: ${{ inputs.runs-on }}
       cache-type: "Early"
       include-prod-images: "false"
       push-latest-images: "false"
@@ -96,6 +101,7 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       use-uv: "true"
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
     if: inputs.canary-run == 'true' && inputs.branch == 'main'
@@ -104,7 +110,7 @@ jobs:
   check-that-image-builds-quickly:
     timeout-minutes: 5
     name: Check that image builds quickly
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ["ubuntu-22.04"]
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PLATFORM: "linux/amd64"
@@ -135,7 +141,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints ${{ inputs.python-versions-list-as-string }}
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ["ubuntu-22.04"]
     env:
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       DEBUG_RESOURCES: ${{ inputs.debug-resources }}

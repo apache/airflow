@@ -61,20 +61,23 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      include-success-outputs:
+        description: "Whether to include success outputs (true/false)"
+        required: true
+        type: string
       canary-run:
         description: "Whether this is a canary run (true/false)"
         required: true
         type: string
 jobs:
   update-constraints:
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ["ubuntu-22.04"]
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
       contents: write
       packages: read
     env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       DEBUG_RESOURCES: ${{ inputs.debug-resources}}
       PYTHON_VERSIONS: ${{ inputs.python-versions-list-as-string }}
       IMAGE_TAG: ${{ inputs.image-tag }}
@@ -130,6 +133,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: ${{ inputs.runs-on }}
       cache-type: "Regular"
       include-prod-images: "true"
       push-latest-images: "true"
@@ -138,13 +142,14 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
     if: inputs.canary-run == 'true'
 
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
-    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    runs-on: ["ubuntu-22.04"]
     steps:
       - name: "Cleanup repo"
         shell: bash
