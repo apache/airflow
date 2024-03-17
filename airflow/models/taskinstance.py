@@ -2118,7 +2118,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         info = inspect(self)
         if info.attrs.dag_run.loaded_value is not NO_VALUE:
-            if hasattr(self, "task"):
+            if getattr(self, "task", None) is not None:
                 if TYPE_CHECKING:
                     assert self.task
                 self.dag_run.dag = self.task.dag
@@ -2127,7 +2127,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
-        if hasattr(self, "task"):
+        if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
 
@@ -3431,7 +3431,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
             ]
             for schedulable_ti in schedulable_tis:
-                if not hasattr(schedulable_ti, "task"):
+                if getattr(schedulable_ti, "task", None) is None:
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
             num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)

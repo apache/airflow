@@ -47,10 +47,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 
 
-def serialize_operator(x: Operator) -> dict:
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+def serialize_operator(x: Operator | None) -> dict | None:
+    if x:
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    return SerializedBaseOperator.serialize_operator(x)
+        return SerializedBaseOperator.serialize_operator(x)
+    return None
 
 
 def validated_operator(x: dict[str, Any] | Operator, _info: ValidationInfo) -> Any:
