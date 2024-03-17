@@ -406,14 +406,13 @@ class ExecutorSafeguard:
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if cls.test_mode:
-                return func(self, *args, **kwargs)
-            stack_trace = traceback.extract_stack()
-            if next(filter(find_task_instance, stack_trace), None):
-                frame = next(filter(find_decorator_operator, stack_trace), None)
-                if frame and not isinstance(self, airflow.decorators.python.DecoratedOperator):
-                    message = f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
-                    raise_or_warn(operator=self, message=message)
+            if not cls.test_mode:
+                stack_trace = traceback.extract_stack()
+                if next(filter(find_task_instance, stack_trace), None):
+                    frame = next(filter(find_decorator_operator, stack_trace), None)
+                    if frame and not isinstance(self, airflow.decorators.python.DecoratedOperator):
+                        message = f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                        raise_or_warn(operator=self, message=message)
             return func(self, *args, **kwargs)
 
         return wrapper
