@@ -1775,7 +1775,7 @@ webserver:
     analytics_tool:
       description: |
         Send anonymous user activity to your analytics tool
-        choose from google_analytics, segment, or metarouter
+        choose from google_analytics, segment, metarouter, or matomo
       version_added: ~
       type: string
       example: ~
@@ -1786,6 +1786,13 @@ webserver:
       version_added: 1.10.5
       type: string
       example: ~
+      default: ~
+    analytics_url:
+      description: |
+        Your instances url, only applicable to Matomo.
+      version_added: 2.9.0
+      type: string
+      example: https://your.matomo.instance.com/
       default: ~
     show_recent_stats_for_completed_runs:
       description: |
