@@ -17,6 +17,7 @@
 #
 ---
 name: Build CI images
+xxx
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
