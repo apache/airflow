@@ -95,7 +95,7 @@ ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 CI ${{inputs.platform}} image\
 ${{matrix.python-version}}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ${{fromJson(inputs.runs-on)}}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}

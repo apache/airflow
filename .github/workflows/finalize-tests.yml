@@ -67,7 +67,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
 jobs:
   update-constraints:
-    runs-on: ${{ inputs.runs-on }}
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
