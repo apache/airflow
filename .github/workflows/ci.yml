@@ -642,10 +642,10 @@ jobs:
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
         if: needs.build-info.outputs.in-workflow-build == 'false'
 
-  all-prod-image-tests:
-    name: "All PROD image tests"
-    needs: [build-info, build-prod-images, early-image-checks]
-    uses: ./.github/workflows/all-prod-image-tests.yml
+  additional-prod-image-tests:
+    name: "Additional PROD image tests"
+    needs: [build-info, wait-for-prod-images, early-image-checks]
+    uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
