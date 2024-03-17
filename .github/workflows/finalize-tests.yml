@@ -63,7 +63,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       docker-cache:
-        description: "The type of docker cache to use (none/regular/early)"
+        description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
       canary-run:
@@ -146,31 +146,6 @@ jobs:
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
     if: inputs.canary-run == 'true'
-
-  # This is only a check if ARM images are successfully building when committer runs PR from
-  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
-  # There is no point in running this one in "canary" run, because the above step is doing the
-  # same build anyway.
-  build-ci-arm-images:
-    name: Build CI ARM images (in-workflow)
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
-    with:
-      platform: "arm64"
-      push-image: "false"
-      runs-on: ${{ inputs.runs-on }}
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: ${{ inputs.python-versions }}
-      branch: ${{ inputs.branch }}
-      use-uv: "true"
-      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.in-workflow-build == 'true' && inputs.canary-run != 'true'
 
   summarize-warnings:
     timeout-minutes: 15

@@ -34,7 +34,6 @@ permissions:
   # changes. If it is for a fork, then the token is read-only anyway.
   packages: write
 env:
-  ANSWER: "yes"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -172,70 +171,6 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
-  # Push early BuildX cache to GitHub Registry in Apache repository, This cache does not wait for all the
-  # tests to complete - it is run very early in the build process for "main" merges in order to refresh
-  # cache using the current constraints. This will speed up cache refresh in cases when pyproject.toml
-  # changes or in case of Dockerfile changes. Failure in this step is not a problem (at most it will
-  # delay cache refresh. It does not attempt to upgrade to newer dependencies.
-  # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
-  # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
-  push-early-buildx-cache-to-github-registry:
-    name: Push Early Image Cache
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/push-image-cache.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      cache-type: "Early"
-      include-prod-images: "false"
-      push-latest-images: "false"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
-      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-    if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
-
-  # Check that after earlier cache push, breeze command will build quickly
-  check-that-image-builds-quickly:
-    timeout-minutes: 5
-    name: "Check that image builds quickly"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs:
-      - build-info
-      - push-early-buildx-cache-to-github-registry
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      UPGRADE_TO_NEWER_DEPENDENCIES: false
-      PLATFORM: "linux/amd64"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      PYTHON_VERSION: ${{needs.build-info.outputs.default-python-version}}
-    if: >
-      needs.build-info.outputs.canary-run == 'true'
-      && needs.build-info.outputs.default-branch == 'main'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: "Check that image builds quickly"
-        run: breeze shell --max-time 120
-
   basic-tests:
     name: "Basic tests"
     needs: [build-info]
@@ -283,7 +218,6 @@ jobs:
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.ci-image-build == 'true'
     env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
       # Force more parallelism for pull even on public images
       PARALLELISM: 6
@@ -315,87 +249,24 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
         if: needs.build-info.outputs.in-workflow-build == 'false'
 
-  generate-constraints:
-    permissions:
-      contents: read
-    timeout-minutes: 70
-    name: >
-      Generate constraints with CI image verifying
-      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+  early-image-checks:
+    name: "Early image checks"
     needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
-      PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-      INCLUDE_SUCCESS_OUTPUTS: "true"
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ needs.build-info.outputs.breeze-python-version }}
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-      - name: Verify CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        run: breeze ci-image verify --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Source constraints"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers
-      - name: "No providers constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-no-providers
-      - name: "Prepare chicken-eggs provider packages"
-        # In case of provider packages which use latest dev0 version of providers, we should prepare them
-        # from the source code, not from the PyPI because they have apache-airflow>=X.Y.Z dependency
-        # And when we prepare them from sources they will have apache-airflow>=X.Y.Z.dev0
-        shell: bash
-        run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --package-format wheel --version-suffix-for-pypi dev0
-          ${{ needs.build-info.outputs.chicken-egg-providers }}
-        if: needs.build-info.outputs.chicken-egg-providers != ''
-      - name: "PyPI constraints"
-        shell: bash
-        timeout-minutes: 25
-        run: >
-          breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints
-          --chicken-egg-providers "${{ needs.build-info.outputs.chicken-egg-providers }}"
-      - name: "Dependency upgrade summary"
-        shell: bash
-        run: |
-          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
-            echo "Summarizing Python $PYTHON_VERSION"
-            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
-          done
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@v4
-        with:
-          name: constraints
-          path: ./files/constraints-*/constraints-*.txt
-          retention-days: 7
-          if-no-files-found: error
+    uses: ./.github/workflows/early-image-checks.yml
+    with:
+      runs-on: ${{needs.build-info.outputs.runs-on}}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      breeze-python-version: ${{ needs.build-info.outputs.breeze-python-version }}
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
+      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+      canary-run: ${{ needs.build-info.outputs.canary-run }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   static-checks:
     timeout-minutes: 45
@@ -735,7 +606,6 @@ jobs:
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.prod-image-build == 'true'
     env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       # Force more parallelism for pull on public images
@@ -774,7 +644,7 @@ jobs:
 
   all-prod-image-tests:
     name: "All PROD image tests"
-    needs: [build-info, build-prod-images, generate-constraints]
+    needs: [build-info, build-prod-images, early-image-checks]
     uses: ./.github/workflows/all-prod-image-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}
@@ -829,7 +699,7 @@ jobs:
       - tests-non-db
       - tests-special
       - tests-integration
-      - generate-constraints
+      - early-image-checks
     uses: ./.github/workflows/finalize-tests.yml
     with:
       runs-on: ${{ needs.build-info.outputs.runs-on }}

@@ -46,7 +46,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       docker-cache:
-        description: "Whether to use Docker cache (true/false)"
+        description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
       canary-run:
