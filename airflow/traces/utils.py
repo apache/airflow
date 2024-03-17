@@ -21,11 +21,11 @@ import logging
 from typing import TYPE_CHECKING
 
 from airflow.utils.hashlib_wrapper import md5
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.state import TaskInstanceState
 
 TRACE_ID = 0
 SPAN_ID = 16
@@ -68,8 +68,7 @@ def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
 def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
-    """When this is called, the try_number of ti is already set to next(+1), hence the subtraction"""
-    if ti.state is TaskInstanceState.SUCCESS or ti.state is TaskInstanceState.FAILED:
+    if ti.state == TaskInstanceState.SUCCESS or ti.state == TaskInstanceState.FAILED:
         try_number = ti.try_number - 1
     else:
         try_number = ti.try_number
@@ -92,7 +91,7 @@ def parse_traceparent(traceparent_str: str | None = None) -> dict:
 
 def parse_tracestate(tracestate_str: str | None = None) -> dict:
     """Parse tracestate string: rojo=00f067aa0ba902b7,congo=t61rcWkgMzE."""
-    if tracestate_str is None:
+    if tracestate_str is None or len(tracestate_str) == 0:
         return {}
     tokens = tracestate_str.split(",")
     result = {}

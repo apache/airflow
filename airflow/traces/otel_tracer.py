@@ -135,16 +135,10 @@ class OtelTrace:
         trace_id = int(gen_trace_id(dag_run=dagrun, as_int=True))
         span_id = int(gen_dag_span_id(dag_run=dagrun, as_int=True))
 
-        if conf:
-            traceparent = conf.get(TRACEPARENT)
-            tracestate = conf.get(TRACESTATE)
-
         tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
 
-        if self.tag_string and tracestate:
-            tag_string = self.tag_string + "," + tracestate
-        else:
-            tag_string = self.tag_string or tracestate
+        tag_string = self.tag_string if self.tag_string else ""
+        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
 
         if span_name is None:
             span_name = dagrun.dag_id
@@ -158,9 +152,9 @@ class OtelTrace:
             )
         )
 
-        if traceparent:
+        if conf and conf.get(TRACEPARENT):
             # add the trace parent as the link
-            _links.append(gen_link_from_traceparent(traceparent))
+            _links.append(gen_link_from_traceparent(conf.get(TRACEPARENT)))
 
         span_ctx = SpanContext(
             trace_id=INVALID_TRACE_ID, span_id=INVALID_SPAN_ID, is_remote=True, trace_flags=TraceFlags(0x01)
@@ -206,8 +200,8 @@ class OtelTrace:
             Link(
                 context=trace.get_current_span().get_span_context(),
                 attributes={"meta.annotation_type": "link", "from": "parenttrace"},
-             )
-         )
+            )
+        )
 
         if child is False:
             tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
