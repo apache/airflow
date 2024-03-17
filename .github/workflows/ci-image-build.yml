@@ -102,6 +102,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       DEFAULT_CONSTRAINTS_BRANCH: ${{ inputs.constraints-branch }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -139,7 +140,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
           --python "${{ matrix.python-version }}"
           --platform "linux/${{ inputs.platform }}"
         env:
-          DOCKER_CACHE: ${{ inputs.cache-directive }}
+          DOCKER_CACHE: ${{ inputs.docker-cache }}
           INSTALL_MYSQL_CLIENT_TYPE: ${{ inputs.install-mysql-client-type }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ inputs.upgrade-to-newer-dependencies }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
