@@ -214,3 +214,4 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
         run: >
           breeze prod-image verify --image-tag "${{ inputs.image-tag }}"
           --python "${{ matrix.python-version }}"
+        if: inputs.do-build == 'true'
