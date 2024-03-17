@@ -539,7 +539,7 @@ class TestGcpStorageTransferOperationListOperator:
         )
         ti.render_templates()
 
-        assert dag_id == ti.task.filter["job_names"][0]
+        assert dag_id == ti.task.request_filter["job_names"][0]
         assert dag_id == ti.task.gcp_conn_id
 
 

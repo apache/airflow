@@ -100,7 +100,6 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import fix_group_permissions, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
@@ -313,13 +312,6 @@ def build(
             sys.exit(return_code)
 
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     base_build_params = BuildProdParams(
         additional_airflow_extras=additional_airflow_extras,
@@ -442,13 +434,6 @@ def pull_prod_image(
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -573,13 +558,6 @@ def verify(
 ):
     """Verify Production image."""
     perform_environment_checks()
-    res, message = login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
-    if res != 0:
-        get_console().print(f"[error]Error when logging in to GitHub Docker Registry: {message}")
-        sys.exit(res)
     check_remote_ghcr_io_commands()
     if (pull or image_name) and run_in_parallel:
         get_console().print(

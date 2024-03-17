@@ -23,6 +23,19 @@ echo "Starting the tests with those pytest arguments:" "${@}"
 echo
 set +e
 
+# We have to tweak coverage for Python 3.12 because of the issue with coverage that takes too long, despite
+# Using experimental support for Python 3.12 PEP 669. The coverage.py is not yet fully compatible with the
+# full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
+# resolve for now we are disabling coverage for Python 3.12, but possibly it is enough for now.
+PYTHON_3_12_OR_ABOVE=$(python -c "import sys; print(sys.version_info >= (3,12))")
+
+if [[ ${PYTHON_3_12_OR_ABOVE} == "True" ]]; then
+    echo
+    echo "${COLOR_BLUE}Enabling experimental PEP-669 support in coverage.py for Python 3.12 and above.${COLOR_RESET}"
+    echo
+    export COVERAGE_CORE=sysmon
+fi
+
 pytest "${@}"
 RES=$?
 
