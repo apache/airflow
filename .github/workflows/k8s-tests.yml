@@ -41,11 +41,6 @@ on:  # yamllint disable-line rule:truthy
         description: "List of combinations of Kubernetes and Python versions to test: space separated string"
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
       include-success-outputs:
         description: "Whether to include success outputs"
         required: true
@@ -85,8 +80,6 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: Login to ghcr.io
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: Pull PROD images ${{ inputs.python-versions-list-as-string }}:${{ inputs.image-tag }}

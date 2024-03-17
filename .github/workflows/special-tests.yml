@@ -49,11 +49,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"
@@ -76,7 +71,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-boto:
     name: "Latest Boto test"
@@ -99,7 +93,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-pydantic-v1:
     name: "Pydantic v1 test"
@@ -122,7 +115,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-pydantic-none:
     name: "Pydantic removed test"
@@ -145,7 +137,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-pendulum-2:
     name: "Pendulum2 test"
@@ -168,7 +159,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-in-progress-disabled:
     name: "In progress disabled test"
@@ -191,7 +181,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-quarantined:
     name: "Quarantined test"
@@ -213,7 +202,6 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
 
   tests-arm-collection:
     name: "ARM Collection test"
@@ -235,4 +223,3 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
