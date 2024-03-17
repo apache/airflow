@@ -114,12 +114,7 @@ from airflow.settings import json
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule
-from airflow.timetables.interval import (
-    CronDataIntervalFixCatchupTimetable,
-    CronDataIntervalTimetable,
-    DeltaDataIntervalFixCatchupTimetable,
-    DeltaDataIntervalTimetable,
-)
+from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
     ContinuousTimetable,
     DatasetTriggeredTimetable,
@@ -225,10 +220,7 @@ def _get_model_data_interval(
 def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
     if interval is NOTSET:
-        if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
-            return DeltaDataIntervalFixCatchupTimetable(DEFAULT_SCHEDULE_INTERVAL)
-        else:
-            return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
+        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
     if interval is None:
         return NullTimetable()
     if interval == "@once":
@@ -236,16 +228,10 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTi
     if interval == "@continuous":
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
-        if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
-            return DeltaDataIntervalFixCatchupTimetable(interval)
-        else:
-            return DeltaDataIntervalTimetable(interval)
+        return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         if airflow_conf.getboolean("scheduler", "create_cron_data_intervals"):
-            if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
-                return CronDataIntervalFixCatchupTimetable(interval, timezone)
-            else:
-                return CronDataIntervalTimetable(interval, timezone)
+            return CronDataIntervalTimetable(interval, timezone)
         else:
             return CronTriggerTimetable(interval, timezone=timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
