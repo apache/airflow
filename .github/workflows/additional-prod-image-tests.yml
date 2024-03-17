@@ -57,11 +57,6 @@ on:  # yamllint disable-line rule:truthy
         description: Which version of python should be used get CI image
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
 jobs:
   prod-image-extra-checks-main:
     name: PROD image extra checks (main)
@@ -72,7 +67,6 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}
@@ -87,7 +81,6 @@ jobs:
       image-tag: ${{ inputs.image-tag }}
       build-provider-packages: ${{ inputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      breeze-python-version: ${{ inputs.breeze-python-version }}
       chicken-egg-providers: ${{ inputs.chicken-egg-providers }}
       constraints-branch: ${{ inputs.constraints-branch }}
       docker-cache: ${{ inputs.docker-cache }}

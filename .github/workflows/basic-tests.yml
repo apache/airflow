@@ -40,11 +40,6 @@ on:  # yamllint disable-line rule:truthy
         description: Which version of python should be used get CI image
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
       canary-run:
         description: "Whether to run canary tests (true/false)"
         required: true
@@ -73,7 +68,7 @@ jobs:
         with:
           python-version: "${{ inputs.default-python-version }}"
           cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
+          cache-dependency-path: ./dev/breeze/pyproject.toml
       - run: pip install --editable ./dev/breeze/
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
@@ -132,8 +127,6 @@ jobs:
           path: ./airflow-client-python
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: "Generate client with breeze"
         run: >
           breeze release-management prepare-python-client --package-format both

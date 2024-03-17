@@ -75,11 +75,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
-      breeze-python-version:
-        description: >
-          Which version of python should be used to install Breeze (3.9 is minimum for reproducible builds)
-        required: true
-        type: string
       include-success-outputs:
         description: "Whether to include success outputs or not (true/false)"
         required: false
@@ -156,8 +151,6 @@ jobs:
         uses: ./.github/actions/cleanup-docker
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          python-version: ${{ inputs.breeze-python-version }}
       - name: >
           Migration Tests:
           ${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string }}
