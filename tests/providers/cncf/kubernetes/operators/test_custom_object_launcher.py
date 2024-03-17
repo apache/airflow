@@ -77,28 +77,29 @@ class TestSparkJobSpec:
                 "executor": {},
             }
         }
+
+        cloned_entries = entries.copy()
+        cloned_entries["spec"]["dynamicAllocation"]["initialExecutors"] = None
         with pytest.raises(
             AirflowException,
             match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            cloned_entries = entries.copy()
-            cloned_entries["spec"]["dynamicAllocation"]["initialExecutors"] = None
             SparkJobSpec(**cloned_entries)
 
+        cloned_entries = entries.copy()
+        cloned_entries["spec"]["dynamicAllocation"]["minExecutors"] = None
         with pytest.raises(
             AirflowException,
             match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            cloned_entries = entries.copy()
-            cloned_entries["spec"]["dynamicAllocation"]["minExecutors"] = None
             SparkJobSpec(**cloned_entries)
 
+        cloned_entries = entries.copy()
+        cloned_entries["spec"]["dynamicAllocation"]["maxExecutors"] = None
         with pytest.raises(
             AirflowException,
             match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            cloned_entries = entries.copy()
-            cloned_entries["spec"]["dynamicAllocation"]["maxExecutors"] = None
             SparkJobSpec(**cloned_entries)
 
 
