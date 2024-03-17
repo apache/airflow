@@ -347,7 +347,7 @@ class TestBashDecorator:
 
     def test_cwd_is_file(self, tmp_path):
         """Verify task failure for user-defined working directory that is actually a file."""
-        cwd_file = tmp_path / "test_file.sh"
+        cwd_file = tmp_path / "testfile.var.env"
         cwd_file.touch()
 
         with self.dag:
