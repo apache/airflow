@@ -90,10 +90,17 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.plugins.priority_weight_strategy import (
+    FactorPriorityWeightStrategy,
+    NotRegisteredPriorityWeightStrategy,
+    StaticTestPriorityWeightStrategy,
+    TestPriorityWeightStrategyPlugin,
+)
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.mapping import expand_mapped_task
+from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 pytestmark = pytest.mark.db_test
@@ -432,6 +439,35 @@ class TestDag:
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
             with pytest.raises(AirflowException):
                 EmptyOperator(task_id="should_fail", weight_rule="no rule")
+
+    @pytest.mark.parametrize(
+        "cls, expected",
+        [
+            (StaticTestPriorityWeightStrategy, 99),
+            (FactorPriorityWeightStrategy, 3),
+        ],
+    )
+    def test_dag_task_custom_weight_strategy(self, cls, expected):
+        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
+            "dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
+        ) as dag:
+            task = EmptyOperator(
+                task_id="empty_task",
+                weight_rule=cls(),
+            )
+        dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task.task_id)
+        assert ti.priority_weight == expected
+
+    def test_dag_task_not_registered_weight_strategy(self):
+        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
+            "dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
+        ):
+            with pytest.raises(AirflowException, match="Unknown priority strategy"):
+                EmptyOperator(
+                    task_id="empty_task",
+                    weight_rule=NotRegisteredPriorityWeightStrategy(),
+                )
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"
