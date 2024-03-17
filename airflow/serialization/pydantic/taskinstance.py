@@ -105,13 +105,13 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     trigger_timeout: Optional[datetime]
     next_method: Optional[str]
     next_kwargs: Optional[dict]
-    run_as_user: Optional[str] = None
+    run_as_user: Optional[str]
     task: PydanticOperator
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
-    raw: Optional[bool] = None
-    is_trigger_log_context: Optional[bool] = False
+    raw: Optional[bool]
+    is_trigger_log_context: Optional[bool]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property
