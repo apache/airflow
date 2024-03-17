@@ -76,22 +76,28 @@ class TestSparkJobSpec:
             }
         }
         with pytest.raises(
-            AirflowException, match="Make sure initial/min/max value for dynamic allocation is passed"
+            AirflowException,
+            match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            entries.copy()["spec"]["dynamicAllocation"]["initialExecutors"] = None
-            SparkJobSpec(**entries)
+            cloned_entries = entries.copy()
+            cloned_entries["spec"]["dynamicAllocation"]["initialExecutors"] = None
+            SparkJobSpec(**cloned_entries)
 
         with pytest.raises(
-            AirflowException, match="Make sure initial/min/max value for dynamic allocation is passed"
+            AirflowException,
+            match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            entries.copy()["spec"]["dynamicAllocation"]["minExecutors"] = None
-            SparkJobSpec(**entries)
+            cloned_entries = entries.copy()
+            cloned_entries["spec"]["dynamicAllocation"]["minExecutors"] = None
+            SparkJobSpec(**cloned_entries)
 
         with pytest.raises(
-            AirflowException, match="Make sure initial/min/max value for dynamic allocation is passed"
+            AirflowException,
+            match="Make sure initial/min/max value for dynamic allocation is passed",
         ):
-            entries.copy()["spec"]["dynamicAllocation"]["maxExecutors"] = None
-            SparkJobSpec(**entries)
+            cloned_entries = entries.copy()
+            cloned_entries["spec"]["dynamicAllocation"]["maxExecutors"] = None
+            SparkJobSpec(**cloned_entries)
 
 
 class TestSparkResources:
