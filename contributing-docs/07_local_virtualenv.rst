@@ -315,7 +315,7 @@ When you install airflow from sources using editable install, you can develop to
 of Airflow and providers, which is pretty convenient, because you can use the same environment for both.
 
 
-Running ``pipinstall -e .`` will install Airflow in editable mode, but all provider code will also be
+Running ``pip install -e .`` will install Airflow in editable mode, but all provider code will also be
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable

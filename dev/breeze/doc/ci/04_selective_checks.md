@@ -275,6 +275,11 @@ used in the matrix to the latest ones (latest Python version and latest Kubernet
 You can also disable cache if you want to make sure your tests will run with image that does not have
 left-over package installed from the past cached image - by setting `disable image cache` label in the PR.
 
+By default all outputs of successful parallel tests are not shown. You can enable them by setting
+`include success outputs` label in the PR. This makes the logs of mostly successful tests a lot longer
+and more difficult to sift through, but it might be useful in case you want to compare successful and
+unsuccessful runs of the tests.
+
 ## PR labels
 
 As mentioned below, you can influence the outputs of selected checks by setting labels to the PR. Here is
@@ -285,7 +290,8 @@ am overview of possible labels and their meaning:
 | canary                        | is-canary-run                            | If set, the PR run from apache/airflow repo behaves as `canary` run (can only be run by maintainer).        |
 | debug ci resources            | debug-ci-resources                       | If set, then debugging resources is enabled during parallel tests and you can see them in the output.       |
 | default versions only         | python-versions-*, kubernetes-versions-* | If set, the number of Python and Kubernetes versions used by the build will be limited to the default ones. |
-| disable image cache           |  | If set, the number of Python and Kubernetes versions used by the build will be limited to the latest ones.  |
+| disable image cache           | cache-directive                          | If set, the image cache is disables when building the image.                                                |
+| include success outputs       | include-success-outputs                  | By default, outputs of successful parallel tests are not shown - enabling this flag will make then shown.   |
 | latest versions only          | python-versions-*, kubernetes-versions-* | If set, the number of Python and Kubernetes versions used by the build will be limited to the latest ones.  |
 | full tests needed             | full-tests-needed                        | Run complete set of tests, including all Python all DB versions, and all test types.                        |
 | non committer build           | is-committer-build                       | If set then even for non-committer builds, the scripts used for images are used from target branch.         |

@@ -27,7 +27,7 @@ import os
 import pickle
 import re
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
@@ -710,7 +710,16 @@ class TestStringifiedDAGs:
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
             ),
-            (pendulum.datetime(2019, 8, 1, tz="UTC"), None, pendulum.datetime(2019, 8, 1, tz="UTC")),
+            (
+                datetime(2019, 8, 1, tzinfo=dt_timezone(timedelta(hours=1))),
+                datetime(2019, 7, 30, tzinfo=dt_timezone(timedelta(hours=1))),
+                datetime(2019, 8, 1, tzinfo=dt_timezone(timedelta(hours=1))),
+            ),
+            (
+                pendulum.datetime(2019, 8, 1, tz="UTC"),
+                None,
+                pendulum.datetime(2019, 8, 1, tz="UTC"),
+            ),
         ],
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
