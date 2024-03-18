@@ -291,6 +291,58 @@ def test_step_by_step(
         assert finished_tis_states == expected_finished_tis_states
 
 
+def test_nested_mapped_task_groups(dag_maker, session: Session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t():
+            return [[1, 2], [3, 4]]
+
+        @task
+        def m(x):
+            return x
+
+        @task_group
+        def g1(x):
+            @task_group
+            def g2(y):
+                return m(y)
+
+            return g2.expand(y=x)
+
+        g1.expand(x=t())
+
+    # Add a test once nested mapped task groups become supported
+    with pytest.raises(NotImplementedError) as ctx:
+        dag_maker.create_dagrun()
+    assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+
+def test_mapped_in_mapped_task_group(dag_maker, session: Session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task
+        def t():
+            return [[1, 2], [3, 4]]
+
+        @task
+        def m(x):
+            return x
+
+        @task_group
+        def g(x):
+            return m.expand(x=x)
+
+        # Add a test once mapped tasks within mapped task groups become supported
+        with pytest.raises(NotImplementedError) as ctx:
+            g.expand(x=t())
+            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+
+
 @pytest.mark.parametrize("testcase", ["task", "group"])
 def test_no_mapped_dependencies(dag_maker, session: Session, testcase: str):
     from airflow.decorators import task, task_group
