@@ -45,6 +45,7 @@ from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
+from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -214,14 +215,36 @@ def dag_unpause(args) -> None:
 @providers_configuration_loaded
 def set_is_paused(is_paused: bool, args) -> None:
     """Set is_paused for DAG by a given dag_id."""
-    dag = DagModel.get_dagmodel(args.dag_id)
+    should_apply = True
+    dangerous_inputs = [
+        ".",
+        ".?",
+        ".*",
+        ".*?",
+        "^.",
+        "^.*",
+        "^.*?",
+        "^.*$",
+        r"[^\n]*",
+        "(?s:.*)",
+        r"[^\n]?",
+        "(?s:.*?)",
+        r"[\s\S]*",
+        r"[\w\W]*",
+    ]
+    if not args.yes and args.treat_dag_as_regex and args.dag_id in dangerous_inputs:
+        question = f"You are about to {'un' if not is_paused else ''}pause all DAGs.\n\nAre you sure? [y/n]"
+        should_apply = ask_yesno(question)
 
-    if not dag:
-        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-
-    dag.set_is_paused(is_paused=is_paused)
-
-    print(f"Dag: {args.dag_id}, paused: {is_paused}")
+    if should_apply:
+        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
+        dags_models = [DagModel.get_dagmodel(dag.dag_id) for dag in dags]
+        for dag_model in dags_models:
+            if dag_model is not None:
+                dag_model.set_is_paused(is_paused=is_paused)
+                print(f"Dag: {dag_model.dag_id}, paused: {is_paused}")
+    else:
+        print("Operation cancelled")
 
 
 @providers_configuration_loaded
