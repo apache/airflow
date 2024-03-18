@@ -24,7 +24,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
-from airflow.operators.python import task
+from airflow.operators.python import task, PythonOperator
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -78,6 +78,51 @@ class TestExecutorSafeguard:
             def say_hello(**context):
                 operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
                 return operator.execute(context=context)
+
+            say_hello()
+
+        dag_run = dag.test()
+        assert dag_run.state == DagRunState.SUCCESS
+        mock_log.warning.assert_called_once_with("HelloWorldOperator.execute cannot be called from execute!")
+
+    @pytest.mark.db_test
+    def test_executor_when_classic_operator_called_from_python_operator(
+        self,
+        dag_maker,
+    ):
+        with dag_maker() as dag:
+            def say_hello(**context):
+                operator = HelloWorldOperator(task_id="hello_operator")
+                return operator.execute(context=context)
+
+            PythonOperator(
+                task_id="say_hello",
+                dag=dag,
+                python_callable=say_hello,
+            )
+
+            say_hello()
+
+        dag_run = dag.test()
+        assert dag_run.state == DagRunState.FAILED
+
+    @pytest.mark.db_test
+    @patch.object(HelloWorldOperator, "log")
+    def test_executor_when_classic_operator_called_from_python_operator_with_allow_mixin(
+        self,
+        mock_log,
+        dag_maker,
+    ):
+        with dag_maker() as dag:
+            def say_hello(**context):
+                operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
+                return operator.execute(context=context)
+
+            PythonOperator(
+                task_id="say_hello",
+                dag=dag,
+                python_callable=say_hello,
+            )
 
             say_hello()
 

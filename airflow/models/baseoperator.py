@@ -391,10 +391,14 @@ class ExecutorSafeguard:
                 and _execute_task.__module__.replace(".", os.path.sep) in frame.filename
             )
 
-        def find_decorator_operator(frame: FrameSummary):
+        def find_operator(frame: FrameSummary):
             from airflow.decorators.base import DecoratedOperator
+            from airflow.operators.python import PythonOperator
 
             return (
+                frame.name == PythonOperator.execute.__name__
+                and PythonOperator.__module__.replace(".", os.path.sep) in frame.filename
+            ) or (
                 frame.name == DecoratedOperator.execute.__name__
                 and DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename
             )
@@ -409,8 +413,11 @@ class ExecutorSafeguard:
             if not cls.test_mode:
                 stack_trace = traceback.extract_stack()
                 if next(filter(find_task_instance, stack_trace), None):
-                    frame = next(filter(find_decorator_operator, stack_trace), None)
-                    if frame and not isinstance(self, airflow.decorators.python.DecoratedOperator):
+                    frame = next(filter(find_operator, stack_trace), None)
+                    if (frame
+                        and frame != stack_trace[-1]
+                        and not isinstance(self, airflow.decorators.base.DecoratedOperator)
+                    ):
                         message = f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
                         raise_or_warn(operator=self, message=message)
             return func(self, *args, **kwargs)
