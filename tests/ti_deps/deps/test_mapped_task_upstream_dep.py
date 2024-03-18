@@ -340,7 +340,7 @@ def test_mapped_in_mapped_task_group(dag_maker, session: Session):
         # Add a test once mapped tasks within mapped task groups become supported
         with pytest.raises(NotImplementedError) as ctx:
             g.expand(x=t())
-            assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+        assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
 
 
 @pytest.mark.parametrize("testcase", ["task", "group"])
