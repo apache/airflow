@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator for uploading local file(s) to GCS."""
+
 from __future__ import annotations
 
 import os

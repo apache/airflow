@@ -17,6 +17,7 @@
 """
 Example Airflow DAG for Dataproc batch operators.
 """
+
 from __future__ import annotations
 
 import os

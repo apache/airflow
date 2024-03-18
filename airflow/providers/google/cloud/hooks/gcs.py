@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage hook."""
+
 from __future__ import annotations
 
 import functools
@@ -279,8 +280,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> bytes:
-        ...
+    ) -> bytes: ...
 
     @overload
     def download(
@@ -292,8 +292,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> str:
-        ...
+    ) -> str: ...
 
     def download(
         self,

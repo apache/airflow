@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer mail attachments from a mail server into s3 bucket."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

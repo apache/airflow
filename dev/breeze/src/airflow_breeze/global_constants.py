@@ -17,6 +17,7 @@
 """
 Global constants that are used by all other Breeze components.
 """
+
 from __future__ import annotations
 
 import json

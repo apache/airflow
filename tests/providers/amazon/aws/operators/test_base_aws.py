@@ -147,8 +147,7 @@ class TestAwsBaseOperator:
             )
 
     def test_no_aws_hook_class_attr(self):
-        class NoAwsHookClassOperator(AwsBaseOperator):
-            ...
+        class NoAwsHookClassOperator(AwsBaseOperator): ...
 
         error_match = r"Class attribute 'NoAwsHookClassOperator\.aws_hook_class' should be set"
         with pytest.raises(AttributeError, match=error_match):

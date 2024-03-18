@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating SLA use in Tasks"""
+
 from __future__ import annotations
 
 import datetime

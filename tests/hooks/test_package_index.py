@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Test for Package Index Hook."""
+
 from __future__ import annotations
 
 import pytest

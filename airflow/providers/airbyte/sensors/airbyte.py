@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+
 from __future__ import annotations
 
 import time

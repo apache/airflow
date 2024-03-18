@@ -1144,8 +1144,7 @@ def test_decorator_unknown_args():
     with pytest.raises(TypeError):
 
         @task_group_decorator(b=2)
-        def tg():
-            ...
+        def tg(): ...
 
 
 def test_decorator_multiple_use_task():
@@ -1539,12 +1538,10 @@ def test_task_group_arrow_with_setup_group():
         with TaskGroup("group_1") as g1:
 
             @setup
-            def setup_1():
-                ...
+            def setup_1(): ...
 
             @setup
-            def setup_2():
-                ...
+            def setup_2(): ...
 
             s1 = setup_1()
             s2 = setup_2()
@@ -1552,19 +1549,16 @@ def test_task_group_arrow_with_setup_group():
         with TaskGroup("group_2") as g2:
 
             @teardown
-            def teardown_1():
-                ...
+            def teardown_1(): ...
 
             @teardown
-            def teardown_2():
-                ...
+            def teardown_2(): ...
 
             t1 = teardown_1()
             t2 = teardown_2()
 
         @task_decorator
-        def work():
-            ...
+        def work(): ...
 
         w1 = work()
         g1 >> w1 >> g2
@@ -1602,16 +1596,13 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
         with TaskGroup("group_1") as g1:
 
             @setup
-            def setup_1():
-                ...
+            def setup_1(): ...
 
             @setup
-            def setup_2():
-                ...
+            def setup_2(): ...
 
             @teardown
-            def teardown_0():
-                ...
+            def teardown_0(): ...
 
             s1 = setup_1()
             s2 = setup_2()
@@ -1621,19 +1612,16 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
         with TaskGroup("group_2") as g2:
 
             @teardown
-            def teardown_1():
-                ...
+            def teardown_1(): ...
 
             @teardown
-            def teardown_2():
-                ...
+            def teardown_2(): ...
 
             t1 = teardown_1()
             t2 = teardown_2()
 
         @task_decorator
-        def work():
-            ...
+        def work(): ...
 
         w1 = work()
         g1 >> w1 >> g2

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery operators."""
+
 from __future__ import annotations
 
 import enum

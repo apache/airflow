@@ -20,6 +20,7 @@ Base operator for all operators.
 
 :sphinx-autoapi-skip:
 """
+
 from __future__ import annotations
 
 import abc
