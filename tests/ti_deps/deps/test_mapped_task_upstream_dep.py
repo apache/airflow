@@ -317,7 +317,7 @@ def test_nested_mapped_task_groups(dag_maker, session: Session):
     # Add a test once nested mapped task groups become supported
     with pytest.raises(NotImplementedError) as ctx:
         dag_maker.create_dagrun()
-    assert str(ctx.value) == "operator expansion in an expanded task group is not yet supported"
+    assert str(ctx.value) == ""
 
 
 def test_mapped_in_mapped_task_group(dag_maker, session: Session):
