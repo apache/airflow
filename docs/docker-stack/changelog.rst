@@ -101,6 +101,7 @@ Airflow 2.6
 
   * Snowflake provider installed by default
 
+  * The ARM experimental image adds support for MySQL via MariaDB client libraries.
 
 Airflow 2.5.1
 ~~~~~~~~~~~~~
