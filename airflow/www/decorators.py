@@ -107,8 +107,8 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     extra_fields = _mask_connection_fields(extra_fields)
 
                 params = {**request.values, **request.view_args}
-                dag_id = params.get("dag_id") if params.get("dag_id") else session.scalar(select(DagRun.dag_id)
-                                            .where(DagRun.id == params.get("pk")))
+                dag_id = params.get("dag_id") or session.scalar(select(DagRun.dag_id)
+                                                                .where(DagRun.id == params.get("pk")))
 
                 if request.blueprint == "/api/v1":
                     if f"{request.origin}/" == request.root_url:
