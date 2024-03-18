@@ -44,20 +44,20 @@ def _mask_variable_fields(extra_fields):
     Mask the 'val_content' field if 'key_content' is in the mask list.
 
     The variable requests values and args comes in this form:
-    [{'key': 'key_content'},{'val': 'val_content'}, {'description': 'description_content'}]
+    {'key': 'key_content', 'val': 'val_content', 'description': 'description_content'}
     """
     result = {}
     keyname = None
     for k, v in extra_fields.items():
         if k == "key":
             keyname = v
-            result.update({k: v})
+            result[k] = v
         elif keyname and (k == "val" or k == "value"):
             x = secrets_masker.redact(v, keyname)
-            result.update({k: x})
+            result[k] = x
             keyname = None
         else:
-            result.update({k: v})
+            result[k] = v
     return result
 
 
@@ -69,11 +69,11 @@ def _mask_connection_fields(extra_fields):
             try:
                 extra = json.loads(v)
                 extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
-                result.update({k: dict(extra)})
+                result[k] = dict(extra)
             except json.JSONDecodeError:
-                result.update({k: "Encountered non-JSON in `extra` field"})
+                result[k] = "Encountered non-JSON in `extra` field"
         else:
-            result.update({k: secrets_masker.redact(v, k)})
+            result[k] = secrets_masker.redact(v, k)
     return result
 
 
@@ -121,11 +121,11 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                         request.json if isAPIRequest and hasJsonBody else extra_fields
                     )
                 elif hasJsonBody:
-                    extra_fields.update({"body": request.json})
+                    extra_fields["body"] = request.json
 
                 params = {**request.values, **request.view_args}
                 if params and "is_paused" in params:
-                    extra_fields.update({"is_paused": params["is_paused"] == "false"})
+                    extra_fields["is_paused"] = params["is_paused"] == "false"
 
                 if isAPIRequest:
                     if f"{request.origin}/" == request.root_url:
