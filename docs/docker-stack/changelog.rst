@@ -43,6 +43,8 @@ Airflow 2.8
      ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
      security vulnerabilities as it was linked against older Go standard libraries.
 
+   * The ``smtp`` provider is now included in the list of providers installed by default in the image.
+
 * 2.8.1
 
    * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
