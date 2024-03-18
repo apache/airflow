@@ -275,7 +275,8 @@ class SmtpHook(BaseHook):
 
         msg = MIMEMultipart(mime_subtype)
         msg["Subject"] = subject
-        msg["From"] = mail_from
+        if mail_from:
+            msg["From"] = mail_from
         msg["To"] = ", ".join(to)
         recipients = to
         if cc:
