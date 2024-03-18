@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
 import requests
@@ -318,19 +318,19 @@ class HttpAsyncHook(BaseHook):
         self,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
-        data_type: Literal["json", "dict"] = "json",
     ) -> ClientResponse:
         """Perform an asynchronous HTTP request call.
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
         :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
-        :param data_type: Type of data to be passed. Default is 'json'.
         """
         extra_options = extra_options or {}
 
@@ -384,17 +384,12 @@ class HttpAsyncHook(BaseHook):
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
-            if self.method in ("POST", "PUT", "PATCH"):
-                if data_type == "json":
-                    extra_options["json"] = data
-                elif data_type == "dict":
-                    extra_options["data"] = data
-                else:
-                    raise AirflowException(f"Unexpected data type: {data_type}")
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
                     params=data if self.method == "GET" else None,
+                    data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                    json=json,
                     headers=_headers,
                     auth=auth,
                     **extra_options,

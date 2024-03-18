@@ -151,4 +151,5 @@ class TestHttpTrigger:
         mock_http_post.assert_called_once()
         _, kwargs = mock_http_post.call_args
         assert kwargs["data"] == TEST_DATA
-        assert "json" not in kwargs
+        assert kwargs["json"] is None
+        assert kwargs["params"] is None
