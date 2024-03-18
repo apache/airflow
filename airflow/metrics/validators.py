@@ -250,6 +250,7 @@ class ListValidator(metaclass=abc.ABCMeta):
 
     @classmethod
     def __subclasshook__(cls, subclass: Callable[[str], str]) -> bool:
+        """Check if a class or instance is a subclass of ListValidator."""
         return hasattr(subclass, "test") and callable(subclass.test) or NotImplemented
 
     @abc.abstractmethod
