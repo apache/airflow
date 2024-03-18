@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Sequence
 from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
 
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     add_unique_suffix,
@@ -65,6 +66,10 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
+    :param wait_until_job_complete: Whether to wait until started job finished execution (either Complete or
+        Failed). Default is False.
+    :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
+        Used if the parameter `wait_until_job_complete` set True.
     """
 
     template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
@@ -82,6 +87,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
+        wait_until_job_complete: bool = False,
+        job_poll_interval: float = 10,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,6 +104,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.selector = selector
         self.suspend = suspend
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
+        self.wait_until_job_complete = wait_until_job_complete
+        self.job_poll_interval = job_poll_interval
 
     @cached_property
     def _incluster_namespace(self):
@@ -134,6 +143,18 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti = context["ti"]
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+
+        if self.wait_until_job_complete:
+            self.job = self.hook.wait_until_job_complete(
+                job_name=self.job.metadata.name,
+                namespace=self.job.metadata.namespace,
+                job_poll_interval=self.job_poll_interval,
+            )
+        ti.xcom_push(
+            key="job", value=self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job)
+        )
+        if self.hook.is_job_failed(job=self.job):
+            raise AirflowException(f"Kubernetes job '{self.job.metadata.name}' is failed")
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
