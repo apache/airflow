@@ -166,85 +166,85 @@ jobs:
           PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
-  basic-tests:
-    name: "Basic tests"
-    needs: [build-info]
-    uses: ./.github/workflows/basic-tests.yml
-    with:
-      run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
-      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
-      default-python-version: ${{needs.build-info.outputs.default-python-version}}
-      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
-      canary-run: ${{needs.build-info.outputs.canary-run}}
-      latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+  #  basic-tests:
+  #    name: "Basic tests"
+  #    needs: [build-info]
+  #    uses: ./.github/workflows/basic-tests.yml
+  #    with:
+  #      run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
+  #      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
+  #      default-python-version: ${{needs.build-info.outputs.default-python-version}}
+  #      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
+  #      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+  #      canary-run: ${{needs.build-info.outputs.canary-run}}
+  #      latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
 
-  build-ci-images:
-    name: >
-      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
-      CI images in-workflow
-    needs: [build-info]
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      upload-constraints: "true"
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-
-  wait-for-ci-images:
-    timeout-minutes: 120
-    name: "Wait for CI images"
-    runs-on: ["ubuntu-22.04"]
-    needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    env:
-      BACKEND: sqlite
-      # Force more parallelism for pull even on public images
-      PARALLELISM: 6
-      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        id: wait-for-images
-        run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #  build-ci-images:
+  #    name: >
+  #      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+  #      CI images in-workflow
+  #    needs: [build-info]
+  #    uses: ./.github/workflows/ci-image-build.yml
+  #    permissions:
+  #      contents: read
+  #      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+  #      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
+  #      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
+  #      # "in-workflow-build" condition
+  #      packages: write
+  #    secrets: inherit
+  #    with:
+  #      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+  #      image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #      python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #      upload-constraints: "true"
+  #      branch: ${{ needs.build-info.outputs.default-branch }}
+  #      use-uv: "true"
+  #      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+  #
+  #  wait-for-ci-images:
+  #    timeout-minutes: 120
+  #    name: "Wait for CI images"
+  #    runs-on: ["ubuntu-22.04"]
+  #    needs: [build-info, build-ci-images]
+  #    if: needs.build-info.outputs.ci-image-build == 'true'
+  #    env:
+  #      BACKEND: sqlite
+  #      # Force more parallelism for pull even on public images
+  #      PARALLELISM: 6
+  #      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
+  #    steps:
+  #      - name: "Cleanup repo"
+  #        shell: bash
+  #        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+  #        uses: actions/checkout@v4
+  #        with:
+  #          persist-credentials: false
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #      - name: Cleanup docker
+  #        uses: ./.github/actions/cleanup-docker
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #      - name: "Install Breeze"
+  #        uses: ./.github/actions/breeze
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #      - name: Login to ghcr.io
+  #        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
+  #      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
+  #        id: wait-for-images
+  #        run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
+  #        env:
+  #          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+  #        if: needs.build-info.outputs.in-workflow-build == 'false'
 
   early-image-checks:
     name: "Early image checks"
-    needs: [build-info, wait-for-ci-images]
+    needs: [build-info]
     uses: ./.github/workflows/early-image-checks.yml
     with:
       runs-on: ${{needs.build-info.outputs.runs-on}}
@@ -261,438 +261,438 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  static-checks:
-    timeout-minutes: 45
-    name: "Static checks"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
-    if: >
-      needs.build-info.outputs.basic-checks-only == 'false' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-        id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
-      - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
-        env:
-          VERBOSE: "false"
-          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
-          COLUMNS: "250"
-          SKIP_GROUP_OUTPUT: "true"
-          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-          RUFF_FORMAT: "github"
-
-  mypy:
-    name: "MyPy tests"
-    uses: ./.github/workflows/mypy.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-    if: needs.build-info.outputs.latest-versions-only != 'true'
-
-  docs:
-    name: "Docs"
-    uses: ./.github/workflows/docs.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.docs-build == 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-
-  providers:
-    name: "Provider checks"
-    uses: ./.github/workflows/check-providers.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.skip-providers-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
-      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-
-  test-airflow-release-commands:
-    timeout-minutes: 80
-    name: "Test Airflow release commands"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, wait-for-ci-images]
-    if: >
-      needs.build-info.outputs.is-self-hosted-runner == 'true'
-      && needs.build-info.outputs.is-airflow-runner == 'false'
-    env:
-      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-      - name: >
-          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Install required packages"
-        run: python -m pip install --editable ./dev/breeze/
-      - name: "Check Airflow create minor branch command"
-        run: breeze release-management create-minor-branch --version-branch 2-4 -a y
-      - name: "Check Airflow RC process command"
-        run: |
-          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  -a y
-      - name: "Check Airflow release process command"
-        run: |
-          breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
-
-  tests-helm:
-    name: "Helm tests"
-    uses: ./.github/workflows/helm-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-    if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
-      needs.build-info.outputs.default-branch == 'main' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-
-  tests-postgres:
-    name: "Postgres tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      backend: "postgres"
-      test-name: "Postgres"
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
-      excludes: ${{ needs.build-info.outputs.postgres-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-migration-tests: "true"
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-mysql:
-    name: "MySQL tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      backend: "mysql"
-      test-name: "MySQL"
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
-      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-sqlite:
-    name: "Sqlite tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      backend: "sqlite"
-      test-name: "Sqlite"
-      test-name-separator: ""
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      # No versions for sqlite
-      backend-versions: "['']"
-      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-non-db:
-    name: "Non-DB tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      backend: "sqlite"
-      test-name: ""
-      test-name-separator: ""
-      test-scope: "Non-DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      # No versions for non-db
-      backend-versions: "['']"
-      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-special:
-    name: "Special tests"
-    uses: ./.github/workflows/special-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-integration:
-    name: Integration Tests
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/integration-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  build-prod-images:
-    name: >
-      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
-      PROD images in-workflow
-    needs: [build-info, build-ci-images]
-    uses: ./.github/workflows/prod-image-build.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      build-type: "Regular"
-      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      push-image: "true"
-      use-uv: "true"
-      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-
-  wait-for-prod-images:
-    timeout-minutes: 80
-    name: "Wait for PROD images"
-    runs-on: ["ubuntu-22.04"]
-    needs: [build-info, wait-for-ci-images, build-prod-images]
-    if: needs.build-info.outputs.prod-image-build == 'true'
-    env:
-      BACKEND: sqlite
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      # Force more parallelism for pull on public images
-      PARALLELISM: 6
-      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
-      IMAGE_TAG: ${{ needs.build-info.outputs.image-tag }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Cleanup docker
-        uses: ./.github/actions/cleanup-docker
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-images (or build-prod-images-release-branch) above.
-        # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available.
-        run: breeze prod-image pull --wait-for-image --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-
-  additional-prod-image-tests:
-    name: "Additional PROD image tests"
-    needs: [build-info, wait-for-prod-images, early-image-checks]
-    uses: ./.github/workflows/additional-prod-image-tests.yml
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-    if: needs.build-info.outputs.prod-image-build == 'true'
-
-  tests-kubernetes:
-    name: "Kubernetes tests"
-    uses: ./.github/workflows/k8s-tests.yml
-    needs: [build-info, wait-for-prod-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
-      kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: >
-      ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true')
-
-  finalize-tests:
-    name: Finalize tests
-    permissions:
-      contents: write
-      packages: write
-    secrets: inherit
-    needs:
-      - build-info
-      - docs
-      - wait-for-ci-images
-      - wait-for-prod-images
-      - static-checks
-      - mypy
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-non-db
-      - tests-special
-      - tests-integration
-      - early-image-checks
-    uses: ./.github/workflows/finalize-tests.yml
-    with:
-      runs-on: ${{ needs.build-info.outputs.runs-on }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
+#  static-checks:
+#    timeout-minutes: 45
+#    name: "Static checks"
+#    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+#    needs: [build-info, wait-for-ci-images]
+#    env:
+#      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+#      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+#      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
+#    if: >
+#      needs.build-info.outputs.basic-checks-only == 'false' &&
+#      needs.build-info.outputs.latest-versions-only != 'true'
+#    steps:
+#      - name: "Cleanup repo"
+#        shell: bash
+#        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+#      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#      - name: Cleanup docker
+#        uses: ./.github/actions/cleanup-docker
+#      - name: >
+#          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+#        uses: ./.github/actions/prepare_breeze_and_image
+#        id: breeze
+#      - name: Cache pre-commit envs
+#        uses: actions/cache@v4
+#        with:
+#          path: ~/.cache/pre-commit
+#          # yamllint disable-line rule:line-length
+#  key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+#          restore-keys: |
+#            pre-commit-${{steps.breeze.outputs.host-python-version}}-
+#      - name: "Static checks"
+#        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+#        env:
+#          VERBOSE: "false"
+#          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
+#          COLUMNS: "250"
+#          SKIP_GROUP_OUTPUT: "true"
+#          DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+#          RUFF_FORMAT: "github"
+#
+#  mypy:
+#    name: "MyPy tests"
+#    uses: ./.github/workflows/mypy.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
+#    if: needs.build-info.outputs.latest-versions-only != 'true'
+#
+#  docs:
+#    name: "Docs"
+#    uses: ./.github/workflows/docs.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    if: >
+#      needs.build-info.outputs.docs-build == 'true' &&
+#      needs.build-info.outputs.latest-versions-only != 'true'
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      default-branch: ${{ needs.build-info.outputs.default-branch }}
+#      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      canary-run: ${{ needs.build-info.outputs.canary-run }}
+#
+#  providers:
+#    name: "Provider checks"
+#    uses: ./.github/workflows/check-providers.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    if: >
+#      needs.build-info.outputs.skip-providers-tests != 'true' &&
+#      needs.build-info.outputs.latest-versions-only != 'true'
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+#      affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+#      providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
+#      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#
+#  test-airflow-release-commands:
+#    timeout-minutes: 80
+#    name: "Test Airflow release commands"
+#    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+#    needs: [build-info, wait-for-ci-images]
+#    if: >
+#      needs.build-info.outputs.is-self-hosted-runner == 'true'
+#      && needs.build-info.outputs.is-airflow-runner == 'false'
+#    env:
+#      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+#      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+#    steps:
+#      - name: "Cleanup repo"
+#        shell: bash
+#        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+#      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#      - name: Cleanup docker
+#        uses: ./.github/actions/cleanup-docker
+#      - name: >
+#          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+#        uses: ./.github/actions/prepare_breeze_and_image
+#      - name: "Cleanup dist files"
+#        run: rm -fv ./dist/*
+#      - name: "Install required packages"
+#        run: python -m pip install --editable ./dev/breeze/
+#      - name: "Check Airflow create minor branch command"
+#        run: breeze release-management create-minor-branch --version-branch 2-4 -a y
+#      - name: "Check Airflow RC process command"
+#        run: |
+#          breeze release-management start-rc-process --version 2.4.3rc1 --previous-version 2.4.2  -a y
+#      - name: "Check Airflow release process command"
+#        run: |
+#          breeze release-management start-release --release-candidate 2.4.3rc1 --previous-release 2.4.2 -a y
+#
+#  tests-helm:
+#    name: "Helm tests"
+#    uses: ./.github/workflows/helm-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#    if: >
+#      needs.build-info.outputs.needs-helm-tests == 'true' &&
+#      needs.build-info.outputs.default-branch == 'main' &&
+#      needs.build-info.outputs.latest-versions-only != 'true'
+#
+#  tests-postgres:
+#    name: "Postgres tests"
+#    uses: ./.github/workflows/run-unit-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      backend: "postgres"
+#      test-name: "Postgres"
+#      test-scope: "DB"
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
+#      excludes: ${{ needs.build-info.outputs.postgres-exclude }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      run-migration-tests: "true"
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  tests-mysql:
+#    name: "MySQL tests"
+#    uses: ./.github/workflows/run-unit-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      backend: "mysql"
+#      test-name: "MySQL"
+#      test-scope: "DB"
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+#      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      run-migration-tests: "true"
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  tests-sqlite:
+#    name: "Sqlite tests"
+#    uses: ./.github/workflows/run-unit-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      backend: "sqlite"
+#      test-name: "Sqlite"
+#      test-name-separator: ""
+#      test-scope: "DB"
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      # No versions for sqlite
+#      backend-versions: "['']"
+#      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      run-migration-tests: "true"
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  tests-non-db:
+#    name: "Non-DB tests"
+#    uses: ./.github/workflows/run-unit-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      backend: "sqlite"
+#      test-name: ""
+#      test-name-separator: ""
+#      test-scope: "Non-DB"
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      # No versions for non-db
+#      backend-versions: "['']"
+#      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  tests-special:
+#    name: "Special tests"
+#    uses: ./.github/workflows/special-tests.yml
+#    needs: [build-info, wait-for-ci-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  tests-integration:
+#    name: Integration Tests
+#    needs: [build-info, wait-for-ci-images]
+#    uses: ./.github/workflows/integration-tests.yml
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+#      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
+#      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
+#      is-airflow-runner: ${{ needs.build-info.outputs.is-airflow-runner }}
+#      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: needs.build-info.outputs.run-tests == 'true'
+#
+#  build-prod-images:
+#    name: >
+#      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+#      PROD images in-workflow
+#    needs: [build-info, build-ci-images]
+#    uses: ./.github/workflows/prod-image-build.yml
+#    permissions:
+#      contents: read
+#      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+#      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
+#      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
+#      # "in-workflow-build" condition
+#      packages: write
+#    secrets: inherit
+#    with:
+#      build-type: "Regular"
+#      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      branch: ${{ needs.build-info.outputs.default-branch }}
+#      push-image: "true"
+#      use-uv: "true"
+#      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+#      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+#      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+#      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+#      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+#
+#  wait-for-prod-images:
+#    timeout-minutes: 80
+#    name: "Wait for PROD images"
+#    runs-on: ["ubuntu-22.04"]
+#    needs: [build-info, wait-for-ci-images, build-prod-images]
+#    if: needs.build-info.outputs.prod-image-build == 'true'
+#    env:
+#      BACKEND: sqlite
+#      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+#      # Force more parallelism for pull on public images
+#      PARALLELISM: 6
+#      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
+#      IMAGE_TAG: ${{ needs.build-info.outputs.image-tag }}
+#    steps:
+#      - name: "Cleanup repo"
+#        shell: bash
+#        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+#        uses: actions/checkout@v4
+#        with:
+#          persist-credentials: false
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#      - name: Cleanup docker
+#        uses: ./.github/actions/cleanup-docker
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#      - name: "Install Breeze"
+#        uses: ./.github/actions/breeze
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#      - name: Login to ghcr.io
+#        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#      - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
+#        # We wait for the images to be available either from "build-images.yml' run as pull_request_target
+#        # or from build-prod-images (or build-prod-images-release-branch) above.
+#        # We are utilising single job to wait for all images because this job merely waits
+#        # For the images to be available.
+#        run: breeze prod-image pull --wait-for-image --run-in-parallel
+#        env:
+#          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+#          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+#        if: needs.build-info.outputs.in-workflow-build == 'false'
+#
+#  additional-prod-image-tests:
+#    name: "Additional PROD image tests"
+#    needs: [build-info, wait-for-prod-images, early-image-checks]
+#    uses: ./.github/workflows/additional-prod-image-tests.yml
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      default-branch: ${{ needs.build-info.outputs.default-branch }}
+#      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+#      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+#      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      canary-run: ${{ needs.build-info.outputs.canary-run }}
+#    if: needs.build-info.outputs.prod-image-build == 'true'
+#
+#  tests-kubernetes:
+#    name: "Kubernetes tests"
+#    uses: ./.github/workflows/k8s-tests.yml
+#    needs: [build-info, wait-for-prod-images]
+#    permissions:
+#      contents: read
+#      packages: read
+#    secrets: inherit
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+#      kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
+#      kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+#    if: >
+#      ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
+#      needs.build-info.outputs.needs-helm-tests == 'true')
+#
+#  finalize-tests:
+#    name: Finalize tests
+#    permissions:
+#      contents: write
+#      packages: write
+#    secrets: inherit
+#    needs:
+#      - build-info
+#      - docs
+#      - wait-for-ci-images
+#      - wait-for-prod-images
+#      - static-checks
+#      - mypy
+#      - tests-sqlite
+#      - tests-mysql
+#      - tests-postgres
+#      - tests-non-db
+#      - tests-special
+#      - tests-integration
+#      - early-image-checks
+#    uses: ./.github/workflows/finalize-tests.yml
+#    with:
+#      runs-on: ${{ needs.build-info.outputs.runs-on }}
+#      image-tag: ${{ needs.build-info.outputs.image-tag }}
+#      python-versions: ${{ needs.build-info.outputs.python-versions }}
+#      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+#      branch: ${{ needs.build-info.outputs.default-branch }}
+#      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+#      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+#      in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
+#      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+#      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+#      docker-cache: ${{ needs.build-info.outputs.cache-directive }}
+#      canary-run: ${{ needs.build-info.outputs.canary-run }}

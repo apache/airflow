@@ -92,7 +92,6 @@ jobs:
       UPGRADE_TO_NEWER_DEPENDENCIES: "false"
       DOCKER_CACHE: ${{ inputs.docker-cache }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
-      PLATFORM: "linux/amd64,linux/arm64"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       COMMIT_SHA: ${{ github.sha }}
       VERBOSE: "true"
@@ -112,22 +111,25 @@ jobs:
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
         if: inputs.include-prod-images == 'true'
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+      #      - name: "Start ARM instance"
+      #        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u '$' --password-stdin
+      - name: Pull Python imsgr
+        run: docker pull python:3.12-slim-bookworm
       - name: "Push CI ${{ inputs.cache-type }} cache: ${{ matrix.python }} (AMD/ARM)"
         run: >
           breeze ci-image build --builder airflow_cache
-          --prepare-buildx-cache --run-in-parallel --platform "linux/amd64,linux/arm64"
-          --python ${{ matrix.python }}
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
-      - name: "Push CI latest images: ${{ matrix.python }} (AMD ONLY)"
-        run: >
-          breeze ci-image build --tag-as-latest --push --python "${{matrix.python}}" --platform "linux/amd64"
-        if: inputs.push-latest-images == 'true'
+          --platform "linux/amd64"
+          --python 3.12
+      #      - name: "Stop ARM instance"
+      #        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+      #        if: always()
+      #      - name: "Push CI latest images: ${{ matrix.python }} (AMD ONLY)"
+      #        run: >
+      #          breeze ci-image build --tag-as-latest --push
+      #          --python "${{matrix.python}}" --platform "linux/amd64"
+      #        if: inputs.push-latest-images == 'true'
 
   push-prod-image-cache:
     name: "Push PROD image cache"

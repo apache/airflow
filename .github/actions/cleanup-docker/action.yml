@@ -23,4 +23,4 @@ runs:
   steps:
     - name: "Cleanup docker"
       shell: bash
-      run: docker system prune --all --force --volumes
+      run: echo "This is a placeholder action. It does nothing."
