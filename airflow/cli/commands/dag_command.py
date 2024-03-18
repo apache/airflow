@@ -216,35 +216,40 @@ def dag_unpause(args) -> None:
 def set_is_paused(is_paused: bool, args) -> None:
     """Set is_paused for DAG by a given dag_id."""
     should_apply = True
-    dangerous_inputs = [
-        ".",
-        ".?",
-        ".*",
-        ".*?",
-        "^.",
-        "^.*",
-        "^.*?",
-        "^.*$",
-        r"[^\n]*",
-        "(?s:.*)",
-        r"[^\n]?",
-        "(?s:.*?)",
-        r"[\s\S]*",
-        r"[\w\W]*",
+    dags = [
+        dag
+        for dag in get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
+        if is_paused != dag.get_is_paused()
     ]
-    if not args.yes and args.treat_dag_as_regex and args.dag_id in dangerous_inputs:
-        question = f"You are about to {'un' if not is_paused else ''}pause all DAGs.\n\nAre you sure? [y/n]"
+
+    if not dags:
+        raise AirflowException(f"No {'un' if is_paused else ''}paused DAGs were found")
+
+    if not args.yes and args.treat_dag_as_regex:
+        dags_ids = [dag.dag_id for dag in dags]
+        question = (
+            f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
+            f"{','.join(dags_ids)}"
+            f"\n\nAre you sure? [y/n]"
+        )
         should_apply = ask_yesno(question)
 
     if should_apply:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
         dags_models = [DagModel.get_dagmodel(dag.dag_id) for dag in dags]
         for dag_model in dags_models:
             if dag_model is not None:
                 dag_model.set_is_paused(is_paused=is_paused)
-                print(f"Dag: {dag_model.dag_id}, paused: {is_paused}")
+
+        AirflowConsole().print_as(
+            data=[
+                {"dag_id": dag.dag_id, "is_paused": dag.get_is_paused()}
+                for dag in dags_models
+                if dag is not None
+            ],
+            output=args.output,
+        )
     else:
-        print("Operation cancelled")
+        print("Operation cancelled by user")
 
 
 @providers_configuration_loaded
