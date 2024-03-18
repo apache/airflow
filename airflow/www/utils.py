@@ -435,6 +435,7 @@ def task_instance_link(attr):
         "Airflow.grid",
         dag_id=dag_id,
         task_id=task_id,
+        root=task_id,
         dag_run_id=run_id,
         tab="graph",
         map_index=attr.get("map_index", -1),
