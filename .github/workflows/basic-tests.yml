@@ -148,6 +148,8 @@ jobs:
         env:
           HATCH_ENV: "test"
         working-directory: ./clients/python
+      - name: Compile www assets
+        run: breeze compile-www-assets
       - name: "Install Airflow in editable mode with fab for webserver tests"
         run: pip install -e ".[fab]"
       - name: "Install Python client"
