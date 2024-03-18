@@ -14,29 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from typing import TYPE_CHECKING
 
-from airflow.jobs.job import Job
+from airflow.plugins_manager import AirflowPlugin
+from airflow.task.priority_strategy import PriorityWeightStrategy
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
-class JobSchema(SQLAlchemySchema):
-    """Job Schema."""
+# [START custom_priority_weight_strategy]
+class DecreasingPriorityStrategy(PriorityWeightStrategy):
+    """A priority weight strategy that decreases the priority weight with each attempt of the DAG task."""
 
-    class Meta:
-        """Meta."""
+    def get_weight(self, ti: TaskInstance):
+        return max(3 - ti._try_number + 1, 1)
 
-        model = Job
 
-    id = auto_field(dump_only=True)
-    dag_id = auto_field(dump_only=True)
-    state = auto_field(dump_only=True)
-    job_type = auto_field(dump_only=True)
-    start_date = auto_field(dump_only=True)
-    end_date = auto_field(dump_only=True)
-    latest_heartbeat = auto_field(dump_only=True)
-    executor_class = auto_field(dump_only=True)
-    hostname = auto_field(dump_only=True)
-    unixname = auto_field(dump_only=True)
+class DecreasingPriorityWeightStrategyPlugin(AirflowPlugin):
+    name = "decreasing_priority_weight_strategy_plugin"
+    priority_weight_strategies = [DecreasingPriorityStrategy]
+
+
+# [END custom_priority_weight_strategy]

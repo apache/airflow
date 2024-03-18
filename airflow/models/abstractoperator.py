@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -97,7 +98,7 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str
+    weight_rule: PriorityWeightStrategy
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -397,11 +398,17 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
-        if self.weight_rule == WeightRule.ABSOLUTE:
+        from airflow.task.priority_strategy import (
+            _AbsolutePriorityWeightStrategy,
+            _DownstreamPriorityWeightStrategy,
+            _UpstreamPriorityWeightStrategy,
+        )
+
+        if type(self.weight_rule) == _AbsolutePriorityWeightStrategy:
             return self.priority_weight
-        elif self.weight_rule == WeightRule.DOWNSTREAM:
+        elif type(self.weight_rule) == _DownstreamPriorityWeightStrategy:
             upstream = False
-        elif self.weight_rule == WeightRule.UPSTREAM:
+        elif type(self.weight_rule) == _UpstreamPriorityWeightStrategy:
             upstream = True
         else:
             upstream = False

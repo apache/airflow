@@ -48,6 +48,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
@@ -534,12 +535,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+        return validate_and_load_priority_weight_strategy(
+            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+        )
 
     @weight_rule.setter
-    def weight_rule(self, value: str) -> None:
-        self.partial_kwargs["weight_rule"] = value
+    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
 
     @property
     def sla(self) -> datetime.timedelta | None:

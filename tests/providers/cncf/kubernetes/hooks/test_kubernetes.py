@@ -48,6 +48,8 @@ CONN_ID = "kubernetes-test-id"
 ASYNC_CONFIG_PATH = "/files/path/to/config/file"
 POD_NAME = "test-pod"
 NAMESPACE = "test-namespace"
+JOB_NAME = "test-job"
+POLL_INTERVAL = 100
 
 
 class DeprecationRemovalRequired(AirflowException):
@@ -445,6 +447,120 @@ class TestKubernetesHook:
             namespace="namespace",
             _preload_content="_preload_content",
         )
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
+    def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
+        job_expected = mock_client.read_namespaced_job_status.return_value
+
+        hook = KubernetesHook()
+        job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
+
+        mock_client.read_namespaced_job_status.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, pretty=True
+        )
+        assert job_actual == job_expected
+
+    @pytest.mark.parametrize(
+        "conditions, expected_result",
+        [
+            (None, False),
+            ([], False),
+            ([mock.MagicMock(type="Complete", status=True)], False),
+            ([mock.MagicMock(type="Complete", status=False)], False),
+            ([mock.MagicMock(type="Failed", status=False)], False),
+            ([mock.MagicMock(type="Failed", status=True)], True),
+            (
+                [mock.MagicMock(type="Complete", status=False), mock.MagicMock(type="Failed", status=True)],
+                True,
+            ),
+            (
+                [mock.MagicMock(type="Complete", status=True), mock.MagicMock(type="Failed", status=True)],
+                True,
+            ),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_failed(self, mock_merger, mock_loader, conditions, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = conditions
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_failed(mock_job)
+
+        assert actual_result == expected_result
+
+    @pytest.mark.parametrize(
+        "condition_type, status, expected_result",
+        [
+            ("Complete", False, False),
+            ("Complete", True, True),
+            ("Failed", False, False),
+            ("Failed", True, True),
+            ("Suspended", False, False),
+            ("Suspended", True, False),
+            ("Unknown", False, False),
+            ("Unknown", True, False),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_complete(self, mock_merger, mock_loader, condition_type, status, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_complete(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.KubernetesHook.get_job_status")
+    def test_wait_until_job_complete(self, mock_job_status, mock_kube_config_merger, mock_kube_config_loader):
+        job_expected = mock.MagicMock(
+            status=mock.MagicMock(
+                conditions=[
+                    mock.MagicMock(type="TestType1"),
+                    mock.MagicMock(type="TestType2"),
+                    mock.MagicMock(type="Complete", status=True),
+                ]
+            )
+        )
+        mock_job_status.side_effect = [
+            mock.MagicMock(status=mock.MagicMock(conditions=None)),
+            mock.MagicMock(status=mock.MagicMock(conditions=[mock.MagicMock(type="TestType")])),
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    conditions=[
+                        mock.MagicMock(type="TestType1"),
+                        mock.MagicMock(type="TestType2"),
+                    ]
+                )
+            ),
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    conditions=[
+                        mock.MagicMock(type="TestType1"),
+                        mock.MagicMock(type="TestType2"),
+                        mock.MagicMock(type="Complete", status=False),
+                    ]
+                )
+            ),
+            job_expected,
+        ]
+
+        hook = KubernetesHook()
+        with patch(f"{HOOK_MODULE}.sleep", return_value=None) as mock_sleep:
+            job_actual = hook.wait_until_job_complete(
+                job_name=JOB_NAME, namespace=NAMESPACE, job_poll_interval=POLL_INTERVAL
+            )
+
+        mock_job_status.assert_has_calls([mock.call(job_name=JOB_NAME, namespace=NAMESPACE)] * 5)
+        mock_sleep.assert_has_calls([mock.call(POLL_INTERVAL)] * 4)
+        assert job_actual == job_expected
 
 
 class TestKubernetesHookIncorrectConfiguration:

@@ -85,6 +85,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, _execute_task, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -99,7 +100,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
-from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -250,7 +250,7 @@ def partial(
     retry_delay: timedelta | float | ArgNotSet = NOTSET,
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
     priority_weight: int | ArgNotSet = NOTSET,
-    weight_rule: str | ArgNotSet = NOTSET,
+    weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
     map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
@@ -639,6 +639,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
+        |experimental|
+        Since 2.9.0, Airflow allows to define custom priority weight strategy,
+        by creating a subclass of
+        ``airflow.task.priority_strategy.PriorityWeightStrategy`` and registering
+        in a plugin, then providing the class path or the class instance via
+        ``weight_rule`` parameter. The custom priority weight strategy will be
+        used to calculate the effective total priority weight of the task instance.
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
         does support targeting specific queues.
@@ -847,7 +854,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str = DEFAULT_WEIGHT_RULE,
+        weight_rule: str | PriorityWeightStrategy = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -999,13 +1006,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"received '{type(priority_weight)}'."
             )
         self.priority_weight = priority_weight
-        if not WeightRule.is_valid(weight_rule):
-            raise AirflowException(
-                f"The weight_rule must be one of "
-                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
-                f"received '{weight_rule}'."
-            )
-        self.weight_rule = weight_rule
+        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
