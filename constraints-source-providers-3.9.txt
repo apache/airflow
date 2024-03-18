@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-17T20:51:49.440626
+# This constraints file was automatically generated on 2024-03-18T13:20:35.693546
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -100,7 +100,7 @@ azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.4.0
-azure-mgmt-datafactory==6.0.0
+azure-mgmt-datafactory==6.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -347,7 +347,7 @@ mypy-boto3-rds==1.34.63
 mypy-boto3-redshift-data==1.34.0
 mypy-boto3-s3==1.34.64
 mypy-extensions==1.0.0
-mypy==1.8.0
+mypy==1.9.0
 mysql-connector-python==8.3.0
 mysqlclient==2.2.4
 nbclient==0.10.0
@@ -493,7 +493,7 @@ rich-click==1.7.4
 rich==13.7.1
 rpds-py==0.18.0
 rsa==4.9
-ruff==0.2.1
+ruff==0.3.3
 s3fs==2023.12.2
 s3transfer==0.10.1
 sarif-om==1.0.4
@@ -572,7 +572,7 @@ types-PyMySQL==1.1.0.1
 types-PyYAML==6.0.12.20240311
 types-aiofiles==23.2.0.20240311
 types-certifi==2021.10.8.3
-types-croniter==2.0.0.20240106
+types-croniter==2.0.0.20240318
 types-docutils==0.20.0.20240317
 types-paramiko==3.4.0.20240311
 types-protobuf==4.24.0.20240311
