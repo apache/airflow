@@ -1312,3 +1312,36 @@ class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
             cluster_hook=self.cluster_hook,
         ).fetch_cluster_info()
         return super().execute(context)
+
+
+class GKEStartKueueJobOperator(GKEStartJobOperator):
+    """
+    Executes a Kubernetes Job in Kueue in the specified Google Kubernetes Engine cluster.
+
+    :param queue_name: The name of the Queue in the cluster
+    """
+
+    def __init__(
+        self,
+        *,
+        queue_name: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.queue_name = queue_name
+
+        if self.suspend is False:
+            raise AirflowException(
+                "The `suspend` parameter can't be False. If you want to use Kueue for running Job"
+                " in a Kubernetes cluster, set the `suspend` parameter to True.",
+            )
+        elif self.suspend is None:
+            warnings.warn(
+                f"You have not set parameter `suspend` in class {self.__class__.__name__}. "
+                "For running a Job in Kueue the `suspend` parameter should set to True.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.suspend = True
+        self.labels.update({"kueue.x-k8s.io/queue-name": queue_name})
+        self.annotations.update({"kueue.x-k8s.io/queue-name": queue_name})

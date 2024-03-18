@@ -2253,75 +2253,9 @@ def generate_issue_content_helm_chart(
     excluded_pr_list: str,
     limit_pr_count: int | None,
 ):
-    verbose = get_verbose()
-    is_helm_chart = True
-    from github import Github, Issue, PullRequest, UnknownObjectException
-
-    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
-    if excluded_pr_list:
-        excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
-    else:
-        excluded_prs = []
-    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
-    change_prs = [change.pr for change in changes]
-    prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
-
-    g = Github(github_token)
-    repo = g.get_repo("apache/airflow")
-    pull_requests: dict[int, PullRequestOrIssue] = {}
-    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
-    users: dict[int, set[str]] = defaultdict(lambda: set())
-    count_prs = limit_pr_count or len(prs)
-    with Progress(console=get_console()) as progress:
-        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
-        for pr_number in prs[:count_prs]:
-            progress.console.print(
-                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
-            )
-
-            pr: PullRequestOrIssue
-            try:
-                pr = repo.get_pull(pr_number)
-            except UnknownObjectException:
-                # Fallback to issue if PR not found
-                try:
-                    pr = repo.get_issue(pr_number)  # (same fields as PR)
-                except UnknownObjectException:
-                    get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
-                    continue
-
-            if pr.user.login == "dependabot[bot]":
-                get_console().print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
-                continue
-            # Ignore doc-only and skipped PRs
-            label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
-                continue
-
-            pull_requests[pr_number] = pr
-            # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
-            # Relate so we can find those from the body
-            if pr.body:
-                body = " ".join(pr.body.splitlines())
-                linked_issue_numbers = {
-                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
-                }
-                for linked_issue_number in linked_issue_numbers:
-                    progress.console.print(
-                        f"Retrieving Linked issue PR#{linked_issue_number}: "
-                        f"https://github.com/apache/airflow/issue/{linked_issue_number}"
-                    )
-                    try:
-                        linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
-                    except UnknownObjectException:
-                        progress.console.print(
-                            f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
-                        )
-            users[pr_number].add(pr.user.login)
-            for linked_issue in linked_issues[pr_number]:
-                users[pr_number].add(linked_issue.user.login)
-            progress.advance(task)
-    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
+    generate_issue_content(
+        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=True
+    )
 
 
 @release_management.command(
@@ -2365,75 +2299,9 @@ def generate_issue_content_core(
     excluded_pr_list: str,
     limit_pr_count: int | None,
 ):
-    verbose = get_verbose()
-    is_helm_chart = False
-    from github import Github, Issue, PullRequest, UnknownObjectException
-
-    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
-    if excluded_pr_list:
-        excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
-    else:
-        excluded_prs = []
-    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
-    change_prs = [change.pr for change in changes]
-    prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
-
-    g = Github(github_token)
-    repo = g.get_repo("apache/airflow")
-    pull_requests: dict[int, PullRequestOrIssue] = {}
-    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
-    users: dict[int, set[str]] = defaultdict(lambda: set())
-    count_prs = limit_pr_count or len(prs)
-    with Progress(console=get_console()) as progress:
-        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
-        for pr_number in prs[:count_prs]:
-            progress.console.print(
-                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
-            )
-
-            pr: PullRequestOrIssue
-            try:
-                pr = repo.get_pull(pr_number)
-            except UnknownObjectException:
-                # Fallback to issue if PR not found
-                try:
-                    pr = repo.get_issue(pr_number)  # (same fields as PR)
-                except UnknownObjectException:
-                    get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
-                    continue
-
-            if pr.user.login == "dependabot[bot]":
-                get_console().print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
-                continue
-            # Ignore doc-only and skipped PRs
-            label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
-                continue
-
-            pull_requests[pr_number] = pr
-            # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
-            # Relate so we can find those from the body
-            if pr.body:
-                body = " ".join(pr.body.splitlines())
-                linked_issue_numbers = {
-                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
-                }
-                for linked_issue_number in linked_issue_numbers:
-                    progress.console.print(
-                        f"Retrieving Linked issue PR#{linked_issue_number}: "
-                        f"https://github.com/apache/airflow/issue/{linked_issue_number}"
-                    )
-                    try:
-                        linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
-                    except UnknownObjectException:
-                        progress.console.print(
-                            f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
-                        )
-            users[pr_number].add(pr.user.login)
-            for linked_issue in linked_issues[pr_number]:
-                users[pr_number].add(linked_issue.user.login)
-            progress.advance(task)
-    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)
+    generate_issue_content(
+        github_token, previous_release, current_release, excluded_pr_list, limit_pr_count, is_helm_chart=False
+    )
 
 
 def get_all_constraint_files(
@@ -3299,3 +3167,83 @@ def prepare_helm_chart_package(sign_email: str):
             sys.exit(result.returncode)
         else:
             get_console().print(f"[success]Chart signed - the {prov_file} file created.[/]")
+
+
+def generate_issue_content(
+    github_token: str,
+    previous_release: str,
+    current_release: str,
+    excluded_pr_list: str,
+    limit_pr_count: int | None,
+    is_helm_chart: bool,
+):
+    from github import Github, Issue, PullRequest, UnknownObjectException
+
+    PullRequestOrIssue = Union[PullRequest.PullRequest, Issue.Issue]
+    verbose = get_verbose()
+    changes = get_changes(verbose, previous_release, current_release, is_helm_chart)
+    change_prs = [change.pr for change in changes]
+    if excluded_pr_list:
+        excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
+    else:
+        excluded_prs = []
+    prs = [pr for pr in change_prs if pr is not None and pr not in excluded_prs]
+
+    g = Github(github_token)
+    repo = g.get_repo("apache/airflow")
+    pull_requests: dict[int, PullRequestOrIssue] = {}
+    linked_issues: dict[int, list[Issue.Issue]] = defaultdict(lambda: [])
+    users: dict[int, set[str]] = defaultdict(lambda: set())
+    count_prs = limit_pr_count or len(prs)
+
+    with Progress(console=get_console()) as progress:
+        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
+        for pr_number in prs[:count_prs]:
+            progress.console.print(
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
+            )
+
+            pr: PullRequestOrIssue
+            try:
+                pr = repo.get_pull(pr_number)
+            except UnknownObjectException:
+                # Fallback to issue if PR not found
+                try:
+                    pr = repo.get_issue(pr_number)  # (same fields as PR)
+                except UnknownObjectException:
+                    get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
+                    continue
+
+            if pr.user.login == "dependabot[bot]":
+                get_console().print(f"[yellow]Skipping PR #{pr_number} as it was created by dependabot[/]")
+                continue
+            # Ignore doc-only and skipped PRs
+            label_names = [label.name for label in pr.labels]
+            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+                continue
+
+            pull_requests[pr_number] = pr
+            # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
+            # Relate so we can find those from the body
+            if pr.body:
+                body = " ".join(pr.body.splitlines())
+                linked_issue_numbers = {
+                    int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
+                }
+                for linked_issue_number in linked_issue_numbers:
+                    progress.console.print(
+                        f"Retrieving Linked issue PR#{linked_issue_number}: "
+                        f"https://github.com/apache/airflow/issue/{linked_issue_number}"
+                    )
+                    try:
+                        linked_issues[pr_number].append(repo.get_issue(linked_issue_number))
+                    except UnknownObjectException:
+                        progress.console.print(
+                            f"Failed to retrieve linked issue #{linked_issue_number}: Unknown Issue"
+                        )
+            users[pr_number].add(pr.user.login)
+            for linked_issue in linked_issues[pr_number]:
+                users[pr_number].add(linked_issue.user.login)
+            progress.advance(task)
+
+    print_issue_content(current_release, pull_requests, linked_issues, users, is_helm_chart)

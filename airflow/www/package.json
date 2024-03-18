@@ -103,6 +103,7 @@
     "@emotion/cache": "^11.9.3",
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11",
+    "@tanstack/react-table": "^8.13.2",
     "@visx/group": "^2.10.0",
     "@visx/shape": "^2.12.2",
     "ansi_up": "^6.0.2",

@@ -69,6 +69,7 @@ from airflow.serialization.serialized_objects import (
     SerializedBaseOperator,
     SerializedDAG,
 )
+from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
@@ -190,6 +191,7 @@ serialized_simple_dag_ground_truth = {
                 },
                 "doc_md": "### Task Tutorial Documentation",
                 "_log_config_logger_name": "airflow.task.operators",
+                "weight_rule": "downstream",
             },
             {
                 "task_id": "custom_task",
@@ -213,6 +215,7 @@ serialized_simple_dag_ground_truth = {
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
                 "_log_config_logger_name": "airflow.task.operators",
+                "weight_rule": "downstream",
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -1289,7 +1292,7 @@ class TestStringifiedDAGs:
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
-            "weight_rule": "downstream",
+            "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

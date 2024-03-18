@@ -415,7 +415,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             # This means we can perform asynchronous operations with this file.
             create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
             tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+                None,
+                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                create_tmp_file_call,
             )
             self.py_file = tmp_gcs_file.name
 
@@ -612,7 +614,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
             # This means we can perform asynchronous operations with this file.
             create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
             tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+                None,
+                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                create_tmp_file_call,
             )
             self.jar = tmp_gcs_file.name
 

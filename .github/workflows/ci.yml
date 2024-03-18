@@ -258,6 +258,7 @@ jobs:
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   static-checks:
@@ -692,5 +693,6 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.cache-directive }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}

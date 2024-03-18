@@ -213,6 +213,14 @@ All Kubernetes parameters (except ``config_file``) are also valid for the ``GKES
     :start-after: [START howto_operator_gke_start_job]
     :end-before: [END howto_operator_gke_start_job]
 
+For run Job on a GKE cluster with Kueue enabled use ``GKEStartKueueJobOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_kueue_start_job]
+    :end-before: [END howto_operator_kueue_start_job]
+
 
 .. _howto/operator:GKEDescribeJobOperator:
 
