@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import ast
+import json
 from unittest import mock
 
 from airflow.models import Log
@@ -66,7 +67,7 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, execution_date):
+def _check_last_log(session, dag_id, event, execution_date, expected_extra=None):
     logs = (
         session.query(
             Log.dag_id,
@@ -87,6 +88,8 @@ def _check_last_log(session, dag_id, event, execution_date):
     )
     assert len(logs) >= 1
     assert logs[0].extra
+    if expected_extra:
+        assert json.loads(logs[0].extra) == expected_extra
     session.query(Log).delete()
 
 

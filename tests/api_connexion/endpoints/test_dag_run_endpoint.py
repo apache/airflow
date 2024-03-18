@@ -1952,9 +1952,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         assert dr.dag_run_note.user_id is not None
         # Update the note again
         new_note_value = "My super cool DagRun notes 2"
+        payload = {"note": new_note_value}
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
-            json={"note": new_note_value},
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -1975,6 +1976,13 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
+        _check_last_log(
+            session,
+            dag_id=dr.dag_id,
+            event="api.set_dag_run_note",
+            execution_date=None,
+            expected_extra=payload,
+        )
 
     def test_schema_validation_error_raises(self, dag_maker, session):
         dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)

@@ -121,7 +121,7 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                         request.json if isAPIRequest and hasJsonBody else extra_fields
                     )
                 elif hasJsonBody:
-                    extra_fields["body"] = request.json
+                    extra_fields = {**extra_fields, **request.json}
 
                 params = {**request.values, **request.view_args}
                 if params and "is_paused" in params:
