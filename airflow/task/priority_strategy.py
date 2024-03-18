@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Priority weight strategies for task scheduling."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

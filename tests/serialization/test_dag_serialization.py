@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for stringified DAGs."""
+
 from __future__ import annotations
 
 import copy

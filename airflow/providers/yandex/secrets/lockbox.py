@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing secrets from Yandex Cloud Lockbox."""
+
 from __future__ import annotations
 
 from functools import cached_property

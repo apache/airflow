@@ -52,8 +52,7 @@ JOB_NAME = "test-job"
 POLL_INTERVAL = 100
 
 
-class DeprecationRemovalRequired(AirflowException):
-    ...
+class DeprecationRemovalRequired(AirflowException): ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"

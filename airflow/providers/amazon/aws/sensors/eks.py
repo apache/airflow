@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
@@ -114,12 +115,10 @@ class EksBaseSensor(BaseSensorOperator):
         return state == self.target_state
 
     @abstractmethod
-    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates:
-        ...
+    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates: ...
 
     @abstractmethod
-    def get_terminal_states(self) -> frozenset:
-        ...
+    def get_terminal_states(self) -> frozenset: ...
 
 
 class EksClusterStateSensor(EksBaseSensor):

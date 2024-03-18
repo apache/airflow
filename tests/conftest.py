@@ -539,15 +539,10 @@ def skip_if_integration_disabled(marker, item):
     environment_variable_value = os.environ.get(environment_variable_name)
     if not environment_variable_value or environment_variable_value != "true":
         pytest.skip(
-            "The test requires {integration_name} integration started and "
-            "{name} environment variable to be set to true (it is '{value}')."
-            " It can be set by specifying '--integration {integration_name}' at breeze startup"
-            ": {item}".format(
-                name=environment_variable_name,
-                value=environment_variable_value,
-                integration_name=integration_name,
-                item=item,
-            )
+            f"The test requires {integration_name} integration started and "
+            f"{environment_variable_name} environment variable to be set to true (it is '{environment_variable_value}')."
+            f" It can be set by specifying '--integration {integration_name}' at breeze startup"
+            f": {item}"
         )
 
 
@@ -1360,15 +1355,12 @@ if TYPE_CHECKING:
 
     # pytest-mock
     @pytest.fixture
-    def mocker() -> MockerFixture:
-        ...
+    def mocker() -> MockerFixture: ...
 
     # requests-mock
     @pytest.fixture
-    def requests_mock() -> RequestsMockFixture:
-        ...
+    def requests_mock() -> RequestsMockFixture: ...
 
     # time-machine
     @pytest.fixture  # type: ignore[no-redef]
-    def time_machine() -> TimeMachineFixture:
-        ...
+    def time_machine() -> TimeMachineFixture: ...

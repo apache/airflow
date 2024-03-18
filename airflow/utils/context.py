@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Jinja2 template rendering context helper."""
+
 from __future__ import annotations
 
 import contextlib
