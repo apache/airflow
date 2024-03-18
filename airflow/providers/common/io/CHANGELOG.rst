@@ -62,16 +62,10 @@ Features
    * ``Use reproducible builds for provider packages (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
-1.0.1
-.....
+1.0.1 (YANKED)
+..............
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
-Features
-~~~~~~~~
-
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
 
 Bug Fixes
 ~~~~~~~~~
@@ -82,7 +76,9 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Improvements to airflow.io (#35478)``
 
-1.0.0
-.....
+1.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions`
 
 Initial version of the provider.
