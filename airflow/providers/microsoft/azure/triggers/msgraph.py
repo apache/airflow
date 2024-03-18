@@ -23,9 +23,9 @@ from base64 import b64encode
 from contextlib import suppress
 from datetime import datetime
 from json import JSONDecodeError
-from typing import Any
 from typing import (
     TYPE_CHECKING,
+    Any,
     AsyncIterator,
     Callable,
     Sequence,

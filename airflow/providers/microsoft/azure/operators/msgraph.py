@@ -28,9 +28,9 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import (
+    MSGraphTrigger,
     ResponseSerializer,
 )
-from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:

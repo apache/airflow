@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import locale
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from datetime import datetime
 from unittest.mock import patch
 from uuid import uuid4
@@ -26,8 +26,11 @@ from uuid import uuid4
 import pendulum
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, CallableResponseHandler, \
-    ResponseSerializer
+from airflow.providers.microsoft.azure.triggers.msgraph import (
+    CallableResponseHandler,
+    MSGraphTrigger,
+    ResponseSerializer,
+)
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import (
