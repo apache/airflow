@@ -2593,7 +2593,8 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2024, 2, 29)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2024, 2, 29)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
