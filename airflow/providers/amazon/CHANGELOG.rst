@@ -1705,8 +1705,10 @@ Misc
    * ``Fix mypy errors in amazon aws transfer (#20590)``
    * ``Update documentation for provider December 2021 release (#20523)``
 
-2.5.0
-.....
+2.5.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Contains breaking changes``
 
 Features
 ~~~~~~~~
