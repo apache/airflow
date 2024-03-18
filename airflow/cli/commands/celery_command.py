@@ -20,6 +20,7 @@
 # DO NOT MODIFY THIS FILE unless it is a serious bugfix - all the new celery commands should be added in celery provider.
 # This file is kept for backward compatibility only.
 """Celery command."""
+
 from __future__ import annotations
 
 import logging

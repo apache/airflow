@@ -21,6 +21,7 @@ Connect to your Segment account, retrieve data from it or write to that file.
 NOTE:   this hook also relies on the Segment analytics package:
         https://github.com/segmentio/analytics-python
 """
+
 from __future__ import annotations
 
 import analytics

@@ -79,8 +79,7 @@ class BaseExtractor(ABC, LoggingMixin):
         return fully_qualified_class_name in self.disabled_operators
 
     @abstractmethod
-    def _execute_extraction(self) -> OperatorLineage | None:
-        ...
+    def _execute_extraction(self) -> OperatorLineage | None: ...
 
     def extract(self) -> OperatorLineage | None:
         if self._is_operator_disabled:

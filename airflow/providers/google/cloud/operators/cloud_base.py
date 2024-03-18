@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google API base operator."""
+
 from __future__ import annotations
 
 from google.api_core.gapic_v1.method import DEFAULT

@@ -532,9 +532,9 @@ class TestAwsBatchExecutor:
         batch_mock.describe_jobs.side_effect = {}
         executor.batch = batch_mock
 
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
-        ] = "False"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()] = (
+            "False"
+        )
 
         executor.start()
 

@@ -22,6 +22,7 @@ and deletes Queues in the Google Cloud Tasks service in the Google Cloud.
 Required setup:
 - GCP_APP_ENGINE_LOCATION: GCP Project's App Engine location `gcloud app describe | grep locationId`.
 """
+
 from __future__ import annotations
 
 import os

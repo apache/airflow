@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Reads and then deletes the message from SQS queue."""
+
 from __future__ import annotations
 
 from datetime import timedelta

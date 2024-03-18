@@ -16,6 +16,7 @@
 # under the License.
 
 """AWS Batch Executor. Each Airflow task gets delegated out to an AWS Batch Job."""
+
 from __future__ import annotations
 
 import time
