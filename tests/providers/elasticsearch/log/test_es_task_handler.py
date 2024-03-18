@@ -646,8 +646,7 @@ class TestElasticsearchTaskHandler:
 
 
 def test_safe_attrgetter():
-    class A:
-        ...
+    class A: ...
 
     a = A()
     a.b = "b"

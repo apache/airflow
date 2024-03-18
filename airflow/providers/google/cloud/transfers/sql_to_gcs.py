@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+
 from __future__ import annotations
 
 import abc

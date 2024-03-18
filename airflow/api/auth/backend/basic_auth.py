@@ -19,6 +19,7 @@ This module is deprecated.
 
 Please use :mod:`airflow.providers.fab.auth_manager.api.auth.backend.basic_auth` instead.
 """
+
 from __future__ import annotations
 
 import warnings

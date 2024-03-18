@@ -25,6 +25,7 @@ Hooks for Cloud Memorystore service.
     pb
     memcache
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+
 from __future__ import annotations
 
 import asyncio
@@ -817,12 +818,10 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
 class _GoArtifact(ABC):
     @abstractmethod
-    def is_located_on_gcs(self) -> bool:
-        ...
+    def is_located_on_gcs(self) -> bool: ...
 
     @abstractmethod
-    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        ...
+    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None: ...
 
     @abstractmethod
     def start_pipeline(
@@ -830,8 +829,7 @@ class _GoArtifact(ABC):
         beam_hook: BeamHook,
         variables: dict,
         process_line_callback: Callable[[str], None] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class _GoFile(_GoArtifact):

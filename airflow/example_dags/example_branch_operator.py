@@ -19,6 +19,7 @@
 
 It is showcasing the basic BranchPythonOperator and its sisters BranchExternalPythonOperator
 and BranchPythonVirtualenvOperator."""
+
 from __future__ import annotations
 
 import random

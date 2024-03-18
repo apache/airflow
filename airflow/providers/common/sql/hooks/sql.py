@@ -305,8 +305,7 @@ class DbApiHook(BaseHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -317,8 +316,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,
