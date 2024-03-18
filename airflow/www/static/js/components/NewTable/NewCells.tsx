@@ -29,6 +29,5 @@ export const TimeCell = ({ getValue }: any) => {
 
 export const CodeCell = ({ getValue }: any) => {
   const value = getValue();
-  const code = typeof value === "string" ? JSON.parse(value) : value;
-  return code ? <Code>{JSON.stringify(code)}</Code> : null;
+  return value ? <Code>{JSON.stringify(value)}</Code> : null;
 };
