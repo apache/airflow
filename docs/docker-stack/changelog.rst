@@ -61,23 +61,15 @@ Airflow 2.9
    * Constraints used to install the image are available in "${HOME}/constraints.txt" now - you can use them
      to install additional packages in the image without having to find out which constraints you should use.
 
+Airflow 2.8
+~~~~~~~~~~~
+* 2.8.3
+
    * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
      ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
      security vulnerabilities as it was linked against older Go standard libraries.
 
    * The ``smtp`` provider is now included in the list of providers installed by default in the image.
-
-Airflow 2.8
-~~~~~~~~~~~
-* 2.8.3
-
-   * Remove ``gosu`` binary from our images (#37677)
-
-* 2.8.3
-
-   * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
-     ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
-     security vulnerabilities as it was linked against older Go standard libraries.
 
 * 2.8.1
 
