@@ -1258,12 +1258,11 @@ class TestPostDagRun(TestDagRunEndpoint):
             request_json["data_interval_end"] = data_interval_end
 
         request_json["note"] = note
-        with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
-            response = self.client.post(
-                "api/v1/dags/TEST_DAG_ID/dagRuns",
-                json=request_json,
-                headers={"REMOTE_USER": "test"},
-            )
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json=request_json,
+            headers={"REMOTE_USER": "test"},
+        )
 
         assert response.status_code == 200
 
