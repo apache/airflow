@@ -22,7 +22,6 @@ import logging.config
 import os
 import re
 import shutil
-import tempfile
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -42,7 +41,6 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
     LogType,
-    _change_directory_permissions_up,
     _interleave_logs,
     _parse_timestamps_in_log_file,
 )
@@ -724,28 +722,26 @@ def test_interleave_logs_correct_ordering():
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
 
 
-def test_permissions_for_new_directories():
-    tmp_path = Path(tempfile.mkdtemp())
+def test_permissions_for_new_directories(tmpdir):
+    tmpdir_path = Path(tmpdir)
     try:
         # Set umask to 0o027: owner rwx, group rx-w, other -rwx
         old_umask = os.umask(0o027)
         try:
-            subdir = tmp_path / "subdir1" / "subdir2"
+            base_dir = tmpdir_path / "base"
+            base_dir.mkdir()
+            log_dir = base_dir / "subdir1" / "subdir2"
             # force permissions for the new folder to be owner rwx, group -rxw, other -rwx
             new_folder_permissions = 0o700
             # default permissions are owner rwx, group rx-w, other -rwx (umask bit negative)
             default_permissions = 0o750
-            subdir.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-            assert subdir.exists()
-            assert subdir.is_dir()
-            assert subdir.stat().st_mode % 0o1000 == new_folder_permissions
-            # initially parent permissions are as per umask
-            assert subdir.parent.stat().st_mode % 0o1000 == default_permissions
-            _change_directory_permissions_up(subdir, new_folder_permissions)
-            assert subdir.stat().st_mode % 0o1000 == new_folder_permissions
-            # now parent permissions are as per new_folder_permissions
-            assert subdir.parent.stat().st_mode % 0o1000 == new_folder_permissions
+            FileTaskHandler._prepare_log_folder(log_dir, new_folder_permissions)
+            assert log_dir.exists()
+            assert log_dir.is_dir()
+            assert log_dir.stat().st_mode % 0o1000 == new_folder_permissions
+            assert log_dir.parent.stat().st_mode % 0o1000 == new_folder_permissions
+            assert base_dir.stat().st_mode % 0o1000 == default_permissions
         finally:
             os.umask(old_umask)
     finally:
-        shutil.rmtree(tmp_path)
+        shutil.rmtree(tmpdir_path)
