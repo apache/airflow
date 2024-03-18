@@ -95,6 +95,7 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     user_display = get_auth_manager().get_user_display_name()
 
                 isAPIRequest = request.blueprint == "/api/v1"
+                hasJsonBody = request.headers.get("content-type") == "application/json" and request.json
 
                 fields_skip_logging = {
                     "csrf_token",
@@ -112,10 +113,14 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     if k not in fields_skip_logging
                 }
                 if event and event.startswith("variable."):
-                    extra_fields = _mask_variable_fields(request.json if isAPIRequest else extra_fields)
+                    extra_fields = _mask_variable_fields(
+                        request.json if isAPIRequest and hasJsonBody else extra_fields
+                    )
                 elif event and event.startswith("connection."):
-                    extra_fields = _mask_connection_fields(request.json if isAPIRequest else extra_fields)
-                elif request.headers.get("content-type") == "application/json" and request.json:
+                    extra_fields = _mask_connection_fields(
+                        request.json if isAPIRequest and hasJsonBody else extra_fields
+                    )
+                elif hasJsonBody:
                     extra_fields.update({"body": request.json})
 
                 params = {**request.values, **request.view_args}
