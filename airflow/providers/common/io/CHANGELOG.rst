@@ -79,6 +79,6 @@ Bug Fixes
 1.0.0 (YANKED)
 ..............
 
-.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions`
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
 
 Initial version of the provider.
