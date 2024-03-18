@@ -1117,13 +1117,14 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
 
 def test_users_can_be_found(app, security_manager, session, caplog):
     """Test that usernames are case insensitive"""
+    existing_users = security_manager.get_all_users()
     create_user(app, "Test")
     create_user(app, "test")
     create_user(app, "TEST")
     create_user(app, "TeSt")
     assert security_manager.find_user("Test")
     users = security_manager.get_all_users()
-    assert len(users) == 1
+    assert len(users) == 1 + len(existing_users)
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text
 
