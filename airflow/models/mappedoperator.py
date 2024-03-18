@@ -154,6 +154,7 @@ class OperatorPartial:
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
+        """Perform post-initialization actions for the OperatorPartial object."""
         from airflow.operators.subdag import SubDagOperator
 
         if issubclass(self.operator_class, SubDagOperator):
@@ -161,10 +162,12 @@ class OperatorPartial:
         validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
+        """Return a string representation of the OperatorPartial object."""
         args = ", ".join(f"{k}={v!r}" for k, v in self.kwargs.items())
         return f"{self.operator_class.__name__}.partial({args})"
 
     def __del__(self):
+        """Perform cleanup actions before the OperatorPartial object is destroyed."""
         if not self._expand_called:
             try:
                 task_id = repr(self.kwargs["task_id"])
@@ -309,12 +312,15 @@ class MappedOperator(AbstractOperator):
     )
 
     def __hash__(self):
+        """Generate a hash value for the MappedOperator object."""
         return id(self)
 
     def __repr__(self):
+        """Return a string representation of the MappedOperator object."""
         return f"<Mapped({self._task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
+        """Perform post-initialization actions for the MappedOperator object."""
         from airflow.models.xcom_arg import XComArg
 
         if self.get_closest_mapped_task_group() is not None:

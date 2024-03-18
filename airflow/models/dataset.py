@@ -91,15 +91,18 @@ class DatasetModel(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
+        """Compare two DatasetModel objects for equality."""
         if isinstance(other, (self.__class__, Dataset)):
             return self.uri == other.uri
         else:
             return NotImplemented
 
     def __hash__(self):
+        """Generate a hash value for the DatasetModel object."""
         return hash(self.uri)
 
     def __repr__(self):
+        """Return a string representation of the DatasetModel object."""
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
 
@@ -139,15 +142,18 @@ class DagScheduleDatasetReference(Base):
     )
 
     def __eq__(self, other):
+        """Compare two DagScheduleDatasetReference objects for equality."""
         if isinstance(other, self.__class__):
             return self.dataset_id == other.dataset_id and self.dag_id == other.dag_id
         else:
             return NotImplemented
 
     def __hash__(self):
+        """Generate a hash value for the DagScheduleDatasetReference object."""
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
+        """Return a string representation of the DagScheduleDatasetReference object."""
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
@@ -183,6 +189,7 @@ class TaskOutletDatasetReference(Base):
     )
 
     def __eq__(self, other):
+        """Compare two TaskOutletDatasetReference objects for equality."""
         if isinstance(other, self.__class__):
             return (
                 self.dataset_id == other.dataset_id
@@ -193,9 +200,11 @@ class TaskOutletDatasetReference(Base):
             return NotImplemented
 
     def __hash__(self):
+        """Generate a hash value for the TaskOutletDatasetReference object."""
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
+        """Return a string representation of the TaskOutletDatasetReference object."""
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
@@ -227,15 +236,18 @@ class DatasetDagRunQueue(Base):
     )
 
     def __eq__(self, other):
+        """Compare two DatasetDagRunQueue objects for equality."""
         if isinstance(other, self.__class__):
             return self.dataset_id == other.dataset_id and self.target_dag_id == other.target_dag_id
         else:
             return NotImplemented
 
     def __hash__(self):
+        """Generate a hash value for the DatasetDagRunQueue object."""
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
+        """Return a string representation of the DatasetDagRunQueue object."""
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
@@ -324,6 +336,7 @@ class DatasetEvent(Base):
         return self.dataset.uri
 
     def __repr__(self) -> str:
+        """Return a string representation of the DatasetEvent object."""
         args = []
         for attr in [
             "id",

@@ -104,6 +104,7 @@ class NotFullyPopulated(RuntimeError):
         self.missing = missing
 
     def __str__(self) -> str:
+        """Return a string representation of the exception."""
         keys = ", ".join(repr(k) for k in sorted(self.missing))
         return f"Failed to populate all mapping metadata; missing: {keys}"
 

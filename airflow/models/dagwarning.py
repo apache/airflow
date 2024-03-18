@@ -64,9 +64,11 @@ class DagWarning(Base):
         self.message = message
 
     def __eq__(self, other) -> bool:
+        """Compare two DagRunWarning objects for equality."""
         return self.dag_id == other.dag_id and self.warning_type == other.warning_type
 
     def __hash__(self) -> int:
+        """Generate a hash value for the DagRunWarning object."""
         return hash((self.dag_id, self.warning_type))
 
     @classmethod

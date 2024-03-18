@@ -241,6 +241,7 @@ class DagRun(Base, LoggingMixin):
         super().__init__()
 
     def __repr__(self):
+        """Return a string representation of the DagRun object."""
         return (
             f"<DagRun {self.dag_id} @ {self.execution_date}: {self.run_id}, state:{self.state}, "
             f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
@@ -896,9 +897,11 @@ class DagRun(Base, LoggingMixin):
                 self.run_id,
                 self.start_date,
                 self.end_date,
-                (self.end_date - self.start_date).total_seconds()
-                if self.start_date and self.end_date
-                else None,
+                (
+                    (self.end_date - self.start_date).total_seconds()
+                    if self.start_date and self.end_date
+                    else None
+                ),
                 self._state,
                 self.external_trigger,
                 self.run_type,
@@ -1631,6 +1634,7 @@ class DagRunNote(Base):
         self.user_id = user_id
 
     def __repr__(self):
+        """Return a string representation of the DagRunInfo object."""
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.dagrun_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"

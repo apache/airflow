@@ -78,4 +78,5 @@ class Log(Base):
         self.owner_display_name = owner_display_name or None
 
     def __str__(self) -> str:
+        """Return a string representation of the Log object."""
         return f"Log({self.event}, {self.task_id}, {self.owner}, {self.owner_display_name}, {self.extra})"
