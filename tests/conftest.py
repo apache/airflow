@@ -1362,7 +1362,7 @@ if TYPE_CHECKING:
     def class_mocker() -> MockerFixture:
         """Class scoped mocker."""
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture(scope="module")
     def module_mocker() -> MockerFixture:
         """Module scoped mocker."""
 
@@ -1372,7 +1372,7 @@ if TYPE_CHECKING:
 
     @pytest.fixture(scope="session")
     def session_mocker() -> MockerFixture:
-        """Package scoped mocker."""
+        """Session scoped mocker."""
 
     # requests-mock
     @pytest.fixture
