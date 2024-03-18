@@ -274,6 +274,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--current-release",
                 "--excluded-pr-list",
                 "--limit-pr-count",
+                "--latest",
             ],
         }
     ],
