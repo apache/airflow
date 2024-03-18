@@ -165,6 +165,9 @@ class BaseExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+
         pool = pool or task_instance.pool
 
         command_list_to_run = task_instance.command_as_list(
