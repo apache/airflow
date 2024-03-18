@@ -3478,8 +3478,16 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/audit_log")
     @auth.has_access_dag("GET", DagAccessEntity.AUDIT_LOG)
     def audit_log(self, dag_id: str):
+        current_page = request.args.get("page")
+        arg_sorting_key = request.args.get("sorting_key")
+        arg_sorting_direction = request.args.get("sorting_direction")
+        sort_args = {
+            "offset": current_page,
+            f"sort.{arg_sorting_key}": arg_sorting_direction,
+            "limit": PAGE_SIZE,
+        }
         kwargs = {
-            **sanitize_args(request.args),
+            **sanitize_args(sort_args),
             "dag_id": dag_id,
             "tab": "audit_log",
         }
