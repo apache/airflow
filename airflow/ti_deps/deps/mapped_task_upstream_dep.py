@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 class MappedTaskUpstreamDep(BaseTIDep):
     """
-    Determines if a mapped task's upstream tasks that provide XComs used by this task for task mapping are in
-    a state that allows a given task instance to run.
+    Determines if the task, if mapped, has upstream tasks that provide XComs used by
+    this task for task mapping, and are in states that allow the task instance to run.
     """
 
     NAME = "Mapped dependencies have succeeded"
