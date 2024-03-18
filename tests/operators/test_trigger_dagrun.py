@@ -493,12 +493,11 @@ class TestDagRunOperator:
             poll_interval=20,
             states=["success", "failed"],
         )
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(AirflowException, match="which is not in"):
             task.execute_complete(
                 context={},
                 event=trigger.serialize(),
             )
-            assert "which is not in" in str(exception)
 
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(self):
         """Test TriggerDagRunOperator  wait_for_completion dag run in failed state."""
@@ -528,7 +527,5 @@ class TestDagRunOperator:
             states=["success", "failed"],
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(AirflowException, match="failed with failed state"):
             task.execute_complete(context={}, event=trigger.serialize())
-
-            assert "failed with failed state" in str(exception)

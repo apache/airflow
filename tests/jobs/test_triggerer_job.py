@@ -213,8 +213,8 @@ def test_capacity_decode():
         4 / 2,  # Resolves to a float, in addition to being just plain weird
     ]
     for input_str in variants:
+        job = Job()
         with pytest.raises(ValueError):
-            job = Job()
             TriggererJobRunner(job=job, capacity=input_str)
 
 
