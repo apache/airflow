@@ -55,9 +55,15 @@ class MSGraphAsyncOperator(BaseOperator):
             For more information on how to use this operator, take a look at the guide:
             :ref:`howto/operator:MSGraphAsyncOperator`
 
+    :param url: The url being executed on the Microsoft Graph API (templated).
+    :param response_type: The expected return type of the response as a string. Possible value are: "bytes",
+        "str", "int", "float", "bool" and "datetime" (default is None).
+    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
+        lambda response, error_map: response.json()).  The default expression will convert the native response
+        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
+    :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param key: The key that will be used to store XCOM's ("return_value" is default).
-    :param url: The url being executed on the Microsoft Graph API (templated).
     :param timeout: The HTTP timeout being used by the KiotaRequestAdapter (default is None).
         When no timeout is specified or set to None then no HTTP timeout is applied on each request.
     :param proxies: A Dict defining the HTTP proxies to be used (default is None).
@@ -67,12 +73,6 @@ class MSGraphAsyncOperator(BaseOperator):
     :param result_processor: Function to further process the response from MS Graph API
         (default is lambda: context, response: response).  When the response returned by the
         GraphServiceClientHook are bytes, then those will be base64 encoded into a string.
-    :param response_type: The expected return type of the response as a string. Possible value are: "bytes",
-        "str", "int", "float", "bool" and "datetime" (default is None).
-    :param method: The HTTP method being used to do the REST call (default is GET).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
