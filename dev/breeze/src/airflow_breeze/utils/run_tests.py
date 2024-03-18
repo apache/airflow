@@ -364,7 +364,12 @@ def generate_args_for_pytest(
     args.extend(get_excluded_provider_args(python_version))
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
-    if enable_coverage:
+    # We have to disabke coverage for Python 3.12 because of the issue with coverage that takes too long, despite
+    # Using experimental support for Python 3.12 PEP 669. The coverage.py is not yet fully compatible with the
+    # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
+    # resolve for now we are disabling coverage for Python 3.12, and it causes slower execution and occasional
+    # timeouts
+    if enable_coverage and python_version != "3.12":
         args.extend(
             [
                 "--cov=airflow",

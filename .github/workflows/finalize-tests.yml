@@ -124,27 +124,27 @@ jobs:
   # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
-  push-buildx-cache-to-github-registry:
-    name: Push Regular Image Cache
-    needs: [update-constraints]
-    uses: ./.github/workflows/push-image-cache.yml
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
-    with:
-      runs-on: ${{ inputs.runs-on }}
-      cache-type: "Regular"
-      include-prod-images: "true"
-      push-latest-images: "true"
-      use-uv: "true"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: ${{ inputs.python-versions }}
-      branch: ${{ inputs.branch }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      include-success-outputs: ${{ inputs.include-success-outputs }}
-      docker-cache: ${{ inputs.docker-cache }}
-    if: inputs.canary-run == 'true'
+  #  push-buildx-cache-to-github-registry:
+  #    name: Push Regular Image Cache
+  #    needs: [update-constraints]
+  #    uses: ./.github/workflows/push-image-cache.yml
+  #    permissions:
+  #      contents: read
+  #      packages: write
+  #    secrets: inherit
+  #    with:
+  #      runs-on: ${{ inputs.runs-on }}
+  #      cache-type: "Regular"
+  #      include-prod-images: "true"
+  #      push-latest-images: "true"
+  #      use-uv: "true"
+  #      image-tag: ${{ inputs.image-tag }}
+  #      python-versions: ${{ inputs.python-versions }}
+  #      branch: ${{ inputs.branch }}
+  #      constraints-branch: ${{ inputs.constraints-branch }}
+  #      include-success-outputs: ${{ inputs.include-success-outputs }}
+  #      docker-cache: ${{ inputs.docker-cache }}
+  #    if: inputs.canary-run == 'true'
 
   summarize-warnings:
     timeout-minutes: 15
