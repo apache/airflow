@@ -416,6 +416,7 @@ class Connection(Base, LoggingMixin):
         return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
+        """Return a string representation of the Connection object."""
         return self.conn_id or ""
 
     def log_info(self):

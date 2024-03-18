@@ -995,6 +995,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             SetupTeardownContext.update_context_map(self)
 
     def __eq__(self, other):
+        """Determine whether two instances of BaseOperator are equal."""
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
@@ -1002,9 +1003,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return False
 
     def __ne__(self, other):
+        """Determine whether two instances of BaseOperator are not equal."""
         return not self == other
 
     def __hash__(self):
+        """Compute the hash value of the BaseOperator instance."""
         hash_components = [type(self)]
         for component in self._comps:
             val = getattr(self, component, None)
@@ -1068,6 +1071,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self
 
     def __setattr__(self, key, value):
+        """Set the value of attributes for instances of the BaseOperator class."""
         super().__setattr__(key, value)
         if self.__from_mapped or self._lock_for_execution:
             return  # Skip any custom behavior for validation and during execute.
@@ -1219,6 +1223,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
 
     def __deepcopy__(self, memo):
+        """Deep copy instances of the BaseOperator classes."""
         # Hack sorting double chained task lists by task_id to avoid hitting
         # max_depth on deepcopy operations.
         sys.setrecursionlimit(5000)  # TODO fix this in a better way
@@ -1241,6 +1246,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return result
 
     def __getstate__(self):
+        """Get the state of the object for serialization."""
         state = dict(self.__dict__)
         if self._log:
             del state["_log"]
@@ -1248,6 +1254,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return state
 
     def __setstate__(self, state):
+        """Restore the object's state from a serialized state dictionary."""
         self.__dict__ = state
 
     def render_template_fields(
@@ -1401,6 +1408,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return self.downstream_list
 
     def __repr__(self):
+        """Return a string representation of the Task object."""
         return f"<Task({self.task_type}): {self.task_id}>"
 
     @property

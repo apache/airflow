@@ -718,10 +718,12 @@ class AbstractOperator(Templater, DAGNode):
                 setattr(parent, attr_name, rendered_content)
 
     def __enter__(self):
+        """Enter the context manager for setup or teardown tasks."""
         if not self.is_setup and not self.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self)
         return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager for setup or teardown tasks."""
         SetupTeardownContext.set_work_task_roots_and_leaves()

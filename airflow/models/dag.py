@@ -198,6 +198,7 @@ class InconsistentDataInterval(AirflowException):
         self._end_field = (end_field_name, getattr(instance, end_field_name))
 
     def __str__(self) -> str:
+        """Return a string representation of the InconsistentDataInterval exception."""
         return self._template.format(cls=self._class_name, start=self._start_field, end=self._end_field)
 
 
@@ -781,9 +782,11 @@ class DAG(LoggingMixin):
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
+        """Return a string representation of the DAG object."""
         return f"<DAG: {self.dag_id}>"
 
     def __eq__(self, other):
+        """Check if two DAG objects are equal."""
         if type(self) == type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return
             # correct values for properties.
@@ -791,12 +794,15 @@ class DAG(LoggingMixin):
         return False
 
     def __ne__(self, other):
+        """Check if two DAG objects are not equal."""
         return not self == other
 
     def __lt__(self, other):
+        """Compare two DAG objects based on their DAG ID."""
         return self.dag_id < other.dag_id
 
     def __hash__(self):
+        """Compute the hash value of the DAG object."""
         hash_components = [type(self)]
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
@@ -813,10 +819,12 @@ class DAG(LoggingMixin):
 
     # Context Manager -----------------------------------------------
     def __enter__(self):
+        """Enter the context manager scope for the DAG object."""
         DagContext.push_context_managed_dag(self)
         return self
 
     def __exit__(self, _type, _value, _tb):
+        """Exit the context manager scope for the DAG object."""
         DagContext.pop_context_managed_dag()
 
     # /Context Manager ----------------------------------------------
@@ -2438,6 +2446,7 @@ class DAG(LoggingMixin):
         return count
 
     def __deepcopy__(self, memo):
+        """Create a deep copy of the DAG object."""
         # Switcharoo to go around deepcopying objects coming through the
         # backdoor
         cls = self.__class__
@@ -3521,6 +3530,7 @@ class DagTag(Base):
     )
 
     def __repr__(self):
+        """Return a string representation of the DagTag object."""
         return self.name
 
 
@@ -3542,6 +3552,7 @@ class DagOwnerAttributes(Base):
     link = Column(String(500), nullable=False)
 
     def __repr__(self):
+        """Return a string representation of the DagOwnerAttributes object."""
         return f"<DagOwnerAttributes: dag_id={self.dag_id}, owner={self.owner}, link={self.link}>"
 
     @classmethod
@@ -3670,6 +3681,7 @@ class DagModel(Base):
             self.has_task_concurrency_limits = True
 
     def __repr__(self):
+        """Return a string representation of the DagModel object."""
         return f"<DAG: {self.dag_id}>"
 
     @property
