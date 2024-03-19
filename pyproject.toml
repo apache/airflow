@@ -23,10 +23,9 @@
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
     "GitPython==3.1.42",
-    "editables==0.5",
     "gitdb==4.0.11",
-    "hatchling==1.21.1",
-    "packaging==23.2",
+    "hatchling==1.22.3",
+    "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
     "smmap==5.0.1",
