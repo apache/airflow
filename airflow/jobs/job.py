@@ -29,6 +29,7 @@ from sqlalchemy.orm.session import make_transient
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
@@ -104,12 +105,13 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob and BackfillJob instances.
     """
 
-    def __init__(self, executor=None, heartrate=None, **kwargs):
+    def __init__(self, executor: BaseExecutor | None = None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.heartbeat_failed = False
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
+            self.executors = [executor]
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
