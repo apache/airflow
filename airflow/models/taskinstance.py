@@ -2108,6 +2108,14 @@ class TaskInstance(Base, LoggingMixin):
         """Check on whether the task instance is in the right state and timeframe to be retried."""
         return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
+    @staticmethod
+    @internal_api_call
+    def _get_dagrun(dag_id, run_id, session):
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        return dr
+
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
         """
@@ -2124,13 +2132,10 @@ class TaskInstance(Base, LoggingMixin):
                 self.dag_run.dag = self.task.dag
             return self.dag_run
 
-        from airflow.models.dagrun import DagRun  # Avoid circular import
-
-        dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
+        dr = self._get_dagrun(self.dag_id, self.run_id, session)
         if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
-
             dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, "dag_run", dr)
