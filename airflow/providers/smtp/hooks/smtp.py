@@ -20,6 +20,7 @@ Search in emails for a specific attachment and also to download it.
 
 It uses the smtplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import collections.abc
@@ -275,7 +276,8 @@ class SmtpHook(BaseHook):
 
         msg = MIMEMultipart(mime_subtype)
         msg["Subject"] = subject
-        msg["From"] = mail_from
+        if mail_from:
+            msg["From"] = mail_from
         msg["To"] = ", ".join(to)
         recipients = to
         if cc:

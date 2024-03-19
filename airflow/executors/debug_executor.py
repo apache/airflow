@@ -22,6 +22,7 @@ DebugExecutor.
     For more information on how the DebugExecutor works, take a look at the guide:
     :ref:`executor:DebugExecutor`
 """
+
 from __future__ import annotations
 
 import threading
@@ -109,7 +110,7 @@ class DebugExecutor(BaseExecutor):
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere
-            priority=task_instance.task.priority_weight_total,
+            priority=task_instance.priority_weight,
             queue=task_instance.task.queue,
         )
         # Save params for TaskInstance._run_raw_task

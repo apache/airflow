@@ -442,8 +442,10 @@ Misc
    * ``Import Hooks lazily individually in providers manager (#17682)``
    * ``Improve postgres provider logging (#17214)``
 
-2.1.0
-.....
+2.1.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``The postgres operator seem to conflict with earlier versions of Airflow``
 
 Features
 ~~~~~~~~

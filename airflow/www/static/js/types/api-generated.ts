@@ -1536,6 +1536,8 @@ export interface components {
        */
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      /** @description Nested dataset any/all conditions */
+      dataset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
       /**

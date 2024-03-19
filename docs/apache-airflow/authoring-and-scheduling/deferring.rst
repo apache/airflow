@@ -109,7 +109,7 @@ If you want to trigger deferral, at any place in your operator, you can call ``s
 
 When you opt to defer, your operator will stop executing at that point and be removed from its current worker. No state will persist, such as local variables or attributes set on ``self``. When your operator resumes, it resumes as a new instance of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
 
-When your operator resumes, Airflow adds an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
+When your operator resumes, Airflow adds a ``context`` object and an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results. Or, it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``context`` and ``event`` as a keyword argument.
 
 If your operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
 
@@ -196,33 +196,6 @@ The code example shows several things:
 Triggers can be as complex or as simple as you want, provided they meet the design constraints. They can run in a highly-available fashion, and are auto-distributed among hosts running the triggerer. We encourage you to avoid any kind of persistent state in a trigger. Triggers should get everything they need from their ``__init__``, so they can be serialized and moved around freely.
 
 If you are new to writing asynchronous Python, be very careful when writing your ``run()`` method. Python's async model means that code can block the entire process if it does not correctly ``await`` when it does a blocking operation. Airflow attempts to detect process blocking code and warn you in the triggerer logs when it happens. You can enable extra checks by Python by setting the variable ``PYTHONASYNCIODEBUG=1`` when you are writing your trigger to make sure you're writing non-blocking code. Be especially careful when doing filesystem calls, because if the underlying filesystem is network-backed, it can be blocking.
-
-Sensitive information in triggers
-'''''''''''''''''''''''''''''''''
-
-Triggers are serialized and stored in the database, so they can be re-instantiated on any triggerer process. This means that any sensitive information you pass to a trigger will be stored in the database.
-If you want to pass sensitive information to a trigger, you can encrypt it before passing it to the trigger, and decrypt it inside the trigger, or update the argument name in the ``serialize`` method by adding ``encrypted__`` as a prefix, and Airflow will automatically encrypt the argument before storing it in the database, and decrypt it when it is read from the database.
-
-.. code-block:: python
-
-    class MyTrigger(BaseTrigger):
-        def __init__(self, param, secret):
-            super().__init__()
-            self.param = param
-            self.secret = secret
-
-        def serialize(self):
-            return (
-                "airflow.triggers.MyTrigger",
-                {
-                    "param": self.param,
-                    "encrypted__secret": self.secret,
-                },
-            )
-
-        async def run(self):
-            # self.my_secret will be decrypted here
-            ...
 
 High Availability
 -----------------

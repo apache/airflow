@@ -54,7 +54,7 @@ function common::get_packaging_tool() {
             export EXTRA_UNINSTALL_FLAGS=""
         fi
         export UPGRADE_EAGERLY="--upgrade --resolution highest"
-        export UPGRADE_IF_NEEDED="--upgrade --resolution lowest-direct"
+        export UPGRADE_IF_NEEDED="--upgrade"
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -77,10 +77,6 @@ function common::get_airflow_version_specification() {
 }
 
 function common::get_constraints_location() {
-    if [[ -f "${HOME}/constraints.txt" ]]; then
-        # constraints are already downloaded, do not calculate/override again
-        return
-    fi
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then

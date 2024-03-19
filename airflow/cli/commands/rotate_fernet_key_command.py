@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Rotate Fernet key command."""
+
 from __future__ import annotations
 
 from sqlalchemy import select

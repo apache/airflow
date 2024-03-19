@@ -172,7 +172,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.8.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -189,7 +189,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
@@ -198,7 +197,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_installers.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_installers.py$
         pass_filenames: false
         require_serial: true
@@ -208,7 +206,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
@@ -338,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -348,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -691,7 +688,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
+        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$|^tests/.*$
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -1104,7 +1101,7 @@ repos:
           airflow/example_dags/.*
         args:
           - "--skip"
-          - "B301,B324,B403,B404,B603"
+          - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
       - id: pylint

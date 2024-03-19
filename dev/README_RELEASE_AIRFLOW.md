@@ -309,7 +309,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git pull # Ensure that the script is up-to-date
     breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
     # Create issue for testing the RC
-    ./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_VERSION> --current-release ${VERSION}
+    breeze release-management generate-issue-content-core --previous-release <PREVIOUS_VERSION>
+    --current-release ${VERSION}
     ```
 
 ## Prepare production Docker Image RC
@@ -822,7 +823,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.8 3.9 3.10 3.11
+for PYTHON in 3.8 3.9 3.10 3.11 3.12
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}

@@ -18,6 +18,7 @@
 """
 This module contains various unit tests for Google Cloud DLP Operators
 """
+
 from __future__ import annotations
 
 from unittest import mock

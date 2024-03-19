@@ -18,6 +18,7 @@
 This module contains the unit tests for the helper methods included in the Amazon System Tests found at
 tests/system/providers/amazon/aws/utils/__init__.py
 """
+
 from __future__ import annotations
 
 import os

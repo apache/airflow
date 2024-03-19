@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for stringified DAGs."""
+
 from __future__ import annotations
 
 import copy
@@ -26,11 +27,12 @@ import multiprocessing
 import os
 import pickle
 import re
-from datetime import datetime, timedelta
+import sys
+from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import attr
@@ -68,6 +70,7 @@ from airflow.serialization.serialized_objects import (
     SerializedBaseOperator,
     SerializedDAG,
 )
+from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
@@ -189,6 +192,7 @@ serialized_simple_dag_ground_truth = {
                 },
                 "doc_md": "### Task Tutorial Documentation",
                 "_log_config_logger_name": "airflow.task.operators",
+                "weight_rule": "downstream",
             },
             {
                 "task_id": "custom_task",
@@ -212,6 +216,7 @@ serialized_simple_dag_ground_truth = {
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
                 "_log_config_logger_name": "airflow.task.operators",
+                "weight_rule": "downstream",
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -305,6 +310,17 @@ def make_user_defined_macro_filter_dag():
     return {dag.dag_id: dag}
 
 
+def get_excluded_patterns() -> Generator[str, None, None]:
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+    all_providers = json.loads((repo_root / "generated" / "provider_dependencies.json").read_text())
+    for provider, provider_info in all_providers.items():
+        if python_version in provider_info.get("excluded-python-versions"):
+            provider_path = provider.replace(".", "/")
+            yield f"airflow/providers/{provider_path}/"
+            yield f"tests/providers/{provider_path}/"
+            yield f"tests/system/providers/{provider_path}/"
+
+
 def collect_dags(dag_folder=None):
     """Collects DAGs to test."""
     dags = {}
@@ -324,8 +340,11 @@ def collect_dags(dag_folder=None):
             "tests/system/providers/*/",
             "tests/system/providers/*/*/",
         ]
+    excluded_patterns = [f"{ROOT_FOLDER}/{excluded_pattern}" for excluded_pattern in get_excluded_patterns()]
     for pattern in patterns:
         for directory in glob(f"{ROOT_FOLDER}/{pattern}"):
+            if any([directory.startswith(excluded_pattern) for excluded_pattern in excluded_patterns]):
+                continue
             dags.update(make_example_dags(directory))
 
     # Filter subdags as they are stored in same row in Serialized Dag table
@@ -695,7 +714,16 @@ class TestStringifiedDAGs:
                 datetime(2019, 7, 30, tzinfo=timezone.utc),
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
             ),
-            (pendulum.datetime(2019, 8, 1, tz="UTC"), None, pendulum.datetime(2019, 8, 1, tz="UTC")),
+            (
+                datetime(2019, 8, 1, tzinfo=dt_timezone(timedelta(hours=1))),
+                datetime(2019, 7, 30, tzinfo=dt_timezone(timedelta(hours=1))),
+                datetime(2019, 8, 1, tzinfo=dt_timezone(timedelta(hours=1))),
+            ),
+            (
+                pendulum.datetime(2019, 8, 1, tz="UTC"),
+                None,
+                pendulum.datetime(2019, 8, 1, tz="UTC"),
+            ),
         ],
     )
     def test_deserialization_start_date(self, dag_start_date, task_start_date, expected_task_start_date):
@@ -1265,7 +1293,7 @@ class TestStringifiedDAGs:
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
-            "weight_rule": "downstream",
+            "weight_rule": _DownstreamPriorityWeightStrategy(),
             "multiple_outputs": False,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

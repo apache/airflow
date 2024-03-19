@@ -3693,7 +3693,9 @@ class Airflow(AirflowBaseView):
             return {"error": f"can't find dag {dag_id}"}, 404
 
         with create_session() as session:
-            data = [
+            dag_model = DagModel.get_dagmodel(dag_id, session=session)
+
+            events = [
                 dict(info)
                 for info in session.execute(
                     select(
@@ -3722,6 +3724,7 @@ class Airflow(AirflowBaseView):
                     .order_by(DatasetModel.uri)
                 )
             ]
+            data = {"dataset_expression": dag_model.dataset_expression, "events": events}
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},

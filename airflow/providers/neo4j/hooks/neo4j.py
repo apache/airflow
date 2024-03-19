@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows to connect to a Neo4j database."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

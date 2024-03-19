@@ -47,12 +47,8 @@ PIP_PATTERN = re.compile(r"AIRFLOW_PIP_VERSION=[0-9.]+")
 UV_PATTERN = re.compile(r"AIRFLOW_UV_VERSION=[0-9.]+")
 UV_GREATER_PATTERN = re.compile(r'"uv>=[0-9]+[0-9.]+"')
 
-# For now we temporarily disable upgrading uv in the pre-commit hook because the latest version (0.1.16)
-# is not compatible with our pyproject.toml using Draft https://peps.python.org/pep-0639/
-# licence-files key (which hatchling backend already supports nicely)
-# We will re-enable it once the problem is addressed:
-# Issue: https://github.com/astral-sh/uv/issues/2302
 UPGRADE_UV: bool = os.environ.get("UPGRADE_UV", "true").lower() == "true"
+UPGRADE_PIP: bool = os.environ.get("UPGRADE_PIP", "true").lower() == "true"
 
 if __name__ == "__main__":
     pip_version = get_latest_pypi_version("pip")
@@ -65,7 +61,8 @@ if __name__ == "__main__":
         console.print(f"[bright_blue]Updating {file}")
         file_content = file.read_text()
         new_content = file_content
-        new_content = re.sub(PIP_PATTERN, f"AIRFLOW_PIP_VERSION={pip_version}", new_content, re.MULTILINE)
+        if UPGRADE_PIP:
+            new_content = re.sub(PIP_PATTERN, f"AIRFLOW_PIP_VERSION={pip_version}", new_content, re.MULTILINE)
         if UPGRADE_UV:
             new_content = re.sub(UV_PATTERN, f"AIRFLOW_UV_VERSION={uv_version}", new_content, re.MULTILINE)
             new_content = re.sub(UV_GREATER_PATTERN, f'"uv>={uv_version}"', new_content, re.MULTILINE)

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Ad hook."""
+
 from __future__ import annotations
 
 from functools import cached_property

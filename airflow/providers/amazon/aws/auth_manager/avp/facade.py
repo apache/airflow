@@ -94,7 +94,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         if user is None:
             return False
 
-        entity_list = self._get_user_role_entities(user)
+        entity_list = self._get_user_group_entities(user)
 
         self.log.debug(
             "Making authorization request for user=%s, method=%s, entity_type=%s, entity_id=%s",
@@ -144,7 +144,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         :param requests: the list of requests containing the method, the entity_type and the entity ID
         :param user: the user
         """
-        entity_list = self._get_user_role_entities(user)
+        entity_list = self._get_user_group_entities(user)
 
         self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
 
@@ -223,19 +223,19 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         raise AirflowException("Could not find the authorization result.")
 
     @staticmethod
-    def _get_user_role_entities(user: AwsAuthManagerUser) -> list[dict]:
+    def _get_user_group_entities(user: AwsAuthManagerUser) -> list[dict]:
         user_entity = {
             "identifier": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
             "parents": [
-                {"entityType": get_entity_type(AvpEntities.ROLE), "entityId": group}
+                {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}
                 for group in user.get_groups()
             ],
         }
-        role_entities = [
-            {"identifier": {"entityType": get_entity_type(AvpEntities.ROLE), "entityId": group}}
+        group_entities = [
+            {"identifier": {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}}
             for group in user.get_groups()
         ]
-        return [user_entity, *role_entities]
+        return [user_entity, *group_entities]
 
     @staticmethod
     def _build_context(context: dict | None) -> dict | None:

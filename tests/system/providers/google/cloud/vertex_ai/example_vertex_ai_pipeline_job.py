@@ -20,6 +20,7 @@
 """
 Example Airflow DAG for Google Vertex AI service testing Pipeline Job operations.
 """
+
 from __future__ import annotations
 
 import os

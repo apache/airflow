@@ -414,6 +414,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
     def _execute_callable(context, **execute_callable_kwargs):
         try:
+            # Print a marker for log grouping of details before task execution
+            log.info("::endgroup::")
+
             return execute_callable(context=context, **execute_callable_kwargs)
         except SystemExit as e:
             # Handle only successful cases here. Failure cases will be handled upper
@@ -421,6 +424,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             if e.code is not None and e.code != 0:
                 raise
             return None
+        finally:
+            # Print a marker post execution for internals of post task processing
+            log.info("::group::Post task execution logs")
 
     # If a timeout is specified for the task, make it fail
     # if it goes beyond
@@ -911,7 +917,11 @@ def _refresh_from_task(
     task_instance.queue = task.queue
     task_instance.pool = pool_override or task.pool
     task_instance.pool_slots = task.pool_slots
-    task_instance.priority_weight = task.priority_weight_total
+    with contextlib.suppress(Exception):
+        # This method is called from the different places, and sometimes the TI is not fully initialized
+        task_instance.priority_weight = task_instance.task.weight_rule.get_weight(
+            task_instance  # type: ignore[arg-type]
+        )
     task_instance.run_as_user = task.run_as_user
     # Do not set max_tries to task.retries here because max_tries is a cumulative
     # value that needs to be stored in the db.
@@ -1025,7 +1035,8 @@ def _email_alert(
     :meta private:
     """
     subject, html_content, html_content_err = task_instance.get_email_subject_content(exception, task=task)
-    assert task.email
+    if TYPE_CHECKING:
+        assert task.email
     try:
         send_email(task.email, subject, html_content)
     except Exception:
@@ -1414,6 +1425,10 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta private:
         """
+        priority_weight = task.weight_rule.get_weight(
+            TaskInstance(task=task, run_id=run_id, map_index=map_index)
+        )
+
         return {
             "dag_id": task.dag_id,
             "task_id": task.task_id,
@@ -1424,7 +1439,7 @@ class TaskInstance(Base, LoggingMixin):
             "queue": task.queue,
             "pool": task.pool,
             "pool_slots": task.pool_slots,
-            "priority_weight": task.priority_weight_total,
+            "priority_weight": priority_weight,
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
             "executor_config": task.executor_config,
