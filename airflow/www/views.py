@@ -2147,7 +2147,7 @@ class Airflow(AirflowBaseView):
             flash(f"{ve}", "error")
             form = DateTimeForm(data={"execution_date": execution_date})
             # Take over "bad" submitted fields for new form display
-            for k, v in form_fields.items():
+            for k in form_fields:
                 if k in run_conf:
                     form_fields[k]["value"] = run_conf[k]
             return self.render_template(
@@ -4597,7 +4597,7 @@ class ConnectionModelView(AirflowModelView):
                 )
                 del form.extra
         del extra_json
-        for key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
+        for key, field_name, _ in self._iter_extra_field_names_and_sensitivity():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
