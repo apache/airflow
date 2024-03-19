@@ -1849,15 +1849,14 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
-        TI = TaskInstance
         if not isinstance(ti, TaskInstance):
             ti = (
-                session.query(TI)
+                session.query(TaskInstance)
                 .filter(
-                    TI.task_id == ti.task_id,
-                    TI.dag_id == ti.dag_id,
-                    TI.run_id == ti.run_id,
-                    TI.map_index == ti.map_index,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
                 )
                 .one()
             )
