@@ -201,8 +201,8 @@ class TestGetUser(TestUserEndpoint):
         assert {
             "detail": "The User with username `invalid-user` was not found",
             "status": 404,
-            "title": "User not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
+            "title": "Not Found",
+            "type": "about:blank",
         } == response.json()
 
     def test_should_raises_401_unauthenticated(self):
