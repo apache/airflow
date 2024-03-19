@@ -383,12 +383,20 @@ class DockerOperator(BaseOperator):
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
     def _restore_log_formatters(self):
-        for handler, formatter in self._log_formatter_backup.items():
-            handler.setFormatter(formatter)
+        try:
+            for handler, formatter in self._log_formatter_backup.items():
+                handler.setFormatter(formatter)
+        except Exception as e:
+            self.log.warning(f"Failed to restore logging formatters: {e}")
 
-    def _change_log_formatters(self):
-        for handler in self.log.handlers:
-            handler.setFormatter(logging.Formatter(self.container_log_formatter))
+    def _change_log_formatters(self, new_formatter: logging.Formatter):
+        try:
+            for handler in self.log.handlers:
+                handler.setFormatter(new_formatter)
+        except (ValueError, TypeError) as e:
+            self.log.warning(f"Unrecognized logging formatters: {new_formatter} - {e}")
+        except Exception as e:
+            self.log.warning(f"Failed to change logging formatters: {e}")
 
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
@@ -435,7 +443,8 @@ class DockerOperator(BaseOperator):
         )
         logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
-            self._change_log_formatters()
+            if self.container_log_formatter is not None:
+                self._change_log_formatters(self.container_log_formatter)
 
             self.cli.start(self.container["Id"])
 

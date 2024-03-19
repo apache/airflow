@@ -734,10 +734,12 @@ class TestDockerOperator:
         default_formatters = {handler: handler.formatter for handler in operator.log.handlers}
         assert operator.container_log_formatter == formatter
         assert operator._log_formatter_backup == default_formatters
-        operator._change_log_formatters()
+        operator._change_log_formatters(operator.container_log_formatter)
         for handler in operator.log.handlers:
             assert formatter == handler.formatter
         operator._restore_log_formatters()
+        for handler in operator.log.handlers:
+            assert default_formatters[handler] == handler.formatter
         assert operator.container_log_formatter == formatter
         assert operator._log_formatter_backup == default_formatters
 
