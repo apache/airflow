@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Serialized DAG table in database."""
+
 from __future__ import annotations
 
 import logging
@@ -402,9 +403,6 @@ class SerializedDagModel(Base):
             query = session.execute(
                 select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
             )
-            iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
-        elif session.bind.dialect.name == "mssql":
-            query = session.execute(select(cls.dag_id, func.json_query(cls._data, "$.dag.dag_dependencies")))
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
             iterator = session.execute(

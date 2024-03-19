@@ -40,7 +40,7 @@ const BUILD_DIR = path.resolve(__dirname, "./static/dist");
 // Convert licenses json into a standard format for LICENSES.txt
 const formatLicenses = (packages) => {
   let text = `Apache Airflow
-Copyright 2016-2021 The Apache Software Foundation
+Copyright 2016-2023 The Apache Software Foundation
 
 This product includes software developed at The Apache Software
 Foundation (http://www.apache.org/).
@@ -275,7 +275,7 @@ const config = {
     }),
     new LicensePlugin({
       additionalFiles: {
-        "../../../../licenses/LICENSES-ui.txt": formatLicenses,
+        "../../../../3rd-party-licenses/LICENSES-ui.txt": formatLicenses,
       },
       unacceptableLicenseTest: (licenseIdentifier) =>
         [

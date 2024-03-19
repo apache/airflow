@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import click
 
+from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
-from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -138,6 +139,7 @@ def instruction_update_version_branch(version_branch):
 def create_constraints(version_branch):
     if confirm_action("Do you want to create branches from the constraints main?"):
         run_command(["git", "checkout", "constraints-main"], dry_run_override=DRY_RUN, check=True)
+        run_command(["git", "pull", "origin", "constraints-main"], dry_run_override=DRY_RUN, check=True)
         run_command(
             ["git", "checkout", "-b", f"constraints-{version_branch}"], dry_run_override=DRY_RUN, check=True
         )
@@ -157,7 +159,18 @@ def create_constraints(version_branch):
 @option_answer
 def create_minor_version_branch(version_branch):
     for obj in version_branch.split("-"):
-        assert isinstance(int(obj), int)
+        if not obj.isdigit():
+            console_print(f"[error]Failed `version_branch` part {obj!r} not a digit.")
+            sys.exit(1)
+        elif len(obj) > 1 and obj.startswith("0"):
+            # `01` is a valid digit string, as well as it could be converted to the integer,
+            # however, it might be considered as typo (e.g. 10) so better stop here
+            console_print(
+                f"[error]Found leading zero into the `version_branch` part {obj!r} ",
+                f"if it is not a typo consider to use {int(obj)} instead.",
+            )
+            sys.exit(1)
+
     os.chdir(AIRFLOW_SOURCES_ROOT)
     repo_root = os.getcwd()
     console_print()

@@ -23,7 +23,7 @@ from flask import Blueprint
 from flask_appbuilder import BaseView
 
 from airflow.hooks.base import BaseHook
-from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -36,12 +36,10 @@ from tests.test_utils.mock_plugins import mock_plugin_manager
 pytestmark = pytest.mark.db_test
 
 
-class PluginHook(BaseHook):
-    ...
+class PluginHook(BaseHook): ...
 
 
-def plugin_macro():
-    ...
+def plugin_macro(): ...
 
 
 class MockOperatorLink(BaseOperatorLink):
@@ -54,8 +52,7 @@ class MockOperatorLink(BaseOperatorLink):
 bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
 
 
-class MockView(BaseView):
-    ...
+class MockView(BaseView): ...
 
 
 mockview = MockView()

@@ -17,10 +17,8 @@
 from __future__ import annotations
 
 import base64
-import inspect
 import os
 import pickle
-import textwrap
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Callable, Sequence
 
@@ -28,14 +26,6 @@ import dill
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.docker.operators.docker import DockerOperator
-
-try:
-    from airflow.utils.decorators import remove_task_decorator
-
-    # This can be removed after we move to Airflow 2.4+
-except ImportError:
-    from airflow.utils.python_virtualenv import remove_task_decorator
-
 from airflow.utils.python_virtualenv import write_python_script
 
 if TYPE_CHECKING:
@@ -135,13 +125,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
             self.command = self.generate_command()
             return super().execute(context)
-
-    # TODO: Remove me once this provider min supported Airflow version is 2.6
-    def get_python_source(self):
-        raw_source = inspect.getsource(self.python_callable)
-        res = textwrap.dedent(raw_source)
-        res = remove_task_decorator(res, self.custom_operator_name)
-        return res
 
     @property
     def pickling_library(self):

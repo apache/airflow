@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """GRPC Hook."""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Generator
 
 import grpc
 from google import auth as google_auth
-from google.auth import jwt as google_auth_jwt
+from google.auth import jwt as google_auth_jwt  # type: ignore[attr-defined]
 from google.auth.transport import (
     grpc as google_auth_transport_grpc,
     requests as google_auth_transport_requests,
@@ -51,9 +52,9 @@ class GrpcHook(BaseHook):
     conn_type = "grpc"
     hook_name = "GRPC Connection"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to GRPC connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField

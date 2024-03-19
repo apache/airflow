@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
 def bigquery_get_data(
     logger: Logger,
-    dataset_id: str,
-    table_id: str,
+    dataset_id: str | None,
+    table_id: str | None,
     big_query_hook: BigQueryHook,
     batch_size: int,
     selected_fields: list[str] | str | None,

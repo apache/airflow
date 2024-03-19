@@ -27,7 +27,7 @@ The Microsoft Azure File Share connection type enables the Azure File Share Inte
 Authenticating to Azure File Share
 ----------------------------------
 
-There are four ways to connect to Azure File Share using Airflow.
+There are five ways to connect to Azure File Share using Airflow.
 
 1. Use `token credentials
    <https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity>`_
@@ -38,7 +38,8 @@ There are four ways to connect to Azure File Share using Airflow.
 3. Use a `Connection String
    <https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string>`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
-4. Fallback on `DefaultAzureCredential`_.
+4. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+5. Fallback on `DefaultAzureCredential`_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -69,6 +70,8 @@ Extra (optional)
 
     * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
     * ``sas_token``: SAS Token for use with SAS Token authentication. It can be left out to fall back on DefaultAzureCredential_.
+    * ``managed_identity_client_id``:  The client ID of a user-assigned managed identity. If provided with `workload_identity_tenant_id`, they'll pass to DefaultAzureCredential_.
+    * ``workload_identity_tenant_id``: ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with `managed_identity_client_id`, they'll pass to DefaultAzureCredential_.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -83,3 +86,7 @@ For example connect with token credentials:
 
 
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
+
+.. spelling:word-list::
+
+    Entra

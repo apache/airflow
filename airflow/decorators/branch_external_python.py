@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class _BranchExternalPythonDecoratedOperator(_PythonDecoratedOperator, BranchExternalPythonOperator):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
+    template_fields = BranchExternalPythonOperator.template_fields
     custom_operator_name: str = "@task.branch_external_python"
 
 

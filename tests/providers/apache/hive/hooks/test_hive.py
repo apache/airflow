@@ -17,22 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from airflow import PY311
-
-if PY311:
-    pytest.skip(
-        "The tests are skipped because Apache Hive provider is not supported on Python 3.11",
-        allow_module_level=True,
-    )
-
 import datetime
 import itertools
 from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
+import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -416,16 +407,16 @@ class TestHiveMetastoreHook:
         socket_mock.socket.return_value.connect_ex.return_value = 0
         self.hook.get_metastore_client()
 
-    @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-        return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
-    )
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
-    def test_ha_hosts(self, socket_mock, get_connection_mock):
-        socket_mock.socket.return_value.connect_ex.return_value = 1
-        with pytest.raises(AirflowException):
-            HiveMetastoreHook()
-        assert socket_mock.socket.call_count == 2
+    def test_ha_hosts(self, socket_mock):
+        with mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
+            return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
+        ):
+            socket_mock.socket.return_value.connect_ex.return_value = 1
+            with pytest.raises(AirflowException):
+                HiveMetastoreHook()
+            assert socket_mock.socket.call_count == 2
 
     def test_get_conn(self):
         with mock.patch(
@@ -879,18 +870,26 @@ class TestHiveCli:
     def setup_method(self):
         self.nondefault_schema = "nondefault"
 
-    def test_get_proxy_user_value(self):
+    @pytest.mark.parametrize(
+        "extra_dejson, correct_proxy_user, proxy_user",
+        [
+            ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
+        ],
+    )
+    def test_get_proxy_user_value(self, extra_dejson, correct_proxy_user, proxy_user):
         hook = MockHiveCliHook()
         returner = mock.MagicMock()
-        returner.extra_dejson = {"proxy_user": "a_user_proxy"}
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
         hook.use_beeline = True
         hook.conn = returner
+        hook.proxy_user = proxy_user
 
         # Run
         result = hook._prepare_cli_cmd()
 
         # Verify
-        assert "hive.server2.proxy.user=a_user_proxy" in result[2]
+        assert correct_proxy_user in result[2]
 
     def test_get_wrong_principal(self):
         hook = MockHiveCliHook()

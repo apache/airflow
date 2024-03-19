@@ -28,7 +28,8 @@ from sqlalchemy.orm.exc import NoResultFound
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -156,7 +157,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise AirflowException("conf parameter should be JSON Serializable")
 
         if self.trigger_run_id:
-            run_id = self.trigger_run_id
+            run_id = str(self.trigger_run_id)
         else:
             run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
 
@@ -174,15 +175,14 @@ class TriggerDagRunOperator(BaseOperator):
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
 
                 # Get target dag object and call clear()
-
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
                 dag_run = e.dag_run
+                dag.clear(start_date=dag_run.execution_date, end_date=dag_run.execution_date)
             else:
                 raise e
         if dag_run is None:

@@ -37,6 +37,7 @@ example:
     # configuration requirements.
     remote_logging = True
     remote_base_log_folder = gs://my-bucket/path/to/logs
+    remote_log_conn_id = my_gcs_conn
 
 #. By default Application Default Credentials are used to obtain credentials. You can also
    set ``google_key_path`` option in ``[logging]`` section, if you want to use your own service account.

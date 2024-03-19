@@ -28,7 +28,6 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
-    DEFAULT_CONN_ID,
     EcsBaseOperator,
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
@@ -38,6 +37,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -112,30 +112,28 @@ class TestEcsBaseOperator(EcsBaseTestCase):
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
         op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else DEFAULT_CONN_ID)
+        assert op.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
         assert op.region == (region_name if region_name is not NOTSET else None)
 
-    @mock.patch("airflow.providers.amazon.aws.operators.ecs.EcsHook")
     @pytest.mark.parametrize("aws_conn_id", [None, NOTSET, "aws_test_conn"])
     @pytest.mark.parametrize("region_name", [None, NOTSET, "ca-central-1"])
-    def test_hook_and_client(self, mock_ecs_hook_cls, aws_conn_id, region_name):
-        """Test initialize ``EcsHook`` and ``boto3.client``."""
-        mock_ecs_hook = mock_ecs_hook_cls.return_value
-        mock_conn = mock.MagicMock()
-        type(mock_ecs_hook).conn = mock.PropertyMock(return_value=mock_conn)
-
+    def test_initialise_operator_hook(self, aws_conn_id, region_name):
+        """Test initialize operator."""
         op_kw = {"aws_conn_id": aws_conn_id, "region": region_name}
         op_kw = {k: v for k, v in op_kw.items() if v is not NOTSET}
-        op = EcsBaseOperator(task_id="test_ecs_base_hook_client", **op_kw)
+        op = EcsBaseOperator(task_id="test_ecs_base", **op_kw)
 
-        hook = op.hook
-        assert op.hook is hook
-        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
+        assert op.hook.aws_conn_id == (aws_conn_id if aws_conn_id is not NOTSET else "aws_default")
+        assert op.hook.region_name == (region_name if region_name is not NOTSET else None)
 
-        client = op.client
-        mock_ecs_hook_cls.assert_called_once_with(aws_conn_id=op.aws_conn_id, region_name=op.region)
-        assert client == mock_conn
-        assert op.client is client
+        with mock.patch.object(EcsBaseOperator, "hook", new_callable=mock.PropertyMock) as m:
+            mocked_hook = mock.MagicMock(name="MockHook")
+            mocked_client = mock.MagicMock(name="Mocklient")
+            mocked_hook.conn = mocked_client
+            m.return_value = mocked_hook
+
+            assert op.client == mocked_client
+            m.assert_called_once()
 
 
 class TestEcsRunTaskOperator(EcsBaseTestCase):
@@ -683,6 +681,54 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         # task gets described to assert its success
         client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "region, region_name, expected_region_name",
+        [
+            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
+            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
+        ],
+    )
+    def test_partial_deprecated_region(self, region, region_name, expected_region_name, dag_maker, session):
+        with dag_maker(dag_id="test_partial_deprecated_region_ecs", session=session):
+            EcsRunTaskOperator.partial(
+                task_id="fake-task-id",
+                region=region,
+                region_name=region_name,
+                cluster="foo",
+                task_definition="bar",
+            ).expand(overrides=[{}, {}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`region` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                    ti.render_templates()
+                assert ti.task.region_name == expected_region_name
+
+    @pytest.mark.db_test
+    def test_partial_ambiguous_region(self, dag_maker, session):
+        with dag_maker("test_partial_ambiguous_region_ecs", session=session):
+            EcsRunTaskOperator.partial(
+                task_id="fake-task-id",
+                region="eu-west-1",
+                region_name="us-west-1",
+                cluster="foo",
+                task_definition="bar",
+            ).expand(overrides=[{}, {}, {}])
+
+        dr = dag_maker.create_dagrun(session=session)
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"`region` is deprecated and will be removed"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                    ValueError, match="Conflicting `region_name` provided"
+                ):
+                    ti.render_templates()
+
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
@@ -723,7 +769,7 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34
@@ -787,7 +833,7 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         }
 
         with pytest.raises(TaskDeferred) as defer:
-            op.execute(None)
+            op.execute(context={})
 
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34

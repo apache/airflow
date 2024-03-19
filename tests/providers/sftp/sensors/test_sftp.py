@@ -29,6 +29,9 @@ from airflow.exceptions import AirflowSkipException
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 
+# Ignore missing args provided by default_args
+# mypy: disable-error-code="arg-type"
+
 
 class TestSFTPSensor:
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")

@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+    from airflow.utils.types import ArgNotSet
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -55,7 +56,7 @@ def _upload_file_to_s3(
     file_obj: IO,
     bucket_name: str,
     s3_key_prefix: str,
-    aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+    aws_conn_id: str | None | ArgNotSet = AwsBaseHook.default_conn_name,
 ) -> None:
     s3_client = S3Hook(aws_conn_id=aws_conn_id).get_conn()
     file_obj.seek(0)

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for RenderedTaskInstanceFields."""
+
 from __future__ import annotations
 
 import os
@@ -137,9 +138,11 @@ class TestRenderedTaskInstanceFields:
         session.add(rtif)
         session.flush()
 
-        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(
-            ti=ti, session=session
-        )
+        assert {
+            "bash_command": expected_rendered_field,
+            "env": None,
+            "cwd": None,
+        } == RTIF.get_templated_fields(ti=ti, session=session)
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
@@ -185,15 +188,7 @@ class TestRenderedTaskInstanceFields:
 
             assert rtif_num == len(result)
 
-            # Verify old records are deleted and only 'num_to_keep' records are kept
-            # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-            expected_query_count_based_on_db = (
-                expected_query_count + 1
-                if session.bind.dialect.name == "mssql" and expected_query_count != 0
-                else expected_query_count
-            )
-
-            with assert_queries_count(expected_query_count_based_on_db):
+            with assert_queries_count(expected_query_count):
                 RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
             result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
             assert remaining_rtifs == len(result)
@@ -231,15 +226,7 @@ class TestRenderedTaskInstanceFields:
             result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
             assert len(result) == num_runs * 2
 
-            # Verify old records are deleted and only 'num_to_keep' records are kept
-            # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-            expected_query_count_based_on_db = (
-                expected_query_count + 1
-                if session.bind.dialect.name == "mssql" and expected_query_count != 0
-                else expected_query_count
-            )
-
-            with assert_queries_count(expected_query_count_based_on_db):
+            with assert_queries_count(expected_query_count):
                 RTIF.delete_old_records(
                     task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
                 )
@@ -277,7 +264,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None}) == result
+        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -303,7 +290,7 @@ class TestRenderedTaskInstanceFields:
         assert (
             "test_write",
             "test",
-            {"bash_command": "echo test_val_updated", "env": None},
+            {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
@@ -317,8 +304,10 @@ class TestRenderedTaskInstanceFields:
             )
         dr = dag_maker.create_dagrun()
         redact.side_effect = [
-            "val 1",
-            "val 2",
+            # Order depends on order in Operator template_fields
+            "val 1",  # bash_command
+            "val 2",  # env
+            "val 3",  # cwd
         ]
 
         ti = dr.task_instances[0]
@@ -327,4 +316,5 @@ class TestRenderedTaskInstanceFields:
         assert rtif.rendered_fields == {
             "bash_command": "val 1",
             "env": "val 2",
+            "cwd": "val 3",
         }

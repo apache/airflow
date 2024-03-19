@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrates with Google Cloud Build service."""
+
 from __future__ import annotations
 
 import json
@@ -1046,7 +1047,7 @@ class BuildProcessor:
 
     def process_body(self) -> Build:
         """
-        Processes the body passed in the constructor.
+        Process the body passed in the constructor.
 
         :return: the body.
         """

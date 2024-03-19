@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains an operator to move data from an S3 bucket to Hive."""
+
 from __future__ import annotations
 
 import bz2
@@ -106,7 +107,7 @@ class S3ToHiveOperator(BaseOperator):
         headers: bool = False,
         check_headers: bool = False,
         wildcard_match: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         hive_cli_conn_id: str = "hive_cli_default",
         input_compressed: bool = False,

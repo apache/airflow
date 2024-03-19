@@ -108,9 +108,9 @@ class AwaitMessageTrigger(BaseTrigger):
             else:
                 rv = await async_message_process(message)
                 if rv:
-                    await async_commit(asynchronous=False)
+                    await async_commit(message=message, asynchronous=False)
                     yield TriggerEvent(rv)
                     break
                 else:
-                    await async_commit(asynchronous=False)
+                    await async_commit(message=message, asynchronous=False)
                     await asyncio.sleep(self.poll_interval)

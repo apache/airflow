@@ -36,7 +36,7 @@ def get_provider_version(provider_name):
     Returns provider version given provider package name.
 
     Example::
-        if provider_version('apache-airflow-providers-cncf-kubernetes') >= (6, 0):
+        if provider_version("apache-airflow-providers-cncf-kubernetes") >= (6, 0):
             raise Exception(
                 "You must now remove `get_kube_client` from PodManager "
                 "and make kube_client a required argument."

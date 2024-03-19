@@ -19,13 +19,17 @@
 
 import React from "react";
 import { Box, Tooltip, Flex } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
 import { getDuration } from "src/datetime_utils";
-import { SimpleStatus } from "src/dag/StatusBox";
+import { SimpleStatus, boxSize } from "src/dag/StatusBox";
 import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
 import type { Task } from "src/types";
+import { useTaskFails } from "src/api";
+
 import GanttTooltip from "./GanttTooltip";
+import TaskFail from "./TaskFail";
 
 interface Props {
   ganttWidth?: number;
@@ -52,18 +56,27 @@ const Row = ({
 
   const instance = task.instances.find((ti) => ti.runId === runId);
   const isSelected = taskId === instance?.taskId;
-  const hasQueuedDttm = !!instance?.queuedDttm;
+  const hasValidQueuedDttm =
+    !!instance?.queuedDttm &&
+    (instance?.startDate && instance?.queuedDttm
+      ? instance.queuedDttm < instance.startDate
+      : true);
   const isOpen = openGroupIds.includes(task.id || "");
+
+  const { data: taskFails } = useTaskFails({
+    taskId: task.id || undefined,
+    runId: runId || undefined,
+    enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task fails if it even has a try number > 1
+  });
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = hasQueuedDttm
+  const queuedDuration = hasValidQueuedDttm
     ? getDuration(instance?.queuedDttm, instance?.startDate)
     : 0;
-  const taskStartOffset = getDuration(
-    ganttStartDate,
-    instance?.queuedDttm || instance?.startDate
-  );
+  const taskStartOffset = hasValidQueuedDttm
+    ? getDuration(ganttStartDate, instance?.queuedDttm || instance?.startDate)
+    : getDuration(ganttStartDate, instance?.startDate);
 
   // Percent of each duration vs the overall dag run
   const taskDurationPercent = taskDuration / runDuration;
@@ -74,19 +87,21 @@ const Row = ({
   // Min width should be 5px
   let width = ganttWidth * taskDurationPercent;
   if (width < 5) width = 5;
-  let queuedWidth = hasQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
-  if (hasQueuedDttm && queuedWidth < 5) queuedWidth = 5;
+  let queuedWidth = hasValidQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
+  if (hasValidQueuedDttm && queuedWidth < 5) queuedWidth = 5;
   const offsetMargin = taskStartOffsetPercent * ganttWidth;
 
   return (
     <div>
       <Box
-        py="4px"
         borderBottomWidth={1}
         borderBottomColor={!!task.children && isOpen ? "gray.400" : "gray.200"}
         bg={isSelected ? "blue.100" : "inherit"}
+        position="relative"
+        width={ganttWidth}
+        height={`${boxSize + 9}px`}
       >
-        {instance ? (
+        {instance && (
           <Tooltip
             label={<GanttTooltip task={task} instance={instance} />}
             hasArrow
@@ -96,9 +111,11 @@ const Row = ({
           >
             <Flex
               width={`${width + queuedWidth}px`}
+              position="absolute"
               cursor="pointer"
               pointerEvents="auto"
-              marginLeft={`${offsetMargin}px`}
+              top="4px"
+              left={`${offsetMargin}px`}
               onClick={() => {
                 onSelect({
                   runId: instance.runId,
@@ -106,7 +123,7 @@ const Row = ({
                 });
               }}
             >
-              {instance.state !== "queued" && hasQueuedDttm && (
+              {instance.state !== "queued" && hasValidQueuedDttm && (
                 <SimpleStatus
                   state="queued"
                   width={`${queuedWidth}px`}
@@ -119,14 +136,31 @@ const Row = ({
                 state={instance.state}
                 width={`${width}px`}
                 borderLeftRadius={
-                  instance.state !== "queued" && hasQueuedDttm ? 0 : undefined
+                  instance.state !== "queued" && hasValidQueuedDttm
+                    ? 0
+                    : undefined
                 }
               />
             </Flex>
           </Tooltip>
-        ) : (
-          <Box height="10px" />
         )}
+        {/* Only show fails before the most recent task instance */}
+        {(taskFails || [])
+          .filter(
+            (tf) =>
+              tf.startDate !== instance?.startDate &&
+              // @ts-ignore
+              moment(tf.startDate).isAfter(ganttStartDate)
+          )
+          .map((taskFail) => (
+            <TaskFail
+              key={`${taskFail.taskId}-${taskFail.startDate}`}
+              taskFail={taskFail}
+              ganttStartDate={ganttStartDate}
+              ganttWidth={ganttWidth}
+              runDuration={runDuration}
+            />
+          ))}
       </Box>
       {isOpen &&
         !!task.children &&

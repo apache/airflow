@@ -36,6 +36,7 @@ Helm Chart for Apache Airflow
     using-additional-containers
     customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
+    Extending the Chart<extending-the-chart>
 
 .. toctree::
     :hidden:
@@ -58,7 +59,7 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.23+ cluster
+-  Kubernetes 1.25+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 

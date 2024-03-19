@@ -24,6 +24,7 @@ You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor
 *Note: Make sure that connection `azure_cosmos_default` is properly set before running
 this example.*
 """
+
 from __future__ import annotations
 
 import os
@@ -32,10 +33,6 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
 from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor
-
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_azure_cosmosdb_sensor"
@@ -53,6 +50,7 @@ with DAG(
         task_id="check_cosmos_file",
         collection_name="airflow_example_coll",
         document_id="airflow_checkid",
+        database_name="database_name",
     )
     # [END cosmos_document_sensor]
 
@@ -60,6 +58,7 @@ with DAG(
         task_id="insert_cosmos_file",
         collection_name="new-collection",
         document={"id": "someuniqueid", "param1": "value1", "param2": "value2"},
+        database_name="database_name",
     )
 
     t1 >> t2

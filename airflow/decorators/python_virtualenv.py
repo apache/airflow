@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class _PythonVirtualenvDecoratedOperator(_PythonDecoratedOperator, PythonVirtualenvOperator):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
+    template_fields = PythonVirtualenvOperator.template_fields
     custom_operator_name: str = "@task.virtualenv"
 
 

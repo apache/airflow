@@ -27,6 +27,224 @@
 Changelog
 ---------
 
+8.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Immediately fail the task in case of worker pod having a fatal container state (#37670)``
+* ``Skip pod cleanup in case of pod creation failed (#37671)``
+
+Misc
+~~~~
+
+* ``Avoid non-recommended usage of logging (#37792)``
+* ``Migrate executor docs to respective providers (#37728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
+8.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+In the case of Kube API exceeded quota errors, we have introduced the ``task_publish_max_retries``
+flag to control the re-queuing task behavior. Changed the default behavior from unlimited
+retries to 0. The default behavior is no retries (``task_publish_max_retries==0``). For
+unlimited retries, set ``task_publish_max_retries=-1``. For a fixed number of retries, set
+``task_publish_max_retries`` to any positive integer.
+
+* ``Fix: The task is stuck in a queued state forever in case of pod launch errors (#36882)``
+
+Features
+~~~~~~~~
+
+* ``Add logging_interval in KubernetesPodOperator to log container log periodically (#37279)``
+* ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix occasional attr-undefined for the python_kubernetes_script (#37318)``
+* ``Fix hanging KPO on deferrable task with do_xcom_push (#37300)``
+* ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
+* ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
+* ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37454)``
+* ``Fix KPO task hanging when pod fails to start within specified timeout (#37514)``
+* ``Fix KeyError when KPO exits too soon (#37508)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Kubernetes version bump (#37040)``
+* ``Add GKEStartKueueInsideClusterOperator (#37072)``
+* ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add d401 support to kubernetes provider (#37301)``
+   * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
+   * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+   * ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
+7.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SparkKubernetesOperator crd implementation (#22253)``
+* ``Template field support for configmaps in the KubernetesPodOperator (#36922)``
+* ``Create a generic callbacks class for KubernetesPodOperator (#35714)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Avoid retrying after KubernetesPodOperator has been marked as failed (#36749)``
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+* ``Increase tenacity wait in read_pod_logs (#36955)``
+* ``36888-Fix k8 configmap issue in 7.14.0rc1 (#37001)``
+
+Misc
+~~~~
+
+* ``Change field type for kube_config (#36752)``
+* ``Changing wording in docstring for CNCF provider (#36547)``
+* ``Add support of Pendulum 3 (#36281)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+7.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow changing of 'config_file' in 'KubernetesResourceBaseOperator' (#36397)``
+
+Misc
+~~~~
+
+* ``Add reminder about update stub file in case of change KubernetesPodOperator's arguments (#36434)``
+* ``Don't get pod status in KubernetesPodOperator if skip_on_exit_code is not set (#36355)``
+* ``Remove deprecated input parameters in the k8s pod operator (#36433)``
+* ``Delete get_python_source from Kubernetes decorator after bumping min airflow version to 2.6.0 (#36426)``
+* ``Remove duplicated methods in K8S pod operator module and import them from helper function (#36427)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add _request_timeout to KPO log fetch calls (#36297)``
+* ``Add 'pod_template_dict' field to 'KubernetesPodOperator' (#33174)``
+* ``KubernetesPodTrigger: add exception stack trace in TriggerEvent (#35716)``
+* ``Make pod_name length equal to HOST_NAME_MAX (#36332)``
+* ``Move KubernetesPodTrigger hook to a cached property (#36290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kubernetes executor running slots leak fix (#36240)``
+* ``Follow BaseHook connection fields method signature in child classes (#36086)``
+* ``list pods performance optimization (#36092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: KPO typing env_vars (#36048)``
+* ``Stop converting state to TaskInstanceState when it's None (#35891)``
+* ``Feature pass dictionary configuration in application_file in SparkKubernetesOperator (#35848)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Drive-by improvements to convert_env_vars (#36062)``
+   * ``Use fail instead of change_state(failed) in K8S executor (#35900)``
+
+7.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add annotations field into  in KubernetesPodOperator (#35641)``
+* ``Add custom_resource_definition to KubernetesResourceBaseOperator (#35600)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert Remove PodLoggingStatus object #35422 (#35822)``
+* ``Fix K8S executor override config using pod_override_object (#35185)``
+* ``Fix and reapply templates for provider documentation (#35686)``
+
+Misc
+~~~~
+
+* ``Remove inconsequential code bits in KPO logging (#35416)``
+* ``Remove non existing params from 'KubernetesResourceBaseOperator' docstring``
+* ``KubernetesExecutor observability Improvements (#35579)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add bandit to pre-commit to detect common security issues (#34247)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add verificationy that provider docs are as expected (#35424)``
+* ``Add startup_check_interval_seconds to PodManager's await_pod_start (#34231)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove before_log in KPO retry and add traceback when interrupted (#35423)``
+* ``Remove tenancity on KPO logs inner func consume_logs (#35504)``
+
+Misc
+~~~~
+
+* ``Simplify KPO multi container log reconciliation logic (#35450)``
+* ``Remove PodLoggingStatus object (#35422)``
+* ``Improve clear_not_launched_queued_tasks call duration (#34985)``
+* ``Use constant for empty xcom result sentinel (#35451)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
 7.8.0
 .....
 
@@ -733,6 +951,8 @@ Bug Fixes
 3.1.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -747,6 +967,8 @@ Misc
 3.1.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Misc
 ~~~~~
 
@@ -754,6 +976,8 @@ Misc
 
 3.1.0 (YANKED)
 ..............
+
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Features
 ~~~~~~~~
@@ -775,6 +999,8 @@ Misc
 3.0.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -791,6 +1017,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Misc
 ~~~~

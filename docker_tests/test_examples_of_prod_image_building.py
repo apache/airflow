@@ -35,10 +35,11 @@ DOCKER_EXAMPLES_DIR = SOURCE_ROOT / "docs" / "docker-stack" / "docker-examples"
 
 
 @lru_cache(maxsize=None)
-def get_latest_airflow_version_released():
+def get_latest_airflow_image():
     response = requests.get("https://pypi.org/pypi/apache-airflow/json")
     response.raise_for_status()
-    return response.json()["info"]["version"]
+    latest_released_version = response.json()["info"]["version"]
+    return f"apache/airflow:{latest_released_version}"
 
 
 @pytest.mark.skipif(
@@ -55,10 +56,8 @@ def test_dockerfile_example(dockerfile):
     rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
     image_name = str(rel_dockerfile_path).lower().replace("/", "-")
     content = Path(dockerfile).read_text()
-    latest_released_version: str = get_latest_airflow_version_released()
-    new_content = re.sub(
-        r"FROM apache/airflow:.*", rf"FROM apache/airflow:{latest_released_version}", content
-    )
+    test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
+    new_content = re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content)
     try:
         run_command(
             ["docker", "build", ".", "--tag", image_name, "-f", "-"],

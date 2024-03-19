@@ -24,7 +24,6 @@ from cov_runner import run_tests
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 source_files = [
-    "airflow/core",
     "airflow/executors",
     "airflow/jobs",
     "airflow/models",
@@ -35,7 +34,6 @@ source_files = [
 
 files_not_fully_covered = [
     # executors
-    "airflow/executors/debug_executor.py",
     "airflow/executors/executor_loader.py",
     "airflow/executors/local_executor.py",
     "airflow/executors/sequential_executor.py",
@@ -164,6 +162,7 @@ core_files = [
     "tests/ti_deps",
     "tests/utils",
 ]
+
 
 if __name__ == "__main__":
     args = ["-qq"] + core_files

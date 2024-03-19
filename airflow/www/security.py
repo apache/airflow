@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from deprecated import deprecated
 
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 EXISTING_ROLES = {
     "Admin",
@@ -31,7 +31,7 @@ EXISTING_ROLES = {
 
 @deprecated(
     reason="If you want to override the security manager, you should inherit from "
-    "`airflow.auth.managers.fab.security_manager.override.FabAirflowSecurityManagerOverride` "
+    "`airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride` "
     "instead"
 )
 class AirflowSecurityManager(FabAirflowSecurityManagerOverride):

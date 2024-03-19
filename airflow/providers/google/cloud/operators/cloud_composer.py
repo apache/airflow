@@ -112,7 +112,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
     :param metadata: Strings which should be sent along with the request as metadata.
     :param deferrable: Run operator in the deferrable mode
     :param pooling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
-        By default the trigger will poll every 30 seconds.
+        By default, the trigger will poll every 30 seconds.
     """
 
     template_fields = (

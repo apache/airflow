@@ -428,8 +428,8 @@ Tasks can also infer multiple outputs by using dict Python typing.
    def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
-By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
-is automatically set to true.
+By using the typing ``dict``, or any other class that conforms to the ``typing.Mapping`` protocol,
+for the function return type, the ``multiple_outputs`` parameter is automatically set to true.
 
 Note, If you manually set the ``multiple_outputs`` parameter the inference is disabled and
 the parameter value is used.
@@ -465,7 +465,8 @@ In the above code block, a new TaskFlow function is defined as ``extract_from_fi
 reads the data from a known file location.
 In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
 that this is a Sensor task which waits for the file.
-Finally, a dependency between this Sensor task and the TaskFlow function is specified.
+The TaskFlow function call is put in a variable ``order_data``.
+Finally, a dependency between this Sensor task and the TaskFlow function is specified using the variable.
 
 
 Consuming XComs between decorated and traditional tasks
@@ -497,13 +498,13 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     Using the ``.output`` property as an input to another task is supported only for operator parameters
     listed as a ``template_field``.
 
-In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
+In the code example below, a :class:`~airflow.providers.http.operators.http.HttpOperator` result
 is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
 
-    get_api_results_task = SimpleHttpOperator(
+    get_api_results_task = HttpOperator(
         task_id="get_api_results",
         endpoint="/api/query",
         do_xcom_push=True,
@@ -574,6 +575,8 @@ task to copy the same file to a date-partitioned storage location in S3 for long
         dest_bucket_name="data_lake",
         dest_bucket_key=f"""{BASE_PATH}/{"{{ execution_date.strftime('%Y/%m/%d') }}"}/{FILE_NAME}""",
     )
+
+.. _taskflow/accessing_context_variables:
 
 Accessing context variables in decorated tasks
 ----------------------------------------------

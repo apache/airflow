@@ -106,6 +106,7 @@ To test outside of the dag:
 
     pcoll
 """
+
 from __future__ import annotations
 
 import argparse
@@ -151,7 +152,7 @@ def MakeSummary(pcoll, metric_fn, metric_keys):
 
 
 def run(argv=None):
-    """Helper for obtaining prediction summary."""
+    """Obtain prediction summary."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--prediction_path",

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows to connect to a MySQL database."""
+
 from __future__ import annotations
 
 import json
@@ -173,7 +174,7 @@ class MySqlHook(DbApiHook):
 
     def get_conn(self) -> MySQLConnectionTypes:
         """
-        Connection to a MySQL database.
+        Get connection to a MySQL database.
 
         Establishes a connection to a mysql database
         by extracting the connection configuration from the Airflow connection.
@@ -214,10 +215,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            INTO TABLE {table}
-            """
+            f"LOAD DATA LOCAL INFILE %s INTO TABLE {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -227,10 +226,8 @@ class MySqlHook(DbApiHook):
         conn = self.get_conn()
         cur = conn.cursor()
         cur.execute(
-            f"""
-            SELECT * INTO OUTFILE '{tmp_file}'
-            FROM {table}
-            """
+            f"SELECT * INTO OUTFILE %s FROM {table}",
+            (tmp_file,),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -272,7 +269,7 @@ class MySqlHook(DbApiHook):
         self, table: str, tmp_file: str, duplicate_key_handling: str = "IGNORE", extra_options: str = ""
     ) -> None:
         """
-        A more configurable way to load local data from a file into the database.
+        Load local data from a file into the database in a more configurable way.
 
         .. warning:: According to the mysql docs using this function is a
             `security risk <https://dev.mysql.com/doc/refman/8.0/en/load-data-local.html>`_.
@@ -294,12 +291,8 @@ class MySqlHook(DbApiHook):
         cursor = conn.cursor()
 
         cursor.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
-            {duplicate_key_handling}
-            INTO TABLE {table}
-            {extra_options}
-            """
+            f"LOAD DATA LOCAL INFILE %s %s INTO TABLE {table} %s",
+            (tmp_file, duplicate_key_handling, extra_options),
         )
 
         cursor.close()
@@ -307,7 +300,7 @@ class MySqlHook(DbApiHook):
         conn.close()  # type: ignore[misc]
 
     def get_openlineage_database_info(self, connection):
-        """Returns MySQL specific information for OpenLineage."""
+        """Return MySQL specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -324,7 +317,7 @@ class MySqlHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _):
-        """Returns database dialect."""
+        """Return database dialect."""
         return "mysql"
 
     def get_openlineage_default_schema(self):

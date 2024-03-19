@@ -22,6 +22,7 @@ LocalExecutor.
     For more information on how the LocalExecutor works, take a look at the guide:
     :ref:`executor:LocalExecutor`
 """
+
 from __future__ import annotations
 
 import contextlib

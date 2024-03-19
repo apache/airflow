@@ -52,7 +52,7 @@ INVALID_SESSION_ID_TEST_CASES = [
 
 
 @pytest.mark.db_test
-class TestLivyHook:
+class TestLivyDbHook:
     @classmethod
     def setup_class(cls):
         clear_db_connections(add_default_connections_back=False)

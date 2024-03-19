@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import asyncio
 import typing
+from typing import Any
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
@@ -34,6 +36,103 @@ if typing.TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.utils.state import DagRunState
+
+
+class WorkflowTrigger(BaseTrigger):
+    """
+    A trigger to monitor tasks, task group and dag execution in Apache Airflow.
+
+    :param external_dag_id: The ID of the external DAG.
+    :param execution_dates: A list of execution dates for the external DAG.
+    :param external_task_ids: A collection of external task IDs to wait for.
+    :param external_task_group_id: The ID of the external task group to wait for.
+    :param failed_states: States considered as failed for external tasks.
+    :param skipped_states: States considered as skipped for external tasks.
+    :param allowed_states: States considered as successful for external tasks.
+    :param poke_interval: The interval (in seconds) for poking the external tasks.
+    :param soft_fail: If True, the trigger will not fail the entire DAG on external task failure.
+    """
+
+    def __init__(
+        self,
+        external_dag_id: str,
+        execution_dates: list,
+        external_task_ids: typing.Collection[str] | None = None,
+        external_task_group_id: str | None = None,
+        failed_states: typing.Iterable[str] | None = None,
+        skipped_states: typing.Iterable[str] | None = None,
+        allowed_states: typing.Iterable[str] | None = None,
+        poke_interval: float = 2.0,
+        soft_fail: bool = False,
+        **kwargs,
+    ):
+        self.external_dag_id = external_dag_id
+        self.external_task_ids = external_task_ids
+        self.external_task_group_id = external_task_group_id
+        self.failed_states = failed_states
+        self.skipped_states = skipped_states
+        self.allowed_states = allowed_states
+        self.execution_dates = execution_dates
+        self.poke_interval = poke_interval
+        self.soft_fail = soft_fail
+        super().__init__(**kwargs)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize the trigger param and module path."""
+        return (
+            "airflow.triggers.external_task.WorkflowTrigger",
+            {
+                "external_dag_id": self.external_dag_id,
+                "external_task_ids": self.external_task_ids,
+                "external_task_group_id": self.external_task_group_id,
+                "failed_states": self.failed_states,
+                "skipped_states": self.skipped_states,
+                "allowed_states": self.allowed_states,
+                "execution_dates": self.execution_dates,
+                "poke_interval": self.poke_interval,
+                "soft_fail": self.soft_fail,
+            },
+        )
+
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+        """Check periodically tasks, task group or dag status."""
+        while True:
+            if self.failed_states:
+                failed_count = _get_count(
+                    self.execution_dates,
+                    self.external_task_ids,
+                    self.external_task_group_id,
+                    self.external_dag_id,
+                    self.failed_states,
+                )
+                if failed_count > 0:
+                    yield TriggerEvent({"status": "failed"})
+                    return
+                else:
+                    yield TriggerEvent({"status": "success"})
+                    return
+            if self.skipped_states:
+                skipped_count = _get_count(
+                    self.execution_dates,
+                    self.external_task_ids,
+                    self.external_task_group_id,
+                    self.external_dag_id,
+                    self.skipped_states,
+                )
+                if skipped_count > 0:
+                    yield TriggerEvent({"status": "skipped"})
+            allowed_count = _get_count(
+                self.execution_dates,
+                self.external_task_ids,
+                self.external_task_group_id,
+                self.external_dag_id,
+                self.allowed_states,
+            )
+            if allowed_count == len(self.execution_dates):
+                yield TriggerEvent({"status": "success"})
+                return
+            self.log.info("Sleeping for %s seconds", self.poke_interval)
+            await asyncio.sleep(self.poke_interval)
 
 
 class TaskStateTrigger(BaseTrigger):

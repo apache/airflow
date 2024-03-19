@@ -20,12 +20,12 @@ from __future__ import annotations
 import uuid
 
 import boto3
-from moto import mock_firehose, mock_s3
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.kinesis import FirehoseHook
 
 
-@mock_firehose
+@mock_aws
 class TestFirehoseHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = FirehoseHook(
@@ -33,7 +33,6 @@ class TestFirehoseHook:
         )
         assert hook.get_conn() is not None
 
-    @mock_s3
     def test_insert_batch_records_kinesis_firehose(self):
         boto3.client("s3").create_bucket(Bucket="kinesis-test")
         hook = FirehoseHook(

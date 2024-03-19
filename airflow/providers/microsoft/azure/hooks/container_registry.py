@@ -16,17 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Azure Container Registry."""
+
 from __future__ import annotations
 
 from functools import cached_property
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureContainerRegistryHook(BaseHook):
@@ -43,9 +47,10 @@ class AzureContainerRegistryHook(BaseHook):
     conn_type = "azure_container_registry"
     hook_name = "Azure Container Registry"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -63,7 +68,7 @@ class AzureContainerRegistryHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -103,8 +108,15 @@ class AzureContainerRegistryHook(BaseHook):
             extras = conn.extra_dejson
             subscription_id = self._get_field(extras, "subscription_id")
             resource_group = self._get_field(extras, "resource_group")
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             client = ContainerRegistryManagementClient(
-                credential=DefaultAzureCredential(), subscription_id=subscription_id
+                credential=credential,
+                subscription_id=subscription_id,
             )
             credentials = client.registries.list_credentials(resource_group, conn.login).as_dict()
             password = credentials["passwords"][0]["value"]

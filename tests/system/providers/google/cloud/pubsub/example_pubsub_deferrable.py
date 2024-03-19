@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google PubSub services.
 """
+
 from __future__ import annotations
 
 import os
@@ -35,7 +36,7 @@ from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "pubsub_async"
 

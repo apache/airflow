@@ -29,6 +29,7 @@
     DataFlowResource
     mgmt
 """
+
 from __future__ import annotations
 
 import inspect
@@ -48,6 +49,11 @@ from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataF
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -151,9 +157,10 @@ class AzureDataFactoryHook(BaseHook):
     default_conn_name: str = "azure_data_factory_default"
     hook_name: str = "Azure Data Factory"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -167,9 +174,9 @@ class AzureDataFactoryHook(BaseHook):
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -205,7 +212,12 @@ class AzureDataFactoryHook(BaseHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = get_field(extras, "workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
@@ -806,7 +818,7 @@ class AzureDataFactoryHook(BaseHook):
         timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
-        Waits for a pipeline run to match an expected status.
+        Wait for a pipeline run to match an expected status.
 
         :param run_id: The pipeline run identifier.
         :param expected_statuses: The desired status(es) to check against a pipeline run's current status.
@@ -1140,7 +1152,12 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = AsyncDefaultAzureCredential()
+            managed_identity_client_id = get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = get_field(extras, "workload_identity_tenant_id")
+            credential = get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         self._async_conn = AsyncDataFactoryManagementClient(
             credential=credential,

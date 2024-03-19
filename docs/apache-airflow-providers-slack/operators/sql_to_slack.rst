@@ -15,24 +15,41 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:SqlToSlackOperator:
+.. _howto/operator:SqlToSlackApiFileOperator:
 
-SqlToSlackOperator
-==================
+SqlToSlackApiFileOperator
+=========================
 
-Use the :class:`~airflow.providers.slack.transfers.sql_to_slack` to post messages to predefined Slack
-channel.
+Use the :class:`~airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator` to post query result as a file
+to Slack channel(s) through `Slack API <https://api.slack.com/>`__.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-This operator will execute a custom query in the provided SQL connection and publish a Slack message that can be formatted
-and contain the resulting dataset (e.g. ASCII formatted dataframe).
+.. note::
+    Operator supports two methods for upload files, which controlled by ``slack_method_version``,
+    by default it use Slack SDK method ``upload_files`` however this might impact a performance and cause random API errors.
+    It is recommended to switch to Slack SDK method ``upload_files_v2`` by set ``v2`` to ``slack_method_version``,
+    however this action required to add additional scope to your application:
 
-An example usage of the SqlToSlackOperator is as follows:
+    * **files:write** - for write files.
+    * **files:read** - for read files (not required if you use Slack SDK >= 3.23.0).
+    * **channels:read** - get list of public channels, for convert Channel Name to Channel ID.
+    * **groups:read** - get list of private channels, for convert Channel Name to Channel ID
+    * **mpim:read** - additional permission for API method **conversations.list**
+    * **im:read** - additional permission for API method **conversations.list**
+
+    .. seealso::
+        - `Slack SDK 3.19.0 Release Notes <https://github.com/slackapi/python-slack-sdk/releases/tag/v3.19.0>`_
+        - `conversations.list API <https://api.slack.com/methods/conversations.list>`_
+
+
+This operator will execute a custom query in the provided SQL connection and publish a file to Slack channel(s).
+
+An example usage of the SqlToSlackApiFileOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_sql_to_slack]
-    :end-before: [END howto_operator_sql_to_slack]
+    :start-after: [START howto_operator_sql_to_slack_api_file]
+    :end-before: [END howto_operator_sql_to_slack_api_file]

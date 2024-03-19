@@ -63,16 +63,30 @@ class VariableDetails:
     key: str | None = None
 
 
+class AccessView(Enum):
+    """Enum of specific views the user tries to access."""
+
+    CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
+    DOCS = "DOCS"
+    IMPORT_ERRORS = "IMPORT_ERRORS"
+    JOBS = "JOBS"
+    PLUGINS = "PLUGINS"
+    PROVIDERS = "PROVIDERS"
+    TRIGGERS = "TRIGGERS"
+    WEBSITE = "WEBSITE"
+
+
 class DagAccessEntity(Enum):
     """Enum of DAG entities the user tries to access."""
 
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
-    IMPORT_ERRORS = "IMPORT_ERRORS"
     RUN = "RUN"
+    SLA_MISS = "SLA_MISS"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_RESCHEDULE = "TASK_RESCHEDULE"
     TASK_LOGS = "TASK_LOGS"
     WARNING = "WARNING"
     XCOM = "XCOM"

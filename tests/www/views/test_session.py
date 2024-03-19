@@ -81,7 +81,7 @@ def test_session_id_rotates(app, user_client):
     resp = user_client.get("/logout/")
     assert resp.status_code == 302
 
-    patch_path = "airflow.auth.managers.fab.security_manager.override.check_password_hash"
+    patch_path = "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})
@@ -98,3 +98,12 @@ def test_check_active_user(app, user_client):
     resp = user_client.get("/home")
     assert resp.status_code == 302
     assert "/logout" in resp.headers.get("Location")
+
+
+def test_check_deactivated_user_redirected_to_login(app, user_client):
+    with app.test_request_context():
+        user = app.appbuilder.sm.find_user(username="test_user")
+        user.active = False
+        resp = user_client.get("/home", follow_redirects=True)
+        assert resp.status_code == 200
+        assert "/login" in resp.request.url

@@ -21,6 +21,11 @@ import os
 import subprocess
 from pathlib import Path
 
+# NOTE!. This script is executed from node environment created by pre-commit and this environment
+# Cannot have additional Python dependencies installed. We should not import any of the libraries
+# here that are not available in stdlib! You should not import common_precommit_utils.py here because
+# They are importing rich library which is not available in the node environment.
+
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."

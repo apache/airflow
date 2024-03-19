@@ -17,43 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit
 
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH  # isort: skip  # noqa: E402
+initialize_breeze_precommit(__name__, __file__)
 
-sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))  # make sure setup is imported from Airflow
-sys.path.insert(
-    0, str(AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src")
-)  # make sure setup is imported from Airflow
-# flake8: noqa: F401
-from airflow_breeze.utils.docker_command_utils import VOLUMES_FOR_SELECTED_MOUNTS  # isort: skip  # noqa: E402
-
-from common_precommit_utils import insert_documentation  # isort: skip # noqa: E402
-
-sys.path.append(str(AIRFLOW_SOURCES_ROOT_PATH))
-
-MOUNTS_HEADER = (
-    "        # START automatically generated volumes from "
-    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
+res = subprocess.run(
+    ["breeze", "setup", "synchronize-local-mounts"],
+    check=False,
 )
-MOUNTS_FOOTER = (
-    "        # END automatically generated volumes from "
-    "VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py"
-)
-
-if __name__ == "__main__":
-    local_mount_file_path = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "local.yml"
-    PREFIX = "      "
-    volumes = []
-    for src, dest in VOLUMES_FOR_SELECTED_MOUNTS:
-        volumes.extend(
-            [
-                PREFIX + "- type: bind\n",
-                PREFIX + f"  source: ../../../{src}\n",
-                PREFIX + f"  target: {dest}\n",
-            ]
-        )
-    insert_documentation(local_mount_file_path, volumes, MOUNTS_HEADER, MOUNTS_FOOTER)
+if res.returncode != 0:
+    console.print("\n[red]Error when running local mounts synchronization.\n")

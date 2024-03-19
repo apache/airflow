@@ -27,13 +27,13 @@ The Microsoft Azure Synapse connection type enables the Azure Synapse Integratio
 Authenticating to Azure Synapse
 -------------------------------
 
-There are multiple ways to connect to Azure Synapse using Airflow.
+There are three ways to connect to Azure Synapse using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
-2. Fallback on `DefaultAzureCredential
-   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+2. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+3. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
 Default Connection IDs
@@ -65,3 +65,10 @@ Subscription ID
 
 Synapse Workspace URL
     Specify the Azure Synapse endpoint to interface with.
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
+
+.. spelling:word-list::
+
+    Entra

@@ -27,7 +27,7 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
+from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView, ListJobsRequest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -55,7 +55,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
-TEST_ENVIRONMENT = {}
+TEST_ENVIRONMENT: dict[str, str] = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -89,6 +89,7 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAFLOW_STRING = "airflow.providers.google.cloud.hooks.dataflow.{}"
 TEST_PROJECT = "test-project"
 TEST_JOB_ID = "test-job-id"
+TEST_JOBS_FILTER = ListJobsRequest.Filter.ACTIVE
 TEST_LOCATION = "custom-location"
 DEFAULT_PY_INTERPRETER = "python3"
 TEST_FLEX_PARAMETERS = {
@@ -1417,6 +1418,10 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
+            # DONE
+            (DataflowJobStatus.JOB_STATE_DONE, None, True),
+            (DataflowJobStatus.JOB_STATE_DONE, True, True),
+            (DataflowJobStatus.JOB_STATE_DONE, False, True),
             # RUNNING
             (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
             (DataflowJobStatus.JOB_STATE_RUNNING, True, False),
@@ -1717,12 +1722,8 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-        mock_list = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
-        )
-        mock_list_next = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
-        )
+        mock_list = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
+        mock_list_next = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
 
         mock_list.return_value.execute.return_value = "response_1"
         mock_list_next.return_value = None
@@ -1927,7 +1928,7 @@ class TestDataflow:
             mock_logging.info.assert_called_once_with("Running command: %s", "test cmd")
 
 
-@pytest.fixture()
+@pytest.fixture
 def make_mock_awaitable():
     def func(mock_obj, return_value):
         f = Future()
@@ -1949,7 +1950,7 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.initialize_client")
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
     async def test_get_job(self, initialize_client_mock, hook, make_mock_awaitable):
         client = initialize_client_mock.return_value
         make_mock_awaitable(client.get_job, None)
@@ -1972,3 +1973,27 @@ class TestAsyncHook:
         client.get_job.assert_called_once_with(
             request=request,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(DATAFLOW_STRING.format("AsyncDataflowHook.initialize_client"))
+    async def test_list_jobs(self, initialize_client_mock, hook, make_mock_awaitable):
+        client = initialize_client_mock.return_value
+        make_mock_awaitable(client.get_job, None)
+
+        await hook.list_jobs(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            jobs_filter=TEST_JOBS_FILTER,
+        )
+
+        request = ListJobsRequest(
+            {
+                "project_id": TEST_PROJECT_ID,
+                "location": TEST_LOCATION,
+                "filter": TEST_JOBS_FILTER,
+                "page_size": None,
+                "page_token": None,
+            }
+        )
+        initialize_client_mock.assert_called_once()
+        client.list_jobs.assert_called_once_with(request=request)

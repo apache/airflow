@@ -24,7 +24,7 @@ The OpenSearch connection provides credentials for an OpenSearch instance.
 Configuring the Connection
 --------------------------
 Host (required)
-  The host address of the Open Search instance.
+  The host address of the OpenSearch instance.
 Login (required)
   The login user.
 Password (required)

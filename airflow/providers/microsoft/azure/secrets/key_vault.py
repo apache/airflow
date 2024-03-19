@@ -26,23 +26,17 @@ from __future__ import annotations
 
 import logging
 import os
-import re
-import warnings
 from functools import cached_property
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.version import version as airflow_version
-
-
-def _parse_version(val):
-    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
-    return tuple(int(x) for x in match.groups())
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
@@ -142,14 +136,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         if all([self.tenant_id, self.client_id, self.client_secret]):
             credential = ClientSecretCredential(self.tenant_id, self.client_id, self.client_secret)
         else:
-            if self.managed_identity_client_id and self.workload_identity_tenant_id:
-                credential = DefaultAzureCredential(
-                    managed_identity_client_id=self.managed_identity_client_id,
-                    workload_identity_tenant_id=self.workload_identity_tenant_id,
-                    additionally_allowed_tenants=[self.workload_identity_tenant_id],
-                )
-            else:
-                credential = DefaultAzureCredential()
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=self.managed_identity_client_id,
+                workload_identity_tenant_id=self.workload_identity_tenant_id,
+            )
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 
@@ -164,6 +154,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
+    @deprecated(
+        reason=(
+            "Method `AzureKeyVaultBackend.get_conn_uri` is deprecated and will be removed "
+            "in a future release.  Please use method `get_conn_value` instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
@@ -173,13 +170,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= (2, 3):
-            warnings.warn(
-                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-                "in a future release.  Please use method `get_conn_value` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:

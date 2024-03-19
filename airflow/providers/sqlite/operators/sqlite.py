@@ -17,13 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
+@deprecated(
+    reason="Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class SqliteOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Sqlite database.
@@ -51,9 +56,3 @@ class SqliteOperator(SQLExecuteQueryOperator):
 
     def __init__(self, *, sqlite_conn_id: str = "sqlite_default", **kwargs) -> None:
         super().__init__(conn_id=sqlite_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )

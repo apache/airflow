@@ -23,6 +23,7 @@ This DAG relies on the following OS environment variables
 * AIRFLOW__API__GOOGLE_KEY_PATH - Path to service account key file. Note, you can skip this variable if you
   run this DAG in a Composer environment.
 """
+
 from __future__ import annotations
 
 import logging
@@ -197,7 +198,7 @@ with DAG(
             schema=DB_NAME,
             port=DB_PORT,
         )
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
             log.warning("Connection %s already exists", CONNECTION_ID)
             return None

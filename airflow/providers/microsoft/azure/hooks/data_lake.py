@@ -34,7 +34,11 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter]
 
@@ -61,9 +65,10 @@ class AzureDataLakeHook(BaseHook):
     conn_type = "azure_data_lake"
     hook_name = "Azure Data Lake"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -75,9 +80,9 @@ class AzureDataLakeHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -118,7 +123,12 @@ class AzureDataLakeHook(BaseHook):
             if tenant:
                 credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             else:
-                credential = AzureIdentityCredentialAdapter()
+                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                credential = AzureIdentityCredentialAdapter(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
             self._conn = core.AzureDLFileSystem(credential, store_name=self.account_name)
             self._conn.connect()
         return self._conn
@@ -265,8 +275,9 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     hook_name = "Azure Date Lake Storage V2"
 
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -282,7 +293,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -305,6 +316,17 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         self.conn_id = adls_conn_id
         self.public_read = public_read
 
+    def _get_field(self, extra_dict, field_name):
+        prefix = "extra__adls__"
+        if field_name.startswith("extra__"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
+                f"when using this method."
+            )
+        if field_name in extra_dict:
+            return extra_dict[field_name] or None
+        return extra_dict.get(f"{prefix}{field_name}") or None
+
     @cached_property
     def service_client(self) -> DataLakeServiceClient:
         """Return the DataLakeServiceClient object (cached)."""
@@ -326,28 +348,30 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            credential = ClientSecretCredential(tenant, app_id, app_secret)
+            proxies = extra.get("proxies", {})
+
+            credential = ClientSecretCredential(
+                tenant_id=tenant, client_id=app_id, client_secret=app_secret, proxies=proxies
+            )
         elif conn.password:
             credential = conn.password
         else:
-            credential = AzureIdentityCredentialAdapter()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
+        account_url = extra.pop("account_url", f"https://{conn.host}.dfs.core.windows.net")
+
+        self.log.info("account_url: %s", account_url)
 
         return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            account_url=account_url,
             credential=credential,  # type: ignore[arg-type]
             **extra,
         )
-
-    def _get_field(self, extra_dict, field_name):
-        prefix = "extra__adls__"
-        if field_name.startswith("extra__"):
-            raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
-            )
-        if field_name in extra_dict:
-            return extra_dict[field_name] or None
-        return extra_dict.get(f"{prefix}{field_name}") or None
 
     def create_file_system(self, file_system_name: str) -> None:
         """Create a new file system under the specified account.

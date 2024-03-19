@@ -32,7 +32,7 @@ BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 def get_package_setup_metadata_hash() -> str:
     """
-    Retrieves hash of setup.py and setup.cfg files.
+    Retrieves hash of pyproject.toml file.
 
     This is used in order to determine if we need to upgrade Breeze, because some
     setup files changed. Blake2b algorithm will not be flagged by security checkers
@@ -41,8 +41,6 @@ def get_package_setup_metadata_hash() -> str:
     """
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((BREEZE_SOURCES_ROOT / "setup.py").read_bytes())
-        the_hash.update((BREEZE_SOURCES_ROOT / "setup.cfg").read_bytes())
         the_hash.update((BREEZE_SOURCES_ROOT / "pyproject.toml").read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:

@@ -111,7 +111,7 @@ class JWTGenerator:
 
     def get_token(self) -> str | None:
         """
-        Generates a new JWT.
+        Generate a new JWT.
 
         If a JWT has been already been generated earlier, return the previously
         generated token unless the specified renewal time has passed.

@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -49,12 +50,16 @@ class EmrBaseSensor(BaseSensorOperator):
 
     Subclasses should set ``target_states`` and ``failed_states`` fields.
 
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     ui_color = "#66c3ff"
 
-    def __init__(self, *, aws_conn_id: str = "aws_default", **kwargs):
+    def __init__(self, *, aws_conn_id: str | None = "aws_default", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.target_states: Iterable[str] = []  # will be set in subclasses
@@ -131,6 +136,10 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     :param job_run_id: job_run_id to check the state of
     :param target_states: a set of states to wait for, defaults to 'SUCCESS'
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = (
@@ -144,7 +153,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         application_id: str,
         job_run_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.JOB_SUCCESS_STATES),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -194,6 +203,10 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     :param application_id: application_id to check the state of
     :param target_states: a set of states to wait for, defaults to {'CREATED', 'STARTED'}
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -203,7 +216,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         *,
         application_id: str,
         target_states: set | frozenset = frozenset(EmrServerlessHook.APPLICATION_SUCCESS_STATES),
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
@@ -253,6 +266,10 @@ class EmrContainerSensor(BaseSensorOperator):
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param poll_interval: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
     :param deferrable: Run sensor in the deferrable mode.
@@ -280,7 +297,7 @@ class EmrContainerSensor(BaseSensorOperator):
         virtual_cluster_id: str,
         job_id: str,
         max_retries: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         poll_interval: int = 10,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
@@ -335,15 +352,17 @@ class EmrContainerSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
             if self.soft_fail:
                 raise AirflowSkipException(message)
             raise AirflowException(message)
-        else:
-            self.log.info(event["message"])
+
+        self.log.info("Job completed.")
 
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):
@@ -526,7 +545,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event=None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
@@ -657,7 +678,9 @@ class EmrStepSensor(EmrBaseSensor):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error while running job: {event}"
@@ -665,4 +688,4 @@ class EmrStepSensor(EmrBaseSensor):
                 raise AirflowSkipException(message)
             raise AirflowException(message)
 
-        self.log.info("Job completed.")
+        self.log.info("Job %s completed.", self.job_flow_id)

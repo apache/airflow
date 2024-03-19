@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Sheets API hook."""
+
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -66,7 +67,7 @@ class GSheetsHook(GoogleBaseHook):
 
     def get_conn(self) -> Any:
         """
-        Retrieves connection to Google Sheets.
+        Retrieve connection to Google Sheets.
 
         :return: Google Sheets services object.
         """
@@ -85,7 +86,7 @@ class GSheetsHook(GoogleBaseHook):
         date_time_render_option: str = "SERIAL_NUMBER",
     ) -> list:
         """
-        Gets values from Google Sheet from a single range.
+        Get values from Google Sheet from a single range.
 
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get
 
@@ -125,7 +126,7 @@ class GSheetsHook(GoogleBaseHook):
         date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
-        Gets values from Google Sheet from a list of ranges.
+        Get values from Google Sheet from a list of ranges.
 
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchGet
 
@@ -168,7 +169,7 @@ class GSheetsHook(GoogleBaseHook):
         date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
-        Updates values from Google Sheet from a single range.
+        Update values from Google Sheet from a single range.
 
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/update
 
@@ -219,7 +220,7 @@ class GSheetsHook(GoogleBaseHook):
         date_time_render_option: str = "SERIAL_NUMBER",
     ) -> dict:
         """
-        Updates values from Google Sheet for multiple ranges.
+        Update values from Google Sheet for multiple ranges.
 
         https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/batchUpdate
 
@@ -365,7 +366,7 @@ class GSheetsHook(GoogleBaseHook):
 
     def get_spreadsheet(self, spreadsheet_id: str):
         """
-        Retrieves spreadsheet matching the given id.
+        Retrieve spreadsheet matching the given id.
 
         :param spreadsheet_id: The spreadsheet id.
         :return: An spreadsheet that matches the sheet filter.
@@ -380,7 +381,7 @@ class GSheetsHook(GoogleBaseHook):
 
     def get_sheet_titles(self, spreadsheet_id: str, sheet_filter: list[str] | None = None):
         """
-        Retrieves the sheet titles from a spreadsheet matching the given id and sheet filter.
+        Retrieve the sheet titles from a spreadsheet matching the given id and sheet filter.
 
         :param spreadsheet_id: The spreadsheet id.
         :param sheet_filter: List of sheet title to retrieve from sheet.
@@ -401,7 +402,7 @@ class GSheetsHook(GoogleBaseHook):
 
     def create_spreadsheet(self, spreadsheet: dict[str, Any]) -> dict[str, Any]:
         """
-        Creates a spreadsheet, returning the newly created spreadsheet.
+        Create a spreadsheet, returning the newly created spreadsheet.
 
         :param spreadsheet: an instance of Spreadsheet
             https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets#Spreadsheet

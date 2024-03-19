@@ -39,12 +39,12 @@ def parse_time_delta(time_str: str):
     :param time_str: A string identifying a duration.  (eg. 2h13m)
     :return datetime.timedelta: A datetime.timedelta object or "@once"
     """
-    parts = RE_TIME_DELTA.match(time_str)
-
-    assert parts is not None, (
-        f"Could not parse any time information from '{time_str}'. "
-        f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
-    )
+    if (parts := RE_TIME_DELTA.match(time_str)) is None:
+        msg = (
+            f"Could not parse any time information from '{time_str}'. "
+            f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
+        )
+        raise ValueError(msg)
 
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore

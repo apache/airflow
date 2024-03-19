@@ -77,6 +77,7 @@ the following parameters:
 * ``gcp_scopes``: Comma-separated string containing OAuth2 scopes.
 * ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: ``"-"``
 * ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
+* ``impersonation_chain``: Optional service account to impersonate using short-term credentials, or chained list of accounts required to get the access token of the last account in the list, which will be impersonated in the request.
 
 All options should be passed as a JSON dictionary.
 
@@ -87,6 +88,15 @@ For example, if you want to set parameter ``connections_prefix`` to ``"example-c
     [secrets]
     backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
     backend_kwargs = {"connections_prefix": "example-connections-prefix", "variables_prefix": "example-variables-prefix"}
+
+Also, if you are using Application Default Credentials (ADC) to read secrets from ``example-project`` but would like
+to impersonate a different service account, your configuration should look similar to this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+    backend_kwargs = {"project_id": "example-project", "impersonation_chain": "impersonated_account@example_project.iam.gserviceaccount.com"}
 
 Set-up credentials
 """"""""""""""""""

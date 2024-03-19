@@ -30,7 +30,6 @@ const isK8sExecutor = getMetaValue("k8s_or_k8scelery_executor") === "True";
 const taskInstancesUrl = getMetaValue("task_instances_list_url");
 const renderedK8sUrl = getMetaValue("rendered_k8s_url");
 const renderedTemplatesUrl = getMetaValue("rendered_templates_url");
-const xcomUrl = getMetaValue("xcom_url");
 const taskUrl = getMetaValue("task_url");
 const gridUrl = getMetaValue("grid_url");
 
@@ -52,7 +51,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
     });
     const detailsLink = `${taskUrl}&${params}`;
     const renderedLink = `${renderedTemplatesUrl}&${params}`;
-    const xcomLink = `${xcomUrl}&${params}`;
     const k8sLink = `${renderedK8sUrl}&${params}`;
     const listParams = new URLSearchParamsWrapper({
       _flt_3_dag_id: dagId,
@@ -88,7 +86,6 @@ const Nav = forwardRef<HTMLDivElement, Props>(
             {isSubDag && (
               <LinkButton href={subDagLink}>Zoom into SubDag</LinkButton>
             )}
-            <LinkButton href={xcomLink}>XCom</LinkButton>
           </>
         )}
         <LinkButton

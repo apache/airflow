@@ -18,27 +18,29 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import pickle
 from unittest import mock
 
 import pytest
 from requests import Response
+from requests.models import RequestEncodingMixin
 
 from airflow.exceptions import AirflowException, TaskDeferred
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
-class TestSimpleHttpOp:
+class TestHttpOperator:
     def test_response_in_logs(self, requests_mock):
         """
-        Test that when using SimpleHttpOperator with 'GET',
+        Test that when using HttpOperator with 'GET',
         the log contains 'Example Domain' in it
         """
 
         requests_mock.get("http://www.example.com", text="Example.com fake response")
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -51,7 +53,7 @@ class TestSimpleHttpOp:
 
     def test_response_in_logs_after_failed_check(self, requests_mock):
         """
-        Test that when using SimpleHttpOperator with log_response=True,
+        Test that when using HttpOperator with log_response=True,
         the response is logged even if request_check fails
         """
 
@@ -59,7 +61,7 @@ class TestSimpleHttpOp:
             return response.text != "invalid response"
 
         requests_mock.get("http://www.example.com", text="invalid response")
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -76,7 +78,7 @@ class TestSimpleHttpOp:
 
     def test_filters_response(self, requests_mock):
         requests_mock.get("http://www.example.com", json={"value": 5})
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -87,7 +89,7 @@ class TestSimpleHttpOp:
         assert result == {"value": 5}
 
     def test_async_defer_successfully(self, requests_mock):
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             deferrable=True,
         )
@@ -96,7 +98,7 @@ class TestSimpleHttpOp:
         assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
 
     def test_async_execute_successfully(self, requests_mock):
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             deferrable=True,
         )
@@ -110,3 +112,119 @@ class TestSimpleHttpOp:
             },
         )
         assert result == "content"
+
+    @pytest.mark.parametrize(
+        "data, headers, extra_options, pagination_data, pagination_headers, pagination_extra_options",
+        [
+            ({"data": 1}, {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
+            ("data foo", {"x-head": "1"}, {"verify": False}, {"data": 2}, {"x-head": "0"}, {"verify": True}),
+            ("data foo", {"x-head": "1"}, {"verify": False}, "data bar", {"x-head": "0"}, {"verify": True}),
+            ({"data": 1}, {"x-head": "1"}, {"verify": False}, "data foo", {"x-head": "0"}, {"verify": True}),
+        ],
+    )
+    def test_pagination(
+        self,
+        requests_mock,
+        data,
+        headers,
+        extra_options,
+        pagination_data,
+        pagination_headers,
+        pagination_extra_options,
+    ):
+        """
+        Test that the HttpOperator calls repetitively the API when a
+        pagination_function is provided, and as long as this function returns
+        a dictionary that override previous' call parameters.
+        """
+        is_second_call: bool = False
+
+        def pagination_function(response: Response) -> dict | None:
+            """Paginated function which returns None at the second call."""
+            nonlocal is_second_call
+            if not is_second_call:
+                is_second_call = True
+                return dict(
+                    endpoint=response.json()["endpoint"],
+                    data=pagination_data,
+                    headers=pagination_headers,
+                    extra_options=pagination_extra_options,
+                )
+            return None
+
+        first_endpoint = requests_mock.post("http://www.example.com/1", json={"value": 5, "endpoint": "2"})
+        second_endpoint = requests_mock.post("http://www.example.com/2", json={"value": 10, "endpoint": "3"})
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            method="POST",
+            endpoint="/1",
+            data=data,
+            headers=headers,
+            extra_options=extra_options,
+            http_conn_id="HTTP_EXAMPLE",
+            pagination_function=pagination_function,
+            response_filter=lambda resp: [entry.json()["value"] for entry in resp],
+        )
+        result = operator.execute({})
+
+        # Ensure the initial call is made with parameters passed to the Operator
+        first_call = first_endpoint.request_history[0]
+        assert first_call.headers.items() >= headers.items()
+        assert first_call.body == RequestEncodingMixin._encode_params(data)
+        assert first_call.verify is extra_options["verify"]
+
+        # Ensure the second - paginated - call is made with parameters merged from the pagination function
+        second_call = second_endpoint.request_history[0]
+        assert second_call.headers.items() >= pagination_headers.items()
+        assert second_call.body == RequestEncodingMixin._encode_params(pagination_data)
+        assert second_call.verify is pagination_extra_options["verify"]
+
+        assert result == [5, 10]
+
+    def test_async_pagination(self, requests_mock):
+        """
+        Test that the HttpOperator calls asynchronously and repetitively
+        the API when a pagination_function is provided, and as long as this function
+        returns a dictionary that override previous' call parameters.
+        """
+
+        def make_response_object() -> Response:
+            response = Response()
+            response._content = b'{"value": 5}'
+            return response
+
+        def create_resume_response_parameters() -> dict:
+            response = make_response_object()
+            return dict(
+                context={},
+                event={
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                },
+            )
+
+        has_returned: bool = False
+
+        def pagination_function(response: Response) -> dict | None:
+            """Paginated function which returns None at the second call."""
+            nonlocal has_returned
+            if not has_returned:
+                has_returned = True
+                return dict(endpoint="/")
+            return None
+
+        operator = HttpOperator(
+            task_id="test_HTTP_op",
+            pagination_function=pagination_function,
+            deferrable=True,
+        )
+
+        # Do two calls: On the first one, the pagination_function creates a new
+        # deferrable trigger. On the second one, the pagination_function returns
+        # None, which ends the execution of the Operator
+        with contextlib.suppress(TaskDeferred):
+            operator.execute_complete(**create_resume_response_parameters())
+            result = operator.execute_complete(
+                **create_resume_response_parameters(), paginated_responses=[make_response_object()]
+            )
+            assert result == ['{"value": 5}', '{"value": 5}']

@@ -50,17 +50,18 @@ Audit logs can be accessed through the Airflow UI. They are located under the "B
 Types of Events
 ---------------
 
-Airflow provides a set of predefined events that can be tracked in audit logs. These events include:
+Airflow provides a set of predefined events that can be tracked in audit logs. These events include, but aren't limited to:
 
-- ``action_trigger_dag``: Triggering a DAG
-- ``action_create``: Creating a DAG or task
-- ``action_edit``: Modifying a DAG or task
-- ``action_delete``: Deleting a DAG or task
-- ``action_failed``: Setting a task as failed
-- ``action_success``: Setting a task as successful
-- ``action_retry``: Retrying a failed task
-- ``action_clear``: Clearing a task's state
-
+- ``trigger``: Triggering a DAG
+- ``[variable,connection].create``: A user created a Connection or Variable
+- ``[variable,connection].edit``: A user modified a Connection or Variable
+- ``[variable,connection].delete``: A user deleted a Connection or Variable
+- ``delete``: A user deleted a DAG or task
+- ``failed``: Airflow or a user set a task as failed
+- ``success``: Airflow or a user set a task as success
+- ``retry``: Airflow or a user retried a task instance
+- ``clear``: A user cleared a task's state
+- ``cli_task_run``: Airflow triggered a task instance
 
 In addition to these predefined events, Airflow allows you to define custom events that can be tracked in audit logs.
 This can be done by calling the ``log`` method of the ``TaskInstance`` object.

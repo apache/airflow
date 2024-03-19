@@ -36,6 +36,7 @@ from google.cloud.dataform_v1beta1.types import (
     MakeDirectoryResponse,
     Repository,
     WorkflowInvocation,
+    WorkflowInvocationAction,
     Workspace,
     WriteFileResponse,
 )
@@ -346,6 +347,89 @@ class DataformGetWorkflowInvocationOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         return WorkflowInvocation.to_dict(result)
+
+
+class DataformQueryWorkflowInvocationActionsOperator(GoogleCloudBaseOperator):
+    """
+    Returns WorkflowInvocationActions in a given WorkflowInvocation.
+
+    :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+    :param region: Required. The ID of the Google Cloud region that the task belongs to.
+    :param repository_id: Required. The ID of the Dataform repository that the task belongs to.
+    :param workflow_invocation_id:  the workflow invocation resource's id.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata: Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "workflow_invocation_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (DataformWorkflowInvocationLink(),)
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        repository_id: str,
+        workflow_invocation_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.repository_id = repository_id
+        self.workflow_invocation_id = workflow_invocation_id
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = DataformHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        DataformWorkflowInvocationLink.persist(
+            operator_instance=self,
+            context=context,
+            project_id=self.project_id,
+            region=self.region,
+            repository_id=self.repository_id,
+            workflow_invocation_id=self.workflow_invocation_id,
+        )
+        actions = hook.query_workflow_invocation_actions(
+            project_id=self.project_id,
+            region=self.region,
+            repository_id=self.repository_id,
+            workflow_invocation_id=self.workflow_invocation_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        actions_list = [WorkflowInvocationAction.to_dict(action) for action in actions]
+        self.log.info("Workflow Query invocation actions: %s", actions_list)
+        return actions_list
 
 
 class DataformCancelWorkflowInvocationOperator(GoogleCloudBaseOperator):

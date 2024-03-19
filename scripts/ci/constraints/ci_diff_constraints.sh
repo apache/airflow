@@ -15,6 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-cp -v ./files/constraints-*/constraints*.txt repo/
-cd repo || exit 1
+cp -v ./files/constraints-*/constraints*.txt constraints/
+cd constraints || exit 1
 git diff --color --exit-code --ignore-matching-lines="^#.*" || echo "No changes in constraints"

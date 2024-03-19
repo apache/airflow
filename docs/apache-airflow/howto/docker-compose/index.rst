@@ -20,7 +20,7 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </core-concepts/executor/celery>` in Docker.
+This quick-start guide will allow you to quickly get Airflow up and running with the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>` in Docker.
 
 .. caution::
     This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
@@ -99,7 +99,7 @@ Optionally, you can enable flower by adding ``--profile flower`` option, e.g. ``
 
 - ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 
-All these services allow you to run Airflow with :doc:`CeleryExecutor </core-concepts/executor/celery>`. For more information, see :doc:`/core-concepts/overview`.
+All these services allow you to run Airflow with :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`. For more information, see :doc:`/core-concepts/overview`.
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 
@@ -294,6 +294,13 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <_howto/operator:PythonVirtualenvOperator>`_ which will
+   dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 Special case - adding dependencies via requirements.txt file
 ============================================================
 
@@ -312,14 +319,14 @@ you should do those steps:
 
 .. code-block:: docker
 
-    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
+    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:|version|}
     build: .
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
 .. code-block:: docker
 
-    FROM apache/airflow:2.6.1
+    FROM apache/airflow:|version|
     ADD requirements.txt .
     RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 
@@ -333,10 +340,66 @@ that conflicts with the version of apache-airflow that you are using.
 Run ``docker compose build`` to build the image, or add ``--build`` flag to ``docker compose up`` or
 ``docker compose run`` commands to build the image automatically as needed.
 
+Special case - Adding a custom config file
+==========================================
+
+If you have a custom config file and wish to use it in your Airflow instance, you need to perform the following steps:
+
+1) Remove comment from the ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'`` line
+   in the ``docker-compose.yaml`` file.
+
+2) Place your custom ``airflow.cfg`` file in the local config folder.
+
+3) If your config file has a different name than ``airflow.cfg``, adjust the filename in
+   ``AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'``
+
 Networking
 ==========
 
 In general, if you want to use Airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+
+Debug Airflow inside docker container using PyCharm
+===================================================
+.. jinja:: quick_start_ctx
+
+    Prerequisites: Create a project in **PyCharm** and download the (`docker-compose.yaml <{{ doc_root_url }}docker-compose.yaml>`__).
+
+Steps:
+
+1) Modify  ``docker-compose.yaml``
+
+   Add the following section under the ``services`` section:
+
+.. code-block:: yaml
+
+    airflow-python:
+    <<: *airflow-common
+    profiles:
+        - debug
+    environment:
+        <<: *airflow-common-env
+    user: "50000:0"
+    entrypoint: ["bash"]
+
+.. note::
+
+    This code snippet creates a new service named **"airflow-python"** specifically for PyCharm's Python interpreter.
+    On a Linux system,  if you have executed the command ``echo -e "AIRFLOW_UID=$(id -u)" > .env``, you need to set ``user: "50000:0"`` in ``airflow-python`` service to avoid PyCharm's ``Unresolved reference 'airflow'`` error.
+
+2) Configure PyCharm Interpreter
+
+   * Open PyCharm and navigate to **Settings** (or **Preferences** on macOS) > **Project: <Your Project Name>** > **Python Interpreter**.
+   * Click the **"Add Interpreter"** button and choose **"On Docker Compose"**.
+   * In the **Configuration file** field, select your ``docker-compose.yaml`` file.
+   * In the **Service field**, choose the newly added ``airflow-python`` service.
+   * Click **"Next"** and follow the prompts to complete the configuration.
+
+.. image:: /img/add_container_python_interpreter.png
+    :alt: Configuring the container's Python interpreter in PyCharm, step diagram
+
+Building the interpreter index might take some time.
+Once configured, you can debug your Airflow code within the container environment, mimicking your local setup.
+
 
 FAQ: Frequently asked questions
 ===============================

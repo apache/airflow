@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utilities module for cli."""
+
 from __future__ import annotations
 
 import functools
@@ -27,7 +28,6 @@ import threading
 import traceback
 import warnings
 from argparse import Namespace
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
@@ -36,7 +36,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils import cli_action_loggers
+from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -116,7 +116,7 @@ def action_cli(func=None, check_db=True):
                 metrics["error"] = e
                 raise
             finally:
-                metrics["end_datetime"] = datetime.utcnow()
+                metrics["end_datetime"] = timezone.utcnow()
                 cli_action_loggers.on_post_execution(**metrics)
 
         return cast(T, wrapper)
@@ -155,7 +155,7 @@ def _build_metrics(func_name, namespace):
 
     metrics = {
         "sub_command": func_name,
-        "start_datetime": datetime.utcnow(),
+        "start_datetime": timezone.utcnow(),
         "full_command": f"{full_command}",
         "user": getuser(),
     }
@@ -269,7 +269,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id)).first()
+    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id).limit(1))
     if not dag_pickle:
         raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle

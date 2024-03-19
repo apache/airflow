@@ -26,6 +26,7 @@ import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 from requests.auth import HTTPBasicAuth
+from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
@@ -33,6 +34,15 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+
+    from airflow.models import Connection
+
+
+def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
+    """Combine base url with endpoint."""
+    if base_url and not base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
+        return f"{base_url}/{endpoint}"
+    return (base_url or "") + (endpoint or "")
 
 
 class HttpHook(BaseHook):
@@ -112,8 +122,19 @@ class HttpHook(BaseHook):
             elif self._auth_type:
                 session.auth = self.auth_type()
             if conn.extra:
+                extra = conn.extra_dejson
+                extra.pop(
+                    "timeout", None
+                )  # ignore this as timeout is only accepted in request method of Session
+                extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
+                session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
+                session.stream = extra.pop("stream", False)
+                session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
+                session.cert = extra.pop("cert", None)
+                session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+
                 try:
-                    session.headers.update(conn.extra_dejson)
+                    session.headers.update(extra)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
@@ -144,7 +165,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.url_from_endpoint(endpoint)
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         if self.tcp_keep_alive:
             keep_alive_adapter = TCPKeepAliveAdapter(
@@ -244,13 +265,12 @@ class HttpHook(BaseHook):
         """
         self._retry_obj = tenacity.Retrying(**_retry_args)
 
-        return self._retry_obj(self.run, *args, **kwargs)
+        # TODO: remove ignore type when https://github.com/jd/tenacity/issues/428 is resolved
+        return self._retry_obj(self.run, *args, **kwargs)  # type: ignore
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            return self.base_url + "/" + endpoint
-        return (self.base_url or "") + (endpoint or "")
+        return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
 
     def test_connection(self):
         """Test HTTP Connection."""
@@ -333,16 +353,16 @@ class HttpAsyncHook(BaseHook):
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:
+                extra = self._process_extra_options_from_connection(conn=conn, extra_options=extra_options)
+
                 try:
-                    _headers.update(conn.extra_dejson)
+                    _headers.update(extra)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             _headers.update(headers)
 
-        base_url = (self.base_url or "").rstrip("/")
-        endpoint = (endpoint or "").lstrip("/")
-        url = f"{base_url}/{endpoint}"
+        url = _url_from_endpoint(self.base_url, endpoint)
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -365,7 +385,7 @@ class HttpAsyncHook(BaseHook):
             for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
-                    json=data if self.method in ("POST", "PATCH") else None,
+                    json=data if self.method in ("POST", "PUT", "PATCH") else None,
                     params=data if self.method == "GET" else None,
                     headers=_headers,
                     auth=auth,
@@ -391,6 +411,29 @@ class HttpAsyncHook(BaseHook):
                     return response
             else:
                 raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    @classmethod
+    def _process_extra_options_from_connection(cls, conn: Connection, extra_options: dict) -> dict:
+        extra = conn.extra_dejson
+        extra.pop("stream", None)
+        extra.pop("cert", None)
+        proxies = extra.pop("proxies", extra.pop("proxy", None))
+        timeout = extra.pop("timeout", None)
+        verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
+        allow_redirects = extra.pop("allow_redirects", None)
+        max_redirects = extra.pop("max_redirects", None)
+
+        if proxies is not None and "proxy" not in extra_options:
+            extra_options["proxy"] = proxies
+        if timeout is not None and "timeout" not in extra_options:
+            extra_options["timeout"] = timeout
+        if verify_ssl is not None and "verify_ssl" not in extra_options:
+            extra_options["verify_ssl"] = verify_ssl
+        if allow_redirects is not None and "allow_redirects" not in extra_options:
+            extra_options["allow_redirects"] = allow_redirects
+        if max_redirects is not None and "max_redirects" not in extra_options:
+            extra_options["max_redirects"] = max_redirects
+        return extra
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
         """Determine whether an exception may successful on a subsequent attempt.

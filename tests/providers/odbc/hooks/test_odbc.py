@@ -19,14 +19,61 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.odbc.hooks.odbc import OdbcHook
+
+
+@pytest.fixture
+def pyodbc_row_mock():
+    """Mock a pyodbc.Row instantiated object.
+
+    This object is used in the tests to replace the real pyodbc.Row object.
+    pyodbc.Row is a C object that can only be created from C API of pyodbc.
+
+    This mock implements the two features used by the hook:
+        - cursor_description: which return column names and type
+        - __iter__: which allows exploding a row instance (*row)
+    """
+
+    @dataclass
+    class Row:
+        key: int
+        column: str
+
+        def __iter__(self):
+            yield self.key
+            yield self.column
+
+        @property
+        def cursor_description(self):
+            return [
+                ("key", int, None, 11, 11, 0, None),
+                ("column", str, None, 256, 256, 0, None),
+            ]
+
+    return Row
+
+
+@pytest.fixture
+def pyodbc_instancecheck():
+    """Mock a pyodbc.Row class which returns True to any isinstance() checks."""
+
+    class PyodbcRowMeta(type):
+        def __instancecheck__(self, instance):
+            return True
+
+    class PyodbcRow(metaclass=PyodbcRowMeta):
+        pass
+
+    return PyodbcRow
 
 
 class TestOdbcHook:
@@ -40,10 +87,23 @@ class TestOdbcHook:
             }
         )
 
-        hook = OdbcHook(**hook_params)
-        hook.get_connection = mock.Mock()
-        hook.get_connection.return_value = connection
-        return hook
+        cursor = mock.MagicMock(
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+        )
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cursor
+
+        class UnitTestOdbcHook(OdbcHook):
+            conn_name_attr = "test_conn_id"
+
+            @classmethod
+            def get_connection(cls, conn_id: str):
+                return connection
+
+            def get_conn(self):
+                return conn
+
+        return UnitTestOdbcHook(**hook_params)
 
     def test_driver_in_extra_not_used(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
@@ -215,6 +275,11 @@ class TestOdbcHook:
                 assert "have supplied 'driver' via connection extra but it will not be used" in caplog.text
                 assert driver == "Blah driver"
 
+    def test_placeholder_config_from_extra(self):
+        conn_params = dict(extra=json.dumps(dict(placeholder="?")))
+        hook = self.get_hook(conn_params=conn_params)
+        assert hook.placeholder == "?"
+
     def test_database(self):
         hook = self.get_hook(hook_params=dict(database="abc"))
         assert hook.database == "abc"
@@ -235,3 +300,72 @@ class TestOdbcHook:
         hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
+
+    def test_pyodbc_mock(self):
+        """Ensure that pyodbc.Row object has a `cursor_description` method.
+
+        In subsequent tests, pyodbc.Row is replaced by the 'pyodbc_row_mock' fixture, which implements the
+        `cursor_description` method. We want to detect any breaking change in the pyodbc object. If this test
+        fails, the 'pyodbc_row_mock' fixture needs to be updated.
+        """
+        assert hasattr(pyodbc.Row, "cursor_description")
+
+    def test_query_return_serializable_result_with_fetchall(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
+        """
+        Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
+        get converted into a list of tuples.
+        """
+        pyodbc_result = [pyodbc_row_mock(key=1, column="value1"), pyodbc_row_mock(key=2, column="value2")]
+        hook_result = [(1, "value1"), (2, "value2")]
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook()
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_return_serializable_result_empty(self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck):
+        """
+        Simulate a cursor.fetchall which returns an iterable of pyodbc.Row object, and check if this iterable
+        get converted into a list of tuples.
+        """
+        pyodbc_result = []
+        hook_result = []
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook()
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_return_serializable_result_with_fetchone(
+        self, pyodbc_row_mock, monkeypatch, pyodbc_instancecheck
+    ):
+        """
+        Simulate a cursor.fetchone which returns one single pyodbc.Row object, and check if this object gets
+        converted into a tuple.
+        """
+        pyodbc_result = pyodbc_row_mock(key=1, column="value1")
+        hook_result = (1, "value1")
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook()
+        with monkeypatch.context() as patcher:
+            patcher.setattr("pyodbc.Row", pyodbc_instancecheck)
+            result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_no_handler_return_none(self):
+        hook = self.get_hook()
+        result = hook.run("SQL")
+        assert result is None

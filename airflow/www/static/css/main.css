@@ -146,6 +146,7 @@ div.squares {
 }
 
 input#execution_date {
+  width: 220px;
   margin-bottom: 0;
 }
 

@@ -41,6 +41,9 @@ Variable                                    Type                  Description
 ``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ dag_run.logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+``{{ exception }}``                         None | str |          | Error occurred while running task instance.
+                                            Exception             |
+                                            KeyboardInterrupt     |
 ``{{ ts }}``                                str                   | Same as ``{{ dag_run.logical_date | ts }}``.
                                                                   | Example: ``2018-01-01T00:00:00+00:00``.
 ``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
@@ -71,6 +74,7 @@ Variable                                    Type                  Description
 ``{{ run_id }}``                            str                   The currently running :class:`~airflow.models.dagrun.DagRun` run ID.
 ``{{ dag_run }}``                           DagRun                The currently running :class:`~airflow.models.dagrun.DagRun`.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
+``{{ map_index_template }}``                None | str            Template used to render the expanded task instance of a mapped task. Setting this value will be reflected in the rendered result.
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
@@ -100,9 +104,9 @@ Deprecated variables
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 
-=====================================   ====================================
+=====================================   ==========================================================================
 Deprecated Variable                     Description
-=====================================   ====================================
+=====================================   ==========================================================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
 ``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
                                         you may be able to use ``data_interval_end`` instead
@@ -115,9 +119,11 @@ Deprecated Variable                     Description
 ``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
 ``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful DAG run
-
-=====================================   ====================================
+``{{ prev_execution_date_success }}``   execution date from prior successful DAG run;
+                                        you may be able to use ``prev_data_interval_start_success``instead if
+                                        the timetable/schedule you use for the DAG defines ``data_interval_start``
+                                        compatible with the legacy ``execution_date``.
+=====================================   ==========================================================================
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:
@@ -155,7 +161,7 @@ Filters
 
 Airflow defines some Jinja filters that can be used to format values.
 
-For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
+For example, using ``{{ logical_date | ds }}`` will output the logical_date in the ``YYYY-MM-DD`` format.
 
 =====================  ============  ==================================================================
 Filter                 Operates on   Description

@@ -19,7 +19,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.www.security_manager import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 
 
 @contextmanager

@@ -205,5 +205,4 @@ def test_connection() -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     finally:
-        if conn_env_var in os.environ:
-            del os.environ[conn_env_var]
+        os.environ.pop(conn_env_var, None)

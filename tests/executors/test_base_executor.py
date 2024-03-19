@@ -254,6 +254,7 @@ def test_validate_airflow_tasks_run_command(dag_maker):
     assert dag_id == dagrun.dag_id and task_id == tis[0].task_id
 
 
+@pytest.mark.db_test
 @mock.patch(
     "airflow.models.taskinstance.TaskInstance.generate_command",
     return_value=["airflow", "tasks", "run", "--test_dag", "--test_task"],
@@ -265,6 +266,7 @@ def test_validate_airflow_tasks_run_command_with_complete_forloop(generate_comma
     assert dag_id is None and task_id is None
 
 
+@pytest.mark.db_test
 @mock.patch(
     "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "task", "run"]
 )
@@ -275,6 +277,7 @@ def test_invalid_airflow_tasks_run_command(generate_command_mock, dag_maker):
         BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
 
 
+@pytest.mark.db_test
 @mock.patch(
     "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "tasks", "run"]
 )
@@ -285,6 +288,7 @@ def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
     assert dag_id is None, task_id is None
 
 
+@pytest.mark.db_test
 def test_deprecate_validate_api(dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances

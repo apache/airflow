@@ -165,11 +165,11 @@ const Grid = ({
         ref={gridScrollRef}
         overflow="auto"
         position="relative"
-        pr={4}
         mt={8}
-        overscrollBehavior="contain"
+        overscrollBehavior="auto"
+        pb={4}
       >
-        <Table pr="10px">
+        <Table borderRightWidth="16px" borderColor="transparent">
           <Thead>
             <DagRuns
               groups={groups}

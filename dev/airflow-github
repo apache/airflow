@@ -31,6 +31,8 @@ import git
 import rich_click as click
 from github import Github
 from packaging import version
+from rich.console import Console
+from rich.progress import Progress
 
 if TYPE_CHECKING:
     from github.Issue import Issue
@@ -39,7 +41,6 @@ if TYPE_CHECKING:
 GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
 GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
-
 
 STATUS_COLOR_MAP = {
     "Closed": "green",
@@ -140,19 +141,11 @@ def is_core_commit(files: list[str]) -> bool:
         "clients",
         # non-released docs
         "COMMITTERS.rst",
-        "CONTRIBUTING.rst",
-        "CONTRIBUTORS_QUICK_START.rst",
-        "IMAGES.rst",
-        "LOCAL_VIRTUALENV.rst",
+        "contributing_docs/",
         "INTHEWILD.md",
         "INSTALL",
         "README.md",
-        "BREEZE.rst",
-        "CI.rst",
-        "CI_DIAGRAMS.md",
-        "STATIC_CODE_CHECKS.rst",
         "images/",
-        "TESTING.rst",
         "codecov.yml",
         "kubernetes_tests/",
         ".github/",
@@ -318,34 +311,45 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
 @click.argument("previous_version")
 @click.argument("target_version")
 @click.argument("github-token", envvar="GITHUB_TOKEN")
-def changelog(previous_version, target_version, github_token):
+@click.option("--disable-progress-bar", is_flag=True, help="Disable the progress bar")
+def changelog(previous_version, target_version, github_token, disable_progress_bar):
     repo = git.Repo(".", search_parent_directories=True)
     # Get a list of issues/PRs that have been committed on the current branch.
     log = get_commits_between(repo, previous_version, target_version)
 
+    if disable_progress_bar:
+        print(f"Processing {len(log)} commits")
+
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
-    for commit in log:
-        tickets = pr_title_re.findall(commit["subject"])
-        if tickets:
-            issue = gh_repo.get_issue(number=int(tickets[0][1:]))
-            issue_type = get_issue_type(issue)
-            files = files_touched(repo, commit["id"])
-            if is_core_commit(files):
-                if issue_type in ["bug-fix", "doc-only", "misc/internal"]:
-                    with open("../RELEASE_NOTES.rst") as file:
-                        for line in file.readlines():
-                            if line.endswith(f"(#{commit['id']})"):
-                                continue
-                        else:
-                            sections[issue_type].append(commit["subject"])
-                else:
+    existing_commits = set()
+    with open("../RELEASE_NOTES.rst") as file:
+        for line in file.readlines():
+            match = re.search(r"\(#(\w+)\)", line)
+            if match:
+                existing_commits.add(match.group(1))
+
+    console = Console(width=180)
+
+    with Progress(console=console, disable=disable_progress_bar) as progress:
+        task = progress.add_task("Processing commits from changelog", total=len(log))
+        for commit in progress.track(log, description="Processing commits from changelog"):
+            tickets = pr_title_re.findall(commit["subject"])
+            if tickets:
+                issue = gh_repo.get_issue(number=int(tickets[0][1:]))
+                issue_type = get_issue_type(issue)
+                files = files_touched(repo, commit["id"])
+                if commit["id"] in existing_commits:
+                    continue
+                if is_core_commit(files):
                     sections[issue_type].append(commit["subject"])
+                progress.update(task, advance=1)
+            else:
+                sections[DEFAULT_SECTION_NAME].append(commit["subject"])
+                progress.update(task, advance=1)
 
-        else:
-            sections[DEFAULT_SECTION_NAME].append(commit["subject"])
-
+    console.print("\n")
     print_changelog(sections)
 
 

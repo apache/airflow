@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google Cloud Run Operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,7 +38,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_cloud_run"
 
 region = "us-central1"

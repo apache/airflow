@@ -21,6 +21,7 @@ Connect to your Salesforce instance, retrieve data from it, and write that data 
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
 """
+
 from __future__ import annotations
 
 import logging
@@ -91,9 +92,9 @@ class SalesforceHook(BaseHook):
         prefixed_name = f"{backcompat_prefix}{field_name}"
         return extras.get(prefixed_name) or None
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -114,9 +115,9 @@ class SalesforceHook(BaseHook):
             "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
             "relabeling": {
@@ -154,7 +155,7 @@ class SalesforceHook(BaseHook):
         return conn
 
     def get_conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)."""
+        """Return a Salesforce instance. (cached)."""
         return self.conn
 
     def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:
@@ -367,8 +368,7 @@ class SalesforceHook(BaseHook):
         # that's because None/np.nan cannot exist in an integer column
         # we should write all of our timestamps as FLOATS in our final schema
         df = pd.DataFrame.from_records(query_results, exclude=["attributes"])
-
-        df.columns = [column.lower() for column in df.columns]
+        df.rename(columns=str.lower, inplace=True)
 
         # convert columns with datetime strings to datetimes
         # not all strings will be datetimes, so we ignore any errors that occur

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to Presto operator."""
+
 from __future__ import annotations
 
 import csv

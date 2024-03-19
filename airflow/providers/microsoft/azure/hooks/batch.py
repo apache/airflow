@@ -26,7 +26,11 @@ from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -46,17 +50,10 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -67,7 +64,7 @@ class AzureBatchHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -79,6 +76,14 @@ class AzureBatchHook(BaseHook):
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
+
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
 
     @cached_property
     def connection(self) -> BatchServiceClient:
@@ -101,8 +106,13 @@ class AzureBatchHook(BaseHook):
         if all([conn.login, conn.password]):
             credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         else:
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
             credentials = AzureIdentityCredentialAdapter(
-                None, resource_id="https://batch.core.windows.net/.default"
+                None,
+                resource_id="https://batch.core.windows.net/.default",
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
@@ -126,7 +136,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> PoolAddParameter:
         """
-        Configures a pool.
+        Configure a pool.
 
         :param pool_id: A string that uniquely identifies the Pool within the Account
 
@@ -211,7 +221,7 @@ class AzureBatchHook(BaseHook):
 
     def create_pool(self, pool: PoolAddParameter) -> None:
         """
-        Creates a pool if not already existing.
+        Create a pool if not already existing.
 
         :param pool: the pool object to create
 
@@ -286,7 +296,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> JobAddParameter:
         """
-        Configures a job for use in the pool.
+        Configure a job for use in the pool.
 
         :param job_id: A string that uniquely identifies the job within the account
         :param pool_id: A string that identifies the pool
@@ -302,7 +312,7 @@ class AzureBatchHook(BaseHook):
 
     def create_job(self, job: JobAddParameter) -> None:
         """
-        Creates a job in the pool.
+        Create a job in the pool.
 
         :param job: The job object to create
         """
@@ -324,7 +334,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> TaskAddParameter:
         """
-        Creates a task.
+        Create a task.
 
         :param task_id: A string that identifies the task to create
         :param command_line: The command line of the Task.
@@ -368,7 +378,7 @@ class AzureBatchHook(BaseHook):
         """
         timeout_time = timezone.utcnow() + timedelta(minutes=timeout)
         while timezone.utcnow() < timeout_time:
-            tasks = self.connection.task.list(job_id)
+            tasks = list(self.connection.task.list(job_id))
 
             incomplete_tasks = [task for task in tasks if task.state != batch_models.TaskState.completed]
             if not incomplete_tasks:
@@ -376,7 +386,7 @@ class AzureBatchHook(BaseHook):
                 fail_tasks = [
                     task
                     for task in tasks
-                    if task.executionInfo.result == batch_models.TaskExecutionResult.failure
+                    if task.execution_info.result == batch_models.TaskExecutionResult.failure
                 ]
                 return fail_tasks
             for task in incomplete_tasks:

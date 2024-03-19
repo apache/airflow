@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for additional Package Indexes (Python)."""
+
 from __future__ import annotations
 
 import subprocess
@@ -33,8 +34,8 @@ class PackageIndexHook(BaseHook):
     conn_type = "package_index"
     hook_name = "Package Index (Python)"
 
-    def __init__(self, pi_conn_id: str = default_conn_name) -> None:
-        super().__init__()
+    def __init__(self, pi_conn_id: str = default_conn_name, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.pi_conn_id = pi_conn_id
         self.conn = None
 

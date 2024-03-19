@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import warnings
+from functools import partial, wraps
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
 from azure.core.pipeline.transport import HttpRequest
 from azure.identity import DefaultAzureCredential
+from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from msrest.authentication import BasicTokenAuthentication
 
 
@@ -41,7 +43,9 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
             warnings.warn(
                 f"Conflicting params `{field_name}` and `{backcompat_key}` found in extras for conn "
                 f"{conn_id}. Using value for `{field_name}`.  Please ensure this is the correct "
-                f"value and remove the backcompat key `{backcompat_key}`."
+                f"value and remove the backcompat key `{backcompat_key}`.",
+                UserWarning,
+                stacklevel=2,
             )
         ret = extras[field_name]
     elif backcompat_key in extras:
@@ -51,22 +55,62 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
     return ret
 
 
-def get_default_azure_credential(
-    managed_identity_client_id: str | None, workload_identity_tenant_id: str | None
-) -> DefaultAzureCredential:
+def _get_default_azure_credential(
+    *,
+    managed_identity_client_id: str | None = None,
+    workload_identity_tenant_id: str | None = None,
+    use_async: bool = False,
+) -> DefaultAzureCredential | AsyncDefaultAzureCredential:
     """Get DefaultAzureCredential based on provided arguments.
 
     If managed_identity_client_id and workload_identity_tenant_id are provided, this function returns
     DefaultAzureCredential with managed identity.
     """
+    credential_cls: type[AsyncDefaultAzureCredential] | type[DefaultAzureCredential] = (
+        AsyncDefaultAzureCredential if use_async else DefaultAzureCredential
+    )
     if managed_identity_client_id and workload_identity_tenant_id:
-        return DefaultAzureCredential(
+        return credential_cls(
             managed_identity_client_id=managed_identity_client_id,
             workload_identity_tenant_id=workload_identity_tenant_id,
             additionally_allowed_tenants=[workload_identity_tenant_id],
         )
     else:
-        return DefaultAzureCredential()
+        return credential_cls()
+
+
+get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(
+    _get_default_azure_credential,  #  type: ignore[arg-type]
+    use_async=False,
+)
+
+get_async_default_azure_credential: partial[AsyncDefaultAzureCredential] = partial(
+    _get_default_azure_credential,  #  type: ignore[arg-type]
+    use_async=True,
+)
+
+
+def add_managed_identity_connection_widgets(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        widgets = func(*args, **kwargs)
+        widgets.update(
+            {
+                "managed_identity_client_id": StringField(
+                    lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+                ),
+                "workload_identity_tenant_id": StringField(
+                    lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+                ),
+            }
+        )
+        return widgets
+
+    return wrapper
 
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
@@ -99,7 +143,10 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         """
         super().__init__(None)  # type: ignore[arg-type]
         if credential is None:
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
     def _make_request(self):

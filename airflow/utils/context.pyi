@@ -65,12 +65,13 @@ class Context(TypedDict, total=False):
     data_interval_start: DateTime
     ds: str
     ds_nodash: str
-    exception: KeyboardInterrupt | Exception | str | None
+    exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
     logical_date: DateTime
     macros: Any
+    map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
     next_execution_date: DateTime | None
@@ -83,6 +84,7 @@ class Context(TypedDict, total=False):
     prev_execution_date: DateTime | None
     prev_execution_date_success: DateTime | None
     prev_start_date_success: DateTime | None
+    prev_end_date_success: DateTime | None
     reason: str | None
     run_id: str
     task: BaseOperator

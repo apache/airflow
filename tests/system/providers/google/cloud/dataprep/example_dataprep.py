@@ -23,6 +23,7 @@ This DAG relies on the following OS environment variables
   For generating it please use instruction
   https://docs.trifacta.com/display/DP/Manage+API+Access+Tokens#:~:text=Enable%20individual%20access-,Generate%20New%20Token,-Via%20UI.
 """
+
 from __future__ import annotations
 
 import logging
@@ -100,7 +101,7 @@ with models.DAG(
             conn_type="dataprep",
             extra={"token": DATAPREP_TOKEN},
         )
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
             log.warning("Connection %s already exists", CONNECTION_ID)
             return None

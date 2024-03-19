@@ -112,7 +112,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
-def test_trigger_logging_sensitive_info(session, capsys):
+def test_trigger_logging_sensitive_info(session, caplog):
     """
     Checks that when a trigger fires, it doesn't log any sensitive
     information from arguments
@@ -150,10 +150,9 @@ def test_trigger_logging_sensitive_info(session, capsys):
     # Since we have now an in-memory process of forwarding the logs to stdout,
     # give it more time for the trigger event to write the log.
     time.sleep(0.5)
-    stdout = capsys.readouterr().out
 
-    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in stdout
-    assert "some_password" not in stdout
+    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in caplog.text
+    assert "some_password" not in caplog.text
 
 
 def test_is_alive():
@@ -214,8 +213,8 @@ def test_capacity_decode():
         4 / 2,  # Resolves to a float, in addition to being just plain weird
     ]
     for input_str in variants:
+        job = Job()
         with pytest.raises(ValueError):
-            job = Job()
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -267,7 +266,7 @@ def test_trigger_lifecycle(session):
 class TestTriggerRunner:
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_canceled(self, session) -> None:
+    async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -279,7 +278,7 @@ class TestTriggerRunner:
 
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_timeout(self, session, caplog) -> None:
+    async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -432,7 +431,7 @@ def test_trigger_from_dead_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id
@@ -459,7 +458,7 @@ def test_trigger_from_expired_triggerer(session, create_task_instance):
     session.add(trigger_orm)
     ti_orm = create_task_instance(
         task_id="ti_orm",
-        execution_date=datetime.datetime.utcnow(),
+        execution_date=timezone.utcnow(),
         run_id="orm_run_id",
     )
     ti_orm.trigger_id = trigger_orm.id

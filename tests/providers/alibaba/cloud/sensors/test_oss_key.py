@@ -35,6 +35,8 @@ MOCK_KEY = "mock_key"
 MOCK_KEYS = ["mock_key1", "mock_key_2", "mock_key3"]
 MOCK_CONTENT = "mock_content"
 
+# mypy: disable-error-code="call-overload"
+
 
 @pytest.fixture
 def oss_key_sensor():

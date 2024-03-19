@@ -58,12 +58,12 @@ class ADLSToGCSOperator(ADLSListOperator):
         resulting gcs path will be ``gs://mybucket/hello/world.avro`` ::
 
             copy_single_file = AdlsToGoogleCloudStorageOperator(
-                task_id='copy_single_file',
-                src_adls='hello/world.avro',
-                dest_gcs='gs://mybucket',
+                task_id="copy_single_file",
+                src_adls="hello/world.avro",
+                dest_gcs="gs://mybucket",
                 replace=False,
-                azure_data_lake_conn_id='azure_data_lake_default',
-                gcp_conn_id='google_cloud_default'
+                azure_data_lake_conn_id="azure_data_lake_default",
+                gcp_conn_id="google_cloud_default",
             )
 
         The following Operator would copy all parquet files from ADLS

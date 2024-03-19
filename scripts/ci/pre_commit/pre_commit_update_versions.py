@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 
-from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, read_airflow_version  # noqa: E402
+from common_precommit_utils import AIRFLOW_SOURCES_ROOT_PATH, read_airflow_version
 
 
 def update_version(pattern: re.Pattern, v: str, file_path: Path):

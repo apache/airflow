@@ -35,7 +35,6 @@ def clear_db():
     clear_db_logs()
     clear_db_runs()
     clear_db_dags()
-    yield
 
 
 def add_log(execdate, session, dag_maker, timezone_override=None):

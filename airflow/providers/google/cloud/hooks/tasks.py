@@ -73,7 +73,7 @@ class CloudTasksHook(GoogleBaseHook):
 
     def get_conn(self) -> CloudTasksClient:
         """
-        Provides a client for interacting with the Google Cloud Tasks API.
+        Provide a client for interacting with the Google Cloud Tasks API.
 
         :return: Google Cloud Tasks API Client
         """
@@ -93,7 +93,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Queue:
         """
-        Creates a queue in Cloud Tasks.
+        Create a queue in Cloud Tasks.
 
         :param location: The location name in which the queue will be created.
         :param task_queue: The task queue to create.
@@ -141,7 +141,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Queue:
         """
-        Updates a queue in Cloud Tasks.
+        Update a queue in Cloud Tasks.
 
         :param task_queue: The task queue to update.
             This method creates the queue if it does not exist and updates the queue if
@@ -190,7 +190,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Queue:
         """
-        Gets a queue from Cloud Tasks.
+        Get a queue from Cloud Tasks.
 
         :param location: The location name in which the queue was created.
         :param queue_name: The queue's name.
@@ -225,7 +225,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[Queue]:
         """
-        Lists queues from Cloud Tasks.
+        List queues from Cloud Tasks.
 
         :param location: The location name in which the queues were created.
         :param project_id: (Optional) The ID of the Google Cloud project that owns the Cloud Tasks.
@@ -262,7 +262,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a queue from Cloud Tasks, even if it has tasks in it.
+        Delete a queue from Cloud Tasks, even if it has tasks in it.
 
         :param location: The location name in which the queue will be deleted.
         :param queue_name: The queue's name.
@@ -401,7 +401,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Task:
         """
-        Creates a task in Cloud Tasks.
+        Create a task in Cloud Tasks.
 
         :param location: The location name in which the task will be created.
         :param queue_name: The queue's name.
@@ -453,7 +453,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Task:
         """
-        Gets a task from Cloud Tasks.
+        Get a task from Cloud Tasks.
 
         :param location: The location name in which the task was created.
         :param queue_name: The queue's name.
@@ -492,7 +492,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[Task]:
         """
-        Lists the tasks in Cloud Tasks.
+        List the tasks in Cloud Tasks.
 
         :param location: The location name in which the tasks were created.
         :param queue_name: The queue's name.
@@ -531,7 +531,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a task from Cloud Tasks.
+        Delete a task from Cloud Tasks.
 
         :param location: The location name in which the task will be deleted.
         :param queue_name: The queue's name.
@@ -568,7 +568,7 @@ class CloudTasksHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Task:
         """
-        Forces to run a task in Cloud Tasks.
+        Force run a task in Cloud Tasks.
 
         :param location: The location name in which the task was created.
         :param queue_name: The queue's name.

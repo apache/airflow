@@ -32,13 +32,14 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.module_loading import qualname
 from airflow.www import app as application
-from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = pytest.mark.db_test
 
 importlib_metadata_string = "importlib_metadata"
+
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 
 try:
     import importlib_metadata
@@ -164,7 +165,7 @@ def test_flaskappbuilder_nomenu_views():
 
 
 class TestPluginsManager:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def clean_plugins(self):
         from airflow import plugins_manager
 
@@ -208,7 +209,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 6 == len(plugins_manager.plugins)
+            assert 7 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert "postload" == plugin.name

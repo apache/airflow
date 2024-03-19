@@ -22,6 +22,11 @@ Google Analytics 360 operators allow you to lists all accounts to which the user
 For more information about the Google Analytics 360 API check
 `official documentation <https://developers.google.com/analytics/devguides/config/mgmt/v3>`__.
 
+Please note that the Google Analytics 360 API is replaced by
+`Google Analytics 4 <https://developers.google.com/analytics/devguides/config/admin/v1>`__ and
+`will be turned down on July 1, 2024 <https://support.google.com/analytics/answer/11583528>`__.
+Thus consider using new :doc:`Google Analytics (GA4) Admin Operators </operators/marketing_platform/analytics_admin>`.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

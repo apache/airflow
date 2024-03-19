@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Dataflow Hook."""
+
 from __future__ import annotations
 
 import functools
@@ -27,9 +28,11 @@ import time
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
+from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
+from google.cloud.dataflow_v1beta3.types.jobs import ListJobsRequest
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -41,6 +44,10 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timeout import timeout
+
+if TYPE_CHECKING:
+    from google.cloud.dataflow_v1beta3.services.jobs_v1_beta3.pagers import ListJobsAsyncPager
+
 
 # This is the default location
 # https://cloud.google.com/dataflow/pipelines/specifying-exec-params
@@ -55,7 +62,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def process_line_and_extract_dataflow_job_id_callback(
-    on_new_job_id_callback: Callable[[str], None] | None
+    on_new_job_id_callback: Callable[[str], None] | None,
 ) -> Callable[[str], None]:
     """Build callback that triggers the specified function.
 
@@ -81,7 +88,7 @@ def process_line_and_extract_dataflow_job_id_callback(
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
     def _wrapper(func: T) -> T:
         """
-        Decorator that provides fallback for location from `region` key in `variables` parameters.
+        Fallback for location from `region` key in `variables` parameters.
 
         :param func: function to wrap
         :return: result of the function call
@@ -219,7 +226,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def is_job_running(self) -> bool:
         """
-        Helper method to check if jos is still running in dataflow.
+        Check if job is still running in dataflow.
 
         :return: True if job is running.
         """
@@ -231,7 +238,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _get_current_jobs(self) -> list[dict]:
         """
-        Helper method to get list of jobs that start with job name or id.
+        Get list of jobs that start with job name or id.
 
         :return: list of jobs including id's
         """
@@ -249,7 +256,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def fetch_job_by_id(self, job_id: str) -> dict:
         """
-        Helper method to fetch the job with the specified Job ID.
+        Fetch the job with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the Job
@@ -268,7 +275,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def fetch_job_metrics_by_id(self, job_id: str) -> dict:
         """
-        Helper method to fetch the job metrics with the specified Job ID.
+        Fetch the job metrics with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the JobMetrics. See:
@@ -287,7 +294,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _fetch_list_job_messages_responses(self, job_id: str) -> Generator[dict, None, None]:
         """
-        Helper method to fetch ListJobMessagesResponse with the specified Job ID.
+        Fetch ListJobMessagesResponse with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: yields the ListJobMessagesResponse. See:
@@ -315,7 +322,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def fetch_job_messages_by_id(self, job_id: str) -> list[dict]:
         """
-        Helper method to fetch the job messages with the specified Job ID.
+        Fetch the job messages with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the list of JobMessages. See:
@@ -328,7 +335,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def fetch_job_autoscaling_events_by_id(self, job_id: str) -> list[dict]:
         """
-        Helper method to fetch the job autoscaling events with the specified Job ID.
+        Fetch the job autoscaling events with the specified Job ID.
 
         :param job_id: Job ID to get.
         :return: the list of AutoscalingEvents. See:
@@ -369,7 +376,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _refresh_jobs(self) -> None:
         """
-        Helper method to get all jobs by name.
+        Get all jobs by name.
 
         :return: jobs
         """
@@ -387,7 +394,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of one job in dataflow for this task if job failed raise exception.
+        Check the state of one job in dataflow for this task if job failed raise exception.
 
         :return: True if job is done.
         :raise: Exception
@@ -419,7 +426,9 @@ class _DataflowJobsController(LoggingMixin):
                     "JOB_STATE_DRAINED while it is a batch job"
                 )
 
-        if not self._wait_until_finished and current_state == self._expected_terminal_state:
+        if current_state == self._expected_terminal_state:
+            if self._expected_terminal_state == DataflowJobStatus.JOB_STATE_RUNNING:
+                return not self._wait_until_finished
             return True
 
         if current_state in DataflowJobStatus.AWAITING_STATES:
@@ -432,7 +441,7 @@ class _DataflowJobsController(LoggingMixin):
         )
 
     def wait_for_done(self) -> None:
-        """Helper method to wait for result of submitted job."""
+        """Wait for result of submitted job."""
         self.log.info("Start waiting for done.")
         self._refresh_jobs()
         while self._jobs and not all(self._check_dataflow_job_state(job) for job in self._jobs):
@@ -442,7 +451,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def get_jobs(self, refresh: bool = False) -> list[dict]:
         """
-        Returns Dataflow jobs.
+        Return Dataflow jobs.
 
         :param refresh: Forces the latest data to be fetched.
         :return: list of jobs
@@ -455,7 +464,7 @@ class _DataflowJobsController(LoggingMixin):
         return self._jobs
 
     def _wait_for_states(self, expected_states: set[str]):
-        """Waiting for the jobs to reach a certain state."""
+        """Wait for the jobs to reach a certain state."""
         if not self._jobs:
             raise ValueError("The _jobs should be set")
         while True:
@@ -478,7 +487,7 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
 
     def cancel(self) -> None:
-        """Cancels or drains current job."""
+        """Cancel or drains current job."""
         self._jobs = [
             job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
         ]
@@ -553,13 +562,22 @@ class DataflowHook(GoogleBaseHook):
         )
 
     def get_conn(self) -> build:
-        """Returns a Google Cloud Dataflow service object."""
+        """Return a Google Cloud Dataflow service object."""
         http_authorized = self._authorize()
         return build("dataflow", "v1b3", http=http_authorized, cache_discovery=False)
 
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason=(
+            "This method is deprecated. "
+            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline` "
+            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
+            "to wait for the required pipeline state."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def start_java_dataflow(
         self,
         job_name: str,
@@ -573,7 +591,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> None:
         """
-        Starts Dataflow java job.
+        Start Dataflow java job.
 
         :param job_name: The name of the job.
         :param variables: Variables passed to the job.
@@ -586,16 +604,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :param location: Job location.
         """
-        warnings.warn(
-            """"This method is deprecated.
-            Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline`
-            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
-            to wait for the required pipeline state.
-            """,
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         name = self.build_dataflow_job_name(job_name, append_job_name)
 
         variables["jobName"] = name
@@ -635,7 +643,7 @@ class DataflowHook(GoogleBaseHook):
         environment: dict | None = None,
     ) -> dict:
         """
-        Starts Dataflow template job.
+        Start Dataflow template job.
 
         :param job_name: The name of the job.
         :param variables: Map of job runtime environment options.
@@ -760,7 +768,7 @@ class DataflowHook(GoogleBaseHook):
         on_new_job_callback: Callable[[dict], None] | None = None,
     ) -> dict:
         """
-        Starts flex templates with the Dataflow pipeline.
+        Start flex templates with the Dataflow pipeline.
 
         :param body: The request body. See:
             https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.locations.flexTemplates/launch#request-body
@@ -809,6 +817,15 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_location_from_variables
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason=(
+            "This method is deprecated. "
+            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline` "
+            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
+            "to wait for the required pipeline state."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def start_python_dataflow(
         self,
         job_name: str,
@@ -824,7 +841,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ):
         """
-        Starts Dataflow job.
+        Start Dataflow job.
 
         :param job_name: The name of the job.
         :param variables: Variables passed to the job.
@@ -852,16 +869,6 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_id_callback: Callback called when the job ID is known.
         :param location: Job location.
         """
-        warnings.warn(
-            """This method is deprecated.
-            Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline`
-            to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
-            to wait for the required pipeline state.
-            """,
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-
         name = self.build_dataflow_job_name(job_name, append_job_name)
         variables["job_name"] = name
         variables["region"] = location
@@ -885,7 +892,7 @@ class DataflowHook(GoogleBaseHook):
 
     @staticmethod
     def build_dataflow_job_name(job_name: str, append_job_name: bool = True) -> str:
-        """Builds Dataflow job name."""
+        """Build Dataflow job name."""
         base_job_name = str(job_name).replace("_", "-")
 
         if not re.fullmatch(r"[a-z]([-a-z0-9]*[a-z0-9])?", base_job_name):
@@ -912,7 +919,7 @@ class DataflowHook(GoogleBaseHook):
         variables: dict | None = None,
     ) -> bool:
         """
-        Helper method to check if jos is still running in dataflow.
+        Check if jos is still running in dataflow.
 
         :param name: The name of the job.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -948,7 +955,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> None:
         """
-        Cancels the job with the specified name prefix or Job ID.
+        Cancel the job with the specified name prefix or Job ID.
 
         Parameter ``name`` and ``job_id`` are mutually exclusive.
 
@@ -983,7 +990,7 @@ class DataflowHook(GoogleBaseHook):
         on_new_job_callback: Callable[[dict], None] | None = None,
     ):
         """
-        Starts Dataflow SQL query.
+        Start Dataflow SQL query.
 
         :param job_name: The unique name to assign to the Cloud Dataflow job.
         :param query: The SQL query to execute.
@@ -1076,7 +1083,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> dict:
         """
-        Gets the job with the specified Job ID.
+        Get the job with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -1100,7 +1107,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> dict:
         """
-        Gets the job metrics with the specified Job ID.
+        Get the job metrics with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -1125,7 +1132,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> list[dict]:
         """
-        Gets the job messages with the specified Job ID.
+        Get the job messages with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -1149,7 +1156,7 @@ class DataflowHook(GoogleBaseHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> list[dict]:
         """
-        Gets the job autoscaling events with the specified Job ID.
+        Get the job autoscaling events with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -1201,6 +1208,24 @@ class DataflowHook(GoogleBaseHook):
         )
         job_controller.wait_for_done()
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def is_job_done(self, location: str, project_id: str, job_id: str) -> bool:
+        """
+        Check that Dataflow job is started(for streaming job) or finished(for batch job).
+
+        :param location: location the job is running
+        :param project_id: Google Cloud project ID in which to start a job
+        :param job_id: Dataflow job ID
+        """
+        job_controller = _DataflowJobsController(
+            dataflow=self.get_conn(),
+            project_number=project_id,
+            location=location,
+        )
+        job = job_controller.fetch_job_by_id(job_id)
+
+        return job_controller._check_dataflow_job_state(job)
+
 
 class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
@@ -1241,7 +1266,7 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> Job:
         """
-        Gets the job with the specified Job ID.
+        Get the job with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: the Google Cloud project ID in which to start a job.
@@ -1276,7 +1301,7 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         location: str = DEFAULT_DATAFLOW_LOCATION,
     ) -> JobState:
         """
-        Gets the job status with the specified Job ID.
+        Get the job status with the specified Job ID.
 
         :param job_id: Job ID to get.
         :param project_id: the Google Cloud project ID in which to start a job.
@@ -1293,3 +1318,38 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         )
         state = job.current_state
         return state
+
+    async def list_jobs(
+        self,
+        jobs_filter: int | None = None,
+        project_id: str | None = PROVIDE_PROJECT_ID,
+        location: str | None = DEFAULT_DATAFLOW_LOCATION,
+        page_size: int | None = None,
+        page_token: str | None = None,
+    ) -> ListJobsAsyncPager:
+        """List jobs.
+
+        For detail see:
+        https://cloud.google.com/python/docs/reference/dataflow/latest/google.cloud.dataflow_v1beta3.types.ListJobsRequest
+
+        :param jobs_filter: Optional. This field filters out and returns jobs in the specified job state.
+        :param project_id: Optional. The Google Cloud project ID in which to start a job.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param location: Optional. The location of the Dataflow job (for example europe-west1).
+        :param page_size: Optional. If there are many jobs, limit response to at most this many.
+        :param page_token: Optional. Set this to the 'next_page_token' field of a previous response to request
+            additional results in a long list.
+        """
+        project_id = project_id or (await self.get_project_id())
+        client = await self.initialize_client(JobsV1Beta3AsyncClient)
+        request: ListJobsRequest = ListJobsRequest(
+            {
+                "project_id": project_id,
+                "location": location,
+                "filter": jobs_filter,
+                "page_size": page_size,
+                "page_token": page_token,
+            }
+        )
+        page_result: ListJobsAsyncPager = await client.list_jobs(request=request)
+        return page_result

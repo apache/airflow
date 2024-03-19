@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Cloud Build service."""
+
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -33,6 +34,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 # Time to sleep between active checks of the operation results
@@ -83,7 +85,7 @@ class CloudBuildHook(GoogleBaseHook):
             raise AirflowException("Could not retrieve Build ID from Operation.")
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -92,7 +94,7 @@ class CloudBuildHook(GoogleBaseHook):
 
     def get_conn(self, location: str = "global") -> CloudBuildClient:
         """
-        Retrieves the connection to Google Cloud Build.
+        Retrieve the connection to Google Cloud Build.
 
         :param location: The location of the project.
 
@@ -120,7 +122,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> Build:
         """
-        Cancels a build in progress.
+        Cancel a build in progress.
 
         :param id_: The ID of the build.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -157,7 +159,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> tuple[Operation, str]:
         """
-        Starts a build with the specified configuration without waiting for it to finish.
+        Start a build with the specified configuration without waiting for it to finish.
 
         :param build: The build resource to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
@@ -188,6 +190,10 @@ class CloudBuildHook(GoogleBaseHook):
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `create_build_without_waiting_for_result`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_build(
         self,
         build: dict | Build,
@@ -198,7 +204,7 @@ class CloudBuildHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Build:
         """
-        Starts a build with the specified configuration.
+        Start a build with the specified configuration.
 
         :param build: The build resource to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`
@@ -212,11 +218,6 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
-        warnings.warn(
-            "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         client = self.get_conn()
 
         self.log.info("Start creating build...")
@@ -250,7 +251,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> BuildTrigger:
         """
-        Creates a new BuildTrigger.
+        Create a new BuildTrigger.
 
         :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.BuildTrigger`
@@ -292,7 +293,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> None:
         """
-        Deletes a BuildTrigger by its project ID and trigger ID.
+        Delete a BuildTrigger by its project ID and trigger ID.
 
         :param trigger_id: The ID of the BuildTrigger to delete.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -328,7 +329,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> Build:
         """
-        Returns information about a previously requested build.
+        Return information about a previously requested build.
 
         :param id_: The ID of the build.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -366,7 +367,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> BuildTrigger:
         """
-        Returns information about a BuildTrigger.
+        Return information about a BuildTrigger.
 
         :param trigger_id: The ID of the BuildTrigger to get.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.
@@ -405,7 +406,7 @@ class CloudBuildHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[BuildTrigger]:
         """
-        Lists existing BuildTriggers.
+        List existing BuildTriggers.
 
         :param project_id: Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the GCP connection is used.
@@ -454,7 +455,7 @@ class CloudBuildHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[Build]:
         """
-        Lists previously requested builds.
+        List previously requested builds.
 
         :param project_id: Google Cloud Project project_id where the function belongs.
             If set to None or missing, the default project_id from the Google Cloud connection is used.
@@ -551,7 +552,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> Build:
         """
-        Runs a BuildTrigger at a particular source revision.
+        Run a BuildTrigger at a particular source revision.
 
         :param trigger_id: The ID of the trigger.
         :param source: Source to build against this trigger. If a dict is provided, it must be of the
@@ -599,7 +600,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> BuildTrigger:
         """
-        Updates a BuildTrigger by its project ID and trigger ID.
+        Update a BuildTrigger by its project ID and trigger ID.
 
         :param trigger_id: The ID of the trigger.
         :param trigger: The BuildTrigger to create. If a dict is provided, it must be of the same form
@@ -645,12 +646,12 @@ class CloudBuildAsyncHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         location: str = "global",
     ) -> Build:
-        """Retrieves a Cloud Build with a specified id."""
+        """Retrieve a Cloud Build with a specified id."""
         if not id_:
             raise AirflowException("Google Cloud Build id is required.")
 

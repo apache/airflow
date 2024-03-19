@@ -27,6 +27,96 @@
 Changelog
 ---------
 
+5.3.3
+.....
+
+Misc
+~~~~
+
+* ``Avoid 'pendulum.from_timestamp' usage (#37160)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+
+5.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stacklevel in warnings.warn into the providers (#36831)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
+   * ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
+   * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
+
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Remove getattr in es task handler when airflow min version bumped to 2.6 (#36431)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+
+5.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.6+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.6.0 (#36017)``
+* ``Cleanup code for elasticsearch<8 (#35707)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add task context logging feature to allow forwarding messages to task logs (#32646)``
+* ``Extend task context logging support for remote logging using Elasticsearch (#32977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update es read query to not use body (#34792)``
+* ``Check attr on parent not self re TaskContextLogger set_context (#35780)``
+
+Misc
+~~~~
+
+* ``Remove backcompat inheritance for DbApiHook (#35754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and reapply templates for provider documentation (#35686)``
+   * ``Use reproducible builds for provider packages (#35693)``
+
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Use None instead of empty data structures when no ElasticSearch logs (#34793)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
 5.1.0
 .....
 
@@ -299,8 +389,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update black precommit (#22521)``
 
-3.0.2
-.....
+3.0.2 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch 3.0.2 is incompatible with Airflow >2.3``
 
 Bug Fixes
 ~~~~~~~~~
@@ -308,16 +400,20 @@ Bug Fixes
 * ``Fix mistakenly added install_requires for all providers (#22382)``
 * ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
 
-3.0.1
-.....
+3.0.1 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
 
 Misc
 ~~~~~
 
 * ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 
-3.0.0
-.....
+3.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Elasticsearch provider is incompatible with Airlfow <2.3``
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -445,6 +541,11 @@ Bug fixes
    * ``Add ElasticSearch Connection Doc (#16436)``
    * ``More documentation update for June providers release (#16405)``
    * ``Synchronizes updated changelog after buggfix release (#16464)``
+
+2.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Released by Mistake!``
 
 1.0.4
 .....
