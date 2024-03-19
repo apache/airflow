@@ -28,6 +28,7 @@ import {
   FormLabel,
   Input,
   HStack,
+  Button,
 } from "@chakra-ui/react";
 import { createColumnHelper } from "@tanstack/react-table";
 import { snakeCase } from "lodash";
@@ -40,6 +41,7 @@ import type { EventLog } from "src/types/api-generated";
 import { NewTable } from "src/components/NewTable/NewTable";
 import { useTableURLState } from "src/components/NewTable/useTableUrlState";
 import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
+import { MdRefresh } from "react-icons/md";
 
 interface Props {
   taskId?: string;
@@ -60,7 +62,7 @@ const AuditLog = ({ taskId, run }: Props) => {
   const sort = tableURLState.sorting[0];
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
-  const { data, isLoading, isFetching } = useEventLogs({
+  const { data, isLoading, isFetching, refetch } = useEventLogs({
     dagId,
     taskId,
     runId: run?.runId || undefined,
@@ -121,7 +123,16 @@ const AuditLog = ({ taskId, run }: Props) => {
       ref={logRef}
       overflowY="auto"
     >
-      <Flex justifyContent="right">
+      <Flex justifyContent="right" mb={2}>
+        <Button
+          leftIcon={<MdRefresh />}
+          onClick={() => refetch()}
+          variant="outline"
+          colorScheme="blue"
+          mr={2}
+        >
+          Refresh
+        </Button>
         <LinkButton href={getMetaValue("audit_log_url")}>
           View full cluster Audit Log
         </LinkButton>
