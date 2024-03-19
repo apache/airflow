@@ -120,7 +120,7 @@ $("#pause_resume").on("change", function onChange() {
   if (requireConfirmation) {
     const confirmation = window.confirm(
       `Are you sure you want to ${
-        isPaused ? "pause" : "resume"
+        isPaused ? "resume" : "pause"
       } this DAG?`
     );
     if (!confirmation) {
