@@ -30,11 +30,11 @@ class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
 
     def __enter__(self) -> Timer:
-        """Enter the timer."""
+        """Start the timer."""
         ...
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        """Exit the timer."""
+        """Stop the timer."""
         ...
 
     def start(self) -> Timer:
@@ -105,11 +105,11 @@ class Timer(TimerProtocol):
         self.real_timer = real_timer
 
     def __enter__(self) -> Timer:
-        """Enter the timer."""
+        """Start the timer."""
         return self.start()
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
-        """Exit the timer."""
+        """Stop the timer."""
         self.stop()
 
     def start(self) -> Timer:
