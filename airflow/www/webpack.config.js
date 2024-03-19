@@ -201,10 +201,6 @@ const config = {
     new CopyWebpackPlugin({
       patterns: [
         {
-          from: "node_modules/nvd3/build/*.min.*",
-          flatten: true,
-        },
-        {
           from: "node_modules/d3/d3.min.*",
           flatten: true,
         },
