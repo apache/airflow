@@ -64,7 +64,7 @@ class SqlToSqlOperator(BaseOperator):
 
     :param source_conn_id: the connection ID used to connect to the source database
     :param destination_conn_id: the connection ID used to connect to the destination database
-    :param destination_table: the name of the destinamtion table
+    :param destination_table: the name of the destination table
     :param source_sql: the SQL code or string pointing to a template file to be executed (templated).
         File must have a '.sql' extension.
     :param source_parameters: (optional) the parameters to render the SQL query with.
