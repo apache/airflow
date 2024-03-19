@@ -199,7 +199,7 @@ class TaskStateTrigger(BaseTrigger):
             warnings.warn(
                 message="The default value of _timeout_sec which is timeout for finding running state dag of sepcifed name, will change from '60' to 'timeout' parameter",
                 category=FutureWarning,
-                stacklevel=2
+                stacklevel=2,
             )
             while True:
                 delta = utcnow() - self.trigger_start_time
