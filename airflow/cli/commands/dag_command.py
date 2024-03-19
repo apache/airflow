@@ -138,6 +138,13 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         category=RemovedInAirflow3Warning,
     )
 
+    if not args.treat_dag_id_as_regex and args.treat_dag_as_regex:
+        warnings.warn(
+            "--treat-dag-as-regex is deprecated, use --treat-dag-id-as-regex instead",
+            category=RemovedInAirflow3Warning,
+        )
+        args.treat_dag_id_as_regex = args.treat_dag_as_regex
+
     if args.ignore_first_depends_on_past is False:
         args.ignore_first_depends_on_past = True
 
@@ -145,7 +152,7 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
         raise AirflowException("Provide a start_date and/or end_date")
 
     if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
+        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
     elif isinstance(dag, list):
         dags = dag
     else:

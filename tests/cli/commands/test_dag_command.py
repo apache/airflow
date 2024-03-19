@@ -230,7 +230,7 @@ class TestCliDags:
                         "--task-regex",
                         "run_this_first",
                         "--dry-run",
-                        "--treat-dag-as-regex",
+                        "--treat-dag-id-as-regex",
                         "--start-date",
                         DEFAULT_DATE.isoformat(),
                     ]
@@ -243,6 +243,24 @@ class TestCliDags:
         assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
         assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
+
+    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
+    def test_backfill_treat_dag_as_regex_deprecation(self, _):
+        run_date = DEFAULT_DATE + timedelta(days=1)
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_bash_operator",
+                "--treat-dag-as-regex",
+                "--start-date",
+                run_date.isoformat(),
+            ]
+        )
+
+        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
+            dag_command.dag_backfill(cli_args)
+        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):

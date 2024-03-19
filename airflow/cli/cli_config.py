@@ -382,10 +382,10 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
-# TODO: Deprecate in backfill command in favor of --treat-dag-id-as-regex
+
 ARG_TREAT_DAG_AS_REGEX = Arg(
     ("--treat-dag-as-regex",),
-    help=("if set, dag_id will be treated as regex instead of an exact string"),
+    help=("Deprecated -- use `--treat-dag-id-as-regex` instead"),
     action="store_true",
 )
 
@@ -1240,6 +1240,7 @@ DAGS_COMMANDS = (
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
             ARG_TREAT_DAG_AS_REGEX,
+            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(
