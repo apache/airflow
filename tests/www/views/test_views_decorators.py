@@ -124,6 +124,13 @@ def test_action_logging_post(session, admin_client):
         dag_id="example_bash_operator",
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        expected_extra={
+            "upstream": "false",
+            "downstream": "false",
+            "future": "false",
+            "past": "false",
+            "only_failed": "false",
+        },
     )
 
 
