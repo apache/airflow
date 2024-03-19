@@ -464,7 +464,8 @@ class PodManager(LoggingMixin):
                                         self._callbacks.progress_callback(
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
-                                self.log.info("[%s] %s", container_name, message_to_log)
+                                if message_to_log:
+                                    self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -481,7 +482,7 @@ class PodManager(LoggingMixin):
                             self._callbacks.progress_callback(
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
-                    if message_to_log and message_to_log.strip():
+                    if message_to_log:
                         self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
