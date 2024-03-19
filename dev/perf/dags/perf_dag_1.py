@@ -18,6 +18,7 @@
 """
 This dag tests performance of simple bash commands executed with Airflow.
 """
+
 from __future__ import annotations
 
 import datetime

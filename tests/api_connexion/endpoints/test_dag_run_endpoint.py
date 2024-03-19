@@ -1157,6 +1157,7 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
 
 class TestPostDagRun(TestDagRunEndpoint):
+    @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize("logical_date_field_name", ["execution_date", "logical_date"])
     @pytest.mark.parametrize(
         "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
@@ -1188,8 +1189,7 @@ class TestPostDagRun(TestDagRunEndpoint):
     ):
         self._create_dag("TEST_DAG_ID")
 
-        # We'll patch airflow.utils.timezone.utcnow to always return this so we
-        # can check the returned dates.
+        # We freeze time for this test, so we could check it into the returned dates.
         fixed_now = timezone.utcnow()
 
         # raise NotImplementedError("TODO: Add tests for data_interval_start and data_interval_end")
@@ -1205,12 +1205,11 @@ class TestPostDagRun(TestDagRunEndpoint):
             request_json["data_interval_end"] = data_interval_end
 
         request_json["note"] = note
-        with mock.patch("airflow.utils.timezone.utcnow", lambda: fixed_now):
-            response = self.client.post(
-                "api/v1/dags/TEST_DAG_ID/dagRuns",
-                json=request_json,
-                environ_overrides={"REMOTE_USER": "test"},
-            )
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json=request_json,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
 
         assert response.status_code == 200
 
@@ -1953,9 +1952,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         assert dr.dag_run_note.user_id is not None
         # Update the note again
         new_note_value = "My super cool DagRun notes 2"
+        payload = {"note": new_note_value}
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
-            json={"note": new_note_value},
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -1976,6 +1976,13 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
+        _check_last_log(
+            session,
+            dag_id=dr.dag_id,
+            event="api.set_dag_run_note",
+            execution_date=None,
+            expected_extra=payload,
+        )
 
     def test_schema_validation_error_raises(self, dag_maker, session):
         dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)

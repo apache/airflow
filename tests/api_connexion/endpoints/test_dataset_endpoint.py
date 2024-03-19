@@ -612,6 +612,30 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
             "source_map_index": -1,
             "timestamp": self.default_time,
         }
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.create_dataset_event",
+            execution_date=None,
+            expected_extra=event_payload,
+        )
+
+    def test_should_mask_sensitive_extra_logs(self, session):
+        self._create_dataset(session)
+        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
+        response = self.client.post(
+            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 200
+        expected_extra = {**event_payload, "extra": {"password": "***"}}
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.create_dataset_event",
+            execution_date=None,
+            expected_extra=expected_extra,
+        )
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)

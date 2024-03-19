@@ -19,6 +19,7 @@
 """
 Module to update db migration information in Airflow
 """
+
 from __future__ import annotations
 
 import os

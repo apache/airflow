@@ -243,20 +243,17 @@ class AwsEcsExecutor(BaseExecutor):
         task_key = self.active_workers.arn_to_key[task.task_arn]
 
         # Mark finished tasks as either a success/failure.
-        if task_state == State.FAILED:
-            self.fail(task_key)
+        if task_state == State.FAILED or task_state == State.REMOVED:
             self.__log_container_failures(task_arn=task.task_arn)
-        elif task_state == State.SUCCESS:
-            self.success(task_key)
-        elif task_state == State.REMOVED:
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
-        if task_state in (State.FAILED, State.SUCCESS):
+        elif task_state == State.SUCCESS:
             self.log.debug(
                 "Airflow task %s marked as %s after running on ECS Task (arn) %s",
                 task_key,
                 task_state,
                 task.task_arn,
             )
+            self.success(task_key)
             self.active_workers.pop_by_key(task_key)
 
     def __describe_tasks(self, task_arns):
@@ -289,7 +286,14 @@ class AwsEcsExecutor(BaseExecutor):
             )
 
     def __handle_failed_task(self, task_arn: str, reason: str):
-        """If an API failure occurs, the task is rescheduled."""
+        """
+        If an API failure occurs, the task is rescheduled.
+
+        This function will determine whether the task has been attempted the appropriate number
+        of times, and determine whether the task should be marked failed or not. The task will
+        be removed active_workers, and marked as FAILED, or set into pending_tasks depending on
+        how many times it has been retried.
+        """
         task_key = self.active_workers.arn_to_key[task_arn]
         task_info = self.active_workers.info_by_key(task_key)
         task_cmd = task_info.cmd
@@ -305,7 +309,6 @@ class AwsEcsExecutor(BaseExecutor):
                 self.__class__.MAX_RUN_TASK_ATTEMPTS,
                 task_arn,
             )
-            self.active_workers.increment_failure_count(task_key)
             self.pending_tasks.append(
                 EcsQueuedTask(
                     task_key,
@@ -322,8 +325,8 @@ class AwsEcsExecutor(BaseExecutor):
                 task_key,
                 failure_count,
             )
-            self.active_workers.pop_by_key(task_key)
             self.fail(task_key)
+        self.active_workers.pop_by_key(task_key)
 
     def attempt_task_runs(self):
         """
@@ -346,6 +349,7 @@ class AwsEcsExecutor(BaseExecutor):
             attempt_number = ecs_task.attempt_number
             _failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
+                self.pending_tasks.append(ecs_task)
                 continue
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)

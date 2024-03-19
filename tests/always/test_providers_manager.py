@@ -21,6 +21,7 @@ import json
 import logging
 import re
 import sys
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
@@ -73,7 +74,7 @@ class TestProviderManager:
         assert warning_records
 
     def test_hooks_deprecation_warnings_not_generated(self):
-        with pytest.warns(expected_warning=None) as warning_records:
+        with warnings.catch_warnings(record=True) as warning_records:
             providers_manager = ProvidersManager()
             providers_manager._provider_dict["apache-airflow-providers-sftp"] = ProviderInfo(
                 version="0.0.1",
@@ -89,7 +90,7 @@ class TestProviderManager:
                 package_or_source="package",
             )
             providers_manager._discover_hooks()
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     def test_warning_logs_generated(self):
         providers_manager = ProvidersManager()
@@ -187,7 +188,7 @@ class TestProviderManager:
         )
 
     def test_hooks(self):
-        with pytest.warns(expected_warning=None) as warning_records:
+        with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.keys())
@@ -197,7 +198,7 @@ class TestProviderManager:
                 print(record.message, file=sys.stderr)
                 print(record.exc_info, file=sys.stderr)
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
@@ -209,7 +210,7 @@ class TestProviderManager:
         for provider_name, provider_info in provider_dependencies.items():
             if python_version in provider_info.get("excluded-python-versions", []):
                 excluded_providers.append(f"apache-airflow-providers-{provider_name.replace('.', '-')}")
-        with pytest.warns(expected_warning=None) as warning_records:
+        with warnings.catch_warnings(record=True) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
                 connections_list = list(provider_manager.hooks.values())
@@ -226,7 +227,7 @@ class TestProviderManager:
                     real_warning_count += 1
             if real_warning_count:
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
+        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()

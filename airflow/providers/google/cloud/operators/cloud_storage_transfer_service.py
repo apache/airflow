@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Transfer operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -530,7 +531,7 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     # [START gcp_transfer_operations_list_template_fields]
     template_fields: Sequence[str] = (
-        "filter",
+        "request_filter",
         "gcp_conn_id",
         "google_impersonation_chain",
     )
@@ -547,22 +548,27 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.filter = request_filter
+        self.request_filter = request_filter
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
 
+    @property
+    def filter(self) -> dict | None:
+        """Alias for ``request_filter``, used for compatibility."""
+        return self.request_filter
+
     def execute(self, context: Context) -> list[dict]:
-        if not self.filter:
-            raise AirflowException("The required parameter 'filter' is empty or None")
+        if not self.request_filter:
+            raise AirflowException("The required parameter 'request_filter' is empty or None")
 
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        operations_list = hook.list_transfer_operations(request_filter=self.filter)
+        operations_list = hook.list_transfer_operations(request_filter=self.request_filter)
         self.log.info(operations_list)
 
         project_id = self.project_id or hook.project_id

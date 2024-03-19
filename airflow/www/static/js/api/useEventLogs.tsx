@@ -67,6 +67,7 @@ export default function useEventLogs({
     },
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      keepPreviousData: true,
     }
   );
 }

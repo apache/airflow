@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef } from "react";
 import {
   Box,
   Flex,
@@ -28,15 +28,20 @@ import {
   FormLabel,
   Input,
   HStack,
+  Button,
 } from "@chakra-ui/react";
-import type { SortingRule } from "react-table";
+import { createColumnHelper } from "@tanstack/react-table";
 import { snakeCase } from "lodash";
 
-import { CodeCell, Table, TimeCell } from "src/components/Table";
 import { useEventLogs } from "src/api";
 import { getMetaValue, useOffsetTop } from "src/utils";
 import type { DagRun } from "src/types";
 import LinkButton from "src/components/LinkButton";
+import type { EventLog } from "src/types/api-generated";
+import { NewTable } from "src/components/NewTable/NewTable";
+import { useTableURLState } from "src/components/NewTable/useTableUrlState";
+import { CodeCell, TimeCell } from "src/components/NewTable/NewCells";
+import { MdRefresh } from "react-icons/md";
 
 interface Props {
   taskId?: string;
@@ -45,57 +50,61 @@ interface Props {
 
 const dagId = getMetaValue("dag_id") || undefined;
 
+const columnHelper = createColumnHelper<EventLog>();
+
 const AuditLog = ({ taskId, run }: Props) => {
   const logRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(logRef);
-  const limit = 25;
-  const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
-    { id: "when", desc: true },
-  ]);
+  const { tableURLState, setTableURLState } = useTableURLState({
+    sorting: [{ id: "when", desc: true }],
+  });
 
-  const sort = sortBy[0];
+  const sort = tableURLState.sorting[0];
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
-  const { data, isLoading } = useEventLogs({
+  const { data, isLoading, isFetching, refetch } = useEventLogs({
     dagId,
     taskId,
     runId: run?.runId || undefined,
     before: run?.lastSchedulingDecision || undefined,
     after: run?.queuedAt || undefined,
     orderBy,
-    limit,
-    offset,
+    limit: tableURLState.pagination.pageSize,
+    offset:
+      tableURLState.pagination.pageIndex * tableURLState.pagination.pageSize,
   });
 
   const columns = useMemo(() => {
-    const when = {
-      Header: "When",
-      accessor: "when",
-      Cell: TimeCell,
-    };
-    const task = {
-      Header: "Task ID",
-      accessor: "taskId",
-    };
-    const runId = {
-      Header: "Run ID",
-      accessor: "runId",
-    };
+    const when = columnHelper.accessor("when", {
+      header: "When",
+      cell: TimeCell,
+    });
+    const task = columnHelper.accessor("taskId", {
+      header: "Task Id",
+      meta: {
+        skeletonWidth: 20,
+      },
+    });
+    const runId = columnHelper.accessor("runId", {
+      header: "Run Id",
+    });
     const rest = [
-      {
-        Header: "Event",
-        accessor: "event",
-      },
-      {
-        Header: "Owner",
-        accessor: "owner",
-      },
-      {
-        Header: "Extra",
-        accessor: "extra",
-        Cell: CodeCell,
-      },
+      columnHelper.accessor("event", {
+        header: "Event",
+        meta: {
+          skeletonWidth: 40,
+        },
+      }),
+      columnHelper.accessor("owner", {
+        header: "Owner",
+        meta: {
+          skeletonWidth: 20,
+        },
+      }),
+      columnHelper.accessor("extra", {
+        header: "Extra",
+        cell: CodeCell,
+      }),
     ];
     return [
       when,
@@ -106,7 +115,6 @@ const AuditLog = ({ taskId, run }: Props) => {
   }, [taskId, run]);
 
   const memoData = useMemo(() => data?.eventLogs, [data?.eventLogs]);
-  const memoSort = useMemo(() => sortBy, [sortBy]);
 
   return (
     <Box
@@ -115,7 +123,16 @@ const AuditLog = ({ taskId, run }: Props) => {
       ref={logRef}
       overflowY="auto"
     >
-      <Flex justifyContent="right">
+      <Flex justifyContent="right" mb={2}>
+        <Button
+          leftIcon={<MdRefresh />}
+          onClick={() => refetch()}
+          variant="outline"
+          colorScheme="blue"
+          mr={2}
+        >
+          Refresh
+        </Button>
         <LinkButton href={getMetaValue("audit_log_url")}>
           View full cluster Audit Log
         </LinkButton>
@@ -162,21 +179,15 @@ const AuditLog = ({ taskId, run }: Props) => {
           <FormHelperText />
         </FormControl>
       </HStack>
-      <Table
+      <NewTable
+        key={`${taskId}-${run?.runId}`}
         data={memoData || []}
         columns={columns}
         isLoading={isLoading}
-        manualPagination={{
-          offset,
-          setOffset,
-          totalEntries: data?.totalEntries || 0,
-        }}
-        manualSort={{
-          setSortBy,
-          sortBy,
-          initialSortBy: memoSort,
-        }}
-        pageSize={limit}
+        isFetching={isFetching}
+        initialState={tableURLState}
+        onStateChange={setTableURLState}
+        resultCount={data?.totalEntries}
       />
     </Box>
   );

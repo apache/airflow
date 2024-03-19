@@ -213,6 +213,35 @@ All Kubernetes parameters (except ``config_file``) are also valid for the ``GKES
     :start-after: [START howto_operator_gke_start_job]
     :end-before: [END howto_operator_gke_start_job]
 
+For run Job on a GKE cluster with Kueue enabled use ``GKEStartKueueJobOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_kueue_start_job]
+    :end-before: [END howto_operator_kueue_start_job]
+
+
+.. _howto/operator:GKEDeleteJobOperator:
+
+Delete a Job on a GKE cluster
+"""""""""""""""""""""""""""""
+
+There are two operators available in order to delete a job on a GKE cluster:
+
+* :class:`~airflow.providers.cncf.kubernetes.operators.job.KubernetesDeleteJobOperator`
+* :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEDeleteJobOperator`
+
+``GKEDeleteJobOperator`` extends ``KubernetesDeleteJobOperator`` to provide authorization using Google Cloud credentials.
+There is no need to manage the ``kube_config`` file, as it will be generated automatically.
+All Kubernetes parameters (except ``config_file``) are also valid for the ``GKEDeleteJobOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gke_delete_job]
+    :end-before: [END howto_operator_gke_delete_job]
+
 
 .. _howto/operator:GKEDescribeJobOperator:
 

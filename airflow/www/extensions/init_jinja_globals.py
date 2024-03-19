@@ -90,6 +90,7 @@ def init_jinja_globals(app):
                 {
                     "analytics_tool": conf.get("webserver", "ANALYTICS_TOOL"),
                     "analytics_id": conf.get("webserver", "ANALYTICS_ID"),
+                    "analytics_url": conf.get("webserver", "ANALYTICS_URL"),
                 }
             )
 

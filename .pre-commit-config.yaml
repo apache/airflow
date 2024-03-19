@@ -172,7 +172,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.8.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -189,7 +189,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
@@ -198,7 +197,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_installers.py
         stages: ['manual']
         language: python
-        language_version: python38
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_installers.py$
         pass_filenames: false
         require_serial: true
@@ -208,7 +206,6 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
         stages: ['manual']
         language: python
-        language_version: python38
         additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
         files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
@@ -330,14 +327,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
-        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
-        #       https://github.com/apache/airflow/issues/36484
-        exclude: |
-          (?x)^(
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit.py\.py$|
-              ^airflow\/providers\/apache\/spark\/operators\/spark_submit\.py$|
-          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -346,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -356,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.2.1"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters

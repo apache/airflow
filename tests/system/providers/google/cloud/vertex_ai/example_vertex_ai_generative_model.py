@@ -19,6 +19,7 @@
 """
 Example Airflow DAG for Google Vertex AI Generative Model prompting.
 """
+
 from __future__ import annotations
 
 import os

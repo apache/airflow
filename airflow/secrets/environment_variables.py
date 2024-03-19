@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from environment variables."""
+
 from __future__ import annotations
 
 import os

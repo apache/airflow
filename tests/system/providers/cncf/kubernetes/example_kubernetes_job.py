@@ -18,16 +18,20 @@
 """
 This is an example dag for using the KubernetesJobOperator.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_job_operator"
+
+JOB_NAME = "test-pi"
+JOB_NAMESPACE = "default"
 
 with DAG(
     dag_id=DAG_ID,
@@ -38,12 +42,22 @@ with DAG(
     # [START howto_operator_k8s_job]
     k8s_job = KubernetesJobOperator(
         task_id="job-task",
-        namespace="default",
+        namespace=JOB_NAMESPACE,
         image="perl:5.34.0",
         cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
-        name="test-pi",
+        name=JOB_NAME,
     )
     # [END howto_operator_k8s_job]
+
+    # [START howto_operator_delete_k8s_job]
+    delete_job_task = KubernetesDeleteJobOperator(
+        task_id="delete_job_task",
+        name=JOB_NAME,
+        namespace=JOB_NAMESPACE,
+    )
+    # [END howto_operator_delete_k8s_job]
+
+    k8s_job >> delete_job_task
 
     from tests.system.utils.watcher import watcher
 

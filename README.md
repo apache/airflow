@@ -506,7 +506,7 @@ fixed in time for the current release. Therefore, the milestone for issue is mor
 looked at, than promise it will be fixed in the version.
 
 More context and **FAQ** about the patchlevel release can be found in the
-[What goes into the next release](dev/WHAT_GOES_INTO_NEXT_RELEASE.md) document in the `dev` folder of the
+[What goes into the next release](dev/WHAT_GOES_INTO_THE_NEXT_RELEASE.md) document in the `dev` folder of the
 repository.
 
 ## Can I use the Apache Airflow logo in my presentation?

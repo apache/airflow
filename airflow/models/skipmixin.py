@@ -199,11 +199,12 @@ class SkipMixin(LoggingMixin):
         dag_run = ti.get_dagrun()
         if TYPE_CHECKING:
             assert isinstance(dag_run, DagRun)
+            assert ti.task
 
         # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
         # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
         # does not attempt to serialize the field from/to ORM
-        task = ti.task  # type: ignore[union-attr]
+        task = ti.task
         dag = task.dag
         if TYPE_CHECKING:
             assert dag

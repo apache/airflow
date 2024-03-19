@@ -77,12 +77,15 @@ runs:
         name: source-constraints-${{ inputs.python-version }}
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages == 'true' }}
-    - name: "Download constraints from the Generate & Verify build"
+    - name: "Download constraints"
       uses: actions/download-artifact@v4
       with:
         name: constraints
         path: ./docker-context-files
       if: ${{ inputs.build-provider-packages != 'true' }}
+    - name: Login to ghcr.io
+      shell: bash
+      run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
     - name: "Build PROD images w/ source providers ${{ inputs.python-version }}:${{ env.IMAGE_TAG }}"
       shell: bash
       run: >

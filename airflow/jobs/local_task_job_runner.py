@@ -257,6 +257,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
+        if TYPE_CHECKING:
+            assert ti.task
 
         if ti.state == TaskInstanceState.RUNNING:
             fqdn = get_hostname()

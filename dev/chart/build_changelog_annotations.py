@@ -35,6 +35,7 @@ to:
     - name: "#19263"
       url: https://github.com/apache/airflow/pull/19263
 """
+
 from __future__ import annotations
 
 import re
