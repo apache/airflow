@@ -39,37 +39,37 @@ Airflow 2.8
 
 * 2.8.3
 
-   * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
-     ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
-     security vulnerabilities as it was linked against older Go standard libraries.
+  * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+    ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+    security vulnerabilities as it was linked against older Go standard libraries.
 
-   * The ``smtp`` provider is now included in the list of providers installed by default in the image.
+  * The ``smtp`` provider is now included in the list of providers installed by default in the image.
 
 * 2.8.1
 
-   * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
-     during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
-     however **MySQL** libraries were installed in the final image.
+  * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
+    during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
+    however **MySQL** libraries were installed in the final image.
 
 * 2.8.0
 
-   * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
-     image as it is required by ``python3-saml`` library.
+  * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
+    image as it is required by ``python3-saml`` library.
 
-   * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
-     problems when building custom images. You are advised to make sure your system level dependencies are
-     working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
-     it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
+  * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
+    problems when building custom images. You are advised to make sure your system level dependencies are
+    working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
+    it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
 
-   * By default the images now have "MariaDB" client installed. Previous images had "MySQL" client installed.
-     The MariaDB client is a drop-in replacement for "MySQL" one and is compatible with MySQL. This might
-     be a breaking change for users who used MySQL client in their images, however those should be very
-     specific cases and vast majority of users should not see any difference. Users can still use
-     MySQL client by setting ``INSTALL_MYSQL_CLIENT_TYPE=mysql`` build arg and build the custom X86 image.
-     The ARM image always uses MariaDB client, this argument is ignored. The "mysql" apt repository is
-     removed from the /etc/apt/sources.list.d/ and if you want to install anything from this repository when
-     extending the images, you need to manually add the right key and repository in your Dockerfile,
-     following the instructions in `A Quick Guide to Using the MySQL APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_.
+  * By default the images now have "MariaDB" client installed. Previous images had "MySQL" client installed.
+    The MariaDB client is a drop-in replacement for "MySQL" one and is compatible with MySQL. This might
+    be a breaking change for users who used MySQL client in their images, however those should be very
+    specific cases and vast majority of users should not see any difference. Users can still use
+    MySQL client by setting ``INSTALL_MYSQL_CLIENT_TYPE=mysql`` build arg and build the custom X86 image.
+    The ARM image always uses MariaDB client, this argument is ignored. The "mysql" apt repository is
+    removed from the /etc/apt/sources.list.d/ and if you want to install anything from this repository when
+    extending the images, you need to manually add the right key and repository in your Dockerfile,
+    following the instructions in `A Quick Guide to Using the MySQL APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_.
 
 Airflow 2.7
 ~~~~~~~~~~~
@@ -105,21 +105,16 @@ Airflow 2.6
 
   * The ARM experimental image adds support for MySQL via MariaDB client libraries.
 
-Airflow 2.5.1
-~~~~~~~~~~~~~
+Airflow 2.5
+~~~~~~~~~~~
 
 * 2.5.1
 
   * The ARM experimental image adds support for MSSQL
 
-
-Airflow 2.5
-~~~~~~~~~~~
-
 * 2.5.0
 
   * The docker CLI binary is now added to the images by default (available on PATH). Version 20.10.9 is used.
-
 
 Airflow 2.4
 ~~~~~~~~~~~
@@ -130,7 +125,6 @@ Airflow 2.4
     build arg.
   * Support for ``Debian Buster`` was dropped, including the possibility of building customized images as
     ``Debian Buster`` reached end of life.
-
 
 Airflow 2.3
 ~~~~~~~~~~~
@@ -227,7 +221,6 @@ Original image Changelog (before the refresh on 18 Feb 2022):
 
 * 2.1.0
    * Unset default ``PIP_USER`` variable - which caused PythonVirtualEnv to fail
-
 
 Airflow 2.0
 ~~~~~~~~~~~
