@@ -53,6 +53,7 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
+from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
 from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
@@ -593,6 +594,15 @@ class DagRun(Base, LoggingMixin):
                 .where(or_(*filter_query))
                 .values(is_paused=True)
                 .execution_options(synchronize_session="fetch")
+            )
+            session.add(
+                Log(
+                    event="paused",
+                    dag_id=self.dag_id,
+                    owner="scheduler",
+                    owner_display_name="Scheduler",
+                    extra=f"[('dag_id', '{self.dag_id}'), ('is_paused', True)]",
+                )
             )
         else:
             self.log.debug(
