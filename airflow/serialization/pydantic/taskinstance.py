@@ -173,11 +173,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
 
-        TODO: make it works for AIP-44
-
-        :return: Pydantic serialized version of DaGrun
+        :return: Pydantic serialized version of DagRun
         """
-        raise NotImplementedError()
+        return TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
 
     def _execute_task(self, context, task_orig):
         """
