@@ -343,6 +343,7 @@ devel-static-checks = [
     "yamllint>=1.33.0",
 ]
 devel-tests = [
+    "aiofiles>=23.2.0",
     "aioresponses>=0.7.6",
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
@@ -1317,6 +1318,7 @@ extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
