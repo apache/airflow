@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import typing
+import warnings
 from typing import Any
 
 from asgiref.sync import sync_to_async
@@ -195,6 +196,11 @@ class TaskStateTrigger(BaseTrigger):
         after starting execution process of the trigger, terminate with status 'timeout'.
         """
         try:
+            warnings.warn(
+                message="The default value of _timeout_sec which is timeout for finding running state dag of sepcifed name, will change from '60' to 'timeout' parameter",
+                category=FutureWarning,
+                stacklevel=2
+            )
             while True:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
