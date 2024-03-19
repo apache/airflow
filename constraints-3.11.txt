@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-18T13:27:44.946349
+# This constraints file was automatically generated on 2024-03-19T12:31:32.922624
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -53,7 +53,7 @@ Js2Py==0.74
 Mako==1.3.2
 Markdown==3.6
 MarkupSafe==2.1.5
-PyAthena==3.5.0
+PyAthena==3.5.1
 PyGithub==2.2.0
 PyHive==0.7.0
 PyJWT==2.8.0
@@ -260,7 +260,7 @@ connexion==2.14.2
 coverage==7.4.4
 crcmod==1.7
 cron-descriptor==1.4.3
-croniter==2.0.2
+croniter==2.0.3
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.4
@@ -269,7 +269,7 @@ db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.16.0
+deltalake==0.16.1
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
@@ -277,7 +277,7 @@ dnspython==2.6.1
 docker==7.0.0
 docopt==0.6.2
 docutils==0.16
-duckdb==0.10.0
+duckdb==0.10.1
 editables==0.5
 elastic-transport==8.12.0
 elasticsearch==8.12.1
@@ -345,7 +345,7 @@ google-cloud-secret-manager==2.18.3
 google-cloud-spanner==3.44.0
 google-cloud-speech==2.25.1
 google-cloud-storage-transfer==1.11.3
-google-cloud-storage==2.15.0
+google-cloud-storage==2.16.0
 google-cloud-tasks==2.16.3
 google-cloud-texttospeech==2.16.3
 google-cloud-translate==3.15.3
@@ -444,15 +444,15 @@ more-itertools==10.2.0
 moto==5.0.3
 mpmath==1.3.0
 msal-extensions==1.1.0
-msal==1.27.0
+msal==1.28.0
 msrest==0.7.1
 msrestazure==0.6.4
 multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.63
+mypy-boto3-rds==1.34.65
 mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.64
+mypy-boto3-s3==1.34.65
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==8.3.0
@@ -554,7 +554,7 @@ pyparsing==3.1.2
 pypsrp==0.8.1
 pyspark==3.5.1
 pyspnego==0.10.2
-pytest-asyncio==0.23.5.post1
+pytest-asyncio==0.23.6
 pytest-cov==4.1.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
@@ -656,7 +656,7 @@ sympy==1.12
 tableauserverclient==0.30
 tabulate==0.9.0
 tenacity==8.2.3
-teradatasql==20.0.0.7
+teradatasql==20.0.0.8
 teradatasqlalchemy==17.20.0.0
 termcolor==2.4.0
 text-unidecode==1.3
@@ -701,8 +701,8 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.0.7
 userpath==1.9.2
-uv==0.1.21
-validators==0.22.0
+uv==0.1.22
+validators==0.23.1
 vertica-python==1.3.8
 vine==5.1.0
 virtualenv==20.25.1
@@ -714,7 +714,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandexcloud==0.265.0
+yandexcloud==0.267.0
 yarl==1.9.4
 zeep==4.2.1
 zenpy==2.0.47
