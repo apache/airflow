@@ -43,7 +43,7 @@ with models.DAG(
         task_id="news_pages",
         conn_id="msgraph_api",
         api_version="beta",
-        url=("sites/%s/pages" % "{{ ti.xcom_pull(task_ids='news_site') }}"),
+        url=("sites/%s/pages" % "{{ ti.xcom_pull(task_ids='news_site') }}"),  # noqa: UP031
     )
     # [END howto_operator_graph_site_pages]
 
