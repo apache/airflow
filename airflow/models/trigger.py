@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlalchemy import Column, Integer, String, delete, func, or_, select, update
+from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
@@ -30,7 +30,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ class Trigger(Base):
 
     id = Column(Integer, primary_key=True)
     classpath = Column(String(1000), nullable=False)
-    kwargs = Column(ExtendedJSON, nullable=False)
+    encrypted_kwargs = Column("kwargs", Text, nullable=False)
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
 
@@ -83,8 +83,47 @@ class Trigger(Base):
     ) -> None:
         super().__init__()
         self.classpath = classpath
-        self.kwargs = kwargs
+        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
+
+    @property
+    def kwargs(self) -> dict[str, Any]:
+        """Return the decrypted kwargs of the trigger."""
+        return self._decrypt_kwargs(self.encrypted_kwargs)
+
+    @kwargs.setter
+    def kwargs(self, kwargs: dict[str, Any]) -> None:
+        """Set the encrypted kwargs of the trigger."""
+        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
+
+    @staticmethod
+    def _encrypt_kwargs(kwargs: dict[str, Any]) -> str:
+        """Encrypt the kwargs of the trigger."""
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        serialized_kwargs = BaseSerialization.serialize(kwargs)
+        return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
+
+    @staticmethod
+    def _decrypt_kwargs(encrypted_kwargs: str) -> dict[str, Any]:
+        """Decrypt the kwargs of the trigger."""
+        import json
+
+        from airflow.models.crypto import get_fernet
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        decrypted_kwargs = json.loads(get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8"))
+
+        return BaseSerialization.deserialize(decrypted_kwargs)
+
+    def rotate_fernet_key(self):
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
+        from airflow.models.crypto import get_fernet
+
+        self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
     @internal_api_call

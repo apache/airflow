@@ -1370,6 +1370,17 @@ class TestDagProcessorJobRunner:
         ]
 
 
+def _wait_for_processor_agent_to_complete_in_async_mode(processor_agent: DagFileProcessorAgent):
+    start_timer = time.monotonic()
+    while time.monotonic() - start_timer < 10:
+        if processor_agent.done and all(
+            [processor.done for processor in processor_agent._processors.values()]
+        ):
+            break
+        processor_agent.heartbeat()
+        time.sleep(0.1)
+
+
 class TestDagFileProcessorAgent:
     def setup_method(self):
         # Make sure that the configure_logging is not cached
@@ -1644,6 +1655,8 @@ class TestDagFileProcessorAgent:
             processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
+        if async_mode:
+            _wait_for_processor_agent_to_complete_in_async_mode(processor_agent)
 
         # Capture the stdout and stderr
         out, _ = capfd.readouterr()
@@ -1661,6 +1674,8 @@ class TestDagFileProcessorAgent:
             processor_agent.run_single_parsing_loop()
 
         processor_agent._process.join()
+        if async_mode:
+            _wait_for_processor_agent_to_complete_in_async_mode(processor_agent)
 
         # Capture the stdout and stderr
         out, _ = capfd.readouterr()

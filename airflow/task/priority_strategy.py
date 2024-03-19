@@ -75,6 +75,8 @@ class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the task's priority weight directly."""
 
     def get_weight(self, ti: TaskInstance):
+        if TYPE_CHECKING:
+            assert ti.task
         return ti.task.priority_weight
 
 
@@ -82,6 +84,8 @@ class _DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all downstream tasks."""
 
     def get_weight(self, ti: TaskInstance) -> int:
+        if TYPE_CHECKING:
+            assert ti.task
         dag = ti.task.get_dag()
         if dag is None:
             return ti.task.priority_weight
@@ -95,6 +99,8 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all upstream tasks."""
 
     def get_weight(self, ti: TaskInstance):
+        if TYPE_CHECKING:
+            assert ti.task
         dag = ti.task.get_dag()
         if dag is None:
             return ti.task.priority_weight
