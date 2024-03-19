@@ -42,6 +42,8 @@ class StandardTaskRunner(BaseTaskRunner):
     def __init__(self, job_runner: LocalTaskJobRunner):
         super().__init__(job_runner=job_runner)
         self._rc = None
+        if TYPE_CHECKING:
+            assert self._task_instance.task
         self.dag = self._task_instance.task.dag
 
     def start(self):

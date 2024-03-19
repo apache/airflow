@@ -107,6 +107,9 @@ class DebugExecutor(BaseExecutor):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance with empty command because we do not need it."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere

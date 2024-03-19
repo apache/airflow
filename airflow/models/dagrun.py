@@ -780,9 +780,9 @@ class DagRun(Base, LoggingMixin):
             def should_schedule(self) -> bool:
                 return (
                     bool(self.tis)
-                    and all(not t.task.depends_on_past for t in self.tis)
-                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)
-                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)
+                    and all(not t.task.depends_on_past for t in self.tis)  # type: ignore[union-attr]
+                    and all(t.task.max_active_tis_per_dag is None for t in self.tis)  # type: ignore[union-attr]
+                    and all(t.task.max_active_tis_per_dagrun is None for t in self.tis)  # type: ignore[union-attr]
                     and all(t.state != TaskInstanceState.DEFERRED for t in self.tis)
                 )
 
@@ -1020,6 +1020,9 @@ class DagRun(Base, LoggingMixin):
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
             """
+            if TYPE_CHECKING:
+                assert ti.task
+
             if ti.map_index >= 0:  # Already expanded, we're good.
                 return None
 
@@ -1043,6 +1046,8 @@ class DagRun(Base, LoggingMixin):
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
         revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
+            if TYPE_CHECKING:
+                assert schedulable.task
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
@@ -1525,6 +1530,8 @@ class DagRun(Base, LoggingMixin):
         dummy_ti_ids = []
         schedulable_ti_ids = []
         for ti in schedulable_tis:
+            if TYPE_CHECKING:
+                assert ti.task
             if (
                 ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback
