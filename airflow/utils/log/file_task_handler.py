@@ -264,7 +264,7 @@ class FileTaskHandler(logging.Handler):
             str_tpl, jinja_tpl = parse_template_string(template)
 
             if jinja_tpl:
-                if hasattr(ti, "task"):
+                if getattr(ti, "task", None) is not None:
                     context = ti.get_template_context(session=session)
                 else:
                     context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
@@ -272,14 +272,13 @@ class FileTaskHandler(logging.Handler):
                 return render_template_to_string(jinja_tpl, context)
 
         if str_tpl:
-            try:
+            if ti.task is not None and ti.task.dag is not None:
                 dag = ti.task.dag
-            except AttributeError:  # ti.task is not always set.
-                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-            else:
-                if TYPE_CHECKING:
-                    assert dag is not None
                 data_interval = dag.get_run_data_interval(dag_run)
+            else:
+                from airflow.timetables.base import DataInterval
+
+                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
