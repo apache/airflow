@@ -140,7 +140,7 @@ class TestCeleryExecutor:
                 ]
 
                 # "Enqueue" them. We don't have a real SimpleTaskInstance, so directly edit the dict
-                for key, command, queue, task in task_tuples_to_send:
+                for key, command, queue, _ in task_tuples_to_send:
                     executor.queued_tasks[key] = (command, 1, queue, None)
                     executor.task_publish_retries[key] = 1
 

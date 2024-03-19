@@ -68,7 +68,7 @@ def get_extra_types_dict(extras: dict[str, list[str]]) -> dict[ExtraType, tuple[
     for extra_type in ExtraType:
         extra_type_dict[extra_type] = (set(), [])
 
-    for key, value in extras.items():
+    for key in extras:
         if key.startswith("devel"):
             extra_type_dict[ExtraType.DEVEL][0].add(key)
         elif key in ["doc", "doc-gen"]:
