@@ -1848,8 +1848,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     @internal_api_call
-    @provide_session
-    def _set_state(ti, state, session=NEW_SESSION):
+    def _set_state(ti, state, session: Session) -> bool:
         TI = TaskInstance
         if not isinstance(ti, TaskInstance):
             ti = (
