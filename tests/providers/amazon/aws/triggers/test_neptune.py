@@ -23,6 +23,7 @@ import pytest
 
 from airflow.providers.amazon.aws.triggers.neptune import (
     NeptuneClusterAvailableTrigger,
+    NeptuneClusterInstancesAvailableTrigger,
     NeptuneClusterStoppedTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -75,6 +76,35 @@ class TestNeptuneClusterStoppedTrigger:
         mock_async_conn.__aenter__.return_value = "stopped"
         mock_get_waiter().wait = AsyncMock()
         trigger = NeptuneClusterStoppedTrigger(db_cluster_id=CLUSTER_ID)
+        generator = trigger.run()
+        resp = await generator.asend(None)
+
+        assert resp == TriggerEvent({"status": "success", "db_cluster_id": CLUSTER_ID})
+        assert mock_get_waiter().wait.call_count == 1
+
+
+class TestNeptuneClusterInstancesAvailableTrigger:
+    def test_serialization(self):
+        """
+        Asserts that the TaskStateTrigger correctly serializes its arguments
+        and classpath.
+        """
+        trigger = NeptuneClusterInstancesAvailableTrigger(db_cluster_id=CLUSTER_ID)
+        classpath, kwargs = trigger.serialize()
+        assert (
+            classpath
+            == "airflow.providers.amazon.aws.triggers.neptune.NeptuneClusterInstancesAvailableTrigger"
+        )
+        assert "db_cluster_id" in kwargs
+        assert kwargs["db_cluster_id"] == CLUSTER_ID
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.neptune.NeptuneHook.async_conn")
+    async def test_run_success(self, mock_async_conn, mock_get_waiter):
+        mock_async_conn.__aenter__.return_value = "available"
+        mock_get_waiter().wait = AsyncMock()
+        trigger = NeptuneClusterInstancesAvailableTrigger(db_cluster_id=CLUSTER_ID)
         generator = trigger.run()
         resp = await generator.asend(None)
 
