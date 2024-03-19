@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import Generator
+from unittest import mock
 
 import pytest
 from moto import mock_aws
@@ -50,3 +51,10 @@ class TestNeptuneHook:
 
     def test_get_cluster_status(self, neptune_hook: NeptuneHook, neptune_cluster_id):
         assert neptune_hook.get_cluster_status(neptune_cluster_id) is not None
+
+    @mock.patch.object(NeptuneHook, "get_waiter")
+    def test_wait_for_cluster_instance_availability(
+        self, mock_get_waiter, neptune_hook: NeptuneHook, neptune_cluster_id
+    ):
+        neptune_hook.wait_for_cluster_instance_availability(neptune_cluster_id)
+        mock_get_waiter.assert_called_once_with("db_instance_available")
