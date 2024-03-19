@@ -1,11 +1,31 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 from contextlib import closing
 
 from airflow.models import BaseOperator
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+from airflow.exceptions import AirflowException
 
 import re
 
@@ -40,6 +60,19 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
 }
 
 class SqlToSqlOperator(BaseOperator):
+    """
+    Copy sql output data from one base to another database table.
+    :param source_conn_id: the connection ID used to connect to the source database
+    :param destination_conn_id: the connection ID used to connect to the destination database
+    :param destination_table: the name of the destinamtion table
+    :param source_sql: the SQL code or string pointing to a template file to be executed (templated).
+        File must have a '.sql' extension.
+    :param source_parameters: (optional) the parameters to render the SQL query with.
+    :param destination_hook_params: hook parameters dictionary for the destination database
+    :param source_hook_params: hook parameters dictionary for the source database
+    :param rows_chunk: number of rows per chunk to commit.
+
+    """
 
     template_fields: Sequence[str] = ("source_sql", "source_sql_parameters")
     template_fields_renderers = {"source_sql": "sql", "source_sql_parameters": "json"}
@@ -225,7 +258,6 @@ class SqlToSqlOperator(BaseOperator):
 
         self.log.info("Finished data transfer.")
 
-
     def execute(
             self, 
             context: Context
@@ -237,4 +269,4 @@ class SqlToSqlOperator(BaseOperator):
         if self.dest_db == "snowflake":
             self._snowflake_transfer_data(src_hook, dest_hook, context)
         else:
-            elf._transfer_data(src_hook, dest_hook, context)
+            self._transfer_data(src_hook, dest_hook, context)
