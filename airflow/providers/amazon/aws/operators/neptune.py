@@ -141,6 +141,9 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                             trigger=NeptuneClusterInstancesAvailableTrigger(
                                 aws_conn_id=self.aws_conn_id,
                                 db_cluster_id=self.cluster_id,
+                                region_name=self.region_name,
+                                botocore_config=self.botocore_config,
+                                verify=self.verify,
                             ),
                             method_name="execute",
                             kwargs=defer_args,
@@ -151,6 +154,9 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                             trigger=NeptuneClusterAvailableTrigger(
                                 aws_conn_id=self.aws_conn_id,
                                 db_cluster_id=self.cluster_id,
+                                region_name=self.region_name,
+                                botocore_config=self.botocore_config,
+                                verify=self.verify,
                             ),
                             method_name="execute",
                             kwargs=defer_args,
@@ -164,7 +170,7 @@ class NeptuneStartDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     self.hook.wait_for_cluster_instance_availability(cluster_id=self.cluster_id)
             else:
                 # re raise for any other type of client error
-                raise ex
+                raise
 
         if self.deferrable:
             self.log.info("Deferring for cluster start: %s", self.cluster_id)
