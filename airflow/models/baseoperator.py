@@ -415,11 +415,14 @@ class ExecutorSafeguard:
                 stack_trace = traceback.extract_stack()
                 if next(filter(find_task_instance, stack_trace), None):
                     frame = next(filter(find_operator, stack_trace), None)
-                    if (frame
+                    if (
+                        frame
                         and frame != stack_trace[-1]
                         and not isinstance(self, airflow.decorators.base.DecoratedOperator)
                     ):
-                        message = f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                        message = (
+                            f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
+                        )
                         raise_or_warn(operator=self, message=message)
             return func(self, *args, **kwargs)
 

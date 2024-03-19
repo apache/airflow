@@ -91,6 +91,7 @@ class TestExecutorSafeguard:
         dag_maker,
     ):
         with dag_maker() as dag:
+
             def say_hello(**context):
                 operator = HelloWorldOperator(task_id="hello_operator")
                 return operator.execute(context=context)
@@ -114,6 +115,7 @@ class TestExecutorSafeguard:
         dag_maker,
     ):
         with dag_maker() as dag:
+
             def say_hello(**context):
                 operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
                 return operator.execute(context=context)
