@@ -338,6 +338,7 @@ def _delete_user(**filters):
         user = session.query(User).filter_by(**filters).first()
         if user is None:
             return
+        session.refresh(user)
         user.roles = []
         session.delete(user)
 
