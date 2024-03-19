@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 from contextlib import closing
-from unittest import mock
 
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.common.sql.transfers.sql import SqlToSqlOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
@@ -64,7 +63,7 @@ class TestMySql:
 
         with MySqlContext(client):
             sql = "SELECT * FROM connection;"
-            op = GenericTransfer(
+            op = SqlToSqlOperator(
                 task_id="test_m2m",
                 source_conn_id="airflow_db",
                 destination_conn_id="airflow_db",
@@ -77,6 +76,7 @@ class TestMySql:
                 dag=self.dag,
             )
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
 
 @pytest.mark.backend("postgres")
 class TestPostgres:
@@ -94,7 +94,7 @@ class TestPostgres:
 
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        op = SqlToSqlOperator
+        op = SqlToSqlOperator(
             task_id="test_p2p",
             source_conn_id="postgres_default",
             destination_conn_id="postgres_default",
@@ -107,4 +107,3 @@ class TestPostgres:
             dag=self.dag,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
