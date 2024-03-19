@@ -19,7 +19,7 @@
 Configure AWS IAM Identity Center
 =================================
 
-In order to use the AWS auth manager, you first need to configure AWS IAM Identity Center.
+In order to use the AWS auth manager, you first need to configure `AWS IAM Identity Center <https://aws.amazon.com/iam/identity-center/>`_.
 AWS IAM Identity Center is used by the AWS auth manager for authentication purposes (login and logout).
 It is then through the AWS IAM Identity Center that the Airflow environment admin manages users and groups.
 
