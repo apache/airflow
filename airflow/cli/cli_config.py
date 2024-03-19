@@ -382,11 +382,19 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
+# TODO: Deprecate in backfill command in favor of --treat-dag-id-as-regex
 ARG_TREAT_DAG_AS_REGEX = Arg(
     ("--treat-dag-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
     action="store_true",
 )
+
+ARG_TREAT_DAG_ID_AS_REGEX = Arg(
+    ("--treat-dag-id-as-regex",),
+    help=("if set, dag_id will be treated as regex instead of an exact string"),
+    action="store_true",
+)
+
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -1101,22 +1109,22 @@ DAGS_COMMANDS = (
         help="Pause DAG(s)",
         description=(
             "Pause one or more DAGs. This command allows to halt the execution of specified DAGs, "
-            "disabling further task scheduling. Use `--treat-dag-as-regex` to target multiple DAGs by "
+            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs by "
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="unpause",
         help="Resume paused DAG(s)",
         description=(
             "Resume one or more DAGs. This command allows to restore the execution of specified "
-            "DAGs, enabling further task scheduling. Use `--treat-dag-as-regex` to target multiple DAGs "
+            "DAGs, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs "
             "treating the `--dag-id` as a regex pattern."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="trigger",

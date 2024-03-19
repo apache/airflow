@@ -218,14 +218,14 @@ def set_is_paused(is_paused: bool, args) -> None:
     should_apply = True
     dags = [
         dag
-        for dag in get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
+        for dag in get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
         if is_paused != dag.get_is_paused()
     ]
 
     if not dags:
         raise AirflowException(f"No {'un' if is_paused else ''}paused DAGs were found")
 
-    if not args.yes and args.treat_dag_as_regex:
+    if not args.yes and args.treat_dag_id_as_regex:
         dags_ids = [dag.dag_id for dag in dags]
         question = (
             f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"

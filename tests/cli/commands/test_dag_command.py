@@ -656,14 +656,14 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex(self, mock_yesno):
-        args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-as-regex"])
+        args = self.parser.parse_args(["dags", "pause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_pause(args)
         mock_yesno.assert_called_once()
         assert self.dagbag.dags["example_bash_decorator"].get_is_paused()
         assert self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
         assert self.dagbag.dags["example_xcom_args"].get_is_paused()
 
-        args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-as-regex"])
+        args = self.parser.parse_args(["dags", "unpause", "^example_.*$", "--treat-dag-id-as-regex"])
         dag_command.dag_unpause(args)
         assert not self.dagbag.dags["example_bash_decorator"].get_is_paused()
         assert not self.dagbag.dags["example_kubernetes_executor"].get_is_paused()
@@ -671,7 +671,7 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex_operation_cancelled(self, ask_yesno, capsys):
-        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-as-regex"])
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator", "--treat-dag-id-as-regex"])
         ask_yesno.return_value = False
         dag_command.dag_pause(args)
         stdout = capsys.readouterr().out
@@ -679,7 +679,7 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.ask_yesno")
     def test_pause_regex_yes(self, mock_yesno):
-        args = self.parser.parse_args(["dags", "pause", ".*", "--treat-dag-as-regex", "--yes"])
+        args = self.parser.parse_args(["dags", "pause", ".*", "--treat-dag-id-as-regex", "--yes"])
         dag_command.dag_pause(args)
         mock_yesno.assert_not_called()
         dag_command.dag_unpause(args)
