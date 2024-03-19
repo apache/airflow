@@ -27,7 +27,7 @@ Resource creation
 =================
 
 The AWS auth manager needs two resources in AWS IAM Identity Center: an instance and an application.
-You can create then either through the vended CLI command or manually.
+You can create them either through the vended CLI command or manually.
 
 Create resources with CLI
 -------------------------
