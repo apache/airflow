@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.providers.papermill.operators.papermill import PapermillOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -44,8 +45,6 @@ class TestPapermillOperator:
     def test_mandatory_attributes(self):
         """Test missing Input or Output notebooks."""
         with pytest.raises(ValueError, match="Input notebook is not specified"):
-            from airflow.providers.papermill.operators.papermill import PapermillOperator
-
             PapermillOperator(task_id="missing_input_nb", output_nb="foo-bar")
 
         with pytest.raises(ValueError, match="Output notebook is not specified"):
