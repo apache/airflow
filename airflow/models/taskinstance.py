@@ -1811,28 +1811,35 @@ class TaskInstance(Base, LoggingMixin):
         """
         _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
+    def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
         """Clear all XCom data from the database for the task instance.
 
         If the task is unmapped, all XComs matching this task ID in the same DAG
         run are removed. If the task is mapped, only the one with matching map
         index is removed.
 
+        :param ti: The TI for which we need to clear xcoms.
         :param session: SQLAlchemy ORM Session
         """
-        self.log.debug("Clearing XCom data")
-        if self.map_index < 0:
+        ti.log.debug("Clearing XCom data")
+        if ti.map_index < 0:
             map_index: int | None = None
         else:
-            map_index = self.map_index
+            map_index = ti.map_index
         XCom.clear(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
             map_index=map_index,
             session=session,
         )
+
+    @provide_session
+    def clear_xcom_data(self, session: Session = NEW_SESSION):
+        self._clear_xcom_data(ti=self, session=session)
 
     @property
     def key(self) -> TaskInstanceKey:
