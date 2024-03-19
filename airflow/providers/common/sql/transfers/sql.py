@@ -18,16 +18,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+import re
 from contextlib import closing
-
-from airflow.models import BaseOperator
-from airflow.hooks.base import BaseHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
-
-import re
+from airflow.hooks.base import BaseHook
+from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -59,9 +57,11 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "vertica": "3.1.0",
 }
 
+
 class SqlToSqlOperator(BaseOperator):
     """
     Copy sql output data from one base to another database table.
+
     :param source_conn_id: the connection ID used to connect to the source database
     :param destination_conn_id: the connection ID used to connect to the destination database
     :param destination_table: the name of the destinamtion table
@@ -71,7 +71,6 @@ class SqlToSqlOperator(BaseOperator):
     :param destination_hook_params: hook parameters dictionary for the destination database
     :param source_hook_params: hook parameters dictionary for the source database
     :param rows_chunk: number of rows per chunk to commit.
-
     """
 
     template_fields: Sequence[str] = ("source_sql", "source_sql_parameters")
@@ -80,20 +79,20 @@ class SqlToSqlOperator(BaseOperator):
     ui_color = "#e08c8c"
 
     def __init__(
-            self,
-            *,
-            source_conn_id: str,
-            destination_conn_id: str,
-            destination_table: str,
-            source_sql: str,
-            source_sql_parameters: Mapping | Iterable | None = None,
-            destination_hook_params: dict | None = None,
-            source_hook_params: dict | None = None,
-            rows_chunk: int = 5000,
-            **kwargs,
+        self,
+        *,
+        source_conn_id: str,
+        destination_conn_id: str,
+        destination_table: str,
+        source_sql: str,
+        source_sql_parameters: Mapping[str, Any] | list[Any] | None = None,
+        destination_hook_params: dict | None = None,
+        source_hook_params: dict | None = None,
+        rows_chunk: int = 5000,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        
+
         self.source_conn_id = source_conn_id
         self.destination_conn_id = destination_conn_id
         self.destination_table = destination_table
@@ -105,17 +104,12 @@ class SqlToSqlOperator(BaseOperator):
         self.dest_db = "common"
         self.dest_schema = None
 
-    def _hook(
-            self,
-            conn_id: str,
-            hook_params:  Mapping | Iterable | None = None,
-            dest: bool = False
-    ):
+    def _hook(self, conn_id: str, hook_params: Mapping | Iterable | None = None, dest: bool = False):
         self.log.debug("Get connection for %s", conn_id)
         conn = BaseHook.get_connection(conn_id)
         hook = conn.get_hook(hook_params=hook_params)
-        
-        conn_dest_specific = [ "oracle", "snowflake" ]
+
+        conn_dest_specific = ["oracle", "snowflake"]
         conn_dict = conn.to_dict()
 
         if dest:
@@ -124,7 +118,7 @@ class SqlToSqlOperator(BaseOperator):
 
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
-            
+
             if not isinstance(hook, _DbApiHook):
                 class_module = hook.__class__.__module__
                 match = _PROVIDERS_MATCHER.match(class_module)
@@ -133,39 +127,31 @@ class SqlToSqlOperator(BaseOperator):
                     min_version = _MIN_SUPPORTED_PROVIDERS_VERSION.get(provider)
                     if min_version:
                         raise AirflowException(
-                                f"You are trying to use common-sql with {hook.__class__.__name__},"
-                                f" but the Hook class comes from provider {provider} that does not support it."
-                                f" Please upgrade provider {provider} to at least {min_version}."
+                            f"You are trying to use common-sql with {hook.__class__.__name__},"
+                            f" but the Hook class comes from provider {provider} that does not support it."
+                            f" Please upgrade provider {provider} to at least {min_version}."
                         )
-           
+
             raise AirflowException(
-                    f"You are trying to use `common-sql` with {hook.__class__.__name__},"
-                    " but its provider does not support it. Please upgrade the provider to a version that"
-                    " supports `common-sql`. The hook class should be a subclass of"
-                    " `airflow.providers.common.sql.hooks.sql.DbApiHook`."
-                    f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
+                f"You are trying to use `common-sql` with {hook.__class__.__name__},"
+                " but its provider does not support it. Please upgrade the provider to a version that"
+                " supports `common-sql`. The hook class should be a subclass of"
+                " `airflow.providers.common.sql.hooks.sql.DbApiHook`."
+                f" Got {hook.__class__.__name__} Hook with class hierarchy: {hook.__class__.mro()}"
             )
 
         return hook
 
     def get_db_hook(
-            self,
-            conn_id: str,
-            hook_params: Mapping | Iterable | None = None,
-            dest: bool = False
+        self, conn_id: str, hook_params: Mapping | Iterable | None = None, dest: bool = False
     ) -> DbApiHook:
         return self._hook(conn_id, hook_params, dest)
-    
-    def _transfer_data(
-            self,
-            src_hook,
-            dest_hook,
-            context: Context
-    ) -> None:
+
+    def _transfer_data(self, src_hook, dest_hook, context: Context) -> None:
         self.log.info("Using Common insert mode")
         self.log.info("Querying data from source: %s", self.source_conn_id)
         self.log.info("Executing: %s", self.source_sql)
-        
+
         with src_hook.get_cursor() as src_cursor:
             if self.source_sql_parameters:
                 src_cursor.execute(self.source_sql, self.source_sql_parameters)
@@ -173,28 +159,23 @@ class SqlToSqlOperator(BaseOperator):
                 src_cursor.execute(self.source_sql)
 
             target_fields = [field[0] for field in src_cursor.description]
-            
+
             rows_total = 0
 
             for rows in iter(lambda: src_cursor.fetchmany(self.rows_chunk), []):
                 dest_hook.insert_rows(
-                    table = self.destination_table,
-                    rows = rows,
+                    table=self.destination_table,
+                    rows=rows,
                     target_fields=target_fields,
-                    commit_every = self.rows_chunk
+                    commit_every=self.rows_chunk,
                 )
                 rows_total += len(rows)
-        
-            self.log.info("Total inserted: %s rows", rows_total)         
-        
-        self.log.info("Finished data transfer.")       
 
-    def _oracle_tranfer_data(
-            self,
-            src_hook,
-            dest_hook,
-            context: Context
-    ) -> None:
+            self.log.info("Total inserted: %s rows", rows_total)
+
+        self.log.info("Finished data transfer.")
+
+    def _oracle_tranfer_data(self, src_hook, dest_hook, context: Context) -> None:
         self.log.info("Using Oracle bulk insert mode")
         self.log.info("Querying data from source: %s", self.source_conn_id)
         self.log.info("Executing: %s", self.source_sql)
@@ -208,28 +189,21 @@ class SqlToSqlOperator(BaseOperator):
             target_fields = [field[0] for field in src_cursor.description]
 
             rows_total = 0
-            
-            from airflow.providers.oracle.hooks.oracle import OracleHook
-            
+
             for rows in iter(lambda: src_cursor.fetchmany(self.rows_chunk), []):
                 dest_hook.bulk_insert_rows(
-                    table = self.destination_table,
-                    rows = rows,
+                    table=self.destination_table,
+                    rows=rows,
                     target_fields=target_fields,
-                    commit_every=self.rows_chunk
+                    commit_every=self.rows_chunk,
                 )
                 rows_total += len(rows)
-            
+
             self.log.info("Total inserted: %s rows", rows_total)
 
         self.log.info("Finished data transfer.")
-    
-    def _snowflake_transfer_data(
-            self,
-            src_hook,
-            dest_hook,
-            context: Context
-    ) -> None:
+
+    def _snowflake_transfer_data(self, src_hook, dest_hook, context: Context) -> None:
         self.log.info("Using Snowflake bulk insert mode")
         self.log.info("Querying data from source: %s", self.source_conn_id)
         self.log.info("Executing: %s", self.source_sql)
@@ -241,7 +215,12 @@ class SqlToSqlOperator(BaseOperator):
                 from pandas.io import sql as psql
                 from snowflake.connector.pandas_tools import write_pandas
 
-                for rows_df in psql.read_sql(self.source_sql, con=src_conn, params=self.source_sql_parameters, chunksize=self.rows_chunk):
+                for rows_df in psql.read_sql_query(
+                    self.source_sql,
+                    con=src_conn,
+                    params=self.source_sql_parameters,
+                    chunksize=self.rows_chunk,
+                ):
                     write_pandas(
                         conn=dest_conn,
                         df=rows_df,
@@ -249,19 +228,16 @@ class SqlToSqlOperator(BaseOperator):
                         schema=dest_conn.schema,
                         chunk_size=self.rows_chunk,
                         auto_create_table=False,
-                        overwrite=False
+                        overwrite=False,
                     )
-                    
+
                     rows_total += len(rows_df)
 
                 self.log.info("Total inserted: %s rows", rows_total)
 
         self.log.info("Finished data transfer.")
 
-    def execute(
-            self, 
-            context: Context
-    ) -> None:
+    def execute(self, context: Context) -> None:
         src_hook = self.get_db_hook(self.source_conn_id, self.source_hook_params)
         dest_hook = self.get_db_hook(self.destination_conn_id, self.destination_hook_params, True)
         if self.dest_db == "oracle":
