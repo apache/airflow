@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-19T14:04:23.017166
+# This constraints file was automatically generated on 2024-03-19T19:18:13.990004
 # via "eager-upgrade" mechanism of PIP. For the "v2-8-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -250,7 +250,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.56
+cohere==4.57
 colorama==0.4.6
 colorlog==4.8.0
 comm==0.2.2
@@ -263,7 +263,7 @@ croniter==2.0.3
 cryptography==41.0.7
 curlify==2.2.1
 databricks-sql-connector==2.9.4
-datadog==0.49.0
+datadog==0.49.1
 db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
@@ -288,7 +288,7 @@ eventlet==0.35.2
 exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
-facebook_business==19.0.1
+facebook_business==19.0.2
 fastavro==1.9.4
 fasteners==0.19
 fastjsonschema==2.19.1
@@ -383,7 +383,7 @@ idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.3.1
+importlib_resources==6.3.2
 impyla==0.19.0
 incremental==22.10.0
 inflection==0.5.1
@@ -463,7 +463,7 @@ nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.14.1
+openai==1.14.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.10.2
