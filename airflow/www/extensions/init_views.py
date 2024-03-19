@@ -203,7 +203,7 @@ class _LazyResolver(Resolver):
         return _LazyResolution(self.resolve_function_from_operation_id, operation_id)
 
 
-base_paths: list[str] = []  # contains the list of base paths that have api endpoints
+base_paths: list[str] = ["/auth/fab/v1"]  # contains the list of base paths that have api endpoints
 
 
 def init_api_error_handlers(connexion_app: connexion.FlaskApp) -> None:
