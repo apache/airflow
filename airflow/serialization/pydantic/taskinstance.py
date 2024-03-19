@@ -108,7 +108,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     next_method: Optional[str]
     next_kwargs: Optional[dict]
     run_as_user: Optional[str]
-    task: PydanticOperator
+    task: Optional[PydanticOperator]
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
