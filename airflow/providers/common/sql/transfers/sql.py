@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import re
-from contextlib import closing
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
@@ -68,15 +67,27 @@ class SqlToSqlOperator(BaseOperator):
     :param source_sql: the SQL code or string pointing to a template file to be executed (templated).
         File must have a '.sql' extension.
     :param source_parameters: (optional) the parameters to render the SQL query with.
+    :param destination_before_sql: (optional) the SQL code or string to a template file to be executed (templated) before data transfer.
+        File must have a '.sql' extension.
+    :param destination_after_sql: (optional)  the SQL code or string to a template file to be executed (templated) after data transfer.
+        File must have a '.sql' extension.
     :param destination_hook_params: hook parameters dictionary for the destination database
     :param source_hook_params: hook parameters dictionary for the source database
     :param rows_chunk: number of rows per chunk to commit.
     """
 
-    template_fields: Sequence[str] = ("source_sql", "source_sql_parameters")
-    template_fields_renderers = {"source_sql": "sql", "source_sql_parameters": "json"}
-
-    ui_color = "#e08c8c"
+    template_fields: Sequence[str] = (
+        "source_sql",
+        "destination_before_sql",
+        "destination_after_sql",
+        "source_sql_parameters",
+    )
+    template_fields_renderers = {
+        "source_sql": "sql",
+        "destination_before_sql": "sql",
+        "destination_after_sql": "sql",
+        "source_sql_parameters": "json",
+    }
 
     def __init__(
         self,
@@ -86,6 +97,8 @@ class SqlToSqlOperator(BaseOperator):
         destination_table: str,
         source_sql: str,
         source_sql_parameters: Mapping[str, Any] | list[Any] | None = None,
+        destination_before_sql: str | list[str] | None = None,
+        destination_after_sql: str | list[str] | None = None,
         destination_hook_params: dict | None = None,
         source_hook_params: dict | None = None,
         rows_chunk: int = 5000,
@@ -98,23 +111,16 @@ class SqlToSqlOperator(BaseOperator):
         self.destination_table = destination_table
         self.source_sql = source_sql
         self.source_sql_parameters = source_sql_parameters
+        self.destination_before_sql = destination_before_sql
+        self.destination_after_sql = destination_after_sql
         self.destination_hook_params = destination_hook_params
         self.source_hook_params = source_hook_params
         self.rows_chunk = rows_chunk
-        self.dest_db = "common"
-        self.dest_schema = None
 
-    def _hook(self, conn_id: str, hook_params: Mapping | Iterable | None = None, dest: bool = False):
+    def _hook(self, conn_id: str, hook_params: Mapping | Iterable | None = None):
         self.log.debug("Get connection for %s", conn_id)
         conn = BaseHook.get_connection(conn_id)
         hook = conn.get_hook(hook_params=hook_params)
-
-        conn_dest_specific = ["oracle", "snowflake"]
-        conn_dict = conn.to_dict()
-
-        if dest:
-            if "conn_type" in conn_dict.keys() and conn_dict["conn_type"] in conn_dest_specific:
-                self.dest_db = conn_dict["conn_type"]
 
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
@@ -142,107 +148,26 @@ class SqlToSqlOperator(BaseOperator):
 
         return hook
 
-    def get_db_hook(
-        self, conn_id: str, hook_params: Mapping | Iterable | None = None, dest: bool = False
-    ) -> DbApiHook:
-        return self._hook(conn_id, hook_params, dest)
+    def get_db_hook(self, conn_id: str, hook_params: Mapping | Iterable | None = None) -> DbApiHook:
+        return self._hook(conn_id, hook_params)
 
-    def _transfer_data(self, src_hook, dest_hook, context: Context) -> None:
-        self.log.info("Using Common insert mode")
-        self.log.info("Querying data from source: %s", self.source_conn_id)
-        self.log.info("Executing: %s", self.source_sql)
+    def _execute(self, source_hook, destination_hook, context: Context) -> None:
+        self.log.info("Transferring data from %s to %s", self.source_conn_id, self.destination_conn_id)
 
-        with src_hook.get_cursor() as src_cursor:
-            if self.source_sql_parameters:
-                src_cursor.execute(self.source_sql, self.source_sql_parameters)
-            else:
-                src_cursor.execute(self.source_sql)
+        if self.destination_before_sql:
+            self.log.info("Running before SQL on destination")
+            destination_hook.run(self.destination_before_sql)
 
-            target_fields = [field[0] for field in src_cursor.description]
+        destination_hook.data_transfer(
+            self.destination_table, source_hook, self.source_sql, self.source_sql_parameters, self.rows_chunk
+        )
 
-            rows_total = 0
-
-            for rows in iter(lambda: src_cursor.fetchmany(self.rows_chunk), []):
-                dest_hook.insert_rows(
-                    table=self.destination_table,
-                    rows=rows,
-                    target_fields=target_fields,
-                    commit_every=self.rows_chunk,
-                )
-                rows_total += len(rows)
-
-            self.log.info("Total inserted: %s rows", rows_total)
-
-        self.log.info("Finished data transfer.")
-
-    def _oracle_tranfer_data(self, src_hook, dest_hook, context: Context) -> None:
-        self.log.info("Using Oracle bulk insert mode")
-        self.log.info("Querying data from source: %s", self.source_conn_id)
-        self.log.info("Executing: %s", self.source_sql)
-
-        with src_hook.get_cursor() as src_cursor:
-            if self.source_sql_parameters:
-                src_cursor.execute(self.source_sql, self.source_sql_parameters)
-            else:
-                src_cursor.execute(self.source_sql)
-
-            target_fields = [field[0] for field in src_cursor.description]
-
-            rows_total = 0
-
-            for rows in iter(lambda: src_cursor.fetchmany(self.rows_chunk), []):
-                dest_hook.bulk_insert_rows(
-                    table=self.destination_table,
-                    rows=rows,
-                    target_fields=target_fields,
-                    commit_every=self.rows_chunk,
-                )
-                rows_total += len(rows)
-
-            self.log.info("Total inserted: %s rows", rows_total)
-
-        self.log.info("Finished data transfer.")
-
-    def _snowflake_transfer_data(self, src_hook, dest_hook, context: Context) -> None:
-        self.log.info("Using Snowflake bulk insert mode")
-        self.log.info("Querying data from source: %s", self.source_conn_id)
-        self.log.info("Executing: %s", self.source_sql)
-
-        with closing(src_hook.get_conn()) as src_conn:
-            with closing(dest_hook.get_conn()) as dest_conn:
-                rows_total = 0
-
-                from pandas.io import sql as psql
-                from snowflake.connector.pandas_tools import write_pandas
-
-                for rows_df in psql.read_sql_query(
-                    self.source_sql,
-                    con=src_conn,
-                    params=self.source_sql_parameters,
-                    chunksize=self.rows_chunk,
-                ):
-                    write_pandas(
-                        conn=dest_conn,
-                        df=rows_df,
-                        table_name=self.destination_table,
-                        schema=dest_conn.schema,
-                        chunk_size=self.rows_chunk,
-                        auto_create_table=False,
-                        overwrite=False,
-                    )
-
-                    rows_total += len(rows_df)
-
-                self.log.info("Total inserted: %s rows", rows_total)
-
-        self.log.info("Finished data transfer.")
+        if self.destination_after_sql:
+            self.log.info("Running before SQL on destination")
+            destination_hook.run(self.destination_after_sql)
 
     def execute(self, context: Context) -> None:
-        src_hook = self.get_db_hook(self.source_conn_id, self.source_hook_params)
-        dest_hook = self.get_db_hook(self.destination_conn_id, self.destination_hook_params, True)
-        if self.dest_db == "oracle":
-            self._oracle_tranfer_data(src_hook, dest_hook, context)
-        if self.dest_db == "snowflake":
-            self._snowflake_transfer_data(src_hook, dest_hook, context)
-        else:
-            self._transfer_data(src_hook, dest_hook, context)
+        source_hook = self.get_db_hook(self.source_conn_id, self.source_hook_params)
+        destination_hook = self.get_db_hook(self.destination_conn_id, self.destination_hook_params)
+
+        self._execute(source_hook, destination_hook, context)

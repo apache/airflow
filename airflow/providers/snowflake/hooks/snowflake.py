@@ -433,6 +433,54 @@ class SnowflakeHook(DbApiHook):
             if cursor is not None:
                 cursor.close()
 
+    def data_transfer(
+        self,
+        table: str,
+        source_hook: DbApiHook,
+        source_sql: str,
+        source_sql_parameters: Mapping[str, Any] | list[Any] | None = None,
+        rows_chunk: int = 5000,
+    ) -> None:
+        """Copy data from source database to table."""
+        try:
+            self.log.info("Using Snowflake data transfer mode")
+            self.log.info("Executing sql: %s", source_sql)
+
+            from pandas.io import sql as psql
+            from snowflake.connector.pandas_tools import write_pandas
+
+            with closing(source_hook.get_conn()) as source_connection:
+                with closing(self.get_conn()) as destination_connection:
+                    rows_transfered = 0
+
+                    for rows_df in psql.read_sql_query(
+                        source_sql,
+                        con=source_connection,
+                        params=source_sql_parameters,
+                        chunksize=rows_chunk,
+                    ):
+                        write_pandas(
+                            conn=destination_connection,
+                            df=rows_df,
+                            table_name=table,
+                            schema=self._get_conn_params()["schema"],
+                            chunk_size=rows_chunk,
+                            auto_create_table=False,
+                            overwrite=False,
+                        )
+
+                        rows_transfered += len(rows_df)
+
+                        self.log.info("Loaded %s rows into %s so far", rows_transfered, table)
+
+                    self.log.info("Transferred a total of %s rows into %s", rows_transfered, table)
+            self.log.info("Done data trasnferring")
+        except ImportError:
+            self.log.warning(
+                "For Snowlake data transfer mode pandas and sbowflake-connector-python[pandas] have to be installed"
+            )
+            super().data_transfer(table, source_hook, source_sql, source_sql_parameters, rows_chunk)
+
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
