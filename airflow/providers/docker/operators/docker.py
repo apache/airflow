@@ -387,16 +387,18 @@ class DockerOperator(BaseOperator):
             for handler, formatter in self._log_formatter_backup.items():
                 handler.setFormatter(formatter)
         except Exception as e:
-            self.log.warning(f"Failed to restore logging formatters: {e}")
+            self.log.warning("Failed to restore logging formatters: %s", e)
 
     def _change_log_formatters(self, new_formatter: logging.Formatter):
         try:
             for handler in self.log.handlers:
                 handler.setFormatter(new_formatter)
         except (ValueError, TypeError) as e:
-            self.log.warning(f"Unrecognized logging formatters: {new_formatter} - {e}")
+            self.log.warning("Unrecognized logging formatters: %s - %s", new_formatter, e)
+            self._restore_log_formatters()
         except Exception as e:
-            self.log.warning(f"Failed to change logging formatters: {e}")
+            self.log.warning("Failed to change logging formatters: %s", e)
+            self._restore_log_formatters()
 
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
