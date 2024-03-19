@@ -158,7 +158,6 @@ class TaskStateTrigger(BaseTrigger):
         dag_id: str,
         execution_dates: list[datetime],
         trigger_start_time: datetime,
-        timeout: int | float | None = None,
         states: list[str] | None = None,
         task_id: str | None = None,
         poll_interval: float = 2.0,
@@ -171,7 +170,7 @@ class TaskStateTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
         self.states = states or [TaskInstanceState.SUCCESS.value]
-        self._timeout_sec = 60 if timeout is None else timeout
+        self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize TaskStateTrigger arguments and classpath."""

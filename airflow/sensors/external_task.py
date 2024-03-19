@@ -166,7 +166,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         check_existence: bool = False,
         poll_interval: float = 2.0,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        deferrable_timeout: int | float | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -236,7 +235,6 @@ class ExternalTaskSensor(BaseSensorOperator):
         self._has_checked_existence = False
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.deferrable_timeout = deferrable_timeout
 
     def _get_dttm_filter(self, context):
         if self.execution_delta:
