@@ -547,7 +547,7 @@ class TestTaskInstance:
 
         ti.run()
         ti.refresh_from_db()
-        ti.state == state
+        assert ti.state == state
 
     @pytest.mark.parametrize(
         "state, exception, retries",
@@ -3773,7 +3773,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         ti = tis[(downstream, 0, None)]
         ti.run()
-        ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
+        assert ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
 
         ti = tis[(downstream, 1, None)]
         if strict:
@@ -3782,7 +3782,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             assert str(ctx.value) == error_message
         else:
             ti.run()
-            ti.xcom_pull(task_ids=downstream, map_indexes=1, session=session) == ["b", "c"]
+            assert ti.xcom_pull(task_ids=downstream, map_indexes=1, session=session) == ["b", "c"]
 
     def test_error_if_upstream_does_not_push(self, dag_maker):
         """Fail the upstream task if it fails to push the XCom used for task mapping."""

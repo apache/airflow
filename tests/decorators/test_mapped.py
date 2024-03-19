@@ -34,5 +34,5 @@ def test_mapped_task_group_id_prefix_task_id():
     assert x1.operator.task_id == "t1"
     assert x2.operator.task_id == "g.t2"
 
-    dag.get_task("t1") == x1.operator
-    dag.get_task("g.t2") == x2.operator
+    assert dag.get_task("t1") == x1.operator
+    assert dag.get_task("g.t2") == x2.operator

@@ -638,7 +638,7 @@ class TestBaseOperator:
         task1.supports_lineage = True
 
         # note: operator precedence still applies
-        inlet > task1 | (task2 > outlet)
+        inlet > task1 | (task2 > outlet)  # noqa: B015
 
         assert task1.get_inlet_defs() == [inlet]
         assert task2.get_inlet_defs() == [task1.task_id]
@@ -646,9 +646,9 @@ class TestBaseOperator:
 
         fail = ClassWithCustomAttributes()
         with pytest.raises(TypeError):
-            fail > task1
+            fail > task1  # noqa: B015
         with pytest.raises(TypeError):
-            task1 > fail
+            task1 > fail  # noqa: B015
         with pytest.raises(TypeError):
             fail | task1
         with pytest.raises(TypeError):
@@ -656,7 +656,7 @@ class TestBaseOperator:
 
         task3 = BaseOperator(task_id="op3", dag=dag)
         extra = File(url="extra")
-        [inlet, extra] > task3
+        [inlet, extra] > task3  # noqa: B015
 
         assert task3.get_inlet_defs() == [inlet, extra]
 
@@ -669,7 +669,7 @@ class TestBaseOperator:
         assert len(task3.get_inlet_defs()) == 3
 
         task4 = BaseOperator(task_id="op4", dag=dag)
-        task4 > [inlet, outlet, extra]
+        task4 > [inlet, outlet, extra]  # noqa: B015
         assert task4.get_outlet_defs() == [inlet, outlet, extra]
 
     def test_warnings_are_properly_propagated(self):

@@ -73,4 +73,4 @@ class TestEmrNotebookExecutionSensor:
             notebook_execution_id="test-execution-id",
         )
         sensor.poke(None)
-        mock_conn.describe_notebook_execution.call_count == 3
+        assert mock_conn.describe_notebook_execution.call_count == 3

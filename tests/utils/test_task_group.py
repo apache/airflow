@@ -1401,8 +1401,8 @@ def test_mapped_task_group_id_prefix_task_id():
     assert t1.task_id == "t1"
     assert t2.task_id == "g.t2"
 
-    dag.get_task("t1") == t1
-    dag.get_task("g.t2") == t2
+    assert dag.get_task("t1") == t1
+    assert dag.get_task("g.t2") == t2
 
 
 def test_iter_tasks():

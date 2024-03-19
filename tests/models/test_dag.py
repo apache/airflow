@@ -3875,7 +3875,7 @@ class TestTaskClearingSetupTeardownBehavior:
         # now, we know that t1 is the teardown for s1, so now we know that s1 will be "torn down"
         # by the time w4 runs, so we now know that w4 no longer requires s1, so when we clear w4,
         # s1 will not also be cleared
-        self.cleared_downstream(w4) == {w4}
+        assert self.cleared_downstream(w4) == {w4}
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1, w4}
         assert self.cleared_upstream(w1) == {s1, w1, t1}

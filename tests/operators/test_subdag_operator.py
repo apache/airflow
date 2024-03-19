@@ -276,7 +276,7 @@ class TestSubDagOperator:
 
             (dummy_task_instance,) = sub_dagrun.task_instances
             dummy_task_instance.refresh_from_task(dummy_task)
-            dummy_task_instance.state == State.FAILED
+            assert dummy_task_instance.state == State.FAILED
 
             with dag_maker("parent", default_args=default_args, session=session):
                 subdag_task = SubDagOperator(task_id="test", subdag=subdag, poke_interval=1)

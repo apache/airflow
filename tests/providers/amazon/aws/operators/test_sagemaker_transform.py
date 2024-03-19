@@ -95,7 +95,7 @@ class TestSageMakerTransformOperator:
                 (key3,) = key3
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
             else:
-                self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
+                assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "describe_transform_job")
     @mock.patch.object(SageMakerHook, "create_model")
