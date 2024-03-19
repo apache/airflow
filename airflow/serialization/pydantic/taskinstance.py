@@ -47,10 +47,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 
 
-def serialize_operator(x: Operator) -> dict:
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+def serialize_operator(x: Operator | None) -> dict | None:
+    if x:
+        from airflow.serialization.serialized_objects import SerializedBaseOperator
 
-    return SerializedBaseOperator.serialize_operator(x)
+        return SerializedBaseOperator.serialize_operator(x)
+    return None
 
 
 def validated_operator(x: dict[str, Any] | Operator, _info: ValidationInfo) -> Any:
@@ -94,7 +96,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     priority_weight: Optional[int]
     operator: str
     custom_operator_name: Optional[str]
-    queued_dttm: Optional[str]
+    queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
     executor_config: Any
@@ -106,11 +108,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     next_method: Optional[str]
     next_kwargs: Optional[dict]
     run_as_user: Optional[str]
-    task: PydanticOperator
+    task: Optional[PydanticOperator]
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
     dag_model: Optional[DagModelPydantic]
-
+    raw: Optional[bool]
+    is_trigger_log_context: Optional[bool]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property
