@@ -37,7 +37,7 @@ const dagId = getMetaValue("dag_id");
 
 const Header = () => {
   const {
-    data: { dagRuns, groups, ordering },
+    data: { dagRuns, groups },
   } = useGridData();
 
   const {
@@ -77,7 +77,7 @@ const Header = () => {
       runId.includes("scheduled__") ||
       runId.includes("backfill__") ||
       runId.includes("dataset_triggered__") ? (
-        <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
+        <Time dateTime={getDagRunLabel({ dagRun })} />
       ) : (
         runId
       );
