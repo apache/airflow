@@ -87,3 +87,10 @@ sensors:
   - integration-name: Common SQL
     python-modules:
       - airflow.providers.common.sql.sensors.sql
+
+transfers:
+  - source-integration-name: Common SQL
+    target-integration-name: Common SQL
+    python-modules:
+      - airflow.providers.common.sql.transfers.sql
+
