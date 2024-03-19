@@ -628,15 +628,15 @@ class DbApiHook(BaseHook):
             else:
                 source_cursor.execute(source_sql)
 
-            #target_fields = [field[0] for field in source_cursor.description]
+            # target_fields = [field[0] for field in source_cursor.description]
 
-            rows_transfered = 0                   
+            rows_transfered = 0
 
             for rows in iter(lambda: source_cursor.fetchmany(rows_chunk), []):
                 self.insert_rows(
                     table=table,
                     rows=rows,
-                    #target_fields=target_fields,
+                    # target_fields=target_fields,
                     commit_every=rows_chunk,
                     replace=False,
                 )
