@@ -22,7 +22,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
 
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection
@@ -272,11 +271,11 @@ class TestGrpcHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://abc:50?extra__grpc__auth_type=NO_AUTH",
                 id="prefix",
             ),
-            param("a://abc:50?auth_type=NO_AUTH", id="no-prefix"),
+            pytest.param("a://abc:50?auth_type=NO_AUTH", id="no-prefix"),
         ],
     )
     @patch("airflow.providers.grpc.hooks.grpc.grpc.insecure_channel")

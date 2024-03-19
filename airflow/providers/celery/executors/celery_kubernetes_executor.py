@@ -20,8 +20,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
@@ -36,6 +34,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from airflow.callbacks.base_callback_sink import BaseCallbackSink
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -169,7 +169,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Checks if a task is either queued or running in either celery or kubernetes executor.
+        Check if a task is either queued or running in either celery or kubernetes executor.
 
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
@@ -243,14 +243,15 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self.celery_executor
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Debug dump; called in response to SIGUSR2 by the scheduler."""
         self.log.info("Dumping CeleryExecutor state")
         self.celery_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")
         self.kubernetes_executor.debug_dump()
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Sends callback for execution.
+        """
+        Send callback for execution.
 
         :param request: Callback request to be executed.
         """

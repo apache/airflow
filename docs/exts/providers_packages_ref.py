@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from provider_yaml_utils import load_package_data
-from sphinx.application import Sphinx
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 
 def _on_config_inited(app, config):

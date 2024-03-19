@@ -17,12 +17,13 @@
 """
 Example Airflow DAG that shows how to use SalesforceToGcsOperator.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -43,7 +44,7 @@ GCS_CONN_ID = os.environ.get("GCS_CONN_ID", "google_cloud_default")
 SALESFORCE_CONN_ID = os.environ.get("SALESFORCE_CONN_ID", "salesforce_default")
 
 
-with models.DAG(
+with DAG(
     "example_salesforce_to_gcs",
     start_date=datetime(2021, 1, 1),
     catchup=False,

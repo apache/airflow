@@ -71,39 +71,39 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-mysql
+apache-airflow-providers-mysql package
 ------------------------------------------------------
 
-`MySQL <https://www.mysql.com/products/>`__
+`MySQL <https://www.mysql.com/>`__
 
 
-Release: 5.2.1
+Release: 5.5.4
 
 Provider package
 ----------------
 
-This is a provider package for ``mysql`` provider. All classes for this provider package
-are in ``airflow.providers.mysql`` python package.
+This package is for the ``mysql`` provider.
+All classes for this package are included in the ``airflow.providers.mysql`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-mysql``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-mysql``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.4.0``
+``apache-airflow``                       ``>=2.6.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``mysqlclient``                          ``>=1.3.6``
-``mysql-connector-python``               ``>=8.0.11``
+``mysql-connector-python``               ``>=8.0.29``
 =======================================  ==================
 
 Cross provider package dependencies
@@ -136,5 +136,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 5.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.2.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 5.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.2.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 5.5.4 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.5.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.5.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-mysql-5.5.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 5.5.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.5.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.5.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-5.5.4-py3-none-any.whl.sha512>`__)

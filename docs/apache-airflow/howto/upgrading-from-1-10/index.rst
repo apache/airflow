@@ -1062,7 +1062,7 @@ Old command                                          New command
 ``airflow flower [-ba, --basic_auth]``               ``airflow celery flower [-A, --basic-auth]``
 ==================================================== ====================================================
 
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
+For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_case>`_ instead of `snake_case <https://en.wikipedia.org/wiki/Snake_case>`_
 
 ================================== ===================================
 Old option                         New option

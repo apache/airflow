@@ -26,6 +26,8 @@ from airflow.models import Connection
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestZendeskHook:
     conn_id = "zendesk_conn_id_test"

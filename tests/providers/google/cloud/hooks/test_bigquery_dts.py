@@ -137,7 +137,7 @@ class TestAsyncBiqQueryDataTransferServiceHook:
         with pytest.raises(RuntimeError):
             AsyncBiqQueryDataTransferServiceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
-    @pytest.fixture()
+    @pytest.fixture
     def mock_client(self):
         with mock.patch(
             f"{self.HOOK_MODULE_PATH}.AsyncBiqQueryDataTransferServiceHook._get_conn",
@@ -153,6 +153,7 @@ class TestAsyncBiqQueryDataTransferServiceHook:
     def hook(self):
         return AsyncBiqQueryDataTransferServiceHook()
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_get_transfer_run(self, mock_client, hook):
         await hook.get_transfer_run(

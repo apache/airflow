@@ -28,49 +28,37 @@ TEST_MAX_MESSAGES = 1
 TEST_NUM_BATCHES = 1
 TEST_WAIT_TIME_SECONDS = 1
 TEST_VISIBILITY_TIMEOUT = 1
-TEST_MESSAGE_FILTERING = "literal"
 TEST_MESSAGE_FILTERING_MATCH_VALUES = "test"
 TEST_MESSAGE_FILTERING_CONFIG = "test-message-filtering-config"
 TEST_DELETE_MESSAGE_ON_RECEPTION = False
 TEST_WAITER_DELAY = 1
-
-trigger = SqsSensorTrigger(
-    sqs_queue=TEST_SQS_QUEUE,
-    aws_conn_id=TEST_AWS_CONN_ID,
-    max_messages=TEST_MAX_MESSAGES,
-    num_batches=TEST_NUM_BATCHES,
-    wait_time_seconds=TEST_WAIT_TIME_SECONDS,
-    visibility_timeout=TEST_VISIBILITY_TIMEOUT,
-    message_filtering=TEST_MESSAGE_FILTERING,
-    message_filtering_match_values=TEST_MESSAGE_FILTERING_MATCH_VALUES,
-    message_filtering_config=TEST_MESSAGE_FILTERING_CONFIG,
-    delete_message_on_reception=TEST_DELETE_MESSAGE_ON_RECEPTION,
-    waiter_delay=TEST_WAITER_DELAY,
-)
+TEST_REGION_NAME = "eu-central-1"
+TEST_VERIFY = True
+TEST_BOTOCORE_CONFIG = {"region_name": "us-east-1"}
 
 
 class TestSqsTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            trigger,
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self.sqs_trigger = SqsSensorTrigger(
+            sqs_queue=TEST_SQS_QUEUE,
+            aws_conn_id=TEST_AWS_CONN_ID,
+            max_messages=TEST_MAX_MESSAGES,
+            num_batches=TEST_NUM_BATCHES,
+            wait_time_seconds=TEST_WAIT_TIME_SECONDS,
+            visibility_timeout=TEST_VISIBILITY_TIMEOUT,
+            message_filtering="literal",
+            message_filtering_match_values=TEST_MESSAGE_FILTERING_MATCH_VALUES,
+            message_filtering_config=TEST_MESSAGE_FILTERING_CONFIG,
+            delete_message_on_reception=TEST_DELETE_MESSAGE_ON_RECEPTION,
+            waiter_delay=TEST_WAITER_DELAY,
+            region_name=TEST_REGION_NAME,
+            verify=TEST_VERIFY,
+            botocore_config=TEST_BOTOCORE_CONFIG,
+        )
 
     @pytest.mark.asyncio
     async def test_poke(self):
-        sqs_trigger = trigger
         mock_client = AsyncMock()
         message = {
             "MessageId": "test_message_id",
@@ -80,12 +68,11 @@ class TestSqsTriggers:
             "Messages": [message],
         }
         mock_client.receive_message.return_value = mock_response
-        messages = await sqs_trigger.poke(client=mock_client)
+        messages = await self.sqs_trigger.poke(client=mock_client)
         assert messages[0] == message
 
     @pytest.mark.asyncio
     async def test_poke_filtered_message(self):
-        sqs_trigger = trigger
         mock_client = AsyncMock()
         message = {
             "MessageId": "test_message_id",
@@ -95,14 +82,13 @@ class TestSqsTriggers:
             "Messages": [message],
         }
         mock_client.receive_message.return_value = mock_response
-        messages = await sqs_trigger.poke(client=mock_client)
+        messages = await self.sqs_trigger.poke(client=mock_client)
         assert len(messages) == 0
 
     @pytest.mark.asyncio
     async def test_poke_no_messages(self):
-        sqs_trigger = trigger
         mock_client = AsyncMock()
         mock_response = {"Messages": []}
         mock_client.receive_message.return_value = mock_response
-        messages = await sqs_trigger.poke(client=mock_client)
+        messages = await self.sqs_trigger.poke(client=mock_client)
         assert len(messages) == 0

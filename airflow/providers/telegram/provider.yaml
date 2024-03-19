@@ -21,8 +21,14 @@ name: Telegram
 description: |
     `Telegram <https://telegram.org/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1709556330
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.4.0
+  - 4.3.1
+  - 4.3.0
+  - 4.2.0
   - 4.1.1
   - 4.1.0
   - 4.0.0
@@ -39,8 +45,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - python-telegram-bot>=20.0.0
+  - apache-airflow>=2.6.0
+  - python-telegram-bot>=20.2
 
 integrations:
   - integration-name: Telegram
@@ -54,6 +60,10 @@ operators:
   - integration-name: Telegram
     python-modules:
       - airflow.providers.telegram.operators.telegram
+
+connection-types:
+  - hook-class-name: airflow.providers.telegram.hooks.telegram.TelegramHook
+    connection-type: telegram
 
 hooks:
   - integration-name: Telegram

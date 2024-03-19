@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateQueryOperator,
@@ -68,6 +69,7 @@ class TestGoogleDisplayVideo360DeleteReportOperator:
         hook_mock.return_value.delete_query.assert_called_once_with(query_id=QUERY_ID)
 
 
+@pytest.mark.db_test
 class TestGoogleDisplayVideo360DownloadReportV2Operator:
     def setup_method(self):
         with create_session() as session:
@@ -77,6 +79,9 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
         with create_session() as session:
             session.query(TI).delete()
 
+    @pytest.mark.parametrize(
+        "file_path, should_except", [("https://host/path", False), ("file:/path/to/file", True)]
+    )
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.shutil")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.urllib.request")
     @mock.patch("airflow.providers.google.marketing_platform.operators.display_video.tempfile")
@@ -96,12 +101,14 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
         mock_temp,
         mock_request,
         mock_shutil,
+        file_path,
+        should_except,
     ):
         mock_temp.NamedTemporaryFile.return_value.__enter__.return_value.name = FILENAME
         mock_hook.return_value.get_report.return_value = {
             "metadata": {
                 "status": {"state": "DONE"},
-                "googleCloudStoragePath": "TEST",
+                "googleCloudStoragePath": file_path,
             }
         }
         op = GoogleDisplayVideo360DownloadReportV2Operator(
@@ -111,6 +118,10 @@ class TestGoogleDisplayVideo360DownloadReportV2Operator:
             report_name=REPORT_NAME,
             task_id="test_task",
         )
+        if should_except:
+            with pytest.raises(AirflowException):
+                op.execute(context=None)
+            return
         op.execute(context=None)
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

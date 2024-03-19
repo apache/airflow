@@ -17,20 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import time
-from datetime import datetime as dt
+from datetime import datetime as dt, timedelta, timezone
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import ANY, Mock, call
 
 import boto3
-import moto
 import pytest
+from moto import mock_aws
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
+from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -38,16 +40,17 @@ from tests.test_utils.config import conf_vars
 
 
 def get_time_str(time_in_milliseconds):
-    dt_time = dt.utcfromtimestamp(time_in_milliseconds / 1000.0)
+    dt_time = dt.fromtimestamp(time_in_milliseconds / 1000.0, tz=timezone.utc)
     return dt_time.strftime("%Y-%m-%d %H:%M:%S,000")
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def logmock():
-    with moto.mock_logs():
+    with mock_aws():
         yield
 
 
+@pytest.mark.db_test
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
@@ -60,7 +63,6 @@ class TestCloudwatchTaskHandler:
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
         )
-        self.cloudwatch_task_handler.hook
 
         date = datetime(2020, 1, 1)
         dag_id = "dag_for_testing_cloudwatch_task_handler"
@@ -81,8 +83,6 @@ class TestCloudwatchTaskHandler:
         self.remote_log_stream = (f"{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log").replace(
             ":", "_"
         )
-
-        moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn = boto3.client("logs", region_name=self.region_name)
 
         yield
@@ -153,6 +153,73 @@ class TestCloudwatchTaskHandler:
             [[("", msg_template.format(self.remote_log_group, self.remote_log_stream, events))]],
             [{"end_of_log": True}],
         )
+
+    @pytest.mark.parametrize(
+        "end_date, expected_end_time",
+        [
+            (None, None),
+            (datetime(2020, 1, 2), datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30))),
+        ],
+    )
+    @mock.patch.object(AwsLogsHook, "get_log_events")
+    def test_get_cloudwatch_logs(self, mock_get_log_events, end_date, expected_end_time):
+        self.ti.end_date = end_date
+        self.cloudwatch_task_handler.get_cloudwatch_logs(self.remote_log_stream, self.ti)
+        mock_get_log_events.assert_called_once_with(
+            log_group=self.remote_log_group,
+            log_stream_name=self.remote_log_stream,
+            end_time=expected_end_time,
+        )
+
+    @pytest.mark.parametrize(
+        "conf_json_serialize, expected_serialized_output",
+        [
+            pytest.param(
+                "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy",
+                '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}',
+                id="json-serialize-legacy",
+            ),
+            pytest.param(
+                "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize",
+                '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": "SomeCustomSerialization(...)"}',
+                id="json-serialize",
+            ),
+            pytest.param(
+                None, '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}', id="not-set"
+            ),
+        ],
+    )
+    @mock.patch.object(AwsLogsHook, "get_log_events")
+    def test_write_json_logs(self, mock_get_log_events, conf_json_serialize, expected_serialized_output):
+        class ToSerialize:
+            def __init__(self):
+                pass
+
+            def __repr__(self):
+                return "SomeCustomSerialization(...)"
+
+        with conf_vars({("aws", "cloudwatch_task_handler_json_serializer"): conf_json_serialize}):
+            handler = self.cloudwatch_task_handler
+            handler.set_context(self.ti)
+            message = logging.LogRecord(
+                name="test_log_record",
+                level=logging.DEBUG,
+                pathname="fake.path",
+                lineno=42,
+                args=None,
+                exc_info=None,
+                msg={
+                    "datetime": datetime(2023, 1, 1),
+                    "customObject": ToSerialize(),
+                },
+            )
+            with mock.patch("watchtower.threading.Thread"), mock.patch("watchtower.queue.Queue") as mq:
+                mock_queue = Mock()
+                mq.return_value = mock_queue
+                handler.handle(message)
+                mock_queue.put.assert_called_once_with(
+                    {"message": expected_serialized_output, "timestamp": ANY}
+                )
 
     def test_close_prevents_duplicate_calls(self):
         with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:

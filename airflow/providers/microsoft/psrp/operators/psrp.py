@@ -21,7 +21,6 @@ from logging import DEBUG
 from typing import TYPE_CHECKING, Any, Sequence
 
 from jinja2.nativetypes import NativeEnvironment
-from pypsrp.powershell import Command
 from pypsrp.serializer import TaggedValue
 
 from airflow.exceptions import AirflowException
@@ -31,6 +30,8 @@ from airflow.settings import json
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from pypsrp.powershell import Command
+
     from airflow.utils.context import Context
 
 

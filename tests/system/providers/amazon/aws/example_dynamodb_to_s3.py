@@ -172,6 +172,8 @@ with DAG(
         s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
     )
     # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+    # This operation can take a long time to complete
+    backup_db_to_point_in_time.max_attempts = 90
 
     delete_table = delete_dynamodb_table(table_name=table_name)
 

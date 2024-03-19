@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Version command."""
+
 from __future__ import annotations
 
 import airflow
 
 
 def version(args):
-    """Displays Airflow version at the command line."""
+    """Display Airflow version at the command line."""
     print(airflow.__version__)

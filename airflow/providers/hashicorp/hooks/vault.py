@@ -15,15 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HashiCorp Vault."""
+
 from __future__ import annotations
 
 import json
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import hvac
 from hvac.exceptions import VaultError
-from requests import Response
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -33,6 +32,10 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     _VaultClient,
 )
 from airflow.utils.helpers import merge_dicts
+
+if TYPE_CHECKING:
+    import hvac
+    from requests import Response
 
 
 class VaultHook(BaseHook):
@@ -49,7 +52,7 @@ class VaultHook(BaseHook):
     The mount point should be placed as a path in the URL - similarly to Vault's URL schema:
     This indicates the "path" the secret engine is mounted on. Default id not specified is "secret".
     Note that this ``mount_point`` is not used for authentication if authentication is done via a
-    different engines. Each engine uses it's own engine-specific authentication mount_point.
+    different engines. Each engine uses its own engine-specific authentication mount_point.
 
     The extras in the connection are named the same as the parameters ('kv_engine_version', 'auth_type', ...).
 
@@ -288,7 +291,7 @@ class VaultHook(BaseHook):
 
     def get_conn(self) -> hvac.Client:
         """
-        Retrieves connection to Vault.
+        Retrieve connection to Vault.
 
         :return: connection used.
         """
@@ -311,7 +314,7 @@ class VaultHook(BaseHook):
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
-        Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
+        Read secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
         :return: secret metadata. This is a Dict containing metadata for the secret.
@@ -325,7 +328,7 @@ class VaultHook(BaseHook):
         self, secret_path: str, secret_version: int | None = None
     ) -> dict | None:
         """
-        Reads secret including metadata. It is only valid for KV version 2.
+        Read secret including metadata. It is only valid for KV version 2.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
@@ -343,7 +346,7 @@ class VaultHook(BaseHook):
         self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
-        Creates or updates secret.
+        Create or updates secret.
 
         :param secret_path: Path to read from
         :param secret: Secret to create or update for the path specified
@@ -366,7 +369,7 @@ class VaultHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -401,9 +404,9 @@ class VaultHook(BaseHook):
             "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["extra"],
             "relabeling": {},

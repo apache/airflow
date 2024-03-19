@@ -27,6 +27,8 @@ from airflow.operators.generic_transfer import GenericTransfer
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]

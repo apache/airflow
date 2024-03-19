@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Jinja2 template rendering context helper."""
+
 from __future__ import annotations
 
 import contextlib
@@ -59,6 +60,7 @@ KNOWN_CONTEXT_KEYS = {
     "inlets",
     "logical_date",
     "macros",
+    "map_index_template",
     "next_ds",
     "next_ds_nodash",
     "next_execution_date",
@@ -71,6 +73,7 @@ KNOWN_CONTEXT_KEYS = {
     "prev_execution_date",
     "prev_execution_date_success",
     "prev_start_date_success",
+    "prev_end_date_success",
     "run_id",
     "task",
     "task_instance",

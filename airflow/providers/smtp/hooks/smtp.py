@@ -20,6 +20,7 @@ Search in emails for a specific attachment and also to download it.
 
 It uses the smtplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import collections.abc
@@ -31,11 +32,13 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SmtpHook(BaseHook):
@@ -85,19 +88,18 @@ class SmtpHook(BaseHook):
                 try:
                     self.smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise AirflowException("Unable to connect to smtp server")
-                if self.smtp_starttls:
-                    self.smtp_client.starttls()
-                if self.smtp_user and self.smtp_password:
-                    self.smtp_client.login(self.smtp_user, self.smtp_password)
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise AirflowException("Unable to connect to smtp server")
+                else:
+                    if self.smtp_starttls:
+                        self.smtp_client.starttls()
+                    if self.smtp_user and self.smtp_password:
+                        self.smtp_client.login(self.smtp_user, self.smtp_password)
+                    break
 
         return self
 
     def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
-
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
         if self.use_ssl:
             SMTP = smtplib.SMTP_SSL
@@ -135,7 +137,7 @@ class SmtpHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -232,10 +234,10 @@ class SmtpHook(BaseHook):
                         from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
                     )
                 except smtplib.SMTPServerDisconnected as e:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise e
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise e
+                else:
+                    break
 
     def _build_mime_message(
         self,
@@ -274,7 +276,8 @@ class SmtpHook(BaseHook):
 
         msg = MIMEMultipart(mime_subtype)
         msg["Subject"] = subject
-        msg["From"] = mail_from
+        if mail_from:
+            msg["From"] = mail_from
         msg["To"] = ", ".join(to)
         recipients = to
         if cc:
@@ -307,7 +310,7 @@ class SmtpHook(BaseHook):
 
     def _get_email_address_list(self, addresses: str | Iterable[str]) -> list[str]:
         """
-        Returns a list of email addresses from the provided input.
+        Return a list of email addresses from the provided input.
 
         :param addresses: A string or iterable of strings containing email addresses.
         :return: A list of email addresses.
@@ -333,7 +336,7 @@ class SmtpHook(BaseHook):
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:
@@ -377,9 +380,9 @@ class SmtpHook(BaseHook):
     def use_ssl(self) -> bool:
         return not bool(self.conn.extra_dejson.get("disable_ssl", False))
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

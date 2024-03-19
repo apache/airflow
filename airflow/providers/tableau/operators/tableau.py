@@ -94,7 +94,7 @@ class TableauOperator(BaseOperator):
 
     def execute(self, context: Context) -> str:
         """
-        Executes the Tableau API resource and pushes the job id or downloaded file URI to xcom.
+        Execute the Tableau API resource and push the job id or downloaded file URI to xcom.
 
         :param context: The task context during execution.
         :return: the id of the job that executes the extract refresh or downloaded file URI.
@@ -110,7 +110,6 @@ class TableauOperator(BaseOperator):
             raise AirflowException(error_message)
 
         with TableauHook(self.site_id, self.tableau_conn_id) as tableau_hook:
-
             resource = getattr(tableau_hook.server, self.resource)
             method = getattr(resource, self.method)
 
@@ -132,7 +131,6 @@ class TableauOperator(BaseOperator):
         return job_id
 
     def _get_resource_id(self, tableau_hook: TableauHook) -> str:
-
         if self.match_with == "id":
             return self.find
 

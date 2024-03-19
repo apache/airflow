@@ -16,19 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
-from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
 from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
-from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.workflows.executions_v1beta.services.executions.pagers import ListExecutionsPager
+    from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class WorkflowsHook(GoogleBaseHook):
@@ -48,11 +50,11 @@ class WorkflowsHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_workflows_client(self) -> WorkflowsClient:
-        """Returns WorkflowsClient."""
+        """Return WorkflowsClient object."""
         return WorkflowsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     def get_executions_client(self) -> ExecutionsClient:
-        """Returns ExecutionsClient."""
+        """Return ExecutionsClient object."""
         return ExecutionsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -67,7 +69,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Creates a new workflow.
+        Create a new workflow.
 
         If a workflow with the specified name already exists in the
         specified project and location, the long running operation will
@@ -104,7 +106,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Workflow:
         """
-        Gets details of a single Workflow.
+        Get details of a single Workflow.
 
         :param workflow_id: Required. The ID of the workflow to be created.
         :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
@@ -129,7 +131,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Updates an existing workflow.
+        Update an existing workflow.
 
         Running this method has no impact on already running
         executions of the workflow. A new revision of the
@@ -194,7 +196,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListWorkflowsPager:
         """
-        Lists Workflows in a given project and location; the default order is not specified.
+        List Workflows in a given project and location; the default order is not specified.
 
         :param filter_: Filter to restrict results to specific workflows.
         :param order_by: Comma-separated list of fields that
@@ -232,7 +234,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Execution:
         """
-        Creates a new execution using the latest revision of the given workflow.
+        Create a new execution using the latest revision of the given workflow.
 
         :param execution: Required. Input parameters of the execution represented as a dictionary.
         :param workflow_id: Required. The ID of the workflow.
@@ -267,7 +269,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Execution:
         """
-        Returns an execution for the given ``workflow_id`` and ``execution_id``.
+        Return an execution for the given ``workflow_id`` and ``execution_id``.
 
         :param workflow_id: Required. The ID of the workflow.
         :param execution_id: Required. The ID of the execution.
@@ -296,7 +298,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Execution:
         """
-        Cancels an execution using the given ``workflow_id`` and ``execution_id``.
+        Cancel an execution using the given ``workflow_id`` and ``execution_id``.
 
         :param workflow_id: Required. The ID of the workflow.
         :param execution_id: Required. The ID of the execution.
@@ -326,7 +328,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListExecutionsPager:
         """
-        Returns a list of executions which belong to the workflow with the given name.
+        Return a list of executions which belong to the workflow with the given name.
 
         The method returns executions of all workflow revisions. Returned
         executions are ordered by their start time (newest first).

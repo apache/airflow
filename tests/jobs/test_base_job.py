@@ -32,7 +32,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
-from tests.utils.test_helpers import MockJobRunner
+from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
+
+pytestmark = pytest.mark.db_test
 
 
 class TestJob:
@@ -55,7 +57,6 @@ class TestJob:
         assert job.end_date is not None
 
     def test_base_job_respects_plugin_hooks(self):
-
         import sys
 
         job = Job()
@@ -89,6 +90,40 @@ class TestJob:
 
         assert job.state == State.FAILED
         assert job.end_date is not None
+
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate is set correctly after jobs are queried from the DB"""
+        if job_type == "scheduler":
+            config_name = "scheduler_heartbeat_sec"
+        else:
+            config_name = "job_heartbeat_sec"
+
+        with create_session() as session, conf_vars({(job_type.lower(), config_name): job_heartbeat_sec}):
+            job = Job()
+            job_runner(job=job)
+            session.add(job)
+            session.flush()
+
+            most_recent = most_recent_job(job_runner.job_type, session=session)
+            assert most_recent.heartrate == float(job_heartbeat_sec)
+
+            session.rollback()
+
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_via_constructor_persists(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate passed via constructor is set correctly"""
+        with conf_vars({(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}):
+            job = Job(heartrate=12)
+            job_runner(job)
+            # heartrate should be 12 since we passed that to the constructor directly
+            assert job.heartrate == 12
 
     def test_most_recent_job(self):
         with create_session() as session:
@@ -172,36 +207,32 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @patch("airflow.jobs.job.create_session")
-    def test_heartbeat_failed(self, mock_create_session):
+    def test_heartbeat_failed(self):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
-        with create_session() as session:
-            mock_session = Mock(spec_set=session, name="MockSession")
-            mock_create_session.return_value.__enter__.return_value = mock_session
+        mock_session = Mock(name="MockSession")
+        mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+        job = Job(heartrate=10, state=State.RUNNING)
+        job.latest_heartbeat = when
 
-            job = Job(heartrate=10, state=State.RUNNING)
-            job.latest_heartbeat = when
+        job.heartbeat(heartbeat_callback=lambda: None, session=mock_session)
 
-            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
-
-            job.heartbeat(heartbeat_callback=lambda: None)
-
-            assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
+        assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
 
     @conf_vars(
         {
             ("scheduler", "max_tis_per_query"): "100",
-            ("core", "executor"): "SequentialExecutor",
         }
     )
     @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
+    @patch("airflow.jobs.job.ExecutorLoader.init_executors")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")
-    def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
+    def test_essential_attr(self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
         mock_getuser.return_value = "testuser"
         mock_default_executor.return_value = mock_sequential_executor
+        mock_init_executors.return_value = [mock_sequential_executor]
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
@@ -212,6 +243,7 @@ class TestJob:
         assert test_job.unixname == "testuser"
         assert test_job.state == "running"
         assert test_job.executor == mock_sequential_executor
+        assert test_job.executors == [mock_sequential_executor]
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)

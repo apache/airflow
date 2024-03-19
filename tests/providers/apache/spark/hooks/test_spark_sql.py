@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import io
-from itertools import dropwhile
+import itertools
+from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
@@ -29,10 +29,12 @@ from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 def get_after(sentinel, iterable):
     """Get the value after `sentinel` in an `iterable`"""
-    truncated = dropwhile(lambda el: el != sentinel, iterable)
+    truncated = itertools.dropwhile(lambda el: el != sentinel, iterable)
     next(truncated)
     return next(truncated)
 
@@ -85,8 +87,8 @@ class TestSparkSqlHook:
     @patch("airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen")
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("Spark-sql communicates using stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("Spark-sql communicates using stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When

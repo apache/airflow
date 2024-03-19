@@ -18,15 +18,15 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
-from time import sleep
 from typing import Any
 
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 
 class EmrHook(AwsBaseHook):
@@ -158,6 +158,9 @@ class EmrHook(AwsBaseHook):
         :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
         config = {}
+        waiter_delay = waiter_delay or 30
+        waiter_max_attempts = waiter_max_attempts or 60
+
         if execution_role_arn:
             config["ExecutionRoleArn"] = execution_role_arn
         response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
@@ -169,16 +172,23 @@ class EmrHook(AwsBaseHook):
         if wait_for_completion:
             waiter = self.get_conn().get_waiter("step_complete")
             for step_id in response["StepIds"]:
-                waiter.wait(
-                    ClusterId=job_flow_id,
-                    StepId=step_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": waiter_delay,
-                            "MaxAttempts": waiter_max_attempts,
-                        }
-                    ),
-                )
+                try:
+                    wait(
+                        waiter=waiter,
+                        waiter_max_attempts=waiter_max_attempts,
+                        waiter_delay=waiter_delay,
+                        args={"ClusterId": job_flow_id, "StepId": step_id},
+                        failure_message=f"EMR Steps failed: {step_id}",
+                        status_message="EMR Step status is",
+                        status_args=["Step.Status.State", "Step.Status.StateChangeReason"],
+                    )
+                except AirflowException as ex:
+                    if "EMR Steps failed" in str(ex):
+                        resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
+                        failure_details = resp["Step"]["Status"].get("FailureDetails", None)
+                        if failure_details:
+                            self.log.error("EMR Steps failed: %s", failure_details)
+                    raise
         return response["StepIds"]
 
     def test_connection(self):
@@ -195,9 +205,9 @@ class EmrHook(AwsBaseHook):
         )
         return False, msg
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom UI field behaviour for Amazon Elastic MapReduce Connection."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password"],
             "relabeling": {
@@ -281,7 +291,7 @@ class EmrServerlessHook(AwsBaseHook):
         for r in iterator:
             job_ids = [jr["id"] for jr in r["jobRuns"]]
             count += len(job_ids)
-            if len(job_ids) > 0:
+            if job_ids:
                 self.log.info(
                     "Cancelling %s pending job(s) for the application %s so that it can be stopped",
                     len(job_ids),
@@ -373,6 +383,7 @@ class EmrContainerHook(AwsBaseHook):
         configuration_overrides: dict | None = None,
         client_request_token: str | None = None,
         tags: dict | None = None,
+        retry_max_attempts: int | None = None,
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
@@ -392,6 +403,7 @@ class EmrContainerHook(AwsBaseHook):
         :param client_request_token: The client idempotency token of the job run request.
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
         :param tags: The tags assigned to job runs.
+        :param retry_max_attempts: The maximum number of attempts on the job's driver.
         :return: The ID of the job run request.
         """
         params = {
@@ -405,6 +417,10 @@ class EmrContainerHook(AwsBaseHook):
         }
         if client_request_token:
             params["clientToken"] = client_request_token
+        if retry_max_attempts:
+            params["retryPolicyConfiguration"] = {
+                "maxAttempts": retry_max_attempts,
+            }
 
         response = self.conn.start_job_run(**params)
 
@@ -427,8 +443,6 @@ class EmrContainerHook(AwsBaseHook):
 
         :param job_id: The ID of the job run request.
         """
-        reason = None  # We absorb any errors if we can't retrieve the job status
-
         try:
             response = self.conn.describe_job_run(
                 virtualClusterId=self.virtual_cluster_id,
@@ -436,13 +450,13 @@ class EmrContainerHook(AwsBaseHook):
             )
             failure_reason = response["jobRun"]["failureReason"]
             state_details = response["jobRun"]["stateDetails"]
-            reason = f"{failure_reason} - {state_details}"
+            return f"{failure_reason} - {state_details}"
         except KeyError:
             self.log.error("Could not get status of the EMR on EKS job")
         except ClientError as ex:
             self.log.error("AWS request failed, check logs for more info: %s", ex)
 
-        return reason
+        return None
 
     def check_query_status(self, job_id: str) -> str | None:
         """
@@ -481,26 +495,21 @@ class EmrContainerHook(AwsBaseHook):
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
         try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
-
         while True:
             query_state = self.check_query_status(job_id)
+            if query_state in self.TERMINAL_STATES:
+                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
+                return query_state
             if query_state is None:
                 self.log.info("Try %s: Invalid query state. Retrying again", try_number)
-            elif query_state in self.TERMINAL_STATES:
-                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
-                final_query_state = query_state
-                break
             else:
                 self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
             if (
                 max_polling_attempts and try_number >= max_polling_attempts
             ):  # Break loop if max_polling_attempts reached
-                final_query_state = query_state
-                break
+                return query_state
             try_number += 1
-            sleep(poll_interval)
-        return final_query_state
+            time.sleep(poll_interval)
 
     def stop_query(self, job_id: str) -> dict:
         """

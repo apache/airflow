@@ -77,6 +77,7 @@ class TestGoogleSearchAdsInsertReportOperator:
         assert op.report == report
 
 
+@pytest.mark.db_test
 class TestGoogleSearchAdsDownloadReportOperator:
     def setup_method(self):
         with create_session() as session:

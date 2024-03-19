@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import functools
 import logging
+from collections import defaultdict
 from typing import Iterator, Tuple
 
 try:
@@ -33,7 +33,7 @@ EPnD = Tuple[metadata.EntryPoint, metadata.Distribution]
 
 @functools.lru_cache(maxsize=None)
 def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
-    mapping: dict[str, list[EPnD]] = collections.defaultdict(list)
+    mapping: dict[str, list[EPnD]] = defaultdict(list)
     for dist in metadata.distributions():
         try:
             for e in dist.entry_points:

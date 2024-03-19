@@ -16,22 +16,25 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataproc Metastore hook."""
+
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.metastore_v1 import DataprocMetastoreClient
-from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
-from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
+    from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DataprocMetastoreHook(GoogleBaseHook):
@@ -46,7 +49,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         super().__init__(**kwargs)
 
     def get_dataproc_metastore_client(self) -> DataprocMetastoreClient:
-        """Returns DataprocMetastoreClient."""
+        """Return DataprocMetastoreClient."""
         client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
 
         return DataprocMetastoreClient(
@@ -54,7 +57,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         )
 
     def get_dataproc_metastore_client_v1beta(self):
-        """Returns DataprocMetastoreClient (from v1 beta)."""
+        """Return DataprocMetastoreClient (from v1 beta)."""
         from google.cloud.metastore_v1beta import DataprocMetastoreClient
 
         client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
@@ -63,7 +66,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -84,7 +87,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Creates a new backup in a given project and location.
+        Create a new backup in a given project and location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -141,7 +144,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Creates a new MetadataImport in a given project and location.
+        Create a new MetadataImport in a given project and location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -198,7 +201,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Creates a metastore service in a project and location.
+        Create a metastore service in a project and location.
 
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -226,7 +229,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
             request={
                 "parent": parent,
                 "service_id": service_id,
-                "service": service if service else {},
+                "service": service or {},
                 "request_id": request_id,
             },
             retry=retry,
@@ -248,7 +251,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Deletes a single backup.
+        Delete a single backup.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -296,7 +299,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Deletes a single service.
+        Delete a single service.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -340,7 +343,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Exports metadata from a service.
+        Export metadata from a service.
 
         :param destination_gcs_folder: A Cloud Storage URI of a folder, in the format
             ``gs://<bucket_name>/<path_inside_bucket>``. A sub-folder
@@ -389,7 +392,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Gets the details of a single service.
+        Get the details of a single service.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -472,7 +475,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Lists backups in a service.
+        List backups in a service.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -601,7 +604,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Updates the parameters of a single service.
+        Update the parameters of a single service.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -658,7 +661,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
         partition_names: list[str] | None = None,
     ) -> Operation:
         """
-        Lists Hive partitions.
+        List Hive partitions.
 
         :param project_id: Optional. The ID of a dbt Cloud project.
         :param service_id: Required. Dataproc Metastore service id.

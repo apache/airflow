@@ -16,15 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """Pool APIs."""
+
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @deprecated(reason="Use Pool.get_pool() instead", version="2.2.4")
@@ -45,7 +50,7 @@ def get_pool(name, session: Session = NEW_SESSION):
 @provide_session
 def get_pools(session: Session = NEW_SESSION):
     """Get all pools."""
-    return session.query(Pool).all()
+    return session.scalars(select(Pool)).all()
 
 
 @deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
@@ -68,7 +73,7 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
     session.expire_on_commit = False
     pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
-        pool = Pool(pool=name, slots=slots, description=description)
+        pool = Pool(pool=name, slots=slots, description=description, include_deferred=False)
         session.add(pool)
     else:
         pool.slots = slots

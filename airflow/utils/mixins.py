@@ -19,15 +19,14 @@
 from __future__ import annotations
 
 import multiprocessing
+import multiprocessing.context
 import typing
 
 from airflow.configuration import conf
-from airflow.utils.context import Context
 
 if typing.TYPE_CHECKING:
-    import multiprocessing.context
-
     from airflow.models.operator import Operator
+    from airflow.utils.context import Context
 
 
 class MultiprocessingStartMethodMixin:

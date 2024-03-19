@@ -19,6 +19,7 @@
 """
 Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Asynchronous Python.
 """
+
 from __future__ import annotations
 
 import os
@@ -26,8 +27,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from airflow import models
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
@@ -61,7 +62,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     DAG_ID,
     default_args=default_args,
     schedule="@once",

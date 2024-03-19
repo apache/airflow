@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
+
 
 def representative_combos(list_1: list[str], list_2: list[str]) -> list[tuple[str, str]]:
     """
@@ -40,8 +42,5 @@ def excluded_combos(list_1: list[str], list_2: list[str]) -> list[tuple[str, str
     :param list_2: second list
     :return: list of exclusions = list 1 x list 2 - representative_combos
     """
-    all_combos: list[tuple[str, str]] = []
-    for item_1 in list_1:
-        for item_2 in list_2:
-            all_combos.append((item_1, item_2))
+    all_combos: list[tuple[str, str]] = list(itertools.product(list_1, list_2))
     return [item for item in all_combos if item not in set(representative_combos(list_1, list_2))]

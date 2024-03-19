@@ -46,12 +46,15 @@ class BaseTIDep:
     IS_TASK_DEP = False
 
     def __eq__(self, other: Any) -> bool:
+        """Check if two task instance dependencies are equal by comparing their types."""
         return isinstance(self, type(other))
 
     def __hash__(self) -> int:
+        """Compute the hash value based on the task instance dependency type."""
         return hash(type(self))
 
     def __repr__(self) -> str:
+        """Return a string representation of the task instance dependency."""
         return f"<TIDep({self.name})>"
 
     @property
@@ -90,7 +93,7 @@ class BaseTIDep:
         dep_context: DepContext | None = None,
     ) -> Iterator[TIDepStatus]:
         """
-        Wrapper around the private _get_dep_statuses method.
+        Wrap around the private _get_dep_statuses method.
 
         Contains some global checks for all dependencies.
 
@@ -113,7 +116,7 @@ class BaseTIDep:
     @provide_session
     def is_met(self, ti: TaskInstance, session: Session, dep_context: DepContext | None = None) -> bool:
         """
-        Returns whether a dependency is met for a given task instance.
+        Return whether a dependency is met for a given task instance.
 
         A dependency is considered met if all the dependency statuses it reports are passing.
 
@@ -132,7 +135,7 @@ class BaseTIDep:
         dep_context: DepContext | None = None,
     ) -> Iterator[str]:
         """
-        Returns an iterable of strings that explain why this dependency wasn't met.
+        Return an iterable of strings that explain why this dependency wasn't met.
 
         :param ti: the task instance to see if this dependency is met for
         :param session: database session

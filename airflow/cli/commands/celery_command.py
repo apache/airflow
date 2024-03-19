@@ -15,37 +15,48 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+
+# DO NOT MODIFY THIS FILE unless it is a serious bugfix - all the new celery commands should be added in celery provider.
+# This file is kept for backward compatibility only.
 """Celery command."""
+
 from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from contextlib import contextmanager
 from multiprocessing import Process
 
-import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
 from celery.signals import after_setup_logger
-from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
+warnings.warn(
+    "Use celery command from providers package, Use celery provider >= 3.6.1",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def flower(args):
-    """Starts Flower, Celery monitoring tool."""
+    """Start Flower, Celery monitoring tool."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
@@ -68,33 +79,14 @@ def flower(args):
     if args.flower_conf:
         options.append(f"--conf={args.flower_conf}")
 
-    if args.daemon:
-        pidfile, stdout, stderr, _ = setup_locations(
-            process="flower",
-            pid=args.pid,
-            stdout=args.stdout,
-            stderr=args.stderr,
-            log=args.log_file,
-        )
-        with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
-            stdout.truncate(0)
-            stderr.truncate(0)
-
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(pidfile, -1),
-                stdout=stdout,
-                stderr=stderr,
-                umask=int(settings.DAEMON_UMASK, 8),
-            )
-            with ctx:
-                celery_app.start(options)
-    else:
-        celery_app.start(options)
+    run_command_with_daemon_option(
+        args=args, process_name="flower", callback=lambda: celery_app.start(options)
+    )
 
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
@@ -137,7 +129,7 @@ def logger_setup_handler(logger, **kwargs):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def worker(args):
-    """Starts Airflow Celery worker."""
+    """Start Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
@@ -151,15 +143,6 @@ def worker(args):
 
     if autoscale is None and conf.has_option("celery", "worker_autoscale"):
         autoscale = conf.get("celery", "worker_autoscale")
-
-    # Setup locations
-    pid_file_path, stdout, stderr, log_file = setup_locations(
-        process=WORKER_PROCESS_NAME,
-        pid=args.pid,
-        stdout=args.stdout,
-        stderr=args.stderr,
-        log=args.log_file,
-    )
 
     if hasattr(celery_app.backend, "ResultSession"):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
@@ -181,6 +164,7 @@ def worker(args):
     celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
         celery_log_level = conf.get("logging", "LOGGING_LEVEL")
+
     # Setup Celery worker
     options = [
         "worker",
@@ -194,8 +178,6 @@ def worker(args):
         args.celery_hostname,
         "--loglevel",
         celery_log_level,
-        "--pidfile",
-        pid_file_path,
     ]
     if autoscale:
         options.extend(["--autoscale", autoscale])
@@ -214,38 +196,37 @@ def worker(args):
         # executed.
         maybe_patch_concurrency(["-P", pool])
 
-    if args.daemon:
-        # Run Celery worker as daemon
-        handle = setup_logging(log_file)
+    worker_pid_file_path, stdout, stderr, log_file = setup_locations(
+        process=WORKER_PROCESS_NAME,
+        stdout=args.stdout,
+        stderr=args.stderr,
+        log=args.log_file,
+        pid=args.pid,
+    )
 
-        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
-            if args.umask:
-                umask = args.umask
-            else:
-                umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
-
-            stdout_handle.truncate(0)
-            stderr_handle.truncate(0)
-
-            daemon_context = daemon.DaemonContext(
-                files_preserve=[handle],
-                umask=int(umask, 8),
-                stdout=stdout_handle,
-                stderr=stderr_handle,
-            )
-            with daemon_context, _serve_logs(skip_serve_logs):
-                celery_app.worker_main(options)
-
-    else:
-        # Run Celery worker in the same process
+    def run_celery_worker():
         with _serve_logs(skip_serve_logs):
             celery_app.worker_main(options)
+
+    if args.umask:
+        umask = args.umask
+    else:
+        umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
+
+    run_command_with_daemon_option(
+        args=args,
+        process_name=WORKER_PROCESS_NAME,
+        callback=run_celery_worker,
+        should_setup_logging=True,
+        umask=umask,
+        pid_file=worker_pid_file_path,
+    )
 
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker."""
+    """Send SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

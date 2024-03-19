@@ -28,8 +28,10 @@ from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkipped
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+pytestmark = pytest.mark.db_test
 
-@pytest.fixture(autouse=True, scope="function")
+
+@pytest.fixture(autouse=True)
 def clean_db(session):
     yield
     session.query(DagRun).delete()

@@ -20,7 +20,9 @@
 OpenLineage Macros
 ==================
 
-Invoke as a jinja template, e.g.
+Macros included in OpenLineage plugin get integrated to Airflow's main collections and become available for use.
+
+They can be invoked as a Jinja template, e.g.
 
 Lineage run id
 --------------
@@ -29,7 +31,9 @@ Lineage run id
         PythonOperator(
             task_id="render_template",
             python_callable=my_task_function,
-            op_args=["{{ lineage_run_id(task, task_instance) }}"],  # lineage_run_id macro invoked
+            op_args=[
+                "{{ macros.OpenLineageProviderPlugin.lineage_run_id(task_instance) }}"
+            ],  # lineage_run_id macro invoked
             provide_context=False,
             dag=dag,
         )
@@ -41,7 +45,9 @@ Lineage parent id
         PythonOperator(
             task_id="render_template",
             python_callable=my_task_function,
-            op_args=["{{ lineage_parent_id(run_id, task_instance) }}"],  # macro invoked
+            op_args=[
+                "{{ macros.OpenLineageProviderPlugin.lineage_parent_id(run_id, task_instance) }}"
+            ],  # lineage_parent_id macro invoked
             provide_context=False,
             dag=dag,
         )

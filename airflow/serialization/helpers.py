@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Serialized DAG and BaseOperator."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -32,9 +33,10 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
     def is_jsonable(x):
         try:
             json.dumps(x)
-            return True
         except (TypeError, OverflowError):
             return False
+        else:
+            return True
 
     if not is_jsonable(template_field):
         return str(template_field)

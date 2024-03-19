@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import datetime
 import os
+import sys
 from unittest import mock
 from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
 
-from airflow import PY311, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -50,7 +51,10 @@ from tests.test_utils.db import (
 )
 from tests.test_utils.mock_executor import MockExecutor
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+PY311 = sys.version_info >= (3, 11)
 
 # Include the words "airflow" and "dag" in the file contents,
 # tricking airflow into thinking these

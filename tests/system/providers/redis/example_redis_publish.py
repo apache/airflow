@@ -24,6 +24,7 @@ using the RedisPubSubSensor, and the third task is to wait for a particular key 
 redis using the RedisKeySensor.
 
 """
+
 from __future__ import annotations
 
 import os

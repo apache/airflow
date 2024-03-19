@@ -24,9 +24,9 @@ from tempfile import NamedTemporaryFile
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.python import get_current_context
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -52,6 +52,8 @@ from airflow.providers.amazon.aws.sensors.sagemaker import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+
+logger = logging.getLogger(__name__)
 
 DAG_ID = "example_sagemaker"
 
@@ -162,7 +164,7 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             docker login --username AWS --password-stdin {repository_uri} &&
             docker push {repository_uri}
             """
-        logging.info("building and uploading docker image for preprocessing...")
+        logger.info("building and uploading docker image for preprocessing...")
         docker_build = subprocess.Popen(
             docker_build_and_push_commands,
             shell=True,
@@ -255,7 +257,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -294,7 +296,7 @@ def set_up(env_id, role_arn):
         "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         "TrainingJobName": training_job_name,
     }
     model_trained_weights = (
@@ -357,7 +359,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         },
     }
     transform_config = {
@@ -416,7 +418,7 @@ def delete_ecr_repository(repository_name):
     image_ids = client.list_images(repositoryName=repository_name)["imageIds"]
     client.batch_delete_image(
         repositoryName=repository_name,
-        imageIds=[{"imageDigest": image["imageDigest"] for image in image_ids}],
+        imageIds=[{"imageDigest": image["imageDigest"]} for image in image_ids],
     )
     client.delete_repository(repositoryName=repository_name)
 
@@ -454,10 +456,10 @@ def delete_docker_image(image_name):
     )
     _, stderr = docker_build.communicate()
     if docker_build.returncode != 0:
-        logging.error(
+        logger.error(
             "Failed to delete local docker image. "
-            "Run 'docker images' to see if you need to clean it yourself.\n"
-            f"error message: {stderr}"
+            "Run 'docker images' to see if you need to clean it yourself.\nerror message: %s",
+            stderr,
         )
 
 

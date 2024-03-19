@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import warnings
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.weekday import WeekDay
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BranchDayOfWeekOperator(BaseBranchOperator):
@@ -42,7 +44,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
         monday = EmptyOperator(task_id="monday")
         other_day = EmptyOperator(task_id="other_day")
 
-        monday_check = DayOfWeekSensor(
+        monday_check = BranchDayOfWeekOperator(
             task_id="monday_check",
             week_day="Monday",
             use_task_logical_date=True,

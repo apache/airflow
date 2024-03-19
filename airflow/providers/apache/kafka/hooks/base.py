@@ -42,9 +42,9 @@ class KafkaBaseHook(BaseHook):
         self.kafka_config_id = kafka_config_id
         self.get_conn
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password", "port", "host"],
             "relabeling": {"extra": "Config Dict"},

@@ -23,12 +23,16 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.datetime import BranchDateTimeOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
@@ -37,7 +41,6 @@ INTERVAL = datetime.timedelta(hours=12)
 class TestBranchDateTimeOperator:
     @classmethod
     def setup_class(cls):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
@@ -77,7 +80,6 @@ class TestBranchDateTimeOperator:
         )
 
     def teardown_method(self):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()

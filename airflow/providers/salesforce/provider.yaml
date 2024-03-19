@@ -21,8 +21,18 @@ name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
-suspended: false
+state: ready
+source-date-epoch: 1709556225
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.3
+  - 5.6.2
+  - 5.6.1
+  - 5.6.0
+  - 5.5.1
+  - 5.5.0
+  - 5.4.3
+  - 5.4.2
   - 5.4.1
   - 5.4.0
   - 5.3.0
@@ -44,9 +54,13 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.6.0
   - simple-salesforce>=1.0.0
-  - pandas>=0.17.1
+  # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+  # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+  # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+  # In addition FAB also limit sqlalchemy to < 2.0
+  - pandas>=1.2.5,<2.2
 
 integrations:
   - integration-name: Salesforce

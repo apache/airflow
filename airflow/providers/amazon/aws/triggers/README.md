@@ -38,7 +38,7 @@ The first step to making an existing operator deferrable is to add `deferrable` 
 The next step is to determine where the operator should be deferred. This will be dependent on what the operator does, and how it is written. Although every operator is different, there are a few guidelines to determine the best place to defer an operator.
 
 1. If the operator has a `wait_for_completion` parameter, the `self.defer` method should be called right before the check for wait_for_completion .
-2. If there is no `wait_for_completion` , look for the "main" task that the operator does. Often, operators will make various describe calls to to the boto3 API to verify certain conditions, or look up some information before performing its "main" task. Often, right after the "main" call to the boto3 API is made is a good place to call `self.defer`.
+2. If there is no `wait_for_completion` , look for the "main" task that the operator does. Often, operators will make various describe calls to the boto3 API to verify certain conditions, or look up some information before performing its "main" task. Often, right after the "main" call to the boto3 API is made is a good place to call `self.defer`.
 
 
 Once the location to defer is decided in the operator, call the `self.defer` method if the `deferrable` flag is `True`. The `self.defer` method takes in several parameters, listed below:

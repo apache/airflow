@@ -27,6 +27,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2018, 12, 10)
 WEEKDAY_DATE = datetime(2018, 12, 20)
 WEEKEND_DATE = datetime(2018, 12, 22)

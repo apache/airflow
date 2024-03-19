@@ -43,7 +43,7 @@ CURSOR_DESCRIPTION = [
     ("column_c", "10", 0, 0, 0, 0, False),
 ]
 TMP_FILE_NAME = "temp-file"
-EMPTY_INPUT_DATA = []
+EMPTY_INPUT_DATA: list[str] = []
 INPUT_DATA = [
     ["101", "school", "2015-01-01"],
     ["102", "business", "2017-05-24"],
@@ -85,6 +85,7 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
 
 
 class TestBaseSQLToGCSOperator:
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.NamedTemporaryFile")
     @mock.patch("csv.writer")
     @mock.patch.object(GCSHook, "upload")
@@ -140,7 +141,7 @@ class TestBaseSQLToGCSOperator:
         ]
         mock_file.flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
         csv_calls = []
-        for i in range(0, 3):
+        for i in range(3):
             csv_calls.append(
                 mock.call(
                     BUCKET,
@@ -555,9 +556,7 @@ class TestBaseSQLToGCSOperator:
         files = op._write_local_data_files(cursor)
         # Raises StopIteration when next is called because generator returns no files
         with pytest.raises(StopIteration):
-            next(files)["file_handle"]
-
-        assert len([f for f in files]) == 0
+            next(files)
 
     def test__write_local_data_files_csv_writes_empty_file_with_write_on_empty(self):
         op = DummySQLToGCSOperator(

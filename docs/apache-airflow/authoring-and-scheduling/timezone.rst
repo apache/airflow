@@ -40,6 +40,10 @@ The time zone is set in ``airflow.cfg``. By default it is set to UTC, but you ch
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
+.. note::
+     Pendulum relies by default on its own timezone database, which is not updated as frequently as the IANA database.
+     You can make Pendulum rely on the system's database by setting the ``PYTZDATA_TZDATADIR`` environment variable
+     to your system's database, e.g. ``/usr/share/zoneinfo``.
 
 Web UI
 ------

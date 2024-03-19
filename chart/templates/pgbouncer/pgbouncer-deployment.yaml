@@ -29,10 +29,12 @@
 {{- $securityContext := include "localPodSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
+{{- $containerLifecycleHooks := .Values.pgbouncer.containerLifecycleHooks }}
+{{- $containerLifecycleHooksMetricsExporter := .Values.pgbouncer.metricsExporterSidecar.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-pgbouncer
+  name: {{ include "airflow.fullname" . }}-pgbouncer
   labels:
     tier: airflow
     component: pgbouncer
@@ -80,6 +82,9 @@ spec:
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
@@ -101,6 +106,9 @@ spec:
           args: {{ tpl (toYaml .Values.pgbouncer.args) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.pgbouncer.resources | nindent 12 }}
+          {{- with .Values.pgbouncer.env }}
+          env: {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: pgbouncer
               containerPort: {{ .Values.ports.pgbouncer }}
@@ -143,11 +151,9 @@ spec:
             {{- if .Values.pgbouncer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.pgbouncer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                # Allow existing queries clients to complete within 120 seconds
-                command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
         - name: metrics-exporter
           resources: {{- toYaml .Values.pgbouncer.metricsExporterSidecar.resources | nindent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
@@ -158,7 +164,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ template "pgbouncer_stats_secret" . }}
-                  key: connection
+                  {{- if (and .Values.pgbouncer.metricsExporterSidecar.statsSecretName .Values.pgbouncer.metricsExporterSidecar.statsSecretKey) }}
+                  key: {{ .Values.pgbouncer.metricsExporterSidecar.statsSecretKey }}
+                  {{- else }}
+                  key: "connection"
+                  {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.ports.pgbouncerScrape }}
@@ -178,6 +188,12 @@ spec:
             initialDelaySeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.timeoutSeconds }}
+          {{- if $containerLifecycleHooksMetricsExporter }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
+          {{- end }}
+        {{- if .Values.pgbouncer.extraContainers }}
+          {{- toYaml .Values.pgbouncer.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: pgbouncer-config
           secret:

@@ -181,6 +181,15 @@ class TestMySqlHookConn:
             read_default_group="enable-cleartext-plugin",
         )
 
+    @mock.patch("MySQLdb.connect")
+    def test_get_conn_init_command(self, mock_connect):
+        self.db_hook.init_command = "SET time_zone = '+00:00';"
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["init_command"] == "SET time_zone = '+00:00';"
+
 
 class MockMySQLConnectorConnection:
     DEFAULT_AUTOCOMMIT = "default"
@@ -272,21 +281,11 @@ class TestMySqlHook:
 
     def test_bulk_load(self):
         self.db_hook.bulk_load("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with(
-            """
-            LOAD DATA LOCAL INFILE '/tmp/file'
-            INTO TABLE table
-            """
-        )
+        self.cur.execute.assert_called_once_with("LOAD DATA LOCAL INFILE %s INTO TABLE table", ("/tmp/file",))
 
     def test_bulk_dump(self):
         self.db_hook.bulk_dump("table", "/tmp/file")
-        self.cur.execute.assert_called_once_with(
-            """
-            SELECT * INTO OUTFILE '/tmp/file'
-            FROM table
-            """
-        )
+        self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
 
     def test_serialize_cell(self):
         assert "foo" == self.db_hook._serialize_cell("foo", None)
@@ -301,14 +300,14 @@ class TestMySqlHook:
             IGNORE 1 LINES""",
         )
         self.cur.execute.assert_called_once_with(
-            """
-            LOAD DATA LOCAL INFILE '/tmp/file'
-            IGNORE
-            INTO TABLE table
-            FIELDS TERMINATED BY ';'
+            "LOAD DATA LOCAL INFILE %s %s INTO TABLE table %s",
+            (
+                "/tmp/file",
+                "IGNORE",
+                """FIELDS TERMINATED BY ';'
             OPTIONALLY ENCLOSED BY '"'
-            IGNORE 1 LINES
-            """
+            IGNORE 1 LINES""",
+            ),
         )
 
 
@@ -352,31 +351,26 @@ class TestMySql:
             "AIRFLOW_CONN_AIRFLOW_DB": "mysql://root@mysql/airflow?charset=utf8mb4",
         },
     )
-    def test_mysql_hook_test_bulk_load(self, client):
+    def test_mysql_hook_test_bulk_load(self, client, tmp_path):
         with MySqlContext(client):
             records = ("foo", "bar", "baz")
+            path = tmp_path / "testfile"
+            path.write_text("\n".join(records))
 
-            import tempfile
-
-            with tempfile.NamedTemporaryFile() as f:
-                f.write("\n".join(records).encode("utf8"))
-                f.flush()
-
-                hook = MySqlHook("airflow_db", local_infile=True)
-                with closing(hook.get_conn()) as conn:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute(
-                            """
-                            CREATE TABLE IF NOT EXISTS test_airflow (
-                                dummy VARCHAR(50)
-                            )
-                        """
-                        )
-                        cursor.execute("TRUNCATE TABLE test_airflow")
-                        hook.bulk_load("test_airflow", f.name)
-                        cursor.execute("SELECT dummy FROM test_airflow")
-                        results = tuple(result[0] for result in cursor.fetchall())
-                        assert sorted(results) == sorted(records)
+            hook = MySqlHook("airflow_db", local_infile=True)
+            with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS test_airflow (
+                        dummy VARCHAR(50)
+                    )
+                """
+                )
+                cursor.execute("TRUNCATE TABLE test_airflow")
+                hook.bulk_load("test_airflow", os.fspath(path))
+                cursor.execute("SELECT dummy FROM test_airflow")
+                results = tuple(result[0] for result in cursor.fetchall())
+                assert sorted(results) == sorted(records)
 
     @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
     def test_mysql_hook_test_bulk_dump(self, client):
@@ -408,8 +402,5 @@ class TestMySql:
             hook.bulk_dump(table, tmp_file)
 
             assert mock_execute.call_count == 1
-            query = f"""
-                SELECT * INTO OUTFILE '{tmp_file}'
-                FROM {table}
-            """
+            query = f"SELECT * INTO OUTFILE %s FROM {table}"
             assert_equal_ignore_multiple_spaces(mock_execute.call_args.args[0], query)

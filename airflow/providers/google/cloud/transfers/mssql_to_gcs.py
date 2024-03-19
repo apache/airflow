@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """MsSQL to GCS operator."""
+
 from __future__ import annotations
 
 import datetime
@@ -41,16 +42,16 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         within the given MSSQL Database and then upload it to the
         'mssql-export' GCS bucket (along with a schema file). ::
 
-            export_customers = MsSqlToGoogleCloudStorageOperator(
-                task_id='export_customers',
-                sql='SELECT * FROM dbo.Customers;',
-                bit_fields=['some_bit_field', 'another_bit_field'],
-                bucket='mssql-export',
-                filename='data/customers/export.json',
-                schema_filename='schemas/export.json',
-                mssql_conn_id='mssql_default',
-                gcp_conn_id='google_cloud_default',
-                dag=dag
+            export_customers = MSSQLToGCSOperator(
+                task_id="export_customers",
+                sql="SELECT * FROM dbo.Customers;",
+                bit_fields=["some_bit_field", "another_bit_field"],
+                bucket="mssql-export",
+                filename="data/customers/export.json",
+                schema_filename="schemas/export.json",
+                mssql_conn_id="mssql_default",
+                gcp_conn_id="google_cloud_default",
+                dag=dag,
             )
 
     .. seealso::
@@ -72,11 +73,11 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     ):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
-        self.bit_fields = bit_fields if bit_fields else []
+        self.bit_fields = bit_fields or []
 
     def query(self):
         """
-        Queries MSSQL and returns a cursor of results.
+        Query MSSQL and returns a cursor of results.
 
         :return: mssql cursor
         """

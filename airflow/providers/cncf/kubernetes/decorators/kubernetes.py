@@ -17,13 +17,11 @@
 from __future__ import annotations
 
 import base64
-import inspect
 import os
 import pickle
 import uuid
 from shlex import quote
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
@@ -32,7 +30,6 @@ from kubernetes.client import models as k8s
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
-    remove_task_decorator,
     write_python_script,
 )
 
@@ -77,13 +74,6 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
             **kwargs,
         )
 
-    # TODO: Remove me once this provider min supported Airflow version is 2.6
-    def get_python_source(self):
-        raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
-        res = remove_task_decorator(res, self.custom_operator_name)
-        return res
-
     def _generate_cmds(self) -> list[str]:
         script_filename = "/tmp/script.py"
         input_filename = "/tmp/script.in"
@@ -100,13 +90,11 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         return [
             "bash",
             "-cx",
-            " && ".join(
-                [
-                    write_local_script_file_cmd,
-                    write_local_input_file_cmd,
-                    make_xcom_dir_cmd,
-                    exec_python_cmd,
-                ]
+            (
+                f"{write_local_script_file_cmd} && "
+                f"{write_local_input_file_cmd} && "
+                f"{make_xcom_dir_cmd} && "
+                f"{exec_python_cmd}"
             ),
         ]
 

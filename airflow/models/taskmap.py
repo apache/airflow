@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Table to store information about mapped task instances (AIP-42)."""
+
 from __future__ import annotations
 
 import collections.abc
@@ -24,11 +25,12 @@ from typing import TYPE_CHECKING, Any, Collection
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskMapVariant(enum.Enum):
@@ -42,7 +44,7 @@ class TaskMapVariant(enum.Enum):
     LIST = "list"
 
 
-class TaskMap(Base):
+class TaskMap(TaskInstanceDependencies):
     """Model to track dynamic task-mapping information.
 
     This is currently only populated by an upstream TaskInstance pushing an
@@ -93,7 +95,7 @@ class TaskMap(Base):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: TaskInstance, value: Collection) -> TaskMap:
+    def from_task_instance_xcom(cls, ti: TaskInstance | TaskInstancePydantic, value: Collection) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

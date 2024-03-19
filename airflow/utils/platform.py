@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Platform and system specific function."""
+
 from __future__ import annotations
 
 import getpass
@@ -53,7 +54,7 @@ def is_terminal_support_colors() -> bool:
 
 
 def get_airflow_git_version():
-    """Returns the git commit hash representing the current version of the application."""
+    """Return the git commit hash representing the current version of the application."""
     git_version = None
     try:
         git_version = str(pkgutil.get_data("airflow", "git_version"), encoding="UTF-8")

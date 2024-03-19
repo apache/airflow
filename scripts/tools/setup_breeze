@@ -31,7 +31,7 @@ function manual_instructions() {
     echo
     echo "${COLOR_BLUE}Please run those commands manually (you might need to restart shell between them)${COLOR_RESET}"
     echo
-    echo "    python -m pip install pipx"
+    echo "    python -m pip install \"pipx>=1.2.1\""
     echo "    pipx ensurepath"
     echo "    pipx install -e '${AIRFLOW_SOURCES}/dev/breeze/'"
     echo "    breeze setup autocomplete --force"
@@ -54,7 +54,7 @@ function check_breeze_installed() {
             echo "${COLOR_RED}The 'pipx' is not on path. It should be installed and 'pipx' should be available on your PATH.${COLOR_RESET}"
             export TIMEOUT=0
             if "${MY_DIR}/confirm" "Installing pipx?"; then
-                python -m pip install pipx --upgrade
+                python -m pip install "pipx>=1.2.1" --upgrade
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. You might need to add 'pipx' to the PATH!${COLOR_RESET}"
                 echo

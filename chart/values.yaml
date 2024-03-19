@@ -25,6 +25,20 @@ fullnameOverride: ""
 # Provide a name to substitute for the name of the chart
 nameOverride: ""
 
+# Use standard naming for all resources using airflow.fullname template
+# Consider removing this later and default it to true
+# to make this chart follow standard naming conventions using the fullname template.
+# For now this is an opt-in switch for backwards compatibility to leverage the standard naming convention
+# and being able to use fully fullnameOverride and nameOverride in all resources
+# For new installations - it is recommended to set it to True to follow standard naming conventions
+# For existing installations, this will rename and redeploy your resources with the new names. Be aware that
+# this will recreate your deployment/statefulsets along with their persistent volume claims and data storage
+# migration may be needed to keep your old data
+#
+# Note:fernet-key,redis-password and broker-url secrets don't use this logic yet,
+# as this may break existing installations due to how they get installed via pre-install hook.
+useStandardNaming: false
+
 # Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
 revisionHistoryLimit: ~
 
@@ -43,6 +57,9 @@ securityContexts:
   pod: {}
   containers: {}
 
+# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+containerLifecycleHooks: {}
+
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
@@ -51,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.6.3"
+defaultAirflowTag: "2.8.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.6.3"
+airflowVersion: "2.8.3"
 
 # Images
 images:
@@ -88,23 +105,23 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.22.8
+    tag: v0.26.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 7-bullseye
+    tag: 7-bookworm
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2023.02.24-1.16.1
+    tag: airflow-pgbouncer-2024.01.19-1.21.0
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
-    tag: airflow-pgbouncer-exporter-2023.02.21-0.14.0
+    tag: airflow-pgbouncer-exporter-2024.01.19-0.16.0
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v3.6.3
+    tag: v4.1.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -112,6 +129,7 @@ nodeSelector: {}
 affinity: {}
 tolerations: []
 topologySpreadConstraints: []
+schedulerName: ~
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
@@ -140,6 +158,7 @@ ingress:
 
     # The hostnames or hosts configuration for the web Ingress
     hosts: []
+    #   # The hostname for the web Ingress (can be templated)
     # - name: ""
     #   # configs for web Ingress TLS
     #   tls:
@@ -183,6 +202,7 @@ ingress:
 
     # The hostnames or hosts configuration for the flower Ingress
     hosts: []
+    #   # The hostname for the flower Ingress (can be templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the flower Ingress
@@ -513,6 +533,9 @@ workers:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -569,6 +592,28 @@ workers:
     # This configuration will be ignored if PGBouncer is not enabled
     usePgbouncer: true
 
+  # Allow HPA (KEDA must be disabled).
+  hpa:
+    enabled: false
+
+    # Minimum number of workers created by HPA
+    minReplicaCount: 0
+
+    # Maximum number of workers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
   persistence:
     # Enable persistent volumes
     enabled: true
@@ -585,6 +630,8 @@ workers:
     # Detailed default security context for persistence for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -599,6 +646,20 @@ workers:
     # Detailed default security context for kerberosSidecar for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
+
+  kerberosInitContainer:
+    # Enable kerberos init container
+    enabled: false
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 
   resources: {}
   #  limits:
@@ -702,8 +763,34 @@ workers:
 
   env: []
 
+  volumeClaimTemplates: []
+  # Additional volumeClaimTemplates needed.
+  # Comment out the above and uncomment the section below to enable it.
+  # Add more as needed
+  # Make sure to mount it under extraVolumeMounts.
+  # volumeClaimTemplates:
+  #   - metadata:
+  #       name: data-volume-1
+  #     spec:
+  #       storageClassName: "storage-class-1"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "10Gi"
+  #   - metadata:
+  #       name: data-volume-2
+  #     spec:
+  #       storageClassName: "storage-class-2"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "20Gi"
+
 # Airflow scheduler settings
 scheduler:
+  enabled: true
   #  hostAliases for the scheduler pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -720,6 +807,14 @@ scheduler:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command: ~
+
+  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the startup
+  startupProbe:
+    failureThreshold: 6
+    periodSeconds: 10
+    timeoutSeconds: 20
     command: ~
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
@@ -750,6 +845,9 @@ scheduler:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -851,6 +949,8 @@ scheduler:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -908,6 +1008,9 @@ createUserJob:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -971,15 +1074,20 @@ migrateDatabaseJob:
   args:
     - "bash"
     - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
+    - >-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "db upgrade" "upgradedb" }}
+
+      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
+      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "db upgrade" "upgradedb") }}
 
   # Annotations on the database migration pod
   annotations: {}
   # jobAnnotations are annotations on the database migration job
   jobAnnotations: {}
+
+  # Labels specific to migrate database job objects and pods
+  labels: {}
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
@@ -991,6 +1099,9 @@ migrateDatabaseJob:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1043,6 +1154,9 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  enabled: true
+  # Add custom annotations to the webserver configmap
+  configMapAnnotations: {}
   #  hostAliases for the webserver pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1063,6 +1177,12 @@ webserver:
     initialDelaySeconds: 15
     timeoutSeconds: 5
     failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
     periodSeconds: 10
     scheme: HTTP
 
@@ -1114,6 +1234,9 @@ webserver:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
@@ -1296,6 +1419,10 @@ triggerer:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   persistence:
     # Enable persistent volumes
     enabled: true
@@ -1390,6 +1517,9 @@ triggerer:
     securityContexts:
       container: {}
 
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1399,6 +1529,40 @@ triggerer:
       container: {}
 
   env: []
+
+  # Allow KEDA autoscaling.
+  keda:
+    enabled: false
+    namespaceLabels: {}
+
+    # How often KEDA polls the airflow DB to report new scale requests to the HPA
+    pollingInterval: 5
+
+    # How many seconds KEDA will wait before scaling to zero.
+    # Note that HPA has a separate cooldown period for scale-downs
+    cooldownPeriod: 30
+
+    # Minimum number of triggerers created by keda
+    minReplicaCount: 0
+
+    # Maximum number of triggerers created by keda
+    maxReplicaCount: 10
+
+    # Specify HPA related options
+    advanced: {}
+    # horizontalPodAutoscalerConfig:
+    #   behavior:
+    #     scaleDown:
+    #       stabilizationWindowSeconds: 300
+    #       policies:
+    #         - type: Percent
+    #           value: 100
+    #           periodSeconds: 15
+
+    # Query to use for KEDA autoscaling. Must return a single integer.
+    query: >-
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
+      FROM trigger
 
 # Airflow Dag Processor Config
 dagProcessor:
@@ -1452,6 +1616,9 @@ dagProcessor:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   resources: {}
   #  limits:
@@ -1526,11 +1693,16 @@ dagProcessor:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+    securityContexts:
+      container: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -1539,6 +1711,19 @@ flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
   enabled: false
+
+  livenessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 10
+    periodSeconds: 5
+
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
@@ -1581,6 +1766,9 @@ flower:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1657,6 +1845,9 @@ flower:
 
 # StatsD settings
 statsd:
+  # Add custom annotations to the statsd configmap
+  configMapAnnotations: {}
+
   enabled: true
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
@@ -1695,6 +1886,9 @@ statsd:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   # Additional network policies as needed
   extraNetworkPolicies: []
   resources: {}
@@ -1727,6 +1921,7 @@ statsd:
   overrideMappings: []
 
   podAnnotations: {}
+  env: []
 
 # PgBouncer settings
 pgbouncer:
@@ -1740,7 +1935,7 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
-  auth_type: md5
+  auth_type: scram-sha-256
   auth_file: /etc/pgbouncer/users.txt
 
   # annotations to be added to the PgBouncer deployment
@@ -1851,6 +2046,9 @@ pgbouncer:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Launch additional containers into pgbouncer.
+  extraContainers: []
+
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
@@ -1866,6 +2064,13 @@ pgbouncer:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks:
+    preStop:
+      exec:
+        # Allow existing queries clients to complete within 120 seconds
+        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+
   metricsExporterSidecar:
     resources: {}
     #  limits:
@@ -1876,9 +2081,30 @@ pgbouncer:
     #   memory: 128Mi
     sslmode: "disable"
 
+    # supply the name of existing secret with PGBouncer connection URI containing
+    # stats user and password.
+    # you can load them to a k8s secret like the one below
+    #  apiVersion: v1
+    #  kind: Secret
+    #  metadata:
+    #    name: pgbouncer-stats-secret
+    #  data:
+    #     connection: postgresql://<stats user>:<password>@127.0.0.1:6543/pgbouncer?<connection params>
+    #  type: Opaque
+    #
+    #  statsSecretName: pgbouncer-stats-secret
+    #
+    statsSecretName: ~
+
+    # Key containing the PGBouncer connection URI, defaults to `connection` if not defined
+    statsSecretKey: ~
+
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
       container: {}
+
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
     livenessProbe:
       initialDelaySeconds: 10
@@ -1889,6 +2115,9 @@ pgbouncer:
       initialDelaySeconds: 10
       periodSeconds: 10
       timeoutSeconds: 1
+
+  # Environment variables to add to pgbouncer container
+  env: []
 
 # Configuration for the redis provisioned by the chart
 redis:
@@ -1919,6 +2148,11 @@ redis:
     # Annotations to add to redis volumes
     annotations: {}
 
+  # Configuration for empty dir volume (if redis.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -1944,6 +2178,7 @@ redis:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
 
   # Set to 0 for backwards-compatiblity
   uid: 0
@@ -1956,6 +2191,9 @@ redis:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   podAnnotations: {}
 # Auth secret for a private registry
@@ -1980,6 +2218,7 @@ elasticsearch:
   # Or an object representing the connection
   # Example:
   # connection:
+  #   scheme: ~
   #   user: ~
   #   pass: ~
   #   host: ~
@@ -2063,7 +2302,11 @@ cleanup:
 
   # Detailed default security context for cleanup for container level
   securityContexts:
+    pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Specify history limit
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
@@ -2074,8 +2317,6 @@ cleanup:
 # Not recommended for production
 postgresql:
   enabled: true
-  image:
-    tag: "11"
   auth:
     enablePostgresUser: true
     postgresPassword: postgres
@@ -2108,13 +2349,13 @@ config:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
     statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
   webserver:
     enable_proxy_fix: 'True'
     # For Airflow 1.10
     rbac: 'True'
   celery:
-    flower_url_prefix: '{{ .Values.ingress.flower.path }}'
+    flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'
@@ -2122,7 +2363,7 @@ config:
     statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
     statsd_port: 9125
     statsd_prefix: airflow
-    statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
+    statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
   elasticsearch:
@@ -2157,6 +2398,8 @@ config:
     worker_container_repository: '{{ .Values.images.airflow.repository | default .Values.defaultAirflowRepository }}'
     worker_container_tag: '{{ .Values.images.airflow.tag | default .Values.defaultAirflowTag }}'
     multi_namespace_mode: '{{ ternary "True" "False" .Values.multiNamespaceMode }}'
+  triggerer:
+    default_capacity: 1000
 # yamllint enable rule:line-length
 
 # Whether Airflow can launch workers and/or pods in multiple namespaces
@@ -2190,6 +2433,9 @@ podTemplate: ~
 
 # Git sync
 dags:
+  # Where dags volume will be mounted. Works for both persistence and gitSync.
+  # If not specified, dags mount path will be set to $AIRFLOW_HOME/dags
+  mountPath: ~
   persistence:
     # Annotations for dags PVC
     annotations: {}
@@ -2214,6 +2460,8 @@ dags:
     repo: https://github.com/apache/airflow.git
     branch: v2-2-stable
     rev: HEAD
+    # The git revision (branch, tag, or hash) to check out, v4 only
+    ref: v2-2-stable
     depth: 1
     # the number of consecutive failures allowed before aborting
     maxFailures: 0
@@ -2228,8 +2476,12 @@ dags:
     #   metadata:
     #     name: git-credentials
     #   data:
+    #     # For git-sync v3
     #     GIT_SYNC_USERNAME: <base64_encoded_git_username>
     #     GIT_SYNC_PASSWORD: <base64_encoded_git_password>
+    #     # For git-sync v4
+    #     GITSYNC_USERNAME: <base64_encoded_git_username>
+    #     GITSYNC_PASSWORD: <base64_encoded_git_password>
     # and specify the name of the secret below
     #
     # credentialsSecret: git-credentials
@@ -2258,7 +2510,11 @@ dags:
     # interval between git sync attempts in seconds
     # high values are more likely to cause DAGs to become out of sync between different components
     # low values cause more traffic to the remote git repository
-    wait: 5
+    # Go-style duration string (e.g. "100ms" or "0.1s" = 100ms).
+    # For backwards compatibility, wait will be used if it is specified.
+    period: 5s
+    wait: ~
+
     containerName: git-sync
     uid: 65533
 
@@ -2269,6 +2525,9 @@ dags:
 
     securityContexts:
       container: {}
+
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
@@ -2281,6 +2540,11 @@ dags:
     # - name: ""
     #   value: ""
 
+    # Configuration for empty dir volume
+    # emptyDirConfig:
+    #   sizeLimit: 1Gi
+    #   medium: Memory
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2290,6 +2554,11 @@ dags:
     #   memory: 128Mi
 
 logs:
+  # Configuration for empty dir volume (if logs.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   persistence:
     # Enable persistent volume for storing logs
     enabled: false

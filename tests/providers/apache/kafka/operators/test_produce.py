@@ -20,9 +20,14 @@ import json
 import logging
 from typing import Any
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 log = logging.getLogger(__name__)
 

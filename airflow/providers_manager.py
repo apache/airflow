@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Manages all providers."""
+
 from __future__ import annotations
 
 import fnmatch
@@ -27,7 +28,6 @@ import os
 import sys
 import traceback
 import warnings
-from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
@@ -37,7 +37,7 @@ from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
-from airflow.typing_compat import Literal
+from airflow.hooks.package_index import PackageIndexHook
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -85,8 +85,11 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
 
 if TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
+    from airflow.typing_compat import Literal
 
 
 class LazyDictWithCache(MutableMapping):
@@ -146,7 +149,7 @@ def _read_schema_from_resources_or_local_file(filename: str) -> dict:
 
 
 def _create_provider_info_schema_validator():
-    """Creates JSON schema validator from the provider_info.schema.json."""
+    """Create JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
     schema = _read_schema_from_resources_or_local_file("provider_info.schema.json")
@@ -156,7 +159,7 @@ def _create_provider_info_schema_validator():
 
 
 def _create_customized_form_field_behaviours_schema_validator():
-    """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
+    """Create JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
     schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
@@ -301,11 +304,10 @@ def log_import_warning(class_name, e, provider_package):
 KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
-def _correctness_check(
-    provider_package: str, class_name: str, provider_info: ProviderInfo
-) -> type[BaseHook] | None:
+def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
     """
-    Performs coherence check on provider classes.
+    Perform coherence check on provider classes.
+
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
     It logs appropriate warning in case it detects any problems.
@@ -403,11 +405,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return ProvidersManager._initialized
 
     @staticmethod
-    def initialization_stack_trace() -> str:
+    def initialization_stack_trace() -> str | None:
         return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
-        """Initializes the manager."""
+        """Initialize the manager."""
         super().__init__()
         ProvidersManager._initialized = True
         ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
@@ -416,8 +418,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._provider_dict: dict[str, ProviderInfo] = {}
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
-
-        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()
+        self._fs_set: set[str] = set()
+        self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
+        self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
@@ -428,6 +431,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._field_behaviours: dict[str, dict] = {}
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
+        self._auth_manager_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
         self._provider_configs: dict[str, dict[str, Any]] = {}
@@ -443,11 +447,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._init_airflow_core_hooks()
 
     def _init_airflow_core_hooks(self):
-        """Initializes the hooks dict with default hooks from Airflow core."""
+        """Initialize the hooks dict with default hooks from Airflow core."""
         core_dummy_hooks = {
             "generic": "Generic",
             "email": "Email",
-            "mesos_framework-id": "Mesos Framework ID",
         }
         for key, display in core_dummy_hooks.items():
             self._hooks_lazy_dict[key] = HookInfo(
@@ -458,7 +461,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 connection_type=None,
                 connection_testable=False,
             )
-        for cls in [FSHook]:
+        for cls in [FSHook, PackageIndexHook]:
             package_name = cls.__module__
             hook_class_name = f"{cls.__module__}.{cls.__name__}"
             hook_info = self._import_hook(
@@ -482,7 +485,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._verify_all_providers_all_compatible()
-        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
+        self._provider_dict = dict(sorted(self._provider_dict.items()))
 
     def _verify_all_providers_all_compatible(self):
         from packaging import version as packaging_version
@@ -505,7 +508,19 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers hooks."""
         self.initialize_providers_list()
         self._discover_hooks()
-        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+        self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
+
+    @provider_info_cache("filesystems")
+    def initialize_providers_filesystems(self):
+        """Lazy initialization of providers filesystems."""
+        self.initialize_providers_list()
+        self._discover_filesystems()
+
+    @provider_info_cache("dataset_uris")
+    def initializa_providers_dataset_uri_handlers(self):
+        """Lazy initialization of provider dataset URI handlers."""
+        self.initialize_providers_list()
+        self._discover_dataset_uri_handlers()
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -543,6 +558,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_notifications()
 
+    @provider_info_cache("auth_managers")
+    def initialize_providers_auth_managers(self):
+        """Lazy initialization of providers notifications information."""
+        self.initialize_providers_list()
+        self._discover_auth_managers()
+
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
         """Lazy initialization of providers configuration information."""
@@ -550,7 +571,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _initialize_providers_configuration(self):
         """
-        Internal method to initialize providers configuration information.
+        Initialize providers configuration information.
 
         Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
         In some cases we might want to make sure that the configuration is initialized, but we do not want
@@ -613,7 +634,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_all_airflow_builtin_providers_from_local_sources(self) -> None:
         """
-        Finds all built-in airflow providers if airflow is run from the local sources.
+        Find all built-in airflow providers if airflow is run from the local sources.
+
         It finds `provider.yaml` files for all such providers and registers the providers using those.
 
         This 'provider.yaml' scanning takes precedence over scanning packages installed
@@ -632,16 +654,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 # The same path can appear in the __path__ twice, under non-normalized paths (ie.
                 # /path/to/repo/airflow/providers and /path/to/repo/./airflow/providers)
                 path = os.path.realpath(path)
-                if path in seen:
-                    continue
-                seen.add(path)
-                self._add_provider_info_from_local_source_files_on_path(path)
+                if path not in seen:
+                    seen.add(path)
+                    self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
-                log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
+                log.warning("Error when loading 'provider.yaml' files from %s airflow sources: %s", path, e)
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
-        Finds all the provider.yaml files in the directory specified.
+        Find all the provider.yaml files in the directory specified.
 
         :param path: path where to look for provider.yaml files
         """
@@ -659,7 +680,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """
-        Parses found provider.yaml file and adds found provider to the dictionary.
+        Parse found provider.yaml file and adds found provider to the dictionary.
 
         :param path: full file path of the provider.yaml file
         :param package_name: name of the package
@@ -826,21 +847,45 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 provider,
                 provider_uses_connection_types,
             )
-        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+        self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("import_all_hooks")
     def _import_info_from_all_hooks(self):
         """Force-import all hooks and initialize the connections/fields."""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
-        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+        self._field_behaviours = dict(sorted(self._field_behaviours.items()))
 
         # Widgets for connection forms are currently used in two places:
         # 1. In the UI Connections, expected same order that it defined in Hook.
         # 2. cli command - `airflow providers widgets` and expected that it in alphabetical order.
         # It is not possible to recover original ordering after sorting,
         # that the main reason why original sorting moved to cli part:
-        # self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
+        # self._connection_form_widgets = dict(sorted(self._connection_form_widgets.items()))
+
+    def _discover_filesystems(self) -> None:
+        """Retrieve all filesystems defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for fs_module_name in provider.data.get("filesystems", []):
+                if _correctness_check(provider_package, f"{fs_module_name}.get_fs", provider):
+                    self._fs_set.add(fs_module_name)
+        self._fs_set = set(sorted(self._fs_set))
+
+    def _discover_dataset_uri_handlers(self) -> None:
+        from airflow.datasets import normalize_noop
+
+        for provider_package, provider in self._provider_dict.items():
+            for handler_info in provider.data.get("dataset-uris", []):
+                try:
+                    schemes = handler_info["schemes"]
+                    handler_path = handler_info["handler"]
+                except KeyError:
+                    continue
+                if handler_path is None:
+                    handler = normalize_noop
+                elif not (handler := _correctness_check(provider_package, handler_path, provider)):
+                    continue
+                self._dataset_uri_handlers.update((scheme, handler) for scheme in schemes)
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -918,7 +963,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        hook_class = _correctness_check(package_name, hook_class_name, provider_info)
+        hook_class: type[BaseHook] | None = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
         try:
@@ -945,6 +990,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
+        except ImportError as e:
+            if "No module named 'flask_appbuilder'" in e.msg:
+                log.warning(
+                    "The hook_class '%s' is not fully initialized (UI widgets will be missing), because "
+                    "the 'flask_appbuilder' package is not installed, however it is not required for "
+                    "Airflow components to work",
+                    hook_class_name,
+                )
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
@@ -1002,15 +1055,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     hook_class.__name__,
                 )
                 # In case of inherited hooks this might be happening several times
-                continue
-            self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__,
-                package_name,
-                field,
-                field_identifier,
-                hasattr(field.field_class.widget, "input_type")
-                and field.field_class.widget.input_type == "password",
-            )
+            else:
+                self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
+                    hook_class.__name__,
+                    package_name,
+                    field,
+                    field_identifier,
+                    hasattr(field.field_class.widget, "input_type")
+                    and field.field_class.widget.input_type == "password",
+                )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
         try:
@@ -1039,8 +1092,16 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 e,
             )
 
+    def _discover_auth_managers(self) -> None:
+        """Retrieve all auth managers defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("auth-managers"):
+                for auth_manager_class_name in provider.data["auth-managers"]:
+                    if _correctness_check(provider_package, auth_manager_class_name, provider):
+                        self._auth_manager_class_name_set.add(auth_manager_class_name)
+
     def _discover_notifications(self) -> None:
-        """Retrieves all notifications defined in the providers."""
+        """Retrieve all notifications defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("notifications"):
                 for notification_class_name in provider.data["notifications"]:
@@ -1048,7 +1109,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                         self._notification_info_set.add(notification_class_name)
 
     def _discover_extra_links(self) -> None:
-        """Retrieves all extra links defined in the providers."""
+        """Retrieve all extra links defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("extra-links"):
                 for extra_link_class_name in provider.data["extra-links"]:
@@ -1091,7 +1152,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Retrieve all configs defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("config"):
-                self._provider_configs[provider_package] = provider.data.get("config")
+                self._provider_configs[provider_package] = provider.data.get("config")  # type: ignore[assignment]
 
     def _discover_plugins(self) -> None:
         """Retrieve all plugins defined in the providers."""
@@ -1110,7 +1171,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
-        """Initialization of providers triggers."""
+        """Initialize providers triggers."""
         self.initialize_providers_list()
         for provider_package, provider in self._provider_dict.items():
             for trigger in provider.data.get("triggers", []):
@@ -1122,6 +1183,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                             integration_name=trigger.get("integration-name", ""),
                         )
                     )
+
+    @property
+    def auth_managers(self) -> list[str]:
+        """Returns information about available providers notifications class."""
+        self.initialize_providers_auth_managers()
+        return sorted(self._auth_manager_class_name_set)
 
     @property
     def notification(self) -> list[NotificationInfo]:
@@ -1161,7 +1228,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @property
     def taskflow_decorators(self) -> dict[str, TaskDecorator]:
         self.initialize_providers_taskflow_decorator()
-        return self._taskflow_decorators
+        return self._taskflow_decorators  # type: ignore[return-value]
 
     @property
     def extra_links_class_names(self) -> list[str]:
@@ -1173,6 +1240,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def connection_form_widgets(self) -> dict[str, ConnectionFormWidgetInfo]:
         """
         Returns widgets for connection forms.
+
         Dictionary keys in the same order that it defined in Hook.
         """
         self.initialize_providers_hooks()
@@ -1210,6 +1278,16 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._executor_class_name_set)
 
     @property
+    def filesystem_module_names(self) -> list[str]:
+        self.initialize_providers_filesystems()
+        return sorted(self._fs_set)
+
+    @property
+    def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
+        self.initializa_providers_dataset_uri_handlers()
+        return self._dataset_uri_handlers
+
+    @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         self.initialize_providers_configuration()
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
@@ -1217,3 +1295,26 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @property
     def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
         return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    def _cleanup(self):
+        self._initialized_cache.clear()
+        self._provider_dict.clear()
+        self._hooks_dict.clear()
+        self._fs_set.clear()
+        self._taskflow_decorators.clear()
+        self._hook_provider_dict.clear()
+        self._hooks_lazy_dict.clear()
+        self._connection_form_widgets.clear()
+        self._field_behaviours.clear()
+        self._extra_link_class_name_set.clear()
+        self._logging_class_name_set.clear()
+        self._auth_manager_class_name_set.clear()
+        self._secrets_backend_class_name_set.clear()
+        self._executor_class_name_set.clear()
+        self._provider_configs.clear()
+        self._api_auth_backend_module_names.clear()
+        self._trigger_info_set.clear()
+        self._notification_info_set.clear()
+        self._plugins_set.clear()
+        self._initialized = False
+        self._initialization_stack_trace = None

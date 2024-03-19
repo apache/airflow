@@ -17,25 +17,26 @@
 from __future__ import annotations
 
 import pytest
-from pytest import param
 
 from airflow.models.base import get_id_collation_args
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.mark.parametrize(
     ("dsn", "expected", "extra"),
     [
-        param("postgresql://host/the_database", {}, {}, id="postgres"),
-        param("mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"),
-        param("mysql+pymsql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql+pymsql"),
-        param(
+        pytest.param("postgresql://host/the_database", {}, {}, id="postgres"),
+        pytest.param("mysql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql"),
+        pytest.param("mysql+pymsql://host/the_database", {"collation": "utf8mb3_bin"}, {}, id="mysql+pymsql"),
+        pytest.param(
             "mysql://host/the_database",
             {"collation": "ascii"},
             {("database", "sql_engine_collation_for_ids"): "ascii"},
             id="mysql with explicit config",
         ),
-        param(
+        pytest.param(
             "postgresql://host/the_database",
             {"collation": "ascii"},
             {("database", "sql_engine_collation_for_ids"): "ascii"},

@@ -19,6 +19,7 @@ This is an example DAG which uses the LivyOperator.
 The tasks below trigger the computation of pi on the Spark instance
 using the Java and Python executables provided in the example library.
 """
+
 from __future__ import annotations
 
 import os
@@ -37,7 +38,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     # [START create_livy]
     livy_java_task = LivyOperator(
         task_id="pi_java_task",

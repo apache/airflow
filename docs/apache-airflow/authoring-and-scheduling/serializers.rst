@@ -102,6 +102,7 @@ Registered
 
     __version__ = 1  # required
 
+
     # the serializer expects output, classname, version, is_serialized?
     def serialize(o: object) -> tuple[U, str, int, bool]:
         if isinstance(o, Decimal):

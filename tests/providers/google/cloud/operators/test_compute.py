@@ -247,6 +247,41 @@ class TestGceInstanceInsert:
             op.execute(context=mock.MagicMock())
         mock_hook.assert_not_called()
 
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_should_not_throw_ex_when_name_is_templated(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        body_with_templated_name = deepcopy(GCE_INSTANCE_BODY_API_CALL)
+        body_with_templated_name["name"] = "{{ execution_date }}"
+        op = ComputeEngineInsertInstanceOperator(
+            project_id=GCP_PROJECT_ID,
+            resource_id=GCE_RESOURCE_ID,
+            body=body_with_templated_name,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.insert_instance.assert_called_once_with(
+            project_id=GCP_PROJECT_ID,
+            body=body_with_templated_name,
+            zone=GCE_ZONE,
+            request_id=None,
+        )
+
 
 class TestGceInstanceInsertFromTemplate:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -400,6 +435,42 @@ class TestGceInstanceInsertFromTemplate:
             op.execute(context=mock.MagicMock())
         mock_hook.assert_not_called()
 
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_instance_from_template_should_not_throw_ex_when_name_is_templated(self, mock_hook):
+        get_instance_obj_mock = mock.MagicMock()
+        get_instance_obj_mock.__class__ = Instance
+        mock_hook.return_value.get_instance.side_effect = [
+            NotFound("Error message"),
+            get_instance_obj_mock,
+        ]
+        body_with_templated_name = deepcopy(GCP_INSTANCE_BODY_FROM_TEMPLATE)
+        body_with_templated_name["name"] = "{{ execution_date }}"
+        op = ComputeEngineInsertInstanceFromTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            body=body_with_templated_name,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.insert_instance.assert_called_once_with(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            body=body_with_templated_name,
+            source_instance_template=SOURCE_INSTANCE_TEMPLATE,
+            request_id=None,
+        )
+
 
 class TestGceInstanceDelete:
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
@@ -486,6 +557,7 @@ class TestGceInstanceStart:
 
     # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_start_with_templates"
@@ -588,6 +660,7 @@ class TestGceInstanceStop:
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_stop_with_templates"
@@ -679,6 +752,7 @@ class TestGceInstanceSetMachineType:
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_set_machine_type_with_templates"
@@ -808,6 +882,7 @@ class TestGceInstanceSetMachineType:
         "-577542784f769-7999ab71-94f9ec1d'} "
     )
 
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.compute.ComputeEngineHook._check_zone_operation_status"
     )
@@ -961,6 +1036,38 @@ class TestGceTemplateInsert:
             )
             op.execute(context=mock.MagicMock())
         mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_template_should_not_throw_ex_when_name_is_templated(self, mock_hook):
+        get_template_obj_mock = mock.MagicMock()
+        get_template_obj_mock.__class__ = InstanceTemplate
+        mock_hook.return_value.get_instance_template.side_effect = [
+            NotFound("Error message"),
+            get_template_obj_mock,
+        ]
+        body_with_templated_name = deepcopy(GCE_INSTANCE_TEMPLATE_BODY_API_CALL)
+        body_with_templated_name["name"] = "{{ execution_date }}"
+        op = ComputeEngineInsertInstanceTemplateOperator(
+            project_id=GCP_PROJECT_ID,
+            body=body_with_templated_name,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.insert_instance_template.assert_called_once_with(
+            project_id=GCP_PROJECT_ID,
+            body=body_with_templated_name,
+            request_id=None,
+        )
 
 
 class TestGceTemplateDelete:
@@ -1597,6 +1704,40 @@ class TestGceInstanceGroupManagerInsert:
             get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
             op.execute(context=get_instance_group_manager_obj_mock)
         mock_hook.assert_not_called()
+
+    @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
+    def test_insert_igm_should_not_throw_ex_when_name_is_templated(self, mock_hook):
+        get_instance_group_manager_obj_mock = mock.MagicMock()
+        get_instance_group_manager_obj_mock.__class__ = InstanceGroupManager
+        mock_hook.return_value.get_instance_group_manager.side_effect = [
+            NotFound("Error message"),
+            get_instance_group_manager_obj_mock,
+        ]
+        body_with_templated_name = deepcopy(GCE_INSTANCE_GROUP_MANAGER_BODY_API_CALL)
+        body_with_templated_name["name"] = "{{ execution_date }}"
+        op = ComputeEngineInsertInstanceGroupManagerOperator(
+            project_id=GCP_PROJECT_ID,
+            body=body_with_templated_name,
+            zone=GCE_ZONE,
+            task_id=TASK_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.insert_instance_group_manager.assert_called_once_with(
+            project_id=GCP_PROJECT_ID,
+            zone=GCE_ZONE,
+            body=body_with_templated_name,
+            request_id=None,
+        )
 
 
 class TestGceInstanceGroupManagerDelete:

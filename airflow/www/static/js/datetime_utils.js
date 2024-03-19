@@ -22,7 +22,7 @@ export const defaultFormat = "YYYY-MM-DD, HH:mm:ss";
 export const isoFormatWithoutTZ = "YYYY-MM-DDTHH:mm:ss.SSS";
 export const defaultFormatWithTZ = "YYYY-MM-DD, HH:mm:ss z";
 export const defaultTZFormat = "z (Z)";
-export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssTZD";
+export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssZ";
 
 export const TimezoneEvent = "timezone";
 
@@ -120,7 +120,8 @@ export const getDuration = (startDate, endDate) =>
 
 export const formatDuration = (dur) => {
   const duration = moment.duration(dur);
-  const days = duration.days();
+  const totalDays = duration.asDays();
+  const days = Math.floor(totalDays);
   // .as('milliseconds') is necessary for .format() to work correctly
   return `${days > 0 ? `${days}d` : ""}${moment
     .utc(duration.as("milliseconds"))

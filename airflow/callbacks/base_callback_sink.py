@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.callbacks.callback_requests import CallbackRequest
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from airflow.callbacks.callback_requests import CallbackRequest
 
 
 class BaseCallbackSink:
     """Base class for Callbacks Sinks."""
 
     def send(self, callback: CallbackRequest) -> None:
-        """Sends callback for execution."""
+        """Send callback for execution."""
         raise NotImplementedError()

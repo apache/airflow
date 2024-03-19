@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 import operator
-from datetime import datetime as dt
 from typing import Iterator
 
 import pendulum
@@ -41,7 +41,7 @@ from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from airflow.www.validators import ValidKey
+from airflow.www.validators import ReadOnly, ValidConnID
 from airflow.www.widgets import (
     AirflowDateTimePickerROWidget,
     AirflowDateTimePickerWidget,
@@ -75,7 +75,7 @@ class DateTimeWithTimezoneField(Field):
             # Check if the datetime string is in the format without timezone, if so convert it to the
             # default timezone
             if len(date_str) == 19:
-                parsed_datetime = dt.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                parsed_datetime = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                 default_timezone = self._get_default_timezone()
                 self.data = default_timezone.convert(parsed_datetime)
             else:
@@ -100,10 +100,7 @@ class DateTimeForm(FlaskForm):
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
-    """
-    Date time and number of runs form for tree view, task duration
-    and landing times.
-    """
+    """Date time and number of runs form for tree view, task duration and landing times."""
 
     base_date = DateTimeWithTimezoneField(
         "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()
@@ -124,38 +121,54 @@ class DateTimeWithNumRunsForm(FlaskForm):
 class DagRunEditForm(DynamicForm):
     """Form for editing DAG Run.
 
-    We don't actually want to allow editing, so everything is read-only here.
+    Only note field is editable, so everything else is read-only here.
     """
 
-    dag_id = StringField(lazy_gettext("Dag Id"), widget=BS3TextFieldROWidget())
-    start_date = DateTimeWithTimezoneField(lazy_gettext("Start Date"), widget=AirflowDateTimePickerROWidget())
-    end_date = DateTimeWithTimezoneField(lazy_gettext("End Date"), widget=AirflowDateTimePickerROWidget())
-    run_id = StringField(lazy_gettext("Run Id"), widget=BS3TextFieldROWidget())
-    state = StringField(lazy_gettext("State"), widget=BS3TextFieldROWidget())
+    dag_id = StringField(lazy_gettext("Dag Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
+    start_date = DateTimeWithTimezoneField(
+        lazy_gettext("Start Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+    )
+    end_date = DateTimeWithTimezoneField(
+        lazy_gettext("End Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+    )
+    run_id = StringField(lazy_gettext("Run Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
+    state = StringField(lazy_gettext("State"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
     execution_date = DateTimeWithTimezoneField(
         lazy_gettext("Logical Date"),
+        validators=[ReadOnly()],
         widget=AirflowDateTimePickerROWidget(),
     )
-    conf = TextAreaField(lazy_gettext("Conf"), widget=BS3TextAreaROWidget())
+    conf = TextAreaField(lazy_gettext("Conf"), validators=[ReadOnly()], widget=BS3TextAreaROWidget())
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
-        """Populates the attributes of the passed obj with data from the form's fields."""
-        super().populate_obj(item)
+        """Populate the attributes of the passed obj with data from the form's not-read-only fields."""
+        for name, field in self._fields.items():
+            if not field.flags.readonly:
+                field.populate_obj(item, name)
         item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:
             item.conf = json.loads(item.conf)
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance."""
+    """Form for editing TaskInstance.
 
-    dag_id = StringField(lazy_gettext("Dag Id"), validators=[InputRequired()], widget=BS3TextFieldROWidget())
-    task_id = StringField(
-        lazy_gettext("Task Id"), validators=[InputRequired()], widget=BS3TextFieldROWidget()
+    Only note and state fields are editable, so everything else is read-only here.
+    """
+
+    dag_id = StringField(
+        lazy_gettext("Dag Id"), validators=[InputRequired(), ReadOnly()], widget=BS3TextFieldROWidget()
     )
-    start_date = DateTimeWithTimezoneField(lazy_gettext("Start Date"), widget=AirflowDateTimePickerROWidget())
-    end_date = DateTimeWithTimezoneField(lazy_gettext("End Date"), widget=AirflowDateTimePickerROWidget())
+    task_id = StringField(
+        lazy_gettext("Task Id"), validators=[InputRequired(), ReadOnly()], widget=BS3TextFieldROWidget()
+    )
+    start_date = DateTimeWithTimezoneField(
+        lazy_gettext("Start Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+    )
+    end_date = DateTimeWithTimezoneField(
+        lazy_gettext("End Date"), validators=[ReadOnly()], widget=AirflowDateTimePickerROWidget()
+    )
     state = SelectField(
         lazy_gettext("State"),
         choices=(
@@ -170,9 +183,15 @@ class TaskInstanceEditForm(DynamicForm):
     execution_date = DateTimeWithTimezoneField(
         lazy_gettext("Logical Date"),
         widget=AirflowDateTimePickerROWidget(),
-        validators=[InputRequired()],
+        validators=[InputRequired(), ReadOnly()],
     )
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
+
+    def populate_obj(self, item):
+        """Populate the attributes of the passed obj with data from the form's not-read-only fields."""
+        for name, field in self._fields.items():
+            if not field.flags.readonly:
+                field.populate_obj(item, name)
 
 
 @cache
@@ -202,7 +221,7 @@ def create_connection_form_class() -> type[DynamicForm]:
 
         conn_id = StringField(
             lazy_gettext("Connection Id"),
-            validators=[InputRequired(), ValidKey()],
+            validators=[InputRequired(), ValidConnID()],
             widget=BS3TextFieldWidget(),
         )
         conn_type = SelectField(

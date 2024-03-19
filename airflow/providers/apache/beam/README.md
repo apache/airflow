@@ -62,7 +62,7 @@ pip install apache-airflow-providers-apache-beam[google]
 
 In Airflow 2.0, all operators, transfers, hooks, sensors, secrets for the `apache.beam` provider
 are in the `airflow.providers.apache.beam` package. You can read more about the naming conventions used
-in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#naming-conventions-for-provider-packages)
+in [Naming conventions for provider packages](https://github.com/apache/airflow/blob/main/contributing-docs/11_provider_packages.rst#naming-conventions-for-provider-packages)
 
 
 ## Operators

@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
+from typing import TYPE_CHECKING
 
 import jinja2.nativetypes
 import jinja2.sandbox
+
+if TYPE_CHECKING:
+    import datetime
 
 
 class _AirflowEnvironmentMixin:

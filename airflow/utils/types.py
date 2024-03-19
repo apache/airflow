@@ -35,6 +35,7 @@ class ArgNotSet:
                 return False
             return True
 
+
         is_arg_passed()  # False.
         is_arg_passed(None)  # True.
     """
@@ -60,7 +61,7 @@ class DagRunType(str, enum.Enum):
 
     @staticmethod
     def from_run_id(run_id: str) -> DagRunType:
-        """Resolved DagRun type from run_id."""
+        """Resolve DagRun type from run_id."""
         for run_type in DagRunType:
             if run_id and run_id.startswith(f"{run_type.value}__"):
                 return run_type

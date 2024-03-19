@@ -27,8 +27,17 @@ from uuid import uuid4
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.links.emr import (
+    EmrClusterLink,
+    EmrLogsLink,
+    EmrServerlessCloudWatchLogsLink,
+    EmrServerlessDashboardLink,
+    EmrServerlessLogsLink,
+    EmrServerlessS3LogsLink,
+    get_log_uri,
+)
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -41,6 +50,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStopApplicationTrigger,
     EmrTerminateJobFlowTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.helpers import exactly_one, prune_dict
@@ -64,7 +74,11 @@ class EmrAddStepsOperator(BaseOperator):
         param cluster_states. Exactly one cluster like this should exist or will fail. (templated)
     :param cluster_states: Acceptable cluster states when searching for JobFlow id by job_flow_name.
         (templated)
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
@@ -97,11 +111,11 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id: str | None = None,
         job_flow_name: str | None = None,
         cluster_states: list[str] | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         execution_role_arn: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
@@ -172,20 +186,22 @@ class EmrAddStepsOperator(BaseOperator):
                     job_flow_id=job_flow_id,
                     step_ids=step_ids,
                     aws_conn_id=self.aws_conn_id,
-                    max_attempts=self.waiter_max_attempts,
-                    poll_interval=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
                 ),
                 method_name="execute_complete",
             )
 
         return step_ids
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
-            raise AirflowException(f"Error resuming cluster: {event}")
-        else:
-            self.log.info("Steps completed successfully")
-        return event["step_ids"]
+            raise AirflowException(f"Error while running steps: {event}")
+
+        self.log.info("Steps completed successfully")
+        return event["value"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):
@@ -205,9 +221,9 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param notebook_execution_name: Optional name for the notebook execution.
     :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
         runtime for execution.
-    :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
+    :param notebook_instance_security_group_id: The unique identifier of the Amazon EC2
         security group to associate with the EMR notebook for this notebook execution.
-    :param: master_instance_security_group_id: Optional unique ID of an EC2 security
+    :param master_instance_security_group_id: Optional unique ID of an EC2 security
         group to associate with the master instance of the EMR cluster for this notebook execution.
     :param tags: Optional list of key value pair to associate with the notebook execution.
     :param waiter_max_attempts: Maximum number of tries before failing.
@@ -245,7 +261,7 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
         master_instance_security_group_id: str | None = None,
         tags: list | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None | ArgNotSet = NOTSET,
         waiter_delay: int | None | ArgNotSet = NOTSET,
@@ -257,14 +273,18 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -342,6 +362,10 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for the notebook.
         to be in a STOPPED or FINISHED state. Defaults to False.
     :param aws_conn_id: aws connection to use.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
 
@@ -361,7 +385,7 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
         self,
         notebook_execution_id: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
         waiter_max_attempts: int | None | ArgNotSet = NOTSET,
         waiter_delay: int | None | ArgNotSet = NOTSET,
@@ -373,14 +397,18 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -437,7 +465,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         eks_cluster_name: str,
         eks_namespace: str,
         virtual_cluster_id: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         tags: dict | None = None,
         **kwargs: Any,
     ) -> None:
@@ -486,6 +514,8 @@ class EmrContainerOperator(BaseOperator):
     :param max_tries: Deprecated - use max_polling_attempts instead.
     :param max_polling_attempts: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
+    :param job_retry_max_attempts: Maximum number of times to retry when the EMR job fails.
+        Defaults to None, which disable the retry.
     :param tags: The tags assigned to job runs.
         Defaults to None
     :param deferrable: Run operator in the deferrable mode.
@@ -511,12 +541,13 @@ class EmrContainerOperator(BaseOperator):
         job_driver: dict,
         configuration_overrides: dict | None = None,
         client_request_token: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         wait_for_completion: bool = True,
         poll_interval: int = 30,
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
+        job_retry_max_attempts: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
@@ -532,6 +563,7 @@ class EmrContainerOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_polling_attempts = max_polling_attempts
+        self.job_retry_max_attempts = job_retry_max_attempts
         self.tags = tags
         self.job_id: str | None = None
         self.deferrable = deferrable
@@ -566,6 +598,7 @@ class EmrContainerOperator(BaseOperator):
             self.configuration_overrides,
             self.client_request_token,
             self.tags,
+            self.job_retry_max_attempts,
         )
         if self.deferrable:
             query_status = self.hook.check_query_status(job_id=self.job_id)
@@ -611,11 +644,12 @@ class EmrContainerOperator(BaseOperator):
                 f"query_execution_id is {self.job_id}. Error: {error_message}"
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
 
-        self.log.info("%s", event["message"])
         return event["job_id"]
 
     def on_kill(self) -> None:
@@ -692,33 +726,36 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
         wait_for_completion: bool = False,
-        # TODO: waiter_max_attempts and waiter_delay should default to None when the other two are deprecated.
-        waiter_max_attempts: int | None | ArgNotSet = NOTSET,
-        waiter_delay: int | None | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | None = None,
+        waiter_delay: int | None = None,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
-        if waiter_max_attempts is NOTSET:
+        if waiter_countdown:
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             # waiter_countdown defaults to never timing out, which is not supported
             # by boto waiters, so we will set it here to "a very long time" for now.
             waiter_max_attempts = (waiter_countdown or 999) // waiter_check_interval_seconds
-        if waiter_delay is NOTSET:
+        if waiter_check_interval_seconds:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -727,8 +764,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
-        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
-        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
+        self.waiter_max_attempts = waiter_max_attempts or 60
+        self.waiter_delay = waiter_delay or 30
         self.deferrable = deferrable
 
     @cached_property
@@ -749,58 +786,59 @@ class EmrCreateJobFlowOperator(BaseOperator):
             job_flow_overrides = self.job_flow_overrides
         response = self._emr_hook.create_job_flow(job_flow_overrides)
 
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Job flow creation failed: {response}")
-        else:
-            self._job_flow_id = response["JobFlowId"]
-            self.log.info("Job flow with id %s created", self._job_flow_id)
-            EmrClusterLink.persist(
+
+        self._job_flow_id = response["JobFlowId"]
+        self.log.info("Job flow with id %s created", self._job_flow_id)
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=self._emr_hook.conn_region_name,
+            aws_partition=self._emr_hook.conn_partition,
+            job_flow_id=self._job_flow_id,
+        )
+        if self._job_flow_id:
+            EmrLogsLink.persist(
                 context=context,
                 operator=self,
                 region_name=self._emr_hook.conn_region_name,
                 aws_partition=self._emr_hook.conn_partition,
                 job_flow_id=self._job_flow_id,
+                log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
             )
-            if self._job_flow_id:
-                EmrLogsLink.persist(
-                    context=context,
-                    operator=self,
-                    region_name=self._emr_hook.conn_region_name,
-                    aws_partition=self._emr_hook.conn_partition,
+        if self.deferrable:
+            self.defer(
+                trigger=EmrCreateJobFlowTrigger(
                     job_flow_id=self._job_flow_id,
-                    log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
-                )
-            if self.deferrable:
-                self.defer(
-                    trigger=EmrCreateJobFlowTrigger(
-                        job_flow_id=self._job_flow_id,
-                        aws_conn_id=self.aws_conn_id,
-                        poll_interval=self.waiter_delay,
-                        max_attempts=self.waiter_max_attempts,
-                    ),
-                    method_name="execute_complete",
-                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-                )
-            if self.wait_for_completion:
-                self._emr_hook.get_waiter("job_flow_waiting").wait(
-                    ClusterId=self._job_flow_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": self.waiter_delay,
-                            "MaxAttempts": self.waiter_max_attempts,
-                        }
-                    ),
-                )
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+        if self.wait_for_completion:
+            self._emr_hook.get_waiter("job_flow_waiting").wait(
+                ClusterId=self._job_flow_id,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
+        return self._job_flow_id
 
-            return self._job_flow_id
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
 
-    def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error creating jobFlow: {event}")
-        else:
-            self.log.info("JobFlow created successfully")
+
+        self.log.info("JobFlow created successfully")
         return event["job_flow_id"]
 
     def on_kill(self) -> None:
@@ -821,6 +859,7 @@ class EmrModifyClusterOperator(BaseOperator):
     :param cluster_id: cluster identifier
     :param step_concurrency_level: Concurrency of the cluster
     :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: aws connection to uses
     :param do_xcom_push: if True, cluster_id is pushed to XCom with key cluster_id.
     """
 
@@ -833,7 +872,12 @@ class EmrModifyClusterOperator(BaseOperator):
     )
 
     def __init__(
-        self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = "aws_default", **kwargs
+        self,
+        *,
+        cluster_id: str,
+        step_concurrency_level: int,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
@@ -884,7 +928,11 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         :ref:`howto/operator:EmrTerminateJobFlowOperator`
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check JobFlow status
     :param waiter_max_attempts: The maximum number of times to poll for JobFlow status.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -904,7 +952,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self,
         *,
         job_flow_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -940,10 +988,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"JobFlow termination failed: {response}")
-        else:
-            self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
+
+        self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
 
         if self.deferrable:
             self.defer(
@@ -959,12 +1007,13 @@ class EmrTerminateJobFlowOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error terminating JobFlow: {event}")
-        else:
-            self.log.info("Jobflow terminated successfully.")
-        return
+
+        self.log.info("Jobflow terminated successfully.")
 
 
 class EmrServerlessCreateApplicationOperator(BaseOperator):
@@ -983,7 +1032,11 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application to start. Defaults to 25 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
@@ -1003,7 +1056,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
@@ -1018,7 +1071,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1030,7 +1085,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead. In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
@@ -1121,7 +1178,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             raise AirflowException(f"Trigger error: Application failed to start, event is {event}")
 
         self.log.info("Application %s started", event["application_id"])
@@ -1146,7 +1205,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
         If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
         when waiting for the application be to in the ``STARTED`` state.
-    :param aws_conn_id: AWS connection to use.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the job finish. Defaults to 25 minutes.
@@ -1158,6 +1221,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless
+        application UIs. The generated links will allow any user with access to the DAG to see the Spark or
+        Tez UI or Spark stdout logs. Defaults to False.
     """
 
     template_fields: Sequence[str] = (
@@ -1166,6 +1232,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "name",
+        "aws_conn_id",
     )
 
     template_fields_renderers = {
@@ -1173,22 +1241,59 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "configuration_overrides": "json",
     }
 
+    @property
+    def operator_extra_links(self):
+        """
+        Dynamically add extra links depending on the job type and if they're enabled.
+
+        If S3 or CloudWatch monitoring configurations exist, add links directly to the relevant consoles.
+        Only add dashboard links if they're explicitly enabled. These are one-time links that any user
+        can access, but expire on first click or one hour, whichever comes first.
+        """
+        op_extra_links = []
+
+        if isinstance(self, MappedOperator):
+            enable_application_ui_links = self.partial_kwargs.get(
+                "enable_application_ui_links"
+            ) or self.expand_input.value.get("enable_application_ui_links")
+            job_driver = self.partial_kwargs.get("job_driver") or self.expand_input.value.get("job_driver")
+            configuration_overrides = self.partial_kwargs.get(
+                "configuration_overrides"
+            ) or self.expand_input.value.get("configuration_overrides")
+
+        else:
+            enable_application_ui_links = self.enable_application_ui_links
+            configuration_overrides = self.configuration_overrides
+            job_driver = self.job_driver
+
+        if enable_application_ui_links:
+            op_extra_links.extend([EmrServerlessDashboardLink()])
+            if "sparkSubmit" in job_driver:
+                op_extra_links.extend([EmrServerlessLogsLink()])
+        if self.is_monitoring_in_job_override("s3MonitoringConfiguration", configuration_overrides):
+            op_extra_links.extend([EmrServerlessS3LogsLink()])
+        if self.is_monitoring_in_job_override("cloudWatchLoggingConfiguration", configuration_overrides):
+            op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
+
+        return tuple(op_extra_links)
+
     def __init__(
         self,
         application_id: str,
         execution_role_arn: str,
         job_driver: dict,
-        configuration_overrides: dict | None,
+        configuration_overrides: dict | None = None,
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         name: str | None = None,
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        enable_application_ui_links: bool = False,
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1198,7 +1303,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1210,7 +1317,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
@@ -1219,11 +1328,12 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
-        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.name = name
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
         self.deferrable = deferrable
+        self.enable_application_ui_links = enable_application_ui_links
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1234,7 +1344,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.log.info("Application state is %s", app_state)
@@ -1262,14 +1371,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         self.log.info("Starting job on Application: %s", self.application_id)
-        response = self.hook.conn.start_job_run(
-            clientToken=self.client_request_token,
-            applicationId=self.application_id,
-            executionRoleArn=self.execution_role_arn,
-            jobDriver=self.job_driver,
-            configurationOverrides=self.configuration_overrides,
-            name=self.name,
+        self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        args = {
+            "clientToken": self.client_request_token,
+            "applicationId": self.application_id,
+            "executionRoleArn": self.execution_role_arn,
+            "jobDriver": self.job_driver,
+            "name": self.name,
             **self.config,
+        }
+        if self.configuration_overrides is not None:
+            args["configurationOverrides"] = self.configuration_overrides
+        response = self.hook.conn.start_job_run(
+            **args,
         )
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
@@ -1277,6 +1391,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         self.job_id = response["jobRunId"]
         self.log.info("EMR serverless job started: %s", self.job_id)
+
+        self.persist_links(context)
+
         if self.deferrable:
             self.defer(
                 trigger=EmrServerlessStartJobTrigger(
@@ -1289,6 +1406,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
+
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_job_completed")
             wait(
@@ -1304,10 +1422,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return self.job_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "success":
             self.log.info("Serverless job completed")
             return event["job_id"]
 
@@ -1346,6 +1463,105 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 check_interval_seconds=self.waiter_delay,
             )
 
+    def is_monitoring_in_job_override(self, config_key: str, job_override: dict | None) -> bool:
+        """
+        Check if monitoring is enabled for the job.
+
+        Note: This is not compatible with application defaults:
+        https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/default-configs.html
+
+        This is used to determine what extra links should be shown.
+        """
+        monitoring_config = (job_override or {}).get("monitoringConfiguration")
+        if monitoring_config is None or config_key not in monitoring_config:
+            return False
+
+        # CloudWatch can have an "enabled" flag set to False
+        if config_key == "cloudWatchLoggingConfiguration":
+            return monitoring_config.get(config_key).get("enabled") is True
+
+        return config_key in monitoring_config
+
+    def persist_links(self, context: Context):
+        """Populate the relevant extra links for the EMR Serverless jobs."""
+        # Persist the EMR Serverless Dashboard link (Spark/Tez UI)
+        if self.enable_application_ui_links:
+            EmrServerlessDashboardLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                conn_id=self.hook.aws_conn_id,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+
+        # If this is a Spark job, persist the EMR Serverless logs link (Driver stdout)
+        if self.enable_application_ui_links and "sparkSubmit" in self.job_driver:
+            EmrServerlessLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                conn_id=self.hook.aws_conn_id,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+
+        # Add S3 and/or CloudWatch links if either is enabled
+        if self.is_monitoring_in_job_override("s3MonitoringConfiguration", self.configuration_overrides):
+            log_uri = (
+                (self.configuration_overrides or {})
+                .get("monitoringConfiguration", {})
+                .get("s3MonitoringConfiguration", {})
+                .get("logUri")
+            )
+            EmrServerlessS3LogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                log_uri=log_uri,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+            emrs_s3_url = EmrServerlessS3LogsLink().format_link(
+                aws_domain=EmrServerlessCloudWatchLogsLink.get_aws_domain(self.hook.conn_partition),
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                log_uri=log_uri,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+            self.log.info("S3 logs available at: %s", emrs_s3_url)
+
+        if self.is_monitoring_in_job_override("cloudWatchLoggingConfiguration", self.configuration_overrides):
+            cloudwatch_config = (
+                (self.configuration_overrides or {})
+                .get("monitoringConfiguration", {})
+                .get("cloudWatchLoggingConfiguration", {})
+            )
+            log_group_name = cloudwatch_config.get("logGroupName", "/aws/emr-serverless")
+            log_stream_prefix = cloudwatch_config.get("logStreamNamePrefix", "")
+            log_stream_prefix = f"{log_stream_prefix}/applications/{self.application_id}/jobs/{self.job_id}"
+
+            EmrServerlessCloudWatchLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                awslogs_group=log_group_name,
+                stream_prefix=log_stream_prefix,
+            )
+            emrs_cloudwatch_url = EmrServerlessCloudWatchLogsLink().format_link(
+                aws_domain=EmrServerlessCloudWatchLogsLink.get_aws_domain(self.hook.conn_partition),
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                awslogs_group=log_group_name,
+                stream_prefix=log_stream_prefix,
+            )
+            self.log.info("CloudWatch logs available at: %s", emrs_cloudwatch_url)
+
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
     """
@@ -1357,7 +1573,11 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
     :param application_id: ID of the EMR Serverless application to stop.
     :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application be stopped. Defaults to 5 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the
@@ -1381,7 +1601,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
@@ -1397,7 +1617,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1409,7 +1631,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
@@ -1500,10 +1724,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 
@@ -1518,7 +1741,11 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param application_id: ID of the EMR Serverless application to delete.
     :param wait_for_completion: If true, wait for the Application to be deleted before returning.
         Defaults to True. Note that this operator will always wait for the application to be STOPPED first.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for each
         step of first,the application to be stopped, and then deleted. Defaults to 25 minutes.
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
@@ -1542,7 +1769,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self,
         application_id: str,
         wait_for_completion: bool = True,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_countdown: int | ArgNotSet = NOTSET,
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
@@ -1558,7 +1785,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to standardize "
                 "naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         if waiter_countdown is NOTSET:
             waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
@@ -1570,7 +1799,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
         self.wait_for_delete_completion = wait_for_completion
         # super stops the app
@@ -1625,8 +1856,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         self.log.info("EMR serverless application deleted")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "success":
             self.log.info("EMR serverless application %s deleted successfully", self.application_id)

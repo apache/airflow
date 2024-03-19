@@ -20,8 +20,12 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
+
 from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.utils.state import State
+
+pytestmark = pytest.mark.db_test
 
 
 class TestTaskNotRunningDep:

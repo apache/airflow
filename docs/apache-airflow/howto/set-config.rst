@@ -66,7 +66,7 @@ For example consider the pretend section ``providers.some_provider``:
 
 .. code-block:: ini
 
-    [providers.some_provider>]
+    [providers.some_provider]
     this_param = true
 
 .. code-block:: bash
@@ -167,6 +167,34 @@ the example below.
     that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
     "forbidden" errors when the logs are accessed.
 
+.. _set-config:configuring-local-settings:
+
+Configuring local settings
+==========================
+
+Some Airflow configuration is configured via local setting, because they require changes in the
+code that is executed when Airflow is initialized. Usually it is mentioned in the detailed documentation
+where you can configure such local settings - This is usually done in the ``airflow_local_settings.py`` file.
+
+You should create a ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
+in the ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` to ``sys.path`` when
+Airflow is initialized)
+
+You can see the example of such local settings here:
+
+.. py:module:: airflow.config_templates.airflow_local_settings
+
+Example settings you can configure this way:
+
+* :ref:`Cluster Policies <administration-and-deployment:cluster-policies-define>`
+* :ref:`Advanced logging configuration <write-logs-advanced>`
+* :ref:`Dag serialization <dag-serialization>`
+* :ref:`Pod mutation hook in Kubernetes Executor<kubernetes:pod_mutation_hook>`
+* :ref:`Control DAG parsing time <faq:how-to-control-dag-file-parsing-timeout>`
+* :ref:`Customize your UI <customizing-the-ui>`
+* :ref:`Configure more variables to export <export_dynamic_environment_variables>`
+* :ref:`Customize your DB configuration <set-up-database-backend>`
+
 
 Configuring Flask Application for Airflow Webserver
 ===================================================
@@ -178,3 +206,15 @@ and add any extra settings however by adding flask configuration to ``webserver_
 
 For example if you would like to change rate limit strategy to "moving window", you can set the
 ``RATELIMIT_STRATEGY`` to ``moving-window``.
+
+You could also enhance / modify the underlying flask app directly,
+as the `app context <https://flask.palletsprojects.com/en/2.3.x/appcontext/>`_ is pushed to ``webserver_config.py``:
+
+.. code-block:: python
+
+    from flask import current_app as app
+
+
+    @app.before_request
+    def print_custom_message() -> None:
+        print("Executing before every request")

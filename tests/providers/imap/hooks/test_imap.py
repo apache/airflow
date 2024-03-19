@@ -29,6 +29,9 @@ from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.utils import db
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 imaplib_string = "airflow.providers.imap.hooks.imap.imaplib"
 open_string = "airflow.providers.imap.hooks.imap.open"
 

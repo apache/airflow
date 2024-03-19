@@ -15,10 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
+version: "3.8"
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.70.0
+    labels:
+      breeze.description: "Integration required for OTEL/opentelemetry hooks."
     container_name: "breeze-otel-collector"
     command: [--config=/etc/otel-collector-config.yml]
     volumes:

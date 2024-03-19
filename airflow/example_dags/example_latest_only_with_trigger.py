@@ -18,6 +18,7 @@
 """
 Example LatestOnlyOperator and TriggerRule interactions
 """
+
 from __future__ import annotations
 
 # [START example]
@@ -25,7 +26,7 @@ import datetime
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils.trigger_rule import TriggerRule

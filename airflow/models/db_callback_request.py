@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, Integer, String
 
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.callbacks.callback_requests import CallbackRequest
 
 
 class DbCallbackRequest(Base):

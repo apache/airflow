@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 import time_machine
 
 from airflow.api_connexion.schemas.dataset_schema import (
@@ -30,6 +31,8 @@ from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDatasetSchemaBase:
@@ -89,7 +92,6 @@ class TestDatasetSchema(TestDatasetSchemaBase):
 
 class TestDatasetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-
         datasets = [
             DatasetModel(
                 uri=f"s3://bucket/key/{i+1}",
@@ -154,6 +156,37 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
             "source_dag_id": "foo",
             "source_task_id": "bar",
             "source_run_id": "custom",
+            "source_map_index": -1,
+            "timestamp": self.timestamp,
+            "created_dagruns": [],
+        }
+
+
+class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
+    def test_serialize(self, session):
+        d = DatasetModel("s3://abc")
+        session.add(d)
+        session.commit()
+        event = DatasetEvent(
+            id=1,
+            dataset_id=d.id,
+            extra={"foo": "bar"},
+            source_dag_id=None,
+            source_task_id=None,
+            source_run_id=None,
+            source_map_index=-1,
+        )
+        session.add(event)
+        session.flush()
+        serialized_data = dataset_event_schema.dump(event)
+        assert serialized_data == {
+            "id": 1,
+            "dataset_id": d.id,
+            "dataset_uri": "s3://abc",
+            "extra": {"foo": "bar"},
+            "source_dag_id": None,
+            "source_task_id": None,
+            "source_run_id": None,
             "source_map_index": -1,
             "timestamp": self.timestamp,
             "created_dagruns": [],

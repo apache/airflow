@@ -33,7 +33,7 @@ metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  name: {{ .Release.Name }}-pod-launcher-rolebinding
+  name: {{ include "airflow.fullname" . }}-pod-launcher-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}
@@ -49,7 +49,7 @@ roleRef:
   {{- else }}
   kind: Role
   {{- end }}
-  name: {{ .Release.Name }}-pod-launcher-role
+  name: {{ include "airflow.fullname" . }}-pod-launcher-role
 subjects:
   {{- if has .Values.executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount

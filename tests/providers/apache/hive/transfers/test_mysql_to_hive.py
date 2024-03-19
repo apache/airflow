@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import csv
 import textwrap
-from collections import OrderedDict
 from contextlib import closing
 from unittest import mock
 
@@ -233,13 +232,14 @@ class TestTransfer:
             op.execute({})
 
             assert spy_on_hive.load_file.call_count == 1
-            ordered_dict = OrderedDict()
-            ordered_dict["c0"] = "SMALLINT"
-            ordered_dict["c1"] = "INT"
-            ordered_dict["c2"] = "INT"
-            ordered_dict["c3"] = "BIGINT"
-            ordered_dict["c4"] = "DECIMAL(38,0)"
-            ordered_dict["c5"] = "TIMESTAMP"
+            ordered_dict = {
+                "c0": "SMALLINT",
+                "c1": "INT",
+                "c2": "INT",
+                "c3": "BIGINT",
+                "c4": "DECIMAL(38,0)",
+                "c5": "TIMESTAMP",
+            }
             assert spy_on_hive.load_file.call_args.kwargs["field_dict"] == ordered_dict
         finally:
             with closing(hook.get_conn()) as conn:
@@ -270,9 +270,7 @@ class TestTransfer:
                         INSERT INTO {} VALUES (
                             '{}', '{}'
                         )
-                    """.format(
-                            mysql_table, *db_record
-                        )
+                    """.format(mysql_table, *db_record)
                     )
                     conn.commit()
 

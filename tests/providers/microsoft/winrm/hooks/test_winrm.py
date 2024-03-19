@@ -25,6 +25,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
+pytestmark = pytest.mark.db_test
+
 
 class TestWinRMHook:
     @patch("airflow.providers.microsoft.winrm.hooks.winrm.Protocol")

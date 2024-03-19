@@ -25,14 +25,14 @@ Hooks for Cloud Memorystore service.
     pb
     memcache
 """
+
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core import path_template
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2 import CloudMemcacheClient
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import (
@@ -42,11 +42,14 @@ from google.cloud.redis_v1 import (
     Instance,
     OutputConfig,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import version
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class CloudMemorystoreHook(GoogleBaseHook):
@@ -85,7 +88,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self._client: CloudRedisClient | None = None
 
     def get_conn(self) -> CloudRedisClient:
-        """Retrieves client library object that allow access to Cloud Memorystore service."""
+        """Retrieve client library object that allow access to Cloud Memorystore service."""
         if not self._client:
             self._client = CloudRedisClient(credentials=self.get_credentials())
         return self._client
@@ -120,7 +123,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Creates a Redis instance based on the specified tier and memory size.
+        Create a Redis instance based on the specified tier and memory size.
 
         By default, the instance is accessible from the project's `default network
         <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
@@ -189,7 +192,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Deletes a specific Redis instance.  Instance stops serving and data is deleted.
+        Delete a specific Redis instance.  Instance stops serving and data is deleted.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         :param instance: The logical name of the Redis instance in the customer project.
@@ -320,7 +323,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Gets the details of a specific Redis instance.
+        Get the details of a specific Redis instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         :param instance: The logical name of the Redis instance in the customer project.
@@ -438,7 +441,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Updates the metadata and configuration of a specific Redis instance.
+        Update the metadata and configuration of a specific Redis instance.
 
         :param update_mask: Required. Mask of fields to update. At least one path must be supplied in this
             field. The elements of the repeated paths field may only include these fields from ``Instance``:
@@ -517,7 +520,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         self._client: CloudMemcacheClient | None = None
 
     def get_conn(self):
-        """Retrieves client library object that allow access to Cloud Memorystore Memcached service."""
+        """Retrieve client library object that allow access to Cloud Memorystore Memcached service."""
         if not self._client:
             self._client = CloudMemcacheClient(credentials=self.get_credentials())
         return self._client
@@ -597,7 +600,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Creates a Memcached instance based on the specified tier and memory size.
+        Create a Memcached instance based on the specified tier and memory size.
 
         By default, the instance is accessible from the project's `default network
         <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
@@ -673,7 +676,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
+        Delete a specific Memcached instance.  Instance stops serving and data is deleted.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         :param instance: The logical name of the Memcached instance in the customer project.
@@ -720,7 +723,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Gets the details of a specific Memcached instance.
+        Get the details of a specific Memcached instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
         :param instance: The logical name of the Memcached instance in the customer project.
@@ -790,7 +793,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Updates the metadata and configuration of a specific Memcached instance.
+        Update the metadata and configuration of a specific Memcached instance.
 
         :param update_mask: Required. Mask of fields to update. At least one path must be supplied in this
             field. The elements of the repeated paths field may only include these fields from ``Instance``:

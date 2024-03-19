@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import jinja2
@@ -24,7 +25,12 @@ import pytest
 
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.context import Context
+
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class MockNotifier(BaseNotifier):

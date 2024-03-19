@@ -28,13 +28,11 @@ def fix_provider_references(app, exception):
 
     # Replace `|version|` in the files that require manual substitution
     for path in Path(app.outdir).rglob("*.html"):
-        if not path.exists():
-            continue
-        with open(path) as input_file:
-            content = input_file.readlines()
-        with open(path, "w") as output_file:
-            for line in content:
-                output_file.write(line.replace("|version|", app.config.version))
+        if path.exists():
+            lines = path.read_text().splitlines(True)
+            with path.open("w") as output_file:
+                for line in lines:
+                    output_file.write(line.replace("|version|", app.config.version))
 
 
 def setup(app):

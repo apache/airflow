@@ -27,7 +27,7 @@ from datetime import datetime
 
 from google.cloud.dlp_v2.types import ContentItem, DeidentifyTemplate, InspectConfig
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateDeidentifyTemplateOperator,
     CloudDLPDeidentifyContentOperator,
@@ -84,7 +84,7 @@ REVERSIBLE_DEIDENTIFY_CONFIG = {
 TEMPLATE_ID = f"template_{DAG_ID}_{ENV_ID}"
 DEIDENTIFY_TEMPLATE = DeidentifyTemplate(deidentify_config=DEIDENTIFY_CONFIG)
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

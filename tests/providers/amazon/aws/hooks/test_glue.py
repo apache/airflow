@@ -18,24 +18,28 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_glue, mock_iam
+from moto import mock_aws
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 
 class TestGlueJobHook:
     def setup_method(self):
         self.some_aws_region = "us-west-2"
 
-    @mock_iam
+    @mock_aws
     @pytest.mark.parametrize("role_path", ["/", "/custom-path/"])
     def test_get_iam_execution_role(self, role_path):
         expected_role = "my_test_role"
@@ -66,6 +70,22 @@ class TestGlueJobHook:
         assert "Arn" in iam_role["Role"]
         assert iam_role["Role"]["Arn"] == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
 
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_init_iam_role_value_error(self, mock_conn, mock_get_iam_execution_role):
+        mock_get_iam_execution_role.return_value = mock.MagicMock(
+            Role={"RoleName": "my_test_role_name", "RoleArn": "my_test_role"}
+        )
+
+        with pytest.raises(ValueError, match="Cannot set iam_role_arn and iam_role_name simultaneously"):
+            GlueJobHook(
+                job_name="aws_test_glue_job",
+                desc="This is test case job from Airflow",
+                s3_bucket="some-bucket",
+                iam_role_name="my_test_role_name",
+                iam_role_arn="my_test_role",
+            )
+
     @mock.patch.object(AwsBaseHook, "conn")
     def test_has_job_exists(self, mock_conn):
         job_name = "aws_test_glue_job"
@@ -89,6 +109,56 @@ class TestGlueJobHook:
         result = hook.has_job(job_name)
         assert result is False
         mock_conn.get_job.assert_called_once_with(JobName=job_name)
+
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(AwsBaseHook, "conn")
+    def test_role_arn_has_job_exists(self, mock_conn, mock_get_iam_execution_role):
+        """
+        Calls 'create_or_update_glue_job' with no existing job.
+        Should create a new job.
+        """
+
+        class JobNotFoundException(Exception):
+            pass
+
+        expected_job_name = "aws_test_glue_job"
+        job_description = "This is test case job from Airflow"
+        role_name = "my_test_role"
+        role_name_arn = "test_role"
+        some_s3_bucket = "bucket"
+
+        mock_conn.exceptions.EntityNotFoundException = JobNotFoundException
+        mock_conn.get_job.side_effect = JobNotFoundException()
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+
+        hook = GlueJobHook(
+            s3_bucket=some_s3_bucket,
+            job_name=expected_job_name,
+            desc=job_description,
+            concurrent_run_limit=2,
+            retry_limit=3,
+            num_of_dpus=5,
+            iam_role_arn=role_name_arn,
+            create_job_kwargs={"Command": {}},
+            region_name=self.some_aws_region,
+            update_config=True,
+        )
+
+        result = hook.create_or_update_glue_job()
+
+        mock_conn.get_job.assert_called_once_with(JobName=expected_job_name)
+        mock_conn.create_job.assert_called_once_with(
+            Command={},
+            Description=job_description,
+            ExecutionProperty={"MaxConcurrentRuns": 2},
+            LogUri=f"s3://{some_s3_bucket}/logs/glue-logs/{expected_job_name}",
+            MaxCapacity=5,
+            MaxRetries=3,
+            Name=expected_job_name,
+            Role=role_name_arn,
+        )
+        mock_conn.update_job.assert_not_called()
+        assert result == expected_job_name
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
@@ -239,7 +309,7 @@ class TestGlueJobHook:
         )
         assert result == job_name
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     def test_create_or_update_glue_job_worker_type(self, mock_get_iam_execution_role):
         mock_get_iam_execution_role.return_value = {"Role": {"RoleName": "my_test_role", "Arn": "test_role"}}
@@ -307,12 +377,12 @@ class TestGlueJobHook:
         glue_job_run_state = glue_job_hook.get_job_state(glue_job_run["JobName"], glue_job_run["JobRunId"])
         assert glue_job_run_state == mock_job_run_state, "Mocks but be equal"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
-    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, client_mock: MagicMock, caplog):
-        hook = GlueJobHook()
+    def test_print_job_logs_returns_token(self, conn_mock: MagicMock, log_client_mock: MagicMock, caplog):
+        hook = GlueJobHook(job_name="test")
         conn_mock().get_job_run.return_value = {"JobRun": {"LogGroupName": "my_log_group"}}
-        client_mock().get_paginator().paginate.return_value = [
+        log_client_mock().get_paginator().paginate.return_value = [
             # first response : 2 log lines
             {
                 "events": [
@@ -330,12 +400,11 @@ class TestGlueJobHook:
         tokens = GlueJobHook.LogContinuationTokens()
         with caplog.at_level("INFO"):
             hook.print_job_logs("name", "run", tokens)
-
         assert "\thello\n\tworld\n" in caplog.text
         assert tokens.output_stream_continuation == "my_continuation_token"
         assert tokens.error_stream_continuation == "my_continuation_token"
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue.boto3.client")
+    @mock.patch.object(AwsLogsHook, "get_conn")
     @mock.patch.object(GlueJobHook, "conn")
     def test_print_job_logs_no_stream_yet(self, conn_mock: MagicMock, client_mock: MagicMock):
         hook = GlueJobHook()

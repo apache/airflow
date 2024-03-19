@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default configuration for the Airflow webserver."""
+
 from __future__ import annotations
 
 import os
 
-from airflow.www.fab_security.manager import AUTH_DB
+from flask_appbuilder.const import AUTH_DB
 
 # from airflow.www.fab_security.manager import AUTH_LDAP
 # from airflow.www.fab_security.manager import AUTH_OAUTH

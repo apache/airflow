@@ -141,7 +141,6 @@ class TestHiveToMySqlTransfer(TestHiveEnvironment):
                 "airflow.providers.apache.hive.transfers.hive_to_mysql.MySqlHook",
                 return_value=mock_mysql_hook,
             ):
-
                 op = HiveToMySqlOperator(
                     mysql_conn_id="airflow_db",
                     task_id="hive_to_mysql_check",

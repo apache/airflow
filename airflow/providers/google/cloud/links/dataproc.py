@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataproc links."""
+
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import attr
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperatorLink, XCom
@@ -30,11 +33,26 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
+
+def __getattr__(name: str) -> Any:
+    # PEP-562: deprecate module-level variable
+    if name == "DATAPROC_JOB_LOG_LINK":
+        # TODO: remove DATAPROC_JOB_LOG_LINK alias in the next major release
+        # For backward-compatibility, DATAPROC_JOB_LINK was DATAPROC_JOB_LOG_LINK.
+        warnings.warn(
+            (
+                "DATAPROC_JOB_LOG_LINK has been deprecated and will be removed in the next MAJOR release."
+                " Please use DATAPROC_JOB_LINK instead"
+            ),
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return DATAPROC_JOB_LINK
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
 DATAPROC_JOB_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
-# TODO: remove DATAPROC_JOB_LOG_LINK alias in the next major release
-# For backward-compatibility, DATAPROC_JOB_LINK was DATAPROC_JOB_LOG_LINK.
-DATAPROC_JOB_LOG_LINK = DATAPROC_JOB_LINK
 
 DATAPROC_CLUSTER_LINK = (
     DATAPROC_BASE_LINK + "/clusters/{cluster_id}/monitoring?region={region}&project={project_id}"
@@ -54,18 +72,15 @@ DATAPROC_CLUSTER_LINK_DEPRECATED = (
 )
 
 
+@attr.s(auto_attribs=True)
 class DataprocLink(BaseOperatorLink):
     """
     Helper class for constructing Dataproc resource link.
 
     .. warning::
-       This link is deprecated.
+       This link is pending to deprecate.
     """
 
-    warnings.warn(
-        "This DataprocLink is deprecated.",
-        AirflowProviderDeprecationWarning,
-    )
     name = "Dataproc resource"
     key = "conf"
 
@@ -102,7 +117,17 @@ class DataprocLink(BaseOperatorLink):
             else ""
         )
 
+    def __attrs_post_init__(self):
+        # This link is still used into the selected operators
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator
+        # - airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator
+        # As soon as we remove reference to this link we might deprecate it by add warning message
+        # with `stacklevel=3` below in this method.
+        ...
 
+
+@attr.s(auto_attribs=True)
 class DataprocListLink(BaseOperatorLink):
     """
     Helper class for constructing list of Dataproc resources link.
@@ -111,7 +136,6 @@ class DataprocListLink(BaseOperatorLink):
        This link is deprecated.
     """
 
-    warnings.warn("This DataprocListLink is deprecated.", AirflowProviderDeprecationWarning)
     name = "Dataproc resources"
     key = "list_conf"
 
@@ -143,6 +167,13 @@ class DataprocListLink(BaseOperatorLink):
             )
             if list_conf
             else ""
+        )
+
+    def __attrs_post_init__(self):
+        warnings.warn(
+            "This DataprocListLink is deprecated.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=3,
         )
 
 

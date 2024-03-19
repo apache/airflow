@@ -42,7 +42,8 @@ class InternalApiConfig:
 
     @staticmethod
     def force_database_direct_access():
-        """Current component will not use Internal API.
+        """
+        Block current component from using Internal API.
 
         All methods decorated with internal_api_call will always be executed locally.
         This mode is needed for "trusted" components like Scheduler, Webserver or Internal Api server.
@@ -80,7 +81,8 @@ class InternalApiConfig:
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
-    """Decorator for methods which may be executed in database isolation mode.
+    """
+    Allow methods to be executed in database isolation mode.
 
     If [core]database_access_isolation is true then such method are not executed locally,
     but instead RPC call is made to Database API (aka Internal API). This makes some components
@@ -101,12 +103,13 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         response = requests.post(url=internal_api_endpoint, data=json.dumps(data), headers=headers)
         if response.status_code != 200:
             raise AirflowException(
-                f"Got {response.status_code}:{response.reason} when sending the internal api request."
+                f"Got {response.status_code}:{response.reason} when sending "
+                f"the internal api request: {response.text}"
             )
         return response.content
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> RT:
+    def wrapper(*args, **kwargs):
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)
@@ -120,9 +123,14 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "cls" in arguments_dict:  # used by @classmethod
             del arguments_dict["cls"]
 
-        args_json = json.dumps(BaseSerialization.serialize(arguments_dict, use_pydantic_models=True))
+        args_json = json.dumps(
+            BaseSerialization.serialize(arguments_dict, use_pydantic_models=True),
+            default=BaseSerialization.serialize,
+        )
         method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)
+        if result is None or result == b"":
+            return None
         return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
 
     return wrapper

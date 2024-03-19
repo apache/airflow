@@ -16,17 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import TaskDeferred
-from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
@@ -35,10 +37,7 @@ JOB_RUN_ID = "11111"
 
 
 class TestGlueJobOperator:
-    @pytest.fixture(autouse=True)
-    def setup_method(self):
-        conf.load_test_config()
-
+    @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         ti: TaskInstance = create_task_instance_of_operator(
             GlueJobOperator,
@@ -48,6 +47,7 @@ class TestGlueJobOperator:
             script_args="{{ dag.dag_id }}",
             create_job_kwargs="{{ dag.dag_id }}",
             iam_role_name="{{ dag.dag_id }}",
+            iam_role_arn="{{ dag.dag_id }}",
             s3_bucket="{{ dag.dag_id }}",
             job_name="{{ dag.dag_id }}",
         )
@@ -57,6 +57,7 @@ class TestGlueJobOperator:
         assert DAG_ID == rendered_template.script_args
         assert DAG_ID == rendered_template.create_job_kwargs
         assert DAG_ID == rendered_template.iam_role_name
+        assert DAG_ID == rendered_template.iam_role_arn
         assert DAG_ID == rendered_template.s3_bucket
         assert DAG_ID == rendered_template.job_name
 
@@ -98,6 +99,27 @@ class TestGlueJobOperator:
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_not_called()
         assert glue.job_name == JOB_NAME
+
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_role_arn_execute_deferrable(self, _, mock_initialize_job):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_arn="test_role",
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        assert defer.value.trigger.job_name == JOB_NAME
+        assert defer.value.trigger.run_id == JOB_RUN_ID
 
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -199,7 +221,7 @@ class TestGlueJobOperator:
         aws_domain = GlueJobRunDetailsLink.get_aws_domain("aws")
         glue_job_run_url = (
             f"https://console.{aws_domain}/gluestudio/home?region="
-            + f"{region}#/job/test_job_name%2Fwith_slash/run/{JOB_RUN_ID}"
+            f"{region}#/job/test_job_name%2Fwith_slash/run/{JOB_RUN_ID}"
         )
 
         with mock.patch.object(glue.log, "info") as mock_log_info:

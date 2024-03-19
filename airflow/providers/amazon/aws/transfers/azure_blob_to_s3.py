@@ -84,14 +84,14 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         container_name: str,
         prefix: str | None = None,
         delimiter: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         dest_s3_extra_args: dict | None = None,
         replace: bool = False,
         s3_acl_policy: str | None = None,
-        wasb_extra_args: dict = {},
-        s3_extra_args: dict = {},
+        wasb_extra_args: dict | None = None,
+        s3_extra_args: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,8 +106,8 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.replace = replace
         self.s3_acl_policy = s3_acl_policy
-        self.wasb_extra_args = wasb_extra_args
-        self.s3_extra_args = s3_extra_args
+        self.wasb_extra_args = wasb_extra_args or {}
+        self.s3_extra_args = s3_extra_args or {}
 
     def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container
@@ -120,8 +120,10 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            f"Getting list of the files in Container: {self.container_name}; "
-            f"Prefix: {self.prefix}; Delimiter: {self.delimiter};"
+            "Getting list of the files in Container: %r; Prefix: %r; Delimiter: %r.",
+            self.container_name,
+            self.prefix,
+            self.delimiter,
         )
 
         files = wasb_hook.get_blobs_list_recursive(
@@ -137,7 +139,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
             # in case that no files exists, return an empty array to avoid errors
-            existing_files = existing_files if existing_files is not None else []
+            existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
@@ -145,7 +147,6 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         if files:
             for file in files:
                 with tempfile.NamedTemporaryFile() as temp_file:
-
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Downloading data from blob: %s", file)
                     wasb_hook.get_file(

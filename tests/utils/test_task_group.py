@@ -22,7 +22,13 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import dag, task as task_decorator, task_group as task_group_decorator
+from airflow.decorators import (
+    dag,
+    setup,
+    task as task_decorator,
+    task_group as task_group_decorator,
+    teardown,
+)
 from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -578,39 +584,84 @@ def test_dag_edges_setup_teardown():
     ]
 
 
+def test_dag_edges_setup_teardown_nested():
+    from airflow.decorators import task, task_group
+    from airflow.models.dag import DAG
+    from airflow.operators.empty import EmptyOperator
+
+    execution_date = pendulum.parse("20200101")
+
+    with DAG(dag_id="s_t_dag", start_date=execution_date) as dag:
+
+        @task
+        def test_task():
+            print("Hello world!")
+
+        @task_group
+        def inner():
+            inner_start = EmptyOperator(task_id="start")
+            inner_end = EmptyOperator(task_id="end")
+
+            test_task_r = test_task.override(task_id="work")()
+            inner_start >> test_task_r >> inner_end.as_teardown(setups=inner_start)
+
+        @task_group
+        def outer():
+            outer_work = EmptyOperator(task_id="work")
+            inner_group = inner()
+            inner_group >> outer_work
+
+        dag_start = EmptyOperator(task_id="dag_start")
+        dag_end = EmptyOperator(task_id="dag_end")
+        dag_start >> outer() >> dag_end
+
+    edges = dag_edges(dag)
+
+    actual = sorted((e["source_id"], e["target_id"], e.get("is_setup_teardown")) for e in edges)
+    assert actual == [
+        ("dag_start", "outer.upstream_join_id", None),
+        ("outer.downstream_join_id", "dag_end", None),
+        ("outer.inner.downstream_join_id", "outer.work", None),
+        ("outer.inner.start", "outer.inner.end", True),
+        ("outer.inner.start", "outer.inner.work", None),
+        ("outer.inner.work", "outer.inner.downstream_join_id", None),
+        ("outer.inner.work", "outer.inner.end", None),
+        ("outer.upstream_join_id", "outer.inner.start", None),
+        ("outer.work", "outer.downstream_join_id", None),
+    ]
+
+
 def test_duplicate_group_id():
     from airflow.exceptions import DuplicateTaskIdFound
 
     execution_date = pendulum.parse("20200101")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("task1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"), TaskGroup("task1"):
+            pass
+
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"), TaskGroup("group1"):
                 pass
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1", prefix_group_id=False):
-                with TaskGroup("group1"):
-                    pass
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            with TaskGroup("group1", prefix_group_id=False):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
                 _ = EmptyOperator(task_id="group1")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
                 _ = EmptyOperator(task_id="downstream_join_id")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
                 _ = EmptyOperator(task_id="upstream_join_id")
 
 
@@ -1091,8 +1142,7 @@ def test_decorator_unknown_args():
     with pytest.raises(TypeError):
 
         @task_group_decorator(b=2)
-        def tg():
-            ...
+        def tg(): ...
 
 
 def test_decorator_multiple_use_task():
@@ -1479,3 +1529,104 @@ def test_task_group_arrow_with_setups_teardowns():
         tg1 >> w2
     assert t1.downstream_task_ids == set()
     assert w1.downstream_task_ids == {"tg1.t1", "w2"}
+
+
+def test_task_group_arrow_with_setup_group():
+    with DAG(dag_id="setup_group_teardown_group", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
+
+            @setup
+            def setup_1(): ...
+
+            @setup
+            def setup_2(): ...
+
+            s1 = setup_1()
+            s2 = setup_2()
+
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1(): ...
+
+            @teardown
+            def teardown_2(): ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work(): ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"work", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()
+
+    def get_nodes(group):
+        d = task_group_to_dict(group)
+        new_d = {}
+        new_d["id"] = d["id"]
+        new_d["children"] = [{"id": x["id"]} for x in d["children"]]
+        return new_d
+
+    assert get_nodes(g1) == {
+        "id": "group_1",
+        "children": [
+            {"id": "group_1.setup_1"},
+            {"id": "group_1.setup_2"},
+            {"id": "group_1.downstream_join_id"},
+        ],
+    }
+
+
+def test_task_group_arrow_with_setup_group_deeper_setup():
+    """
+    When recursing upstream for a non-teardown leaf, we should ignore setups that
+    are direct upstream of a teardown.
+    """
+    with DAG(dag_id="setup_group_teardown_group_2", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
+
+            @setup
+            def setup_1(): ...
+
+            @setup
+            def setup_2(): ...
+
+            @teardown
+            def teardown_0(): ...
+
+            s1 = setup_1()
+            s2 = setup_2()
+            t0 = teardown_0()
+            s2 >> t0
+
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1(): ...
+
+            @teardown
+            def teardown_2(): ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work(): ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"group_1.teardown_0", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()

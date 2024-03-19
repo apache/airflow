@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.timezone import datetime
 

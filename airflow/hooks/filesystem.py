@@ -41,26 +41,26 @@ class FSHook(BaseHook):
     conn_type = "fs"
     hook_name = "File (path)"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
         return {"path": StringField(lazy_gettext("Path"), widget=BS3TextFieldWidget())}
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password", "extra"],
             "relabeling": {},
             "placeholders": {},
         }
 
-    def __init__(self, fs_conn_id: str = default_conn_name):
-        super().__init__()
+    def __init__(self, fs_conn_id: str = default_conn_name, **kwargs):
+        super().__init__(**kwargs)
         conn = self.get_connection(fs_conn_id)
         self.basepath = conn.extra_dejson.get("path", "")
         self.conn = conn

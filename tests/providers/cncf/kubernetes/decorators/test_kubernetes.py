@@ -25,6 +25,9 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"

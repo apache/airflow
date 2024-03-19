@@ -19,30 +19,22 @@ from __future__ import annotations
 
 import datetime
 from functools import reduce
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 from unittest import mock
 from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
-from airflow.models import (
-    DAG,
-    DagBag,
-    DagModel,
-    DagRun,
-    TaskInstance,
-    TaskInstance as TI,
-    clear_task_instances,
-)
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagrun import DagRunNote
-from airflow.models.taskinstance import TaskInstanceNote
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
@@ -58,6 +50,13 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
@@ -91,9 +90,7 @@ class TestDagRun:
         session: Session,
     ):
         now = timezone.utcnow()
-        if execution_date is None:
-            execution_date = now
-        execution_date = pendulum.instance(execution_date)
+        execution_date = pendulum.instance(execution_date or now)
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(execution_date)
@@ -134,6 +131,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == state
+        assert dr0.clear_number < 1
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
@@ -152,6 +150,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == DagRunState.QUEUED
+        assert dr0.clear_number == 1
 
     def test_dagrun_find(self, session):
         now = timezone.utcnow()
@@ -336,8 +335,8 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_shutdown(self, session):
-        dag = DAG("test_dagrun_no_deadlock_with_shutdown", start_date=DEFAULT_DATE)
+    def test_dagrun_no_deadlock_with_restarting(self, session):
+        dag = DAG("test_dagrun_no_deadlock_with_restarting", start_date=DEFAULT_DATE)
         with dag:
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
@@ -351,7 +350,7 @@ class TestDagRun:
             start_date=DEFAULT_DATE,
         )
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
-        upstream_ti.set_state(TaskInstanceState.SHUTDOWN, session=session)
+        upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
@@ -1043,8 +1042,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=[1, 2, 3, 4])
 
@@ -1080,8 +1078,7 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
         t1 = BaseOperator(task_id="task_1")
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=[1, 2, 3, 4])
 
@@ -1121,8 +1118,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=[1, 2, 3, 4])
 
@@ -1167,8 +1163,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=[1, 2, 3, 4])
 
@@ -1220,8 +1215,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1285,8 +1279,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1347,8 +1340,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
             return [1, 2]
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1382,8 +1374,7 @@ def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_inte
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1440,8 +1431,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1528,8 +1518,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1608,8 +1597,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1690,8 +1678,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     with dag_maker(session=session) as dag:
 
         @task
-        def task_2(arg2):
-            ...
+        def task_2(arg2): ...
 
         task_2.expand(arg2=task_1())
 
@@ -1706,7 +1693,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         (1, State.NONE),
         (2, State.NONE),
     ]
-    ti1 = [i for i in tis if i.map_index == 0][0]
+    ti1 = next(i for i in tis if i.map_index == 0)
     # Now "clear" and "reduce" the length to empty list
     dag.clear()
     Variable.set(key="arg1", value=[])
@@ -1894,7 +1881,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
         @dag.task
         def make_list():
-            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {"a": "b"}]))
+            return [f'echo "{a!r}"' for a in [1, 2, {"a": "b"}]]
 
         def consumer(*args):
             print(repr(args))
@@ -2533,7 +2520,6 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1"], {"w1"}),  # no teardown
         (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
         (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
-        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
         (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
         (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
         (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown

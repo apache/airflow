@@ -24,8 +24,7 @@ function stop_arm_instance() {
     INSTANCE_ID=$(jq < "${INSTANCE_INFO}" ".Instances[0].InstanceId" -r)
     docker buildx rm --force airflow_cache || true
     aws ec2 terminate-instances --instance-ids "${INSTANCE_ID}"
-    cat ${AUTOSSH_LOGFILE}
-
+    cat ${AUTOSSH_LOGFILE} || true
 }
 
 stop_arm_instance

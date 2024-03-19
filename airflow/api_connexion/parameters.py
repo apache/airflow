@@ -17,23 +17,26 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Container, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
-from sqlalchemy.sql import Select
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
 
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.sql import Select
+
 log = logging.getLogger(__name__)
 
 
 def validate_istimezone(value: datetime) -> None:
-    """Validates that a datetime is not naive."""
+    """Validate that a datetime is not naive."""
     if not value.tzinfo:
         raise BadRequest("Invalid datetime format", detail="Naive datetime is disallowed")
 
@@ -85,7 +88,7 @@ T = TypeVar("T", bound=Callable)
 
 def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
     """
-    Decorator factory that create decorator that convert parameters using given formatters.
+    Create a decorator to convert parameters using given formatters.
 
     Using it allows you to separate parameter formatting from endpoint logic.
 

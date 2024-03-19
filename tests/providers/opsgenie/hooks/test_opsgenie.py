@@ -27,6 +27,8 @@ from airflow.models import Connection
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestOpsgenieAlertHook:
     conn_id = "opsgenie_conn_id_test"

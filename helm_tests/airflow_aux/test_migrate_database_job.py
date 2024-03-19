@@ -60,6 +60,39 @@ class TestMigrateDatabaseJob:
         assert "fiz" in job_annotations
         assert "fuz" == job_annotations["fiz"]
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
+        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -101,6 +134,17 @@ class TestMigrateDatabaseJob:
         )
         assert "dynamic-pods" == jmespath.search(
             "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
             docs[0],
         )
 
@@ -266,6 +310,7 @@ class TestMigrateDatabaseJob:
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
+            ("2.7.1", "airflow db migrate"),
         ],
     )
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
@@ -328,6 +373,36 @@ class TestMigrateDatabaseJob:
 class TestMigrateDatabaseJobServiceAccount:
     """Tests migrate database job service account."""
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
+        assert "test_specific_label" in jmespath.search("metadata.labels", docs[0])
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_specific_label"] == "test_specific_label_value"
+        )
+
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
@@ -339,7 +414,7 @@ class TestMigrateDatabaseJobServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {

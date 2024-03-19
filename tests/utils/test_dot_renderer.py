@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -31,6 +33,8 @@ from airflow.utils.task_group import TaskGroup
 from tests.test_utils.db import clear_db_dags
 
 START_DATE = timezone.utcnow()
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDotRenderer:

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """PostgreSQL to GCS operator."""
+
 from __future__ import annotations
 
 import datetime
@@ -115,7 +116,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
         return f"{self.dag_id}__{self.task_id}__{uuid.uuid4()}" if self.use_server_side_cursor else None
 
     def query(self):
-        """Queries Postgres and returns a cursor to the results."""
+        """Query Postgres and returns a cursor to the results."""
         hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
         conn = hook.get_conn()
         cursor = conn.cursor(name=self._unique_name())

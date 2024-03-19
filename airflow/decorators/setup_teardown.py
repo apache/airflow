@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 import types
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from airflow import AirflowException, XComArg
 from airflow.decorators import python_task
 from airflow.decorators.task_group import _TaskGroupFactory
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.setup_teardown import SetupTeardownContext
+
+if TYPE_CHECKING:
+    from airflow import XComArg
 
 
 def setup_task(func: Callable) -> Callable:

@@ -18,11 +18,12 @@
 """
 Example DAG demonstrating the usage of BranchDayOfWeekOperator.
 """
+
 from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils.weekday import WeekDay

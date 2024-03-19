@@ -67,12 +67,12 @@ Using the operator
       :start-after: [START howto_operator_gcp_transfer_create_job_body_gcp]
       :end-before: [END howto_operator_gcp_transfer_create_job_body_gcp]
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :start-after: [START howto_operator_gcp_transfer_create_job_body_aws]
       :end-before: [END howto_operator_gcp_transfer_create_job_body_aws]
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_create_job]
@@ -107,7 +107,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_delete_job]
@@ -181,7 +181,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_cancel_operation]
@@ -217,7 +217,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_get_operation]
@@ -252,7 +252,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_list_operations]
@@ -286,7 +286,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_pause_operation]
@@ -320,7 +320,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_resume_operation]
@@ -355,7 +355,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_cloud_storage_transfer_service_aws.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_aws.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_gcp_transfer_wait_operation]
@@ -383,7 +383,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcp_to_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcs_to_gcs.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_transfer_gcs_to_gcs]

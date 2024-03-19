@@ -18,20 +18,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+
+auth_manager: BaseAuthManager | None = None
 
 
-@cache
-def get_auth_manager() -> BaseAuthManager:
+def get_auth_manager_cls() -> type[BaseAuthManager]:
     """
-    Initialize auth manager.
+    Return just the auth manager class without initializing it.
 
-    Import the user manager class, instantiate it and return it.
+    Useful to save execution time if only static methods need to be called.
     """
     auth_manager_cls = conf.getimport(section="core", key="auth_manager")
 
@@ -41,4 +42,26 @@ def get_auth_manager() -> BaseAuthManager:
             "Please specify one using section/key [core/auth_manager]."
         )
 
-    return auth_manager_cls()
+    return auth_manager_cls
+
+
+def init_auth_manager(appbuilder: AirflowAppBuilder) -> BaseAuthManager:
+    """
+    Initialize the auth manager.
+
+    Import the user manager class and instantiate it.
+    """
+    global auth_manager
+    auth_manager_cls = get_auth_manager_cls()
+    auth_manager = auth_manager_cls(appbuilder)
+    return auth_manager
+
+
+def get_auth_manager() -> BaseAuthManager:
+    """Return the auth manager, provided it's been initialized before."""
+    if auth_manager is None:
+        raise Exception(
+            "Auth Manager has not been initialized yet. "
+            "The `init_auth_manager` method needs to be called first."
+        )
+    return auth_manager

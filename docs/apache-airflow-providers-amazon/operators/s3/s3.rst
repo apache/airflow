@@ -150,7 +150,7 @@ Transform an Amazon S3 object
 
 To transform the data from one Amazon S3 object and save it to another object you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`.
-You can also apply an optional [Amazon S3 Select expression](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
+You can also apply an optional `Amazon S3 Select expression <https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html>`_
 to select the data you want to retrieve from ``source_s3_key`` using ``select_expression``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
@@ -222,6 +222,14 @@ To check multiple files:
     :start-after: [START howto_sensor_s3_key_multiple_keys]
     :end-before: [END howto_sensor_s3_key_multiple_keys]
 
+To check a file with regular expression:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_regex]
+    :end-before: [END howto_sensor_s3_key_regex]
+
 To check with an additional custom check you can define a function which receives a list of matched S3 object
 attributes and returns a boolean:
 
@@ -267,6 +275,14 @@ To check multiple files:
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_multiple_keys_deferrable]
     :end-before: [END howto_sensor_s3_key_multiple_keys_deferrable]
+
+To check a file with regular expression:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_regex_deferrable]
+    :end-before: [END howto_sensor_s3_key_regex_deferrable]
 
 .. _howto/sensor:S3KeysUnchangedSensor:
 

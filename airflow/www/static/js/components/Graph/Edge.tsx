@@ -19,31 +19,23 @@
 
 import React from "react";
 import { Text, useTheme } from "@chakra-ui/react";
-import type { ElkEdgeSection, ElkLabel, ElkPoint, LayoutOptions } from "elkjs";
 
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
+import type { EdgeData } from "src/types";
 
-interface EdgeProps {
-  data?: {
-    rest: {
-      isSelected: boolean;
-      sources: string[];
-      targets: string[];
-      sections: ElkEdgeSection[];
-      junctionPoints?: ElkPoint[];
-      id: string;
-      labels?: ElkLabel[];
-      layoutOptions?: LayoutOptions;
-      isSetupTeardown?: boolean;
-    };
-  };
+export interface EdgeProps {
+  data?: EdgeData;
 }
 
 const CustomEdge = ({ data }: EdgeProps) => {
   const { colors } = useTheme();
   if (!data) return null;
   const { rest } = data;
+  let strokeWidth = 2;
+  if (rest.isSelected) strokeWidth = 3;
+  if (rest.isZoomedOut) strokeWidth = 5;
+  if (rest.isZoomedOut && rest.isSelected) strokeWidth = 7;
   return (
     <>
       {rest?.labels?.map(({ id, x, y, text, width, height }) => {
@@ -60,7 +52,7 @@ const CustomEdge = ({ data }: EdgeProps) => {
         <LinePath
           key={s.id}
           stroke={rest.isSelected ? colors.blue[400] : colors.gray[400]}
-          strokeWidth={rest.isSelected ? 3 : 2}
+          strokeWidth={strokeWidth}
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}

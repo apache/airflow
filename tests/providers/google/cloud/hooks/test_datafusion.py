@@ -24,8 +24,9 @@ import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 API_VERSION = "v1beta1"
@@ -50,6 +51,17 @@ CONSTRUCTED_PIPELINE_URL_GET = (
     f"googleusercontent.com/api/v3/namespaces/{NAMESPACE}/apps/{PIPELINE_NAME}"
     f"/workflows/DataPipelineWorkflow/runs/{PIPELINE_ID}"
 )
+CONSTRUCTED_PIPELINE_STREAM_URL_GET = (
+    f"https://{INSTANCE_NAME}-{PROJECT_ID}-dot-eun1.datafusion."
+    f"googleusercontent.com/api/v3/namespaces/{NAMESPACE}/apps/{PIPELINE_NAME}"
+    f"/apsrkss/DataStreamsSparkStreaming/runs/{PIPELINE_ID}"
+)
+
+
+class MockResponse:
+    def __init__(self, status, data=None):
+        self.status = status
+        self.data = data
 
 
 @pytest.fixture
@@ -162,6 +174,24 @@ class TestDataFusionHook:
         assert result == "value"
         method_mock.assert_called_once_with(name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME))
 
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_get_instance_artifacts(self, mock_request, hook):
+        scope = "SYSTEM"
+        artifact = {
+            "name": "test-artifact",
+            "version": "1.2.3",
+            "scope": scope,
+        }
+        mock_request.return_value = mock.MagicMock(status=200, data=json.dumps([artifact]))
+
+        hook.get_instance_artifacts(instance_url=INSTANCE_URL, scope=scope)
+
+        mock_request.assert_called_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/artifacts",
+            method="GET",
+            params={"scope": scope},
+        )
+
     @mock.patch("google.auth.transport.requests.Request")
     @mock.patch(HOOK_STR.format("DataFusionHook.get_credentials"))
     def test_cdap_request(self, get_credentials_mock, mock_request, hook):
@@ -171,14 +201,17 @@ class TestDataFusionHook:
         request = mock_request.return_value
         request.return_value = mock.MagicMock()
         body = {"data": "value"}
+        params = {"param_key": "param_value"}
 
-        result = hook._cdap_request(url=url, method=method, body=body)
+        result = hook._cdap_request(url=url, method=method, body=body, params=params)
         mock_request.assert_called_once_with()
         get_credentials_mock.assert_called_once_with()
         get_credentials_mock.return_value.before_request.assert_called_once_with(
             request=request, method=method, url=url, headers=headers
         )
-        request.assert_called_once_with(method=method, url=url, headers=headers, body=json.dumps(body))
+        request.assert_called_once_with(
+            method=method, url=url, headers=headers, body=json.dumps(body), params=params
+        )
         assert result == request.return_value
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -256,6 +289,22 @@ class TestDataFusionHook:
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_delete_pipeline_should_fail_if_status_409(self, mock_request, hook, caplog):
+        mock_request.side_effect = [
+            MockResponse(status=409, data="Conflict: Resource is still in use."),
+            MockResponse(status=200, data="Success"),
+        ]
+        hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
+
+        assert mock_request.call_count == 2
+        assert "Conflict: Resource is still in use." in caplog.text
+        mock_request.assert_called_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
+            method="DELETE",
+            body=None,
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_list_pipelines(self, mock_request, hook):
         data = {"data": "test"}
         mock_request.return_value.status = 200
@@ -300,6 +349,29 @@ class TestDataFusionHook:
                 "appId": PIPELINE_NAME,
                 "programType": "workflow",
                 "programId": "DataPipelineWorkflow",
+                "runtimeargs": RUNTIME_ARGS,
+            }
+        ]
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/start", method="POST", body=body
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_start_pipeline_stream(self, mock_request, hook):
+        run_id = 1234
+        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+
+        hook.start_pipeline(
+            pipeline_name=PIPELINE_NAME,
+            instance_url=INSTANCE_URL,
+            runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.STREAM,
+        )
+        body = [
+            {
+                "appId": PIPELINE_NAME,
+                "programType": "spark",
+                "programId": "DataStreamsSparkStreaming",
                 "runtimeargs": RUNTIME_ARGS,
             }
         ]
@@ -401,6 +473,22 @@ class TestDataFusionHook:
         )
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_get_pipeline_workflow_stream(self, mock_request, hook):
+        run_id = 1234
+        mock_request.return_value = mock.MagicMock(status=200, data=f'[{{"runId":{run_id}}}]')
+        hook.get_pipeline_workflow(
+            pipeline_name=PIPELINE_NAME,
+            instance_url=INSTANCE_URL,
+            pipeline_id=PIPELINE_ID,
+            pipeline_type=DataFusionPipelineType.STREAM,
+        )
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/"
+            f"sparks/DataStreamsSparkStreaming/runs/{PIPELINE_ID}",
+            method="GET",
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
     def test_get_pipeline_workflow_should_fail_if_empty_data_response(self, mock_request, hook):
         mock_request.return_value.status = 200
         mock_request.return_value.data = None
@@ -431,6 +519,28 @@ class TestDataFusionHook:
             method="GET",
         )
 
+    @pytest.mark.parametrize(
+        "pipeline_type, expected_program_type",
+        [
+            (DataFusionPipelineType.BATCH, "workflow"),
+            (DataFusionPipelineType.STREAM, "spark"),
+            ("non existing value", ""),
+        ],
+    )
+    def test_cdap_program_type(self, pipeline_type, expected_program_type):
+        assert DataFusionHook.cdap_program_type(pipeline_type) == expected_program_type
+
+    @pytest.mark.parametrize(
+        "pipeline_type, expected_program_id",
+        [
+            (DataFusionPipelineType.BATCH, "DataPipelineWorkflow"),
+            (DataFusionPipelineType.STREAM, "DataStreamsSparkStreaming"),
+            ("non existing value", ""),
+        ],
+    )
+    def test_cdap_program_id(self, pipeline_type, expected_program_id):
+        assert DataFusionHook.cdap_program_id(pipeline_type) == expected_program_id
+
 
 class TestDataFusionHookAsynch:
     def test_delegate_to_runtime_error(self):
@@ -450,20 +560,27 @@ class TestDataFusionHookAsynch:
         mocked_link.assert_awaited_once_with(url=CONSTRUCTED_PIPELINE_URL, session=session)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "pipeline_type, constructed_url",
+        [
+            (DataFusionPipelineType.BATCH, CONSTRUCTED_PIPELINE_URL_GET),
+            (DataFusionPipelineType.STREAM, CONSTRUCTED_PIPELINE_STREAM_URL_GET),
+        ],
+    )
     @mock.patch(HOOK_STR.format("DataFusionAsyncHook.get_pipeline"))
     async def test_async_get_pipeline_status_completed_should_execute_successfully(
-        self, mocked_get, hook_async
+        self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
         response = aiohttp.ClientResponse(
             "get",
-            URL(CONSTRUCTED_PIPELINE_URL_GET),
+            URL(constructed_url),
             request_info=mock.Mock(),
             writer=mock.Mock(),
             continue100=None,
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response
@@ -480,21 +597,28 @@ class TestDataFusionHookAsynch:
         assert pipeline_status == "success"
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "pipeline_type, constructed_url",
+        [
+            (DataFusionPipelineType.BATCH, CONSTRUCTED_PIPELINE_URL_GET),
+            (DataFusionPipelineType.STREAM, CONSTRUCTED_PIPELINE_STREAM_URL_GET),
+        ],
+    )
     @mock.patch(HOOK_STR.format("DataFusionAsyncHook.get_pipeline"))
     async def test_async_get_pipeline_status_running_should_execute_successfully(
-        self, mocked_get, hook_async
+        self, mocked_get, hook_async, pipeline_type, constructed_url
     ):
         """Assets that the DataFusionAsyncHook returns pending response when job is still in running state"""
         response = aiohttp.ClientResponse(
             "get",
-            URL(CONSTRUCTED_PIPELINE_URL_GET),
+            URL(constructed_url),
             request_info=mock.Mock(),
             writer=mock.Mock(),
             continue100=None,
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response
@@ -505,6 +629,7 @@ class TestDataFusionHookAsynch:
             pipeline_name=PIPELINE_NAME,
             instance_url=INSTANCE_URL,
             pipeline_id=PIPELINE_ID,
+            pipeline_type=pipeline_type,
             namespace=NAMESPACE,
         )
         mocked_get.assert_awaited_once()

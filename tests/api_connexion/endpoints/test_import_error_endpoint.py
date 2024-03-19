@@ -21,13 +21,18 @@ from datetime import timedelta
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.models.dag import DagModel
 from airflow.models.errors import ImportError
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_import_errors
+from tests.test_utils.db import clear_db_dags, clear_db_import_errors
+
+pytestmark = pytest.mark.db_test
+
+TEST_DAG_IDS = ["test_dag", "test_dag2"]
 
 
 @pytest.fixture(scope="module")
@@ -37,14 +42,34 @@ def configured_app(minimal_app_for_api):
         app,  # type:ignore
         username="test",
         role_name="Test",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)],  # type: ignore
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+        ],  # type: ignore
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(
+        app,  # type:ignore
+        username="test_single_dag",
+        role_name="TestSingleDAG",
+        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR)],  # type: ignore
+    )
+    # For some reason, DAG level permissions are not synced when in the above list of perms,
+    # so do it manually here:
+    app.appbuilder.sm.bulk_sync_roles(
+        [
+            {
+                "role": "TestSingleDAG",
+                "perms": [(permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_DAG_IDS[0]))],
+            }
+        ]
+    )
 
-    yield minimal_app_for_api
+    yield app
 
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test_single_dag")  # type: ignore
 
 
 class TestBaseImportError:
@@ -56,9 +81,11 @@ class TestBaseImportError:
         self.client = self.app.test_client()  # type:ignore
 
         clear_db_import_errors()
+        clear_db_dags()
 
     def teardown_method(self) -> None:
         clear_db_import_errors()
+        clear_db_dags()
 
     @staticmethod
     def _normalize_import_errors(import_errors):
@@ -118,6 +145,72 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
             "/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
+
+    def test_should_raise_403_forbidden_without_dag_read(self, session):
+        import_error = ImportError(
+            filename="Lorem_ipsum.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(import_error)
+        session.commit()
+
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+        )
+
+        assert response.status_code == 403
+
+    def test_should_return_200_with_single_dag_read(self, session):
+        dag_model = DagModel(dag_id=TEST_DAG_IDS[0], fileloc="Lorem_ipsum.py")
+        session.add(dag_model)
+        import_error = ImportError(
+            filename="Lorem_ipsum.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(import_error)
+        session.commit()
+
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        response_data["import_error_id"] = 1
+        assert {
+            "filename": "Lorem_ipsum.py",
+            "import_error_id": 1,
+            "stack_trace": "Lorem ipsum",
+            "timestamp": "2020-06-10T12:00:00+00:00",
+        } == response_data
+
+    def test_should_return_200_redacted_with_single_dag_read_in_dagfile(self, session):
+        for dag_id in TEST_DAG_IDS:
+            dag_model = DagModel(dag_id=dag_id, fileloc="Lorem_ipsum.py")
+            session.add(dag_model)
+        import_error = ImportError(
+            filename="Lorem_ipsum.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(import_error)
+        session.commit()
+
+        response = self.client.get(
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test_single_dag"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        response_data["import_error_id"] = 1
+        assert {
+            "filename": "Lorem_ipsum.py",
+            "import_error_id": 1,
+            "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
+            "timestamp": "2020-06-10T12:00:00+00:00",
+        } == response_data
 
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):
@@ -228,6 +321,71 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         response = self.client.get("/api/v1/importErrors")
 
         assert_401(response)
+
+    def test_get_import_errors_single_dag(self, session):
+        for dag_id in TEST_DAG_IDS:
+            fake_filename = f"/tmp/{dag_id}.py"
+            dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename)
+            session.add(dag_model)
+            importerror = ImportError(
+                filename=fake_filename,
+                stacktrace="Lorem ipsum",
+                timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+            )
+            session.add(importerror)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test_single_dag"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        self._normalize_import_errors(response_data["import_errors"])
+        assert {
+            "import_errors": [
+                {
+                    "filename": "/tmp/test_dag.py",
+                    "import_error_id": 1,
+                    "stack_trace": "Lorem ipsum",
+                    "timestamp": "2020-06-10T12:00:00+00:00",
+                },
+            ],
+            "total_entries": 1,
+        } == response_data
+
+    def test_get_import_errors_single_dag_in_dagfile(self, session):
+        for dag_id in TEST_DAG_IDS:
+            fake_filename = "/tmp/all_in_one.py"
+            dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename)
+            session.add(dag_model)
+
+        importerror = ImportError(
+            filename="/tmp/all_in_one.py",
+            stacktrace="Lorem ipsum",
+            timestamp=timezone.parse(self.timestamp, timezone="UTC"),
+        )
+        session.add(importerror)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test_single_dag"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        self._normalize_import_errors(response_data["import_errors"])
+        assert {
+            "import_errors": [
+                {
+                    "filename": "/tmp/all_in_one.py",
+                    "import_error_id": 1,
+                    "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
+                    "timestamp": "2020-06-10T12:00:00+00:00",
+                },
+            ],
+            "total_entries": 1,
+        } == response_data
 
 
 class TestGetImportErrorsEndpointPagination(TestBaseImportError):

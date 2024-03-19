@@ -25,17 +25,18 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 To use this operators, you must do a few things:
+  * Add custom robot to chat group group which you want to send a message.
+  * Get `DingTalk Custom Robot webhook token <https://open.dingtalk.com/document/robots/custom-robot-access>`__.
+  * Put the access token in the password field of the ``dingding_default`` Connection.
+    Note: You need only token value rather than the whole webhook string.
 
-  * Add custom robot to Dingding group which you want to send Dingding message.
-  * Get the webhook token from Dingding custom robot.
-  * Put the Dingding custom robot token in the password field of the ``dingding_default``
-    Connection. Notice that you just need token rather than the whole webhook string.
+.. _howto/operator:DingdingOperator:
 
 Basic Usage
 ^^^^^^^^^^^
 
 Use the :class:`~airflow.providers.dingding.operators.dingding.DingdingOperator`
-to send Dingding message:
+to send message through `DingTalk Custom Robot <https://open.dingtalk.com/document/robots/custom-robot-access>`__:
 
 .. exampleinclude:: /../../tests/system/providers/dingding/example_dingding.py
     :language: python
@@ -60,7 +61,9 @@ Use parameters ``at_mobiles`` and ``at_all`` to remind specific users when you s
 Send rich text message
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The Dingding operator can send rich text messages including link, markdown, actionCard and feedCard.
+The :class:`~airflow.providers.dingding.operators.dingding.DingdingOperator`
+can send rich text messages including link, markdown, actionCard and feedCard
+through `DingTalk Custom Robot <https://open.dingtalk.com/document/robots/custom-robot-access#title-72m-8ag-pqw>`__.
 A rich text message can not remind specific users except by using markdown type message:
 
 .. exampleinclude:: /../../tests/system/providers/dingding/example_dingding.py
@@ -73,7 +76,7 @@ A rich text message can not remind specific users except by using markdown type 
 Sending messages from a Task callback
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Dingding operator could handle task callback by writing a function wrapper dingding operators
+:class:`~airflow.providers.dingding.hooks.dingding.DingdingHook` could handle task callback by writing a callback function
 and then pass the function to ``sla_miss_callback``, ``on_success_callback``, ``on_failure_callback``,
 or ``on_retry_callback``. Here we use ``on_failure_callback`` as an example:
 
@@ -85,12 +88,6 @@ or ``on_retry_callback``. Here we use ``on_failure_callback`` as an example:
 
 Changing connection host if you need
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The Dingding operator post http requests using default host ``https://oapi.dingtalk.com``,
+The :class:`~airflow.providers.dingding.operators.dingding.DingdingOperator` operator
+post http requests using default host ``https://oapi.dingtalk.com``,
 if you need to change the host used you can set the host field of the connection.
-
-
-More information
-^^^^^^^^^^^^^^^^
-
-See Dingding documentation on how to `custom robot
-<https://open-doc.dingtalk.com/microapp/serverapi2/qf2nxq>`_.

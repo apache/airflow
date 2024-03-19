@@ -27,13 +27,16 @@ class PluginSchema(Schema):
     name = fields.String()
     hooks = fields.List(fields.String())
     executors = fields.List(fields.String())
-    macros = fields.List(fields.Dict())
-    flask_blueprints = fields.List(fields.Dict())
+    macros = fields.List(fields.String())
+    flask_blueprints = fields.List(fields.String())
     appbuilder_views = fields.List(fields.Dict())
     appbuilder_menu_items = fields.List(fields.Dict())
-    global_operator_extra_links = fields.List(fields.Dict())
-    operator_extra_links = fields.List(fields.Dict())
+    global_operator_extra_links = fields.List(fields.String())
+    operator_extra_links = fields.List(fields.String())
     source = fields.String()
+    ti_deps = fields.List(fields.String())
+    listeners = fields.List(fields.String())
+    timetables = fields.List(fields.String())
 
 
 class PluginCollection(NamedTuple):

@@ -27,8 +27,6 @@ from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
@@ -41,6 +39,12 @@ ADD_STEPS_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepId
 TEMPLATE_SEARCHPATH = os.path.join(
     AIRFLOW_MAIN_FOLDER, "tests", "providers", "amazon", "aws", "config_templates"
 )
+
+
+@pytest.fixture
+def mocked_hook_client():
+    with patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn") as m:
+        yield m
 
 
 class TestEmrAddStepsOperator:
@@ -58,17 +62,6 @@ class TestEmrAddStepsOperator:
 
     def setup_method(self):
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-
-        # Mock out the emr_client (moto has incorrect response)
-        self.emr_client_mock = MagicMock()
-
-        # Mock out the emr_client creator
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = self.emr_client_mock
-        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
-
-        self.mock_context = MagicMock()
-
         self.operator = EmrAddStepsOperator(
             task_id="test_task",
             job_flow_id="j-8989898989",
@@ -78,8 +71,14 @@ class TestEmrAddStepsOperator:
         )
 
     def test_init(self):
-        assert self.operator.job_flow_id == "j-8989898989"
-        assert self.operator.aws_conn_id == "aws_default"
+        op = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            steps=self._config,
+        )
+        assert op.job_flow_id == "j-8989898989"
+        assert op.aws_conn_id == "aws_default"
 
     @pytest.mark.parametrize(
         "job_flow_id, job_flow_name",
@@ -97,6 +96,7 @@ class TestEmrAddStepsOperator:
                 job_flow_name=job_flow_name,
             )
 
+    @pytest.mark.db_test
     def test_render_template(self):
         dag_run = DagRun(dag_id=self.operator.dag.dag_id, execution_date=DEFAULT_DATE, run_id="test")
         ti = TaskInstance(task=self.operator)
@@ -120,8 +120,8 @@ class TestEmrAddStepsOperator:
 
         assert self.operator.steps == expected_args
 
-    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
-    def test_render_template_from_file(self, _):
+    @pytest.mark.db_test
+    def test_render_template_from_file(self, mocked_hook_client):
         dag = DAG(
             dag_id="test_file",
             default_args=self.args,
@@ -137,7 +137,7 @@ class TestEmrAddStepsOperator:
             }
         ]
 
-        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+        mocked_hook_client.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         test_task = EmrAddStepsOperator(
             task_id="test_task",
@@ -155,78 +155,57 @@ class TestEmrAddStepsOperator:
         assert json.loads(test_task.steps) == file_steps
 
         # String in job_flow_overrides (i.e. from loaded as a file) is not "parsed" until inside execute()
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            test_task.execute(None)
+        test_task.execute(MagicMock())
 
-        self.emr_client_mock.add_job_flow_steps.assert_called_once_with(
+        mocked_hook_client.add_job_flow_steps.assert_called_once_with(
             JobFlowId="j-8989898989", Steps=file_steps
         )
 
-    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
-    def test_execute_returns_step_id(self, _):
-        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+    def test_execute_returns_step_id(self, mocked_hook_client):
+        mocked_hook_client.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            assert self.operator.execute(self.mock_context) == ["s-2LH3R5GW3A53T"]
+        assert self.operator.execute(MagicMock()) == ["s-2LH3R5GW3A53T"]
 
-    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
-    def test_init_with_cluster_name(self, _):
+    def test_init_with_cluster_name(self, mocked_hook_client):
+        mocked_hook_client.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+        mock_context = MagicMock()
         expected_job_flow_id = "j-1231231234"
 
-        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_name="test_cluster",
+            cluster_states=["RUNNING", "WAITING"],
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+        )
 
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            with patch(
-                "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name"
-            ) as mock_get_cluster_id_by_name:
-                mock_get_cluster_id_by_name.return_value = expected_job_flow_id
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name",
+            return_value=expected_job_flow_id,
+        ):
+            operator.execute(mock_context)
 
-                operator = EmrAddStepsOperator(
-                    task_id="test_task",
-                    job_flow_name="test_cluster",
-                    cluster_states=["RUNNING", "WAITING"],
-                    aws_conn_id="aws_default",
-                    dag=DAG("test_dag_id", default_args=self.args),
-                )
-
-                operator.execute(self.mock_context)
-
-        ti = self.mock_context["ti"]
-        ti.assert_has_calls(calls=[call.xcom_push(key="job_flow_id", value=expected_job_flow_id)])
+        mocked_ti = mock_context["ti"]
+        mocked_ti.assert_has_calls(calls=[call.xcom_push(key="job_flow_id", value=expected_job_flow_id)])
 
     def test_init_with_nonexistent_cluster_name(self):
         cluster_name = "test_cluster"
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_name=cluster_name,
+            cluster_states=["RUNNING", "WAITING"],
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+        )
 
         with patch(
-            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name"
-        ) as mock_get_cluster_id_by_name:
-            mock_get_cluster_id_by_name.return_value = None
+            "airflow.providers.amazon.aws.hooks.emr.EmrHook.get_cluster_id_by_name", return_value=None
+        ):
+            error_match = rf"No cluster found for name: {cluster_name}"
+            with pytest.raises(AirflowException, match=error_match):
+                operator.execute(MagicMock())
 
-            operator = EmrAddStepsOperator(
-                task_id="test_task",
-                job_flow_name=cluster_name,
-                cluster_states=["RUNNING", "WAITING"],
-                aws_conn_id="aws_default",
-                dag=DAG("test_dag_id", default_args=self.args),
-            )
-
-            with pytest.raises(AirflowException) as ctx:
-                operator.execute(self.mock_context)
-            assert str(ctx.value) == f"No cluster found for name: {cluster_name}"
-
-    @patch.object(EmrHook, "conn")
-    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
-    @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
-    def test_wait_for_completion(self, mock_add_job_flow_steps, *_):
+    def test_wait_for_completion(self, mocked_hook_client):
         job_flow_id = "j-8989898989"
         operator = EmrAddStepsOperator(
             task_id="test_task",
@@ -235,14 +214,18 @@ class TestEmrAddStepsOperator:
             dag=DAG("test_dag_id", default_args=self.args),
             wait_for_completion=False,
         )
-        operator.execute(self.mock_context)
+
+        with patch(
+            "airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps"
+        ) as mock_add_job_flow_steps:
+            operator.execute(MagicMock())
 
         mock_add_job_flow_steps.assert_called_once_with(
             job_flow_id=job_flow_id,
             steps=[],
             wait_for_completion=False,
-            waiter_delay=None,
-            waiter_max_attempts=None,
+            waiter_delay=30,
+            waiter_max_attempts=60,
             execution_role_arn=None,
         )
 
@@ -275,6 +258,6 @@ class TestEmrAddStepsOperator:
         )
 
         with pytest.raises(TaskDeferred) as exc:
-            operator.execute(self.mock_context)
+            operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"

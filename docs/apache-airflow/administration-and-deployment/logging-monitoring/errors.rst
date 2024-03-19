@@ -49,7 +49,14 @@ The ``before_send`` option can be used to modify or drop events before they are 
     [sentry]
     before_send = path.to.my.sentry.before_send
 
-You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section. Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``, ``transport``.
+The ``transport`` option can be used to change the transport used to send events to Sentry, and possibly other Systems. To set this option, provide a dotted path to a Transport class that the sentry SDK should be configured to use.
+
+.. code-block:: ini
+
+    [sentry]
+    transport = path.to.my.sentry.Transport
+
+You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section. Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``.
 
 Tags
 -----

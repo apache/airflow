@@ -112,6 +112,7 @@ class TestStackdriverListAlertPoliciesOperator:
                 "display_name": "",
                 "name": "test-name",
                 "notification_channels": [],
+                "severity": 0,
                 "user_labels": {},
             }
         ] == result

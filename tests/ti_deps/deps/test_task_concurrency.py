@@ -22,10 +22,12 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+
+pytestmark = pytest.mark.db_test
 
 
 class TestTaskConcurrencyDep:

@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperatorLink, XCom
+from airflow.providers.amazon.aws.utils.suppress import return_on_error
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
@@ -60,6 +61,7 @@ class BaseAwsLink(BaseOperatorLink):
         except KeyError:
             return ""
 
+    @return_on_error("")
     def get_link(
         self,
         operator: BaseOperator,
@@ -77,6 +79,7 @@ class BaseAwsLink(BaseOperatorLink):
         return self.format_link(**conf) if conf else ""
 
     @classmethod
+    @return_on_error(None)
     def persist(
         cls, context: Context, operator: BaseOperator, region_name: str, aws_partition: str, **kwargs
     ) -> None:

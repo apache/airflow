@@ -28,12 +28,12 @@ class AirflowMappedTaskRunFacet(BaseFacet):
     mapIndex: int
     operatorClass: str
 
-    _additional_skip_redact: list[str] = ["operatorClass"]
+    _additional_skip_redact = ["operatorClass"]
 
     @classmethod
     def from_task_instance(cls, task_instance):
         task = task_instance.task
-        from airflow.providers.openlineage.utils import get_operator_class
+        from airflow.providers.openlineage.utils.utils import get_operator_class
 
         return cls(
             mapIndex=task_instance.map_index,
@@ -63,7 +63,7 @@ class UnknownOperatorInstance(RedactMixin):
     properties: dict[str, object]
     type: str = "operator"
 
-    _skip_redact: list[str] = ["name", "type"]
+    _skip_redact = ["name", "type"]
 
 
 @define(slots=False)

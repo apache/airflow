@@ -20,13 +20,12 @@ import ast
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-from docutils.nodes import Element
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
@@ -34,6 +33,9 @@ from docutils.statemachine import StringList
 from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
+
+if TYPE_CHECKING:
+    from docutils.nodes import Element
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
@@ -163,9 +165,8 @@ def _prepare_transfer_data(tags: set[str] | None):
         ]
 
     for transfer in to_display_transfers:
-        if "how-to-guide" not in transfer:
-            continue
-        transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
+        if "how-to-guide" in transfer:
+            transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
     return to_display_transfers
 
 
@@ -200,21 +201,129 @@ def _render_deferrable_operator_content(*, header_separator: str):
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "operators": []}
         for root, _, file_names in os.walk(provider_parent_path):
-            if all([target not in root for target in ["operators", "sensors"]]):
-                continue
-
-            for file_name in file_names:
-                if not file_name.endswith(".py") or file_name == "__init__.py":
-                    continue
-                provider_info["operators"].extend(
-                    iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
-                )
+            if "operators" in root or "sensors" in root:
+                for file_name in file_names:
+                    if file_name.endswith(".py") and file_name != "__init__.py":
+                        provider_info["operators"].extend(
+                            iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                        )
 
         if provider_info["operators"]:
+            provider_info["operators"] = sorted(provider_info["operators"])
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
             provider_info["name"] = provider_yaml_content["package-name"]
             providers.append(provider_info)
-    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
+
+    return _render_template(
+        "deferrable_operators_list.rst.jinja2",
+        providers=sorted(providers, key=lambda p: p["name"]),
+        header_separator=header_separator,
+    )
+
+
+def _get_decorator_details(decorator):
+    def get_full_name(node):
+        if isinstance(node, ast.Attribute):
+            return f"{get_full_name(node.value)}.{node.attr}"
+        elif isinstance(node, ast.Name):
+            return node.id
+        else:
+            return ast.dump(node)
+
+    def eval_node(node):
+        try:
+            return ast.literal_eval(node)
+        except ValueError:
+            return ast.dump(node)
+
+    if isinstance(decorator, ast.Call):
+        name = get_full_name(decorator.func)
+        args = [eval_node(arg) for arg in decorator.args]
+        kwargs = {kw.arg: eval_node(kw.value) for kw in decorator.keywords if kw.arg != "category"}
+        return name, args, kwargs
+    elif isinstance(decorator, ast.Name):
+        return decorator.id, [], {}
+    elif isinstance(decorator, ast.Attribute):
+        return decorator.attr, [], {}
+    else:
+        return decorator, [], {}
+
+
+def _iter_module_for_deprecations(ast_node, file_path, class_name=None) -> list[dict[str, Any]]:
+    deprecations = []
+    decorators_of_deprecation = {"deprecated"}
+
+    def analyze_decorators(node, _file_path, object_type, _class_name=None):
+        for decorator in node.decorator_list:
+            if str(_class_name).startswith("_") or str(node.name).startswith("_"):
+                continue
+            decorator_name, decorator_args, decorator_kwargs = _get_decorator_details(decorator)
+
+            instructions = decorator_kwargs.get("reason", "No instructions were provided.")
+            if len(decorator_args) == 1 and isinstance(decorator_args[0], str) and not instructions:
+                instructions = decorator_args[0]
+
+            if decorator_name in (
+                "staticmethod",
+                "classmethod",
+                "property",
+                "abstractmethod",
+                "cached_property",
+            ):
+                object_type = decorator_name
+
+            if decorator_name in decorators_of_deprecation:
+                object_name = f"{_class_name}.{node.name}" if _class_name else node.name
+                object_path = os.path.join(_file_path, object_name).replace("/", ".").lstrip(".")
+                deprecations.append(
+                    {
+                        "object_path": object_path,
+                        "object_name": object_name,
+                        "object_type": object_type,
+                        "instructions": instructions,
+                    }
+                )
+
+    for child in ast.iter_child_nodes(ast_node):
+        if isinstance(child, ast.ClassDef):
+            analyze_decorators(child, file_path, object_type="class")
+            deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=child.name))
+        elif isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            analyze_decorators(
+                child, file_path, _class_name=class_name, object_type="method" if class_name else "function"
+            )
+        else:
+            deprecations.extend(_iter_module_for_deprecations(child, file_path, class_name=class_name))
+
+    return deprecations
+
+
+def _render_deprecations_content(*, header_separator: str):
+    providers = []
+    for provider_yaml_path in get_provider_yaml_paths():
+        provider_parent_path = Path(provider_yaml_path).parent
+        provider_info: dict[str, Any] = {"name": "", "deprecations": []}
+        for root, _, file_names in os.walk(provider_parent_path):
+            file_names = [f for f in file_names if f.endswith(".py") and f != "__init__.py"]
+            for file_name in file_names:
+                file_path = f"{os.path.relpath(root)}/{file_name}"
+                with open(file_path) as file:
+                    ast_obj = ast.parse(file.read())
+                provider_info["deprecations"].extend(_iter_module_for_deprecations(ast_obj, file_path[:-3]))
+
+        if provider_info["deprecations"]:
+            provider_info["deprecations"] = sorted(
+                provider_info["deprecations"], key=lambda p: p["object_path"]
+            )
+            provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
+            provider_info["name"] = provider_yaml_content["package-name"]
+            providers.append(provider_info)
+
+    return _render_template(
+        "deprecations.rst.jinja2",
+        providers=sorted(providers, key=lambda p: p["name"]),
+        header_separator=header_separator,
+    )
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -246,7 +355,7 @@ class BaseJinjaReferenceDirective(Directive):
 
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
-        raise NotImplementedError("Tou need to override render_content method.")
+        raise NotImplementedError("You need to override render_content method.")
 
 
 def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
@@ -316,7 +425,9 @@ class AuthConfigurations(BaseJinjaReferenceDirective):
         self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
     ) -> str:
         tabular_data = [
-            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("config") is not None
         ]
         return _render_template(
             "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
@@ -393,6 +504,26 @@ class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
         )
 
 
+class DeprecationsDirective(BaseJinjaReferenceDirective):
+    """Generate list of deprecated entities"""
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_deprecations_content(
+            header_separator=header_separator,
+        )
+
+
+class DatasetSchemeDirective(BaseJinjaReferenceDirective):
+    """Generate list of Dataset URI schemes"""
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="dataset-uris",
+            template="dataset-uri-schemes.rst.jinja2",
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -406,6 +537,8 @@ def setup(app):
     app.add_directive("airflow-notifications", NotificationsDirective)
     app.add_directive("airflow-executors", ExecutorsDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
+    app.add_directive("airflow-deprecations", DeprecationsDirective)
+    app.add_directive("airflow-dataset-schemes", DatasetSchemeDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

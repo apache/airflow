@@ -33,7 +33,6 @@ with models.DAG(
     catchup=False,
     tags=["example", "docker"],
 ) as dag:
-
     t1 = DockerSwarmOperator(
         api_version="auto",
         docker_url="unix://var/run/docker.sock",  # Set your docker URL

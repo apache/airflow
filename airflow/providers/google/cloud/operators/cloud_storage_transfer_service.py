@@ -16,13 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Transfer operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
@@ -69,7 +70,9 @@ if TYPE_CHECKING:
 class TransferJobPreprocessor:
     """Helper class for preprocess of transfer job body."""
 
-    def __init__(self, body: dict, aws_conn_id: str = "aws_default", default_schedule: bool = False) -> None:
+    def __init__(
+        self, body: dict, aws_conn_id: str | None = "aws_default", default_schedule: bool = False
+    ) -> None:
         self.body = body
         self.aws_conn_id = aws_conn_id
         self.default_schedule = default_schedule
@@ -161,7 +164,7 @@ class TransferJobValidator:
 
     def validate_body(self) -> None:
         """
-        Validates the body.
+        Validate the body.
 
         Checks if body specifies `transferSpec` if yes, then check if AWS credentials
         are passed correctly and no more than 1 data source was selected.
@@ -228,7 +231,7 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         self,
         *,
         body: dict,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: str | None = None,
@@ -236,7 +239,9 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.body = deepcopy(body)
+        self.body = body
+        if isinstance(self.body, dict):
+            self.body = deepcopy(body)
         self.aws_conn_id = aws_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
@@ -316,7 +321,7 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         *,
         job_name: str,
         body: dict,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         project_id: str | None = None,
@@ -526,7 +531,7 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     # [START gcp_transfer_operations_list_template_fields]
     template_fields: Sequence[str] = (
-        "filter",
+        "request_filter",
         "gcp_conn_id",
         "google_impersonation_chain",
     )
@@ -535,43 +540,35 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     def __init__(
         self,
-        request_filter: dict | None = None,
+        request_filter: dict,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if request_filter is None:
-            if "filter" in kwargs:
-                request_filter = kwargs["filter"]
-                AirflowProviderDeprecationWarning(
-                    "Use 'request_filter' instead 'filter' to pass the argument."
-                )
-            else:
-                TypeError("__init__() missing 1 required positional argument: 'request_filter'")
-
         super().__init__(**kwargs)
-        self.filter = request_filter
+        self.request_filter = request_filter
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
-        self._validate_inputs()
 
-    def _validate_inputs(self) -> None:
-        if not self.filter:
-            raise AirflowException("The required parameter 'filter' is empty or None")
+    @property
+    def filter(self) -> dict | None:
+        """Alias for ``request_filter``, used for compatibility."""
+        return self.request_filter
 
     def execute(self, context: Context) -> list[dict]:
+        if not self.request_filter:
+            raise AirflowException("The required parameter 'request_filter' is empty or None")
+
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        operations_list = hook.list_transfer_operations(request_filter=self.filter)
+        operations_list = hook.list_transfer_operations(request_filter=self.request_filter)
         self.log.info(operations_list)
 
         project_id = self.project_id or hook.project_id
@@ -843,7 +840,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         s3_path: str | None = None,
         gcs_path: str | None = None,
         project_id: str | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
         schedule: dict | None = None,
@@ -855,7 +852,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
@@ -1023,7 +1019,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket

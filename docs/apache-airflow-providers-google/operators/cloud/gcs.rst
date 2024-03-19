@@ -24,6 +24,8 @@ Cloud Storage allows world-wide storage and retrieval of any amount of data at a
 You can use Cloud Storage for a range of scenarios including serving website content,
 storing data for archival and disaster recovery, or distributing large data objects to users via direct download.
 
+See :doc:`/operators/transfer/index` for a list of specialized transfer operators to and from Google Cloud Storage.
+
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 

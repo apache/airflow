@@ -20,8 +20,8 @@ import os
 
 import click
 
+from airflow_breeze.commands.common_options import option_answer
 from airflow_breeze.commands.release_management_group import release_management
-from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -100,28 +100,8 @@ def verify_pypi_package(version):
         run_command(["twine", "check", "*.whl", f"*{version}.tar.gz"], check=True)
 
 
-def upload_to_pypi_test(version):
-    if confirm_action("Upload to PyPI test?"):
-        run_command(
-            ["twine", "upload", "-r", "pypitest", "*.whl", f"*{version}.tar.gz"],
-            dry_run_override=DRY_RUN,
-            check=True,
-        )
-        console_print("Packages pushed to test PyPI")
-        console_print(
-            "Verify that the test package looks good by downloading it and installing it into a virtual "
-            "environment. The package download link is available at: "
-            "https://test.pypi.org/project/apache-airflow/#files"
-        )
-
-
 def upload_to_pypi(version):
     if confirm_action("Upload to PyPI?"):
-        confirm_action(
-            "I have tested the package I uploaded to test PyPI. "
-            "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
-            abort=True,
-        )
         run_command(
             ["twine", "upload", "-r", "pypi", "*.whl", f"*{version}.tar.gz"],
             dry_run_override=DRY_RUN,
@@ -129,7 +109,9 @@ def upload_to_pypi(version):
         )
         console_print("Packages pushed to production PyPI")
         console_print(
-            "Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow"
+            "Verify that the package looks good by downloading it and installing it into a virtual "
+            "environment. The package download link is available at: "
+            "https://pypi.python.org/pypi/apache-airflow"
         )
 
 
@@ -276,8 +258,6 @@ def airflow_release(release_candidate, previous_release):
         os.chdir(svn_release_version_dir)
     verify_pypi_package(version)
 
-    # Upload to pypi test
-    upload_to_pypi_test(version)
     # Upload to pypi
     upload_to_pypi(version)
 

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Level DB."""
+
 from __future__ import annotations
 
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
@@ -53,7 +54,7 @@ class LevelDBHook(BaseHook):
 
     def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:
         """
-        Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__.
+        Create `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__.
 
         :param name: path to create database e.g. `/tmp/testdb/`)
         :param create_if_missing: whether a new database should be created if needed
@@ -66,7 +67,7 @@ class LevelDBHook(BaseHook):
         return self.db
 
     def close_conn(self) -> None:
-        """Closes connection."""
+        """Close connection."""
         db = self.db
         if db is not None:
             db.close()

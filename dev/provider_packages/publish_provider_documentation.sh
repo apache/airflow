@@ -28,7 +28,8 @@ do
     provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
 done
 
-breeze release-management build-docs \
-    "${provider_filters[@]}"
+breeze release-management publish-docs "${provider_filters[@]}"
+
+breeze release-management add-back-references "${@}"
 
 cd "${AIRFLOW_SITE_DIRECTORY}"

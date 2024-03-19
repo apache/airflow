@@ -93,7 +93,7 @@ class TestBigQueryDataTransferRunTrigger:
                 "config_id": CONFIG_ID,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -108,7 +108,7 @@ class TestBigQueryDataTransferRunTrigger:
                 "message": "Job has failed",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -123,7 +123,7 @@ class TestBigQueryDataTransferRunTrigger:
                 "message": f"Trigger failed with exception: {error_msg}",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -138,7 +138,7 @@ class TestBigQueryDataTransferRunTrigger:
                 "message": "Job was cancelled",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 

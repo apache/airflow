@@ -44,7 +44,7 @@ In the case of Airflow, the customer needs to create a transfer config with the 
 and then trigger a transfer run using a specialized Airflow operator that will call StartManualTransferRuns API
 for example :class:`~airflow.providers.google.cloud.operators.bigquery_dts.BigQueryDataTransferServiceStartTransferRunsOperator`.
 :class:`~airflow.providers.google.cloud.operators.bigquery_dts.BigQueryCreateDataTransferOperator` checks if automatic
-scheduling option is present in passed configuration. If present then nothing is done, otherwise it's value is
+scheduling option is present in passed configuration. If present then nothing is done, otherwise its value is
 set to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_dts.py

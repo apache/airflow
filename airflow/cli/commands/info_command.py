@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands."""
+
 from __future__ import annotations
 
 import locale
@@ -162,7 +163,7 @@ class Architecture(Enum):
     def get_current() -> Architecture:
         """Get architecture."""
         current_architecture = _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
-        return current_architecture if current_architecture else Architecture.UNKNOWN
+        return current_architecture or Architecture.UNKNOWN
 
 
 _MACHINE_TO_ARCHITECTURE: dict[str, Architecture] = {
@@ -209,7 +210,7 @@ class AirflowInfo:
 
     @staticmethod
     def _task_logging_handler():
-        """Returns task logging handler."""
+        """Return task logging handler."""
 
         def get_fullname(o):
             module = o.__class__.__module__
@@ -259,7 +260,7 @@ class AirflowInfo:
         operating_system = OperatingSystem.get_current()
         arch = Architecture.get_current()
         uname = platform.uname()
-        _locale = locale.getdefaultlocale()
+        _locale = locale.getlocale()
         python_location = self.anonymizer.process_path(sys.executable)
         python_version = sys.version.replace("\n", " ")
 
@@ -314,7 +315,7 @@ class AirflowInfo:
         return [(p.data["package-name"], p.version) for p in ProvidersManager().providers.values()]
 
     def show(self, output: str, console: AirflowConsole | None = None) -> None:
-        """Shows information about Airflow instance."""
+        """Show information about Airflow instance."""
         all_info = {
             "Apache Airflow": self._airflow_info,
             "System info": self._system_info,
@@ -336,7 +337,7 @@ class AirflowInfo:
             )
 
     def render_text(self, output: str) -> str:
-        """Exports the info to string."""
+        """Export the info to string."""
         console = AirflowConsole(record=True)
         with console.capture():
             self.show(output=output, console=console)

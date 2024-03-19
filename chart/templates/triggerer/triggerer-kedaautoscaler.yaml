@@ -1,0 +1,57 @@
+{{/*
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+*/}}
+
+################################
+## Airflow Triggerer KEDA Scaler
+#################################
+{{- if semverCompare ">=2.2.0" .Values.airflowVersion }}
+{{- if and .Values.triggerer.enabled .Values.triggerer.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Release.Name }}-triggerer
+  labels:
+    tier: airflow
+    component: triggerer-horizontalpodautoscaler
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    deploymentName: {{ .Release.Name }}-triggerer
+    {{- if or (.Values.labels) (.Values.triggerer.labels) }}
+      {{- mustMerge .Values.triggerer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- end }}
+spec:
+  scaleTargetRef:
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.triggerer.persistence.enabled }}
+    name: {{ .Release.Name }}-triggerer
+  pollingInterval:  {{ .Values.triggerer.keda.pollingInterval }}
+  cooldownPeriod: {{ .Values.triggerer.keda.cooldownPeriod }}
+  minReplicaCount: {{ .Values.triggerer.keda.minReplicaCount }}
+  maxReplicaCount: {{ .Values.triggerer.keda.maxReplicaCount }}
+  {{- if .Values.triggerer.keda.advanced }}
+  advanced: {{- toYaml .Values.triggerer.keda.advanced | nindent 4 }}
+  {{- end }}
+  triggers:
+    - type: postgresql
+      metadata:
+        targetQueryValue: "1"
+        connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
+        query: {{ tpl .Values.triggerer.keda.query . | quote }}
+{{- end }}
+{{- end }}

@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 import requests_mock
 
 from airflow.providers.tabular.hooks.tabular import TabularHook
+
+pytestmark = pytest.mark.db_test
 
 
 def test_tabular_hook():

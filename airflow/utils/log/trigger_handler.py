@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 from contextvars import ContextVar
 from copy import copy
 from logging.handlers import QueueHandler
+from typing import TYPE_CHECKING
 
-from airflow.utils.log.file_task_handler import FileTaskHandler
+if TYPE_CHECKING:
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
 ctx_task_instance: ContextVar = ContextVar("task_instance")
 ctx_trigger_id: ContextVar = ContextVar("trigger_id")
@@ -108,17 +111,16 @@ class TriggererHandlerWrapper(logging.Handler):
         h = self.handlers.get(trigger_id)
         if h:
             h.close()
-            del self.handlers[trigger_id]
+            with suppress(KeyError):  # race condition between `handle` and `close`
+                del self.handlers[trigger_id]
 
     def flush(self):
-        for _, h in self.handlers.items():
+        for h in self.handlers.values():
             h.flush()
 
     def close(self):
         for trigger_id in list(self.handlers.keys()):
-            h = self.handlers[trigger_id]
-            h.close()
-            del self.handlers[trigger_id]
+            self.close_one(trigger_id)
 
 
 class LocalQueueHandler(QueueHandler):

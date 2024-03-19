@@ -15,13 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+
 from __future__ import annotations
 
 from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -53,9 +54,6 @@ NODEGROUP_TERMINAL_STATES = frozenset(
         NodegroupStates.NONEXISTENT,
     }
 )
-UNEXPECTED_TERMINAL_STATE_MSG = (
-    "Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
-)
 
 
 class EksBaseSensor(BaseSensorOperator):
@@ -83,7 +81,7 @@ class EksBaseSensor(BaseSensorOperator):
         cluster_name: str,
         target_state: ClusterStates | NodegroupStates | FargateProfileStates,
         target_state_type: type,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
     ):
@@ -109,18 +107,18 @@ class EksBaseSensor(BaseSensorOperator):
         self.log.info("Current state: %s", state)
         if state in (self.get_terminal_states() - {self.target_state}):
             # If we reach a terminal state which is not the target state:
-            raise AirflowException(
-                UNEXPECTED_TERMINAL_STATE_MSG.format(current_state=state, target_state=self.target_state)
-            )
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Terminal state reached. Current state: {state}, Expected state: {self.target_state}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         return state == self.target_state
 
     @abstractmethod
-    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates:
-        ...
+    def get_state(self) -> ClusterStates | NodegroupStates | FargateProfileStates: ...
 
     @abstractmethod
-    def get_terminal_states(self) -> frozenset:
-        ...
+    def get_terminal_states(self) -> frozenset: ...
 
 
 class EksClusterStateSensor(EksBaseSensor):

@@ -33,6 +33,7 @@ class TestAwsToAwsBaseOperator:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG("test_dag_id", default_args=args)
 
+    @pytest.mark.db_test
     def test_render_template(self):
         operator = AwsToAwsBaseOperator(
             task_id="dynamodb_to_s3_test_render",

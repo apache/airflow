@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
@@ -27,9 +27,11 @@ from rich.table import Table
 from tabulate import tabulate
 
 from airflow.plugins_manager import PluginsDirectorySource
-from airflow.typing_compat import TypeGuard
 from airflow.utils import yaml
 from airflow.utils.platform import is_tty
+
+if TYPE_CHECKING:
+    from airflow.typing_compat import TypeGuard
 
 
 def is_data_sequence(data: Sequence[dict | Any]) -> TypeGuard[Sequence[dict]]:
@@ -48,23 +50,23 @@ class AirflowConsole(Console):
         self.show_header = show_header
 
     def print_as_json(self, data: dict):
-        """Renders dict as json text representation."""
+        """Render dict as json text representation."""
         json_content = json.dumps(data)
         self.print(Syntax(json_content, "json", theme="ansi_dark"), soft_wrap=True)
 
     def print_as_yaml(self, data: dict):
-        """Renders dict as yaml text representation."""
+        """Render dict as yaml text representation."""
         yaml_content = yaml.dump(data)
         self.print(Syntax(yaml_content, "yaml", theme="ansi_dark"), soft_wrap=True)
 
     def print_as_table(self, data: list[dict]):
-        """Renders list of dictionaries as table."""
+        """Render list of dictionaries as table."""
         if not data:
             self.print("No data found")
             return
 
         table = SimpleTable(show_header=self.show_header)
-        for col in data[0].keys():
+        for col in data[0]:
             table.add_column(col)
 
         for row in data:
@@ -72,12 +74,12 @@ class AirflowConsole(Console):
         self.print(table)
 
     def print_as_plain_table(self, data: list[dict]):
-        """Renders list of dictionaries as a simple table than can be easily piped."""
+        """Render list of dictionaries as a simple table than can be easily piped."""
         if not data:
             self.print("No data found")
             return
         rows = [d.values() for d in data]
-        output = tabulate(rows, tablefmt="plain", headers=list(data[0].keys()))
+        output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
         print(output)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
@@ -99,7 +101,7 @@ class AirflowConsole(Console):
         output: str,
         mapper: Callable[[Any], dict] | None = None,
     ) -> None:
-        """Prints provided using format specified by output argument."""
+        """Print provided using format specified by output argument."""
         output_to_renderer: dict[str, Callable[[Any], None]] = {
             "json": self.print_as_json,
             "yaml": self.print_as_yaml,
@@ -108,9 +110,7 @@ class AirflowConsole(Console):
         }
         renderer = output_to_renderer.get(output)
         if not renderer:
-            raise ValueError(
-                f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer.keys())}"
-            )
+            raise ValueError(f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer)}")
 
         if mapper:
             dict_data: Sequence[dict] = [mapper(d) for d in data]

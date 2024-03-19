@@ -44,6 +44,7 @@ class TestRetries:
 
         assert mock_obj.call_count == 2
 
+    @pytest.mark.db_test
     def test_retry_db_transaction_with_default_retries(self, caplog):
         """Test that by default 3 retries will be carried out"""
         mock_obj = mock.MagicMock()

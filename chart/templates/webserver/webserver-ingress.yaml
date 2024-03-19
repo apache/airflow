@@ -20,11 +20,13 @@
 ################################
 ## Airflow Webserver Ingress
 #################################
+{{- if .Values.webserver.enabled }}
 {{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+{{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-airflow-ingress
+  name: {{ $fullname }}-ingress
   labels:
     tier: airflow
     component: airflow-ingress
@@ -80,7 +82,7 @@ spec:
           {{- end }}
           - backend:
               service:
-                name: {{ $.Release.Name }}-webserver
+                name: {{ $fullname }}-webserver
                 port:
                   name: airflow-ui
             {{- if $.Values.ingress.web.path }}
@@ -101,10 +103,11 @@ spec:
       {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
-      host: {{ $hostname | quote }}
+      host: {{ tpl $hostname $ | quote }}
       {{- end }}
     {{- end }}
   {{- if .Values.ingress.web.ingressClassName }}
   ingressClassName: {{ .Values.ingress.web.ingressClassName }}
   {{- end }}
+{{- end }}
 {{- end }}

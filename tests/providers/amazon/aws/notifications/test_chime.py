@@ -19,11 +19,15 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 from airflow.providers.amazon.aws.notifications.chime import ChimeNotifier, send_chime_notification
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
 
 
 class TestChimeNotifier:

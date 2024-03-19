@@ -19,7 +19,7 @@ from __future__ import annotations
 import pendulum
 from workday import AfterWorkdayTimetable
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 
 with DAG(

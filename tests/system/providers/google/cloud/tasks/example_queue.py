@@ -22,6 +22,7 @@ and deletes Queues in the Google Cloud Tasks service in the Google Cloud.
 Required setup:
 - GCP_APP_ENGINE_LOCATION: GCP Project's App Engine location `gcloud app describe | grep locationId`.
 """
+
 from __future__ import annotations
 
 import os
@@ -31,9 +32,9 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksQueueCreateOperator,
@@ -54,7 +55,7 @@ LOCATION = os.environ.get("GCP_APP_ENGINE_LOCATION", "europe-west2")
 QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

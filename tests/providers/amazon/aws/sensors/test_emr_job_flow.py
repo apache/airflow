@@ -190,67 +190,53 @@ DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN = {
 }
 
 
+@pytest.fixture
+def mocked_hook_client():
+    with mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.conn") as m:
+        yield m
+
+
 class TestEmrJobFlowSensor:
-    def setup_method(self):
-        # Mock out the emr_client (moto has incorrect response)
-        self.mock_emr_client = MagicMock()
-
-        mock_emr_session = MagicMock()
-        mock_emr_session.client.return_value = self.mock_emr_client
-
-        # Mock out the emr_client creator
-        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
-
-        # Mock context used in execute function
-        self.mock_ctx = MagicMock()
-
-    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
-    def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self, _):
-        self.mock_emr_client.describe_cluster.side_effect = [
+    def test_execute_calls_with_the_job_flow_id_until_it_reaches_a_target_state(self, mocked_hook_client):
+        mocked_hook_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_STARTING_RETURN,
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            operator = EmrJobFlowSensor(
-                task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
-            )
 
-            operator.execute(self.mock_ctx)
+        operator = EmrJobFlowSensor(
+            task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
+        )
+        with patch.object(S3Hook, "parse_s3_url", return_value="valid_uri"):
+            operator.execute(MagicMock())
 
-            assert self.mock_emr_client.describe_cluster.call_count == 3
+        assert mocked_hook_client.describe_cluster.call_count == 3
+        # make sure it was called with the job_flow_id
+        calls = [mock.call(ClusterId="j-8989898989")] * 3
+        mocked_hook_client.describe_cluster.assert_has_calls(calls)
 
-            # make sure it was called with the job_flow_id
-            calls = [mock.call(ClusterId="j-8989898989")]
-            self.mock_emr_client.describe_cluster.assert_has_calls(calls)
-
-    def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(self):
-        self.mock_emr_client.describe_cluster.side_effect = [
+    def test_execute_calls_with_the_job_flow_id_until_it_reaches_failed_state_with_exception(
+        self, mocked_hook_client
+    ):
+        mocked_hook_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_RUNNING_RETURN,
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            operator = EmrJobFlowSensor(
-                task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
-            )
 
-            with pytest.raises(AirflowException):
-                operator.execute(self.mock_ctx)
+        operator = EmrJobFlowSensor(
+            task_id="test_task", poke_interval=0, job_flow_id="j-8989898989", aws_conn_id="aws_default"
+        )
+        with pytest.raises(AirflowException):
+            operator.execute(MagicMock())
 
-                # make sure we called twice
-                assert self.mock_emr_client.describe_cluster.call_count == 2
+        # make sure we called twice
+        assert mocked_hook_client.describe_cluster.call_count == 2
+        # make sure it was called with the job_flow_id
+        calls = [mock.call(ClusterId="j-8989898989")] * 2
+        mocked_hook_client.describe_cluster.assert_has_calls(calls=calls)
 
-                # make sure it was called with the job_flow_id
-                self.mock_emr_client.describe_cluster.assert_called_once_with(ClusterId="j-8989898989")
-
-    def test_different_target_states(self):
-        self.mock_emr_client.describe_cluster.side_effect = [
+    def test_different_target_states(self, mocked_hook_client):
+        mocked_hook_client.describe_cluster.side_effect = [
             DESCRIBE_CLUSTER_STARTING_RETURN,  # return False
             DESCRIBE_CLUSTER_BOOTSTRAPPING_RETURN,  # return False
             DESCRIBE_CLUSTER_RUNNING_RETURN,  # return True
@@ -258,28 +244,23 @@ class TestEmrJobFlowSensor:
             DESCRIBE_CLUSTER_TERMINATED_RETURN,  # will not be used
             DESCRIBE_CLUSTER_TERMINATED_WITH_ERRORS_RETURN,  # will not be used
         ]
-        with patch("boto3.session.Session", self.boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            operator = EmrJobFlowSensor(
-                task_id="test_task",
-                poke_interval=0,
-                job_flow_id="j-8989898989",
-                aws_conn_id="aws_default",
-                target_states=["RUNNING", "WAITING"],
-            )
 
-            operator.execute(self.mock_ctx)
+        operator = EmrJobFlowSensor(
+            task_id="test_task",
+            poke_interval=0,
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            target_states=["RUNNING", "WAITING"],
+        )
 
-            assert self.mock_emr_client.describe_cluster.call_count == 3
+        operator.execute(MagicMock())
 
-            # make sure it was called with the job_flow_id
-            calls = [mock.call(ClusterId="j-8989898989")]
-            self.mock_emr_client.describe_cluster.assert_has_calls(calls)
+        assert mocked_hook_client.describe_cluster.call_count == 3
+        # make sure it was called with the job_flow_id
+        calls = [mock.call(ClusterId="j-8989898989")] * 3
+        mocked_hook_client.describe_cluster.assert_has_calls(calls)
 
-    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor.poke")
-    def test_sensor_defer(self, mock_poke):
+    def test_sensor_defer(self):
         """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
         sensor = EmrJobFlowSensor(
             task_id="test_task",
@@ -289,9 +270,11 @@ class TestEmrJobFlowSensor:
             target_states=["RUNNING", "WAITING"],
             deferrable=True,
         )
-        mock_poke.return_value = False
-        with pytest.raises(TaskDeferred) as exc:
-            sensor.execute(context=None)
+
+        with patch.object(EmrJobFlowSensor, "poke", return_value=False):
+            with pytest.raises(TaskDeferred) as exc:
+                sensor.execute(context=None)
+
         assert isinstance(
             exc.value.trigger, EmrTerminateJobFlowTrigger
-        ), f"{exc.value.trigger} is not a EmrTerminateJobFlowTrigger "
+        ), f"{exc.value.trigger} is not a EmrTerminateJobFlowTrigger"

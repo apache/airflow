@@ -23,14 +23,14 @@ This module contains a CloudDLPHook which allows you to connect to Google Cloud 
     ImageRedactionConfig
     RedactImageRequest
 """
+
 from __future__ import annotations
 
 import re
 import time
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dlp import DlpServiceClient
 from google.cloud.dlp_v2.types import (
     ByteContentItem,
@@ -57,6 +57,9 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 
@@ -101,7 +104,7 @@ class CloudDLPHook(GoogleBaseHook):
 
     def get_conn(self) -> DlpServiceClient:
         """
-        Provides a client for interacting with the Cloud DLP API.
+        Provide a client for interacting with the Cloud DLP API.
 
         :return: Google Cloud DLP API Client
         """
@@ -128,7 +131,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Starts asynchronous cancellation on a long-running DLP job.
+        Start asynchronous cancellation on a long-running DLP job.
 
         :param dlp_job_id: ID of the DLP job resource to be cancelled.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -148,9 +151,9 @@ class CloudDLPHook(GoogleBaseHook):
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.cancel_dlp_job(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -195,11 +198,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.create_deidentify_template(
-            request=dict(
-                parent=parent,
-                deidentify_template=deidentify_template,
-                template_id=template_id,
-            ),
+            request={
+                "parent": parent,
+                "deidentify_template": deidentify_template,
+                "template_id": template_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -219,7 +222,7 @@ class CloudDLPHook(GoogleBaseHook):
         time_to_sleep_in_seconds: int = 60,
     ) -> DlpJob:
         """
-        Creates a new job to inspect storage or calculate risk metrics.
+        Create a new job to inspect storage or calculate risk metrics.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -242,12 +245,12 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         job = client.create_dlp_job(
-            request=dict(
-                parent=parent,
-                inspect_job=inspect_job,
-                risk_job=risk_job,
-                job_id=job_id,
-            ),
+            request={
+                "parent": parent,
+                "inspect_job": inspect_job,
+                "risk_job": risk_job,
+                "job_id": job_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -321,11 +324,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.create_inspect_template(
-            request=dict(
-                parent=parent,
-                inspect_template=inspect_template,
-                template_id=template_id,
-            ),
+            request={
+                "parent": parent,
+                "inspect_template": inspect_template,
+                "template_id": template_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -360,11 +363,11 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.create_job_trigger(
-            request=dict(
-                parent=parent,
-                job_trigger=job_trigger,
-                trigger_id=trigger_id,
-            ),
+            request={
+                "parent": parent,
+                "job_trigger": job_trigger,
+                "trigger_id": trigger_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -381,7 +384,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Creates a pre-built stored info type to be used for inspection.
+        Create a pre-built stored info type to be used for inspection.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -410,11 +413,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.create_stored_info_type(
-            request=dict(
-                parent=parent,
-                config=config,
-                stored_info_type_id=stored_info_type_id,
-            ),
+            request={
+                "parent": parent,
+                "config": config,
+                "stored_info_type_id": stored_info_type_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -461,14 +464,14 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.deidentify_content(
-            request=dict(
-                parent=parent,
-                deidentify_config=deidentify_config,
-                inspect_config=inspect_config,
-                item=item,
-                inspect_template_name=inspect_template_name,
-                deidentify_template_name=deidentify_template_name,
-            ),
+            request={
+                "parent": parent,
+                "deidentify_config": deidentify_config,
+                "inspect_config": inspect_config,
+                "item": item,
+                "inspect_template_name": inspect_template_name,
+                "deidentify_template_name": deidentify_template_name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -478,7 +481,7 @@ class CloudDLPHook(GoogleBaseHook):
         self, template_id, organization_id=None, project_id=None, retry=DEFAULT, timeout=None, metadata=()
     ) -> None:
         """
-        Deletes a deidentify template.
+        Delete a deidentify template.
 
         :param template_id: The ID of deidentify template to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -509,9 +512,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         client.delete_deidentify_template(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -527,7 +530,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a long-running DLP job.
+        Delete a long-running DLP job.
 
         This method indicates that the client is no longer interested in the DLP job result.
         The job will be cancelled if possible.
@@ -550,9 +553,9 @@ class CloudDLPHook(GoogleBaseHook):
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         client.delete_dlp_job(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -568,7 +571,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes an inspect template.
+        Delete an inspect template.
 
         :param template_id: The ID of the inspect template to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -599,9 +602,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         client.delete_inspect_template(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -617,7 +620,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a job trigger.
+        Delete a job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be deleted.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -637,9 +640,9 @@ class CloudDLPHook(GoogleBaseHook):
 
         name = DlpServiceClient.job_trigger_path(project_id, job_trigger_id)
         client.delete_job_trigger(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -655,7 +658,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a stored info type.
+        Delete a stored info type.
 
         :param stored_info_type_id: The ID of the stored info type to be deleted.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -686,9 +689,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         client.delete_stored_info_type(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -704,7 +707,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
-        Gets a deidentify template.
+        Get a deidentify template.
 
         :param template_id: The ID of deidentify template to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -735,9 +738,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.get_deidentify_template(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -753,7 +756,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DlpJob:
         """
-        Gets the latest state of a long-running Dlp Job.
+        Get the latest state of a long-running Dlp Job.
 
         :param dlp_job_id: The ID of the DLP job resource to be read.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -773,9 +776,9 @@ class CloudDLPHook(GoogleBaseHook):
 
         name = DlpServiceClient.dlp_job_path(project_id, dlp_job_id)
         return client.get_dlp_job(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -791,7 +794,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
-        Gets an inspect template.
+        Get an inspect template.
 
         :param template_id: The ID of inspect template to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -822,9 +825,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.get_inspect_template(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -840,7 +843,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> JobTrigger:
         """
-        Gets a DLP job trigger.
+        Get a DLP job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be read.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -860,9 +863,9 @@ class CloudDLPHook(GoogleBaseHook):
 
         name = DlpServiceClient.job_trigger_path(project_id, job_trigger_id)
         return client.get_job_trigger(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -878,7 +881,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Gets a stored info type.
+        Get a stored info type.
 
         :param stored_info_type_id: The ID of the stored info type to be read.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -909,9 +912,9 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.get_stored_info_type(
-            request=dict(
-                name=name,
-            ),
+            request={
+                "name": name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -929,7 +932,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectContentResponse:
         """
-        Finds potentially sensitive info in content; limits input size, processing time, and output size.
+        Find potentially sensitive info in content; limits input size, processing time, and output size.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -950,12 +953,12 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.inspect_content(
-            request=dict(
-                parent=parent,
-                inspect_config=inspect_config,
-                item=item,
-                inspect_template_name=inspect_template_name,
-            ),
+            request={
+                "parent": parent,
+                "inspect_config": inspect_config,
+                "item": item,
+                "inspect_template_name": inspect_template_name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -972,7 +975,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[DeidentifyTemplate]:
         """
-        Lists deidentify templates.
+        List deidentify templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1003,11 +1006,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         results = client.list_deidentify_templates(
-            request=dict(
-                parent=parent,
-                page_size=page_size,
-                order_by=order_by,
-            ),
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1028,7 +1031,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[DlpJob]:
         """
-        Lists DLP jobs that match the specified filter in the request.
+        List DLP jobs that match the specified filter in the request.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -1050,13 +1053,13 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         results = client.list_dlp_jobs(
-            request=dict(
-                parent=parent,
-                filter=results_filter,
-                page_size=page_size,
-                type_=job_type,
-                order_by=order_by,
-            ),
+            request={
+                "parent": parent,
+                "filter": results_filter,
+                "page_size": page_size,
+                "type_": job_type,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1072,7 +1075,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListInfoTypesResponse:
         """
-        Returns a list of the sensitive information types that the DLP API supports.
+        Return a list of the sensitive information types that the DLP API supports.
 
         :param language_code: (Optional) Optional BCP-47 language code for localized info
             type friendly names. If omitted, or if localized strings are not available,
@@ -1088,10 +1091,10 @@ class CloudDLPHook(GoogleBaseHook):
         client = self.get_conn()
 
         return client.list_info_types(
-            request=dict(
-                language_code=language_code,
-                filter=results_filter,
-            ),
+            request={
+                "language_code": language_code,
+                "filter": results_filter,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1108,7 +1111,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[InspectTemplate]:
         """
-        Lists inspect templates.
+        List inspect templates.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1139,11 +1142,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         results = client.list_inspect_templates(
-            request=dict(
-                parent=parent,
-                page_size=page_size,
-                order_by=order_by,
-            ),
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1162,7 +1165,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[JobTrigger]:
         """
-        Lists job triggers.
+        List job triggers.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -1183,12 +1186,12 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         results = client.list_job_triggers(
-            request=dict(
-                parent=parent,
-                page_size=page_size,
-                order_by=order_by,
-                filter=results_filter,
-            ),
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "order_by": order_by,
+                "filter": results_filter,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1206,7 +1209,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[StoredInfoType]:
         """
-        Lists stored info types.
+        List stored info types.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -1237,11 +1240,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         results = client.list_stored_info_types(
-            request=dict(
-                parent=parent,
-                page_size=page_size,
-                order_by=order_by,
-            ),
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1285,13 +1288,13 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.redact_image(
-            request=dict(
-                parent=parent,
-                inspect_config=inspect_config,
-                image_redaction_configs=image_redaction_configs,
-                include_findings=include_findings,
-                byte_item=byte_item,
-            ),
+            request={
+                "parent": parent,
+                "inspect_config": inspect_config,
+                "image_redaction_configs": image_redaction_configs,
+                "include_findings": include_findings,
+                "byte_item": byte_item,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1336,14 +1339,14 @@ class CloudDLPHook(GoogleBaseHook):
 
         parent = DlpServiceClient.common_project_path(project_id)
         return client.reidentify_content(
-            request=dict(
-                parent=parent,
-                reidentify_config=reidentify_config,
-                inspect_config=inspect_config,
-                item=item,
-                inspect_template_name=inspect_template_name,
-                reidentify_template_name=reidentify_template_name,
-            ),
+            request={
+                "parent": parent,
+                "reidentify_config": reidentify_config,
+                "inspect_config": inspect_config,
+                "item": item,
+                "inspect_template_name": inspect_template_name,
+                "reidentify_template_name": reidentify_template_name,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1361,7 +1364,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
-        Updates the deidentify template.
+        Update the deidentify template.
 
         :param template_id: The ID of deidentify template to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -1394,11 +1397,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.update_deidentify_template(
-            request=dict(
-                name=name,
-                deidentify_template=deidentify_template,
-                update_mask=update_mask,
-            ),
+            request={
+                "name": name,
+                "deidentify_template": deidentify_template,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1416,7 +1419,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
-        Updates the inspect template.
+        Update the inspect template.
 
         :param template_id: The ID of the inspect template to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -1448,11 +1451,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.update_inspect_template(
-            request=dict(
-                name=name,
-                inspect_template=inspect_template,
-                update_mask=update_mask,
-            ),
+            request={
+                "name": name,
+                "inspect_template": inspect_template,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
@@ -1470,7 +1473,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> JobTrigger:
         """
-        Updates a job trigger.
+        Update a job trigger.
 
         :param job_trigger_id: The ID of the DLP job trigger to be updated.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -1518,7 +1521,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StoredInfoType:
         """
-        Updates the stored info type by creating a new version.
+        Update the stored info type by creating a new version.
 
         :param stored_info_type_id: The ID of the stored info type to be updated.
         :param organization_id: (Optional) The organization ID. Required to set this
@@ -1552,11 +1555,11 @@ class CloudDLPHook(GoogleBaseHook):
             raise AirflowException("Please provide either organization_id or project_id.")
 
         return client.update_stored_info_type(
-            request=dict(
-                name=name,
-                config=config,
-                update_mask=update_mask,
-            ),
+            request={
+                "name": name,
+                "config": config,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

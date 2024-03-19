@@ -28,7 +28,7 @@ kind: ClusterRole
 kind: Role
 {{- end }}
 metadata:
-  name: {{ .Release.Name }}-pod-log-reader-role
+  name: {{ include "airflow.fullname" . }}-pod-log-reader-role
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}

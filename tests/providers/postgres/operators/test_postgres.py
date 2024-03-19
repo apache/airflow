@@ -93,10 +93,8 @@ class TestPostgres:
 
         from psycopg2 import OperationalError
 
-        try:
+        with pytest.raises(OperationalError, match='database "foobar" does not exist'):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except OperationalError as e:
-            assert 'database "foobar" does not exist' in str(e)
 
     def test_runtime_parameter_setting(self):
         """
@@ -190,3 +188,20 @@ class TestPostgresOpenLineage:
         assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
         assert lineage_on_complete.outputs[0].name == "airflow.public.test_airflow"
         assert "schema" in lineage_on_complete.outputs[0].facets
+
+
+@pytest.mark.db_test
+def test_parameters_are_templatized(create_task_instance_of_operator):
+    """Test that PostgreSQL operator could template the same fields as SQLExecuteQueryOperator"""
+    ti = create_task_instance_of_operator(
+        PostgresOperator,
+        postgres_conn_id="{{ param.conn_id }}",
+        sql="SELECT * FROM {{ param.table }} WHERE spam = %(spam)s;",
+        parameters={"spam": "{{ param.bar }}"},
+        dag_id="test-postgres-op-parameters-are-templatized",
+        task_id="test-task",
+    )
+    task: PostgresOperator = ti.render_templates({"param": {"conn_id": "pg", "table": "foo", "bar": "egg"}})
+    assert task.conn_id == "pg"
+    assert task.sql == "SELECT * FROM foo WHERE spam = %(spam)s;"
+    assert task.parameters == {"spam": "egg"}

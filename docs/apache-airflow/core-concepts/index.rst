@@ -40,6 +40,8 @@ Here you can find detailed documentation about each one of the core concepts of 
     sensors
     taskflow
     executor/index
+    auth-manager
+    objectstorage
 
 **Communication**
 
@@ -49,3 +51,10 @@ Here you can find detailed documentation about each one of the core concepts of 
     xcoms
     variables
     params
+
+**Debugging**
+
+.. toctree::
+    :maxdepth: 1
+
+    debug

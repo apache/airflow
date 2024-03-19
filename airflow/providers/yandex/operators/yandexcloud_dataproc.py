@@ -20,6 +20,7 @@ import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.yandex.hooks.yandexcloud_dataproc import DataprocHook
 
@@ -95,6 +96,8 @@ class DataprocCreateClusterOperator(BaseOperator):
                     Docs: https://cloud.yandex.com/docs/data-proc/concepts/logs
     :param initialization_actions: Set of init-actions to run when cluster starts.
                         Docs: https://cloud.yandex.com/docs/data-proc/concepts/init-action
+    :param labels: Cluster labels as key:value pairs. No more than 64 per resource.
+                        Docs: https://cloud.yandex.ru/docs/resource-manager/concepts/labels
     """
 
     def __init__(
@@ -135,6 +138,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         security_group_ids: Iterable[str] | None = None,
         log_group_id: str | None = None,
         initialization_actions: Iterable[InitializationAction] | None = None,
+        labels: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -173,6 +177,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.security_group_ids = security_group_ids
         self.log_group_id = log_group_id
         self.initialization_actions = initialization_actions
+        self.labels = labels
 
         self.hook: DataprocHook | None = None
 
@@ -190,7 +195,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             services=self.services,
             s3_bucket=self.s3_bucket,
             zone=self.zone,
-            service_account_id=self.service_account_id,
+            service_account_id=self.service_account_id or self.hook.default_service_account_id,
             masternode_resource_preset=self.masternode_resource_preset,
             masternode_disk_size=self.masternode_disk_size,
             masternode_disk_type=self.masternode_disk_type,
@@ -214,6 +219,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             host_group_ids=self.host_group_ids,
             security_group_ids=self.security_group_ids,
             log_group_id=self.log_group_id,
+            labels=self.labels,
             initialization_actions=self.initialization_actions
             and [
                 self.hook.sdk.wrappers.InitializationAction(
@@ -256,7 +262,11 @@ class DataprocBaseOperator(BaseOperator):
         if self.yandex_conn_id is None:
             xcom_yandex_conn_id = context["task_instance"].xcom_pull(key="yandexcloud_connection_id")
             if xcom_yandex_conn_id:
-                warnings.warn("Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly")
+                warnings.warn(
+                    "Implicit pass of `yandex_conn_id` is deprecated, please pass it explicitly",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 self.yandex_conn_id = xcom_yandex_conn_id
 
         return DataprocHook(yandex_conn_id=self.yandex_conn_id)

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook

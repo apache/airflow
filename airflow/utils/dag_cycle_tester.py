@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG Cycle tester."""
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
@@ -58,7 +59,7 @@ def check_cycle(dag: DAG) -> None:
     task_dict = dag.task_dict
 
     def _check_adjacent_tasks(task_id, current_task):
-        """Returns first untraversed child task, else None if all tasks traversed."""
+        """Return first untraversed child task, else None if all tasks traversed."""
         for adjacent_task in current_task.get_direct_relative_ids():
             if visited[adjacent_task] == CYCLE_IN_PROGRESS:
                 msg = f"Cycle detected in DAG: {dag.dag_id}. Faulty task: {task_id}"

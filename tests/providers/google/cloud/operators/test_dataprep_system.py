@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from os import environ
+import os
 
 import pytest
 
@@ -27,7 +27,7 @@ from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest
 
-TOKEN = environ.get("DATAPREP_TOKEN")
+TOKEN = os.environ.get("DATAPREP_TOKEN")
 EXTRA = {"token": TOKEN}
 
 

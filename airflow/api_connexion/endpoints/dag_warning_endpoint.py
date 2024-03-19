@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
@@ -25,14 +26,19 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse
+from airflow.api_connexion.security import get_readable_dags
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagwarning import DagWarning as DagWarningModel
-from airflow.security import permissions
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
+    from airflow.api_connexion.types import APIResponse
+
+
+@security.requires_access_dag("GET", DagAccessEntity.WARNING)
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_dag_warnings(
@@ -53,6 +59,9 @@ def get_dag_warnings(
     query = select(DagWarningModel)
     if dag_id:
         query = query.where(DagWarningModel.dag_id == dag_id)
+    else:
+        readable_dags = get_readable_dags()
+        query = query.where(DagWarningModel.dag_id.in_(readable_dags))
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
     total_entries = get_query_count(query, session=session)

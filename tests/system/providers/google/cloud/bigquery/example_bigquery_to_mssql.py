@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google BigQuery service.
 """
+
 from __future__ import annotations
 
 import os
@@ -25,7 +26,7 @@ from datetime import datetime
 
 import pytest
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -46,7 +47,7 @@ DATA_EXPORT_BUCKET_NAME = os.environ.get("GCP_BIGQUERY_EXPORT_BUCKET_NAME", "INV
 TABLE = "table_42"
 destination_table = "mssql_table_test"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

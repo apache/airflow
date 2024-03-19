@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Secrets Manager service."""
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -63,7 +64,7 @@ class SecretsManagerHook(GoogleBaseHook):
 
     def get_conn(self) -> _SecretManagerClient:
         """
-        Retrieves the connection to Secret Manager.
+        Retrieve the connection to Secret Manager.
 
         :return: Secret Manager client.
         """
@@ -81,5 +82,7 @@ class SecretsManagerHook(GoogleBaseHook):
         :param project_id: Project id (if you want to override the project_id from credentials)
         """
         return self.get_conn().get_secret(
-            secret_id=secret_id, secret_version=secret_version, project_id=project_id  # type: ignore
+            secret_id=secret_id,
+            secret_version=secret_version,
+            project_id=project_id,  # type: ignore
         )

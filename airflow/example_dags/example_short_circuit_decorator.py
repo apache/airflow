@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the `@task.short_circuit()` TaskFlow decorator."""
+
 from __future__ import annotations
 
 import pendulum
@@ -32,8 +33,8 @@ def example_short_circuit_decorator():
     def check_condition(condition):
         return condition
 
-    ds_true = [EmptyOperator(task_id="true_" + str(i)) for i in [1, 2]]
-    ds_false = [EmptyOperator(task_id="false_" + str(i)) for i in [1, 2]]
+    ds_true = [EmptyOperator(task_id=f"true_{i}") for i in [1, 2]]
+    ds_false = [EmptyOperator(task_id=f"false_{i}") for i in [1, 2]]
 
     condition_is_true = check_condition.override(task_id="condition_is_true")(condition=True)
     condition_is_false = check_condition.override(task_id="condition_is_false")(condition=False)

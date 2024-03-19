@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google API base operator."""
+
 from __future__ import annotations
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -28,7 +29,7 @@ class GoogleCloudBaseOperator(BaseOperator):
 
     def __deepcopy__(self, memo):
         """
-        Updating the memo to fix the non-copyable global constant.
+        Update the memo to fix the non-copyable global constant.
 
         This constant can be specified in operator parameters as a retry configuration to indicate a default.
         See https://github.com/apache/airflow/issues/28751 for details.

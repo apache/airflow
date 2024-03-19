@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for RenderedTaskInstanceFields."""
+
 from __future__ import annotations
 
 import os
@@ -29,9 +30,13 @@ from airflow import settings
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timezone import datetime
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2018, 1, 1)
 EXECUTION_DATE = datetime(2019, 1, 1)
@@ -133,9 +138,11 @@ class TestRenderedTaskInstanceFields:
         session.add(rtif)
         session.flush()
 
-        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(
-            ti=ti, session=session
-        )
+        assert {
+            "bash_command": expected_rendered_field,
+            "env": None,
+            "cwd": None,
+        } == RTIF.get_templated_fields(ti=ti, session=session)
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
@@ -153,44 +160,38 @@ class TestRenderedTaskInstanceFields:
         ],
     )
     def test_delete_old_records(
-        self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker
+        self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
     ):
         """
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id.
         """
-        session = settings.Session()
-        with dag_maker("test_delete_old_records") as dag:
-            task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
-        rtif_list = []
-        for num in range(rtif_num):
-            dr = dag_maker.create_dagrun(run_id=str(num), execution_date=dag.start_date + timedelta(days=num))
-            ti = dr.task_instances[0]
-            ti.task = task
-            rtif_list.append(RTIF(ti))
+        with set_current_task_instance_session(session=session):
+            with dag_maker("test_delete_old_records") as dag:
+                task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
+            rtif_list = []
+            for num in range(rtif_num):
+                dr = dag_maker.create_dagrun(
+                    run_id=str(num), execution_date=dag.start_date + timedelta(days=num)
+                )
+                ti = dr.task_instances[0]
+                ti.task = task
+                rtif_list.append(RTIF(ti))
 
-        session.add_all(rtif_list)
-        session.flush()
+            session.add_all(rtif_list)
+            session.flush()
 
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
 
-        for rtif in rtif_list:
-            assert rtif in result
+            for rtif in rtif_list:
+                assert rtif in result
 
-        assert rtif_num == len(result)
+            assert rtif_num == len(result)
 
-        # Verify old records are deleted and only 'num_to_keep' records are kept
-        # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        expected_query_count_based_on_db = (
-            expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count != 0
-            else expected_query_count
-        )
-
-        with assert_queries_count(expected_query_count_based_on_db):
-            RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
-        assert remaining_rtifs == len(result)
+            with assert_queries_count(expected_query_count):
+                RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+            assert remaining_rtifs == len(result)
 
     @pytest.mark.parametrize(
         "num_runs, num_to_keep, remaining_rtifs, expected_query_count",
@@ -207,40 +208,33 @@ class TestRenderedTaskInstanceFields:
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id with mapped tasks.
         """
-        with dag_maker("test_delete_old_records", session=session) as dag:
-            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
-        for num in range(num_runs):
-            dr = dag_maker.create_dagrun(
-                run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
-            )
+        with set_current_task_instance_session(session=session):
+            with dag_maker("test_delete_old_records", session=session) as dag:
+                mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
+            for num in range(num_runs):
+                dr = dag_maker.create_dagrun(
+                    run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
+                )
 
-            mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
-            session.refresh(dr)
-            for ti in dr.task_instances:
-                ti.task = dag.get_task(ti.task_id)
-                session.add(RTIF(ti))
-        session.flush()
+                mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
+                session.refresh(dr)
+                for ti in dr.task_instances:
+                    ti.task = dag.get_task(ti.task_id)
+                    session.add(RTIF(ti))
+            session.flush()
 
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
-        assert len(result) == num_runs * 2
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
+            assert len(result) == num_runs * 2
 
-        # Verify old records are deleted and only 'num_to_keep' records are kept
-        # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        expected_query_count_based_on_db = (
-            expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count != 0
-            else expected_query_count
-        )
-
-        with assert_queries_count(expected_query_count_based_on_db):
-            RTIF.delete_old_records(
-                task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
-            )
-        result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
-        rtif_num_runs = Counter(rtif.run_id for rtif in result)
-        assert len(rtif_num_runs) == remaining_rtifs
-        # Check that we have _all_ the data for each row
-        assert len(result) == remaining_rtifs * 2
+            with assert_queries_count(expected_query_count):
+                RTIF.delete_old_records(
+                    task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
+                )
+            result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
+            rtif_num_runs = Counter(rtif.run_id for rtif in result)
+            assert len(rtif_num_runs) == remaining_rtifs
+            # Check that we have _all_ the data for each row
+            assert len(result) == remaining_rtifs * 2
 
     def test_write(self, dag_maker):
         """
@@ -270,7 +264,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None}) == result
+        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -296,7 +290,7 @@ class TestRenderedTaskInstanceFields:
         assert (
             "test_write",
             "test",
-            {"bash_command": "echo test_val_updated", "env": None},
+            {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
@@ -310,8 +304,10 @@ class TestRenderedTaskInstanceFields:
             )
         dr = dag_maker.create_dagrun()
         redact.side_effect = [
-            "val 1",
-            "val 2",
+            # Order depends on order in Operator template_fields
+            "val 1",  # bash_command
+            "val 2",  # env
+            "val 3",  # cwd
         ]
 
         ti = dr.task_instances[0]
@@ -320,4 +316,5 @@ class TestRenderedTaskInstanceFields:
         assert rtif.rendered_fields == {
             "bash_command": "val 1",
             "env": "val 2",
+            "cwd": "val 3",
         }

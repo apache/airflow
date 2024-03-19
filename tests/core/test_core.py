@@ -34,6 +34,8 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
@@ -69,11 +71,18 @@ class TestCore:
             op.dry_run()
 
     def test_timeout(self, dag_maker):
+        def sleep_and_catch_other_exceptions():
+            try:
+                sleep(5)
+                # Catching Exception should NOT catch AirflowTaskTimeout
+            except Exception:
+                pass
+
         with dag_maker():
             op = PythonOperator(
                 task_id="test_timeout",
                 execution_timeout=timedelta(seconds=1),
-                python_callable=lambda: sleep(5),
+                python_callable=sleep_and_catch_other_exceptions,
             )
         dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):

@@ -20,7 +20,7 @@ import json
 from unittest import mock
 
 import pytest
-from moto import mock_ssm
+from moto import mock_aws
 
 from airflow.configuration import initialize_secrets_backends
 from airflow.providers.amazon.aws.secrets.systems_manager import SystemsManagerParameterStoreBackend
@@ -55,7 +55,7 @@ class TestSsmSecrets:
         conn = SystemsManagerParameterStoreBackend().get_connection("fake_conn")
         assert conn.host == "host"
 
-    @mock_ssm
+    @mock_aws
     @pytest.mark.parametrize("ssm_value", [JSON_CONNECTION, URI_CONNECTION])
     def test_get_conn_value(self, ssm_value):
         param = {
@@ -80,7 +80,7 @@ class TestSsmSecrets:
         assert test_conn.schema == "my-schema"
         assert test_conn.extra_dejson == {"param1": "val1", "param2": "val2"}
 
-    @mock_ssm
+    @mock_aws
     def test_get_conn_value_non_existent_key(self):
         """
         Test that if the key with connection ID is not present in SSM,
@@ -99,7 +99,7 @@ class TestSsmSecrets:
         assert ssm_backend.get_conn_value(conn_id=conn_id) is None
         assert ssm_backend.get_connection(conn_id=conn_id) is None
 
-    @mock_ssm
+    @mock_aws
     def test_get_variable(self):
         param = {"Name": "/airflow/variables/hello", "Type": "String", "Value": "world"}
 
@@ -109,7 +109,7 @@ class TestSsmSecrets:
         returned_uri = ssm_backend.get_variable("hello")
         assert "world" == returned_uri
 
-    @mock_ssm
+    @mock_aws
     def test_get_config(self):
         param = {
             "Name": "/airflow/config/sql_alchemy_conn",
@@ -123,7 +123,7 @@ class TestSsmSecrets:
         returned_uri = ssm_backend.get_config("sql_alchemy_conn")
         assert "sqlite:///Users/test_user/airflow.db" == returned_uri
 
-    @mock_ssm
+    @mock_aws
     def test_get_variable_secret_string(self):
         param = {"Name": "/airflow/variables/hello", "Type": "SecureString", "Value": "world"}
         ssm_backend = SystemsManagerParameterStoreBackend()
@@ -131,7 +131,7 @@ class TestSsmSecrets:
         returned_uri = ssm_backend.get_variable("hello")
         assert "world" == returned_uri
 
-    @mock_ssm
+    @mock_aws
     def test_get_variable_non_existent_key(self):
         """
         Test that if Variable key is not present in SSM,
@@ -157,11 +157,11 @@ class TestSsmSecrets:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):
         backends = initialize_secrets_backends()
-        systems_manager = [
+        systems_manager = next(
             backend
             for backend in backends
             if backend.__class__.__name__ == "SystemsManagerParameterStoreBackend"
-        ][0]
+        )
 
         # Mock SessionFactory, session and client
         mock_session_factory_instance = mock_session_factory.return_value

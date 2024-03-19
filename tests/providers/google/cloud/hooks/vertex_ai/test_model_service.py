@@ -37,6 +37,7 @@ TEST_OUTPUT_CONFIG: dict = {}
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 MODEL_SERVICE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.model_service.{}"
+TEST_VERSION_ALIASES = ["new-alias"]
 
 
 class TestModelServiceWithDefaultProjectIdHook:
@@ -131,6 +132,103 @@ class TestModelServiceWithDefaultProjectIdHook:
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_list_model_versions(self, mock_client) -> None:
+        self.hook.list_model_versions(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.list_model_versions.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_delete_model_version(self, mock_client) -> None:
+        self.hook.delete_model_version(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.delete_model_version.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_get_model(self, mock_client) -> None:
+        self.hook.get_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME)
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.get_model.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_set_version_as_default(self, mock_client) -> None:
+        self.hook.set_version_as_default(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=["default"],
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_add_version_aliases(self, mock_client) -> None:
+        self.hook.add_version_aliases(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model_id=TEST_MODEL_NAME,
+            version_aliases=TEST_VERSION_ALIASES,
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=TEST_VERSION_ALIASES,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_delete_version_aliases(self, mock_client) -> None:
+        self.hook.delete_version_aliases(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model_id=TEST_MODEL_NAME,
+            version_aliases=TEST_VERSION_ALIASES,
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=["-" + alias for alias in TEST_VERSION_ALIASES],
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
 
 class TestModelServiceWithoutDefaultProjectIdHook:
     def setup_method(self):
@@ -219,3 +317,100 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_list_model_versions(self, mock_client) -> None:
+        self.hook.list_model_versions(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.list_model_versions.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_delete_model_version(self, mock_client) -> None:
+        self.hook.delete_model_version(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.delete_model_version.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_get_model(self, mock_client) -> None:
+        self.hook.get_model(project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME)
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.get_model.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_set_version_as_default(self, mock_client) -> None:
+        self.hook.set_version_as_default(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model_id=TEST_MODEL_NAME
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=["default"],
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_add_version_aliases(self, mock_client) -> None:
+        self.hook.add_version_aliases(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model_id=TEST_MODEL_NAME,
+            version_aliases=TEST_VERSION_ALIASES,
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=TEST_VERSION_ALIASES,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_delete_version_aliases(self, mock_client) -> None:
+        self.hook.delete_version_aliases(
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            model_id=TEST_MODEL_NAME,
+            version_aliases=TEST_VERSION_ALIASES,
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.merge_version_aliases.assert_called_once_with(
+            request=dict(
+                name=mock_client.return_value.model_path.return_value,
+                version_aliases=["-" + alias for alias in TEST_VERSION_ALIASES],
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )

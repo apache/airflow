@@ -36,6 +36,7 @@ IGNORED = {
     "email_on_retry",
     "post_execute",
     "pre_execute",
+    "multiple_outputs",
     # Doesn't matter, not used anywhere.
     "default_args",
     # Deprecated and is aliased to max_active_tis_per_dag.
@@ -109,9 +110,9 @@ def _iter_assignment_to_self_attributes(targets: typing.Iterable[ast.expr]) -> t
     for t in targets:
         if isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name) and t.value.id == "self":
             yield t.attr  # Something like "self.foo = ...".
-            continue
-        # Recursively visit nodes in unpacking assignments like "a, b = ...".
-        yield from _iter_assignment_to_self_attributes(getattr(t, "elts", ()))
+        else:
+            # Recursively visit nodes in unpacking assignments like "a, b = ...".
+            yield from _iter_assignment_to_self_attributes(getattr(t, "elts", ()))
 
 
 def _iter_assignment_targets(func: ast.FunctionDef) -> typing.Iterator[str]:
@@ -126,9 +127,7 @@ def _is_property(f: ast.FunctionDef) -> bool:
     if len(f.decorator_list) != 1:
         return False
     decorator = f.decorator_list[0]
-    if not isinstance(decorator, ast.Name):
-        return False
-    return decorator.id == "property"
+    return isinstance(decorator, ast.Name) and decorator.id == "property"
 
 
 def _iter_member_names(klass: ast.ClassDef) -> typing.Iterator[str]:

@@ -26,6 +26,8 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_role, delete_role
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRoleCollectionItemSchema:
     @pytest.fixture(scope="class")

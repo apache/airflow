@@ -29,7 +29,7 @@ from typing import Callable, Iterable, Pattern, cast
 import re2
 
 from airflow.configuration import conf
-from airflow.exceptions import InvalidStatsNameException
+from airflow.exceptions import InvalidStatsNameException, RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
 
@@ -70,9 +70,12 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^pool\.open_slots\.(?P<pool_name>.*)$",
     r"^pool\.queued_slots\.(?P<pool_name>.*)$",
     r"^pool\.running_slots\.(?P<pool_name>.*)$",
+    r"^pool\.deferred_slots\.(?P<pool_name>.*)$",
     r"^pool\.starving_tasks\.(?P<pool_name>.*)$",
     r"^dagrun\.dependency-check\.(?P<dag_id>.*)$",
     r"^dag\.(?P<dag_id>.*)\.(?P<task_id>.*)\.duration$",
+    r"^dag\.(?P<dag_id>.*)\.(?P<task_id>.*)\.queued_duration$",
+    r"^dag\.(?P<dag_id>.*)\.(?P<task_id>.*)\.scheduled_duration$",
     r"^dag_processing\.last_duration\.(?P<dag_file>.*)$",
     r"^dagrun\.duration\.success\.(?P<dag_id>.*)$",
     r"^dagrun\.duration\.failed\.(?P<dag_id>.*)$",
@@ -82,6 +85,42 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
 BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
 OTEL_NAME_MAX_LENGTH = 63
+DEFAULT_VALIDATOR_TYPE = "allow"
+
+
+def get_validator() -> ListValidator:
+    validators = {
+        "basic": {"allow": AllowListValidator, "block": BlockListValidator},
+        "pattern": {"allow": PatternAllowListValidator, "block": PatternBlockListValidator},
+    }
+    metric_lists = {
+        "allow": (metric_allow_list := conf.get("metrics", "metrics_allow_list", fallback=None)),
+        "block": (metric_block_list := conf.get("metrics", "metrics_block_list", fallback=None)),
+    }
+
+    use_pattern = conf.getboolean("metrics", "metrics_use_pattern_match", fallback=False)
+    validator_type = "pattern" if use_pattern else "basic"
+
+    if not use_pattern:
+        warnings.warn(
+            "The basic metric validator will be deprecated in the future in favor of pattern-matching.  "
+            "You can try this now by setting config option metrics_use_pattern_match to True.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
+    if metric_allow_list:
+        list_type = "allow"
+        if metric_block_list:
+            log.warning(
+                "Ignoring metrics_block_list as both metrics_allow_list and metrics_block_list have been set."
+            )
+    elif metric_block_list:
+        list_type = "block"
+    else:
+        list_type = DEFAULT_VALIDATOR_TYPE
+
+    return validators[validator_type][list_type](metric_lists[list_type])
 
 
 def validate_stat(fn: Callable) -> Callable:
@@ -107,7 +146,7 @@ def stat_name_otel_handler(
     max_length: int = OTEL_NAME_MAX_LENGTH,
 ) -> str:
     """
-    Verifies that a proposed prefix and name combination will meet OpenTelemetry naming standards.
+    Verify that a proposed prefix and name combination will meet OpenTelemetry naming standards.
 
     See: https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
 
@@ -178,7 +217,7 @@ def stat_name_default_handler(
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
-    if not all((c in allowed_chars) for c in stat_name):
+    if any(c not in allowed_chars for c in stat_name):
         raise InvalidStatsNameException(
             f"The stat name ({stat_name}) has to be composed of ASCII "
             f"alphabets, numbers, or the underscore, dot, or dash characters."
@@ -218,6 +257,12 @@ class ListValidator(metaclass=abc.ABCMeta):
         """Test if name is allowed."""
         raise NotImplementedError
 
+    def _has_pattern_match(self, name: str) -> bool:
+        for entry in self.validate_list or ():
+            if re2.findall(entry, name.strip().lower()):
+                return True
+        return False
+
 
 class AllowListValidator(ListValidator):
     """AllowListValidator only allows names that match the allowed prefixes."""
@@ -229,11 +274,31 @@ class AllowListValidator(ListValidator):
             return True  # default is all metrics are allowed
 
 
+class PatternAllowListValidator(ListValidator):
+    """Match the provided strings anywhere in the metric name."""
+
+    def test(self, name: str) -> bool:
+        if self.validate_list is not None:
+            return super()._has_pattern_match(name)
+        else:
+            return True  # default is all metrics are allowed
+
+
 class BlockListValidator(ListValidator):
     """BlockListValidator only allows names that do not match the blocked prefixes."""
 
     def test(self, name: str) -> bool:
         if self.validate_list is not None:
             return not name.strip().lower().startswith(self.validate_list)
+        else:
+            return True  # default is all metrics are allowed
+
+
+class PatternBlockListValidator(ListValidator):
+    """Only allow names that do not match the blocked strings."""
+
+    def test(self, name: str) -> bool:
+        if self.validate_list is not None:
+            return not super()._has_pattern_match(name)
         else:
             return True  # default is all metrics are allowed

@@ -26,7 +26,7 @@ class DagStateField(fields.String):
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = [validate.OneOf(State.dag_states)] + list(self.validators)
+        self.validators = [validate.OneOf(State.dag_states), *self.validators]
 
 
 class TaskInstanceStateField(fields.String):
@@ -34,4 +34,4 @@ class TaskInstanceStateField(fields.String):
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = [validate.OneOf(State.task_states)] + list(self.validators)
+        self.validators = [validate.OneOf(State.task_states), *self.validators]

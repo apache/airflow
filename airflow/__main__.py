@@ -18,6 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Main executable module."""
+
 from __future__ import annotations
 
 import os
@@ -38,7 +39,6 @@ from airflow.configuration import write_webserver_configuration_if_needed
 
 
 def main():
-    """Main executable function."""
     conf = configuration.conf
     if conf.get("core", "security") == "kerberos":
         os.environ["KRB5CCNAME"] = conf.get("kerberos", "ccache")
@@ -46,7 +46,6 @@ def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
-
     if args.subcommand not in ["lazy_loaded", "version"]:
         # Here we ensure that the default configuration is written if needed before running any command
         # that might need it. This used to be done during configuration initialization but having it
@@ -56,7 +55,6 @@ def main():
         conf = write_default_airflow_configuration_if_needed()
         if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
-
     args.func(args)
 
 

@@ -27,7 +27,10 @@ from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
+from airflow.providers.openlineage.utils.utils import (
+    get_filtered_unknown_operator_keys,
+    is_source_enabled,
+)
 
 """
 :meta private:
@@ -49,7 +52,7 @@ class PythonExtractor(BaseExtractor):
     def get_operator_classnames(cls) -> list[str]:
         return ["PythonOperator"]
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         source_code = self.get_source_code(self.operator.python_callable)
         job_facet: dict = {}
         if is_source_enabled() and source_code:
@@ -84,5 +87,11 @@ class PythonExtractor(BaseExtractor):
             # Trying to extract source code of builtin_function_or_method
             return str(callable)
         except OSError:
-            self.log.exception("Can't get source code facet of PythonOperator %s", self.operator.task_id)
+            self.log.warning(
+                "Can't get source code facet of PythonOperator %s",
+                self.operator.task_id,
+            )
         return None
+
+    def extract(self) -> OperatorLineage | None:
+        return super().extract()

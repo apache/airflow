@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Looker operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -73,7 +74,6 @@ class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
         self.materialization_id: str | None = None
 
     def execute(self, context: Context) -> str:
-
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
         resp = self.hook.start_pdt_build(

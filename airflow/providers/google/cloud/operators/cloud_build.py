@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrates with Google Cloud Build service."""
+
 from __future__ import annotations
 
 import json
@@ -25,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.configuration import conf
@@ -44,6 +44,8 @@ from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -201,7 +203,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         if not isinstance(self.build_raw, str):
             return
         with open(self.build_raw) as file:
-            if any(self.build_raw.endswith(ext) for ext in [".yaml", ".yml"]):
+            if self.build_raw.endswith((".yaml", ".yml")):
                 self.build = yaml.safe_load(file.read())
             if self.build_raw.endswith(".json"):
                 self.build = json.loads(file.read())
@@ -1045,7 +1047,7 @@ class BuildProcessor:
 
     def process_body(self) -> Build:
         """
-        Processes the body passed in the constructor.
+        Process the body passed in the constructor.
 
         :return: the body.
         """

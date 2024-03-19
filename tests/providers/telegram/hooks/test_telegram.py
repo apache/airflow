@@ -27,12 +27,15 @@ from airflow.models import Connection
 from airflow.providers.telegram.hooks.telegram import TelegramHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 TELEGRAM_TOKEN = "dummy token"
 
 
 class AsyncMock(mock.MagicMock):
     async def __call__(self, *args, **kwargs):
-        return super(AsyncMock, self).__call__(*args, **kwargs)
+        return super().__call__(*args, **kwargs)
 
 
 class TestTelegramHook:
@@ -59,11 +62,11 @@ class TestTelegramHook:
             )
         )
 
-    def test_should_raise_exception_if_both_connection_or_token_is_not_provided(self):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            TelegramHook()
+    def test_should_use_default_connection(self):
+        hook = TelegramHook()
 
-        assert "Cannot get token: No valid Telegram connection supplied." == str(ctx.value)
+        assert hook.token == TELEGRAM_TOKEN
+        assert hook.chat_id is None
 
     def test_should_raise_exception_if_conn_id_doesnt_exist(self):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:

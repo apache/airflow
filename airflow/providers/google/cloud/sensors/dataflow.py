@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataflow sensor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -106,7 +107,11 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         if job_status in self.expected_statuses:
             return True
         elif job_status in DataflowJobStatus.TERMINAL_STATES:
-            raise AirflowException(f"Job with id '{self.job_id}' is already in terminal state: {job_status}")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         return False
 
@@ -178,9 +183,11 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                raise AirflowException(
-                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                )
+                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+                message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
         result = self.hook.fetch_job_metrics_by_id(
             job_id=self.job_id,
@@ -257,9 +264,11 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                raise AirflowException(
-                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                )
+                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+                message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
         result = self.hook.fetch_job_messages_by_id(
             job_id=self.job_id,
@@ -336,9 +345,11 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                raise AirflowException(
-                    f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                )
+                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+                message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
         result = self.hook.fetch_job_autoscaling_events_by_id(
             job_id=self.job_id,

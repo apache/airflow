@@ -17,19 +17,23 @@
 from __future__ import annotations
 
 import asyncio
+import itertools
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import WaiterError
 from deprecated import deprecated
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
-@deprecated(reason="use BatchJobTrigger instead")
+
+@deprecated(reason="use BatchJobTrigger instead", category=AirflowProviderDeprecationWarning)
 class BatchOperatorTrigger(BaseTrigger):
     """
     Asynchronously poll the boto3 API and wait for the Batch job to be in the `SUCCEEDED` state.
@@ -57,7 +61,7 @@ class BatchOperatorTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BatchOperatorTrigger arguments and classpath."""
+        """Serialize BatchOperatorTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.batch.BatchOperatorTrigger",
             {
@@ -74,12 +78,9 @@ class BatchOperatorTrigger(BaseTrigger):
         return BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
-
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
-            attempt = 0
-            while attempt < self.max_retries:
-                attempt = attempt + 1
+            for attempt in range(1, 1 + self.max_retries):
                 try:
                     await waiter.wait(
                         jobs=[self.job_id],
@@ -88,7 +89,6 @@ class BatchOperatorTrigger(BaseTrigger):
                             "MaxAttempts": 1,
                         },
                     )
-                    break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         yield TriggerEvent(
@@ -102,14 +102,14 @@ class BatchOperatorTrigger(BaseTrigger):
                         self.max_retries,
                     )
                     await asyncio.sleep(int(self.poll_interval))
+                else:
+                    yield TriggerEvent({"status": "success", "job_id": self.job_id})
+                    break
+            else:
+                yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
 
-        if attempt >= self.max_retries:
-            yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
-        else:
-            yield TriggerEvent({"status": "success", "job_id": self.job_id})
 
-
-@deprecated(reason="use BatchJobTrigger instead")
+@deprecated(reason="use BatchJobTrigger instead", category=AirflowProviderDeprecationWarning)
 class BatchSensorTrigger(BaseTrigger):
     """
     Checks for the status of a submitted job_id to AWS Batch until it reaches a failure or a success state.
@@ -138,7 +138,7 @@ class BatchSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BatchSensorTrigger arguments and classpath."""
+        """Serialize BatchSensorTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.batch.BatchSensorTrigger",
             {
@@ -161,9 +161,7 @@ class BatchSensorTrigger(BaseTrigger):
         """
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
-            attempt = 0
-            while True:
-                attempt = attempt + 1
+            for attempt in itertools.count(1):
                 try:
                     await waiter.wait(
                         jobs=[self.job_id],
@@ -172,7 +170,6 @@ class BatchSensorTrigger(BaseTrigger):
                             "MaxAttempts": 1,
                         },
                     )
-                    break
                 except WaiterError as error:
                     if "error" in str(error):
                         yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
@@ -183,6 +180,8 @@ class BatchSensorTrigger(BaseTrigger):
                         attempt,
                     )
                     await asyncio.sleep(int(self.poke_interval))
+                else:
+                    break
 
             yield TriggerEvent(
                 {

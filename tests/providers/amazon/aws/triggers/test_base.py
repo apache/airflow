@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
-from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+    from airflow.triggers.base import TriggerEvent
 
 
 class TestImplem(AwsBaseWaiterTrigger):
@@ -60,7 +63,41 @@ class TestAwsBaseWaiterTrigger:
         assert "region_name" in args
         assert args["region_name"] == "my_region"
 
-    def test_region_not_serialized_if_omitted(self):
+    @pytest.mark.parametrize("verify", [True, False, pytest.param("/foo/bar.pem", id="path")])
+    def test_verify_serialized(self, verify):
+        self.trigger.verify = verify
+        _, args = self.trigger.serialize()
+
+        assert "verify" in args
+        assert args["verify"] == verify
+
+    @pytest.mark.parametrize(
+        "botocore_config",
+        [
+            pytest.param({"read_timeout": 10, "connect_timeout": 42, "keepalive": True}, id="non-empty-dict"),
+            pytest.param({}, id="empty-dict"),
+        ],
+    )
+    def test_botocore_config_serialized(self, botocore_config):
+        self.trigger.botocore_config = botocore_config
+        _, args = self.trigger.serialize()
+
+        assert "botocore_config" in args
+        assert args["botocore_config"] == botocore_config
+
+    @pytest.mark.parametrize("param_name", ["region_name", "verify", "botocore_config"])
+    def test_hooks_args_not_serialized_if_omitted(self, param_name):
+        _, args = self.trigger.serialize()
+
+        assert param_name not in args
+
+    def test_region_name_not_serialized_if_empty_string(self):
+        """
+        Compatibility with previous behaviour when empty string region name not serialised.
+
+        It would evaluate as None, however empty string it is not valid region name in boto3.
+        """
+        self.trigger.region_name = ""
         _, args = self.trigger.serialize()
 
         assert "region_name" not in args

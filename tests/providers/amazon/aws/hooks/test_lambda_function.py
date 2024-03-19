@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -30,7 +31,9 @@ BYTES_PAYLOAD = b'{"hello": "airflow"}'
 RUNTIME = "python3.9"
 ROLE = "role"
 HANDLER = "handler"
-CODE = {}
+CODE: dict = {}
+LOG_RESPONSE = base64.b64encode(b"FOO\n\nBAR\n\n").decode()
+BAD_LOG_RESPONSE = LOG_RESPONSE[:-3]
 
 
 class LambdaHookForTests(LambdaHook):
@@ -136,3 +139,18 @@ class TestLambdaHook:
                 package_type="Zip",
                 **params,
             )
+
+    def test_encode_log_result(self):
+        assert LambdaHook.encode_log_result(LOG_RESPONSE) == ["FOO", "", "BAR", ""]
+        assert LambdaHook.encode_log_result(LOG_RESPONSE, keep_empty_lines=False) == ["FOO", "BAR"]
+        assert LambdaHook.encode_log_result("") == []
+
+    @pytest.mark.parametrize(
+        "log_result",
+        [
+            pytest.param(BAD_LOG_RESPONSE, id="corrupted"),
+            pytest.param(None, id="none"),
+        ],
+    )
+    def test_encode_corrupted_log_result(self, log_result):
+        assert LambdaHook.encode_log_result(log_result) is None

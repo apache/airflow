@@ -21,6 +21,8 @@ import pytest
 
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSession:
     def dummy_session(self, session=None):

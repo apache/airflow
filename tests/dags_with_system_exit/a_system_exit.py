@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 
 # Tests to make sure that a system exit won't cause the scheduler to fail
 # Starts with 'a' to get listed first.

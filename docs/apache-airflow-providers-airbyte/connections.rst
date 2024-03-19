@@ -21,8 +21,8 @@ Airbyte Connection
 ==================
 The Airbyte connection type use the HTTP protocol.
 
-Configuring the Connection
---------------------------
+Configuring the Connection - Config API
+---------------------------------------
 Host(required)
     The host to connect to the Airbyte server.
 
@@ -34,3 +34,11 @@ Login (optional)
 
 Password (optional)
     Specify the password to connect.
+
+Configuring the Connection - Cloud API
+--------------------------------------
+Host(required)
+    The host to connect to the Airbyte Cloud. (Typically ``https://api.airbyte.com``)
+
+Password (required)
+    Cloud API Key obtained from https://portal.airbyte.com/

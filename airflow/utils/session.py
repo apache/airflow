@@ -21,12 +21,14 @@ from functools import wraps
 from inspect import signature
 from typing import Callable, Generator, TypeVar, cast
 
+from sqlalchemy.orm import Session as SASession
+
 from airflow import settings
 from airflow.typing_compat import ParamSpec
 
 
 @contextlib.contextmanager
-def create_session() -> Generator[settings.SASession, None, None]:
+def create_session() -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
     Session = getattr(settings, "Session", None)
     if Session is None:
@@ -60,7 +62,7 @@ def find_session_idx(func: Callable[PS, RT]) -> int:
 
 def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
-    Function decorator that provides a session if it isn't provided.
+    Provide a session if it isn't provided.
 
     If you want to reuse a session or run the function as part of a
     database transaction, you pass it to the function, if not this wrapper
@@ -83,4 +85,4 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
 # the 'session' argument to be of type Session instead of Session | None,
 # making it easier to type hint the function body without dealing with the None
 # case that can never happen at runtime.
-NEW_SESSION: settings.SASession = cast(settings.SASession, None)
+NEW_SESSION: SASession = cast(SASession, None)

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import multiprocessing
 import time
@@ -23,7 +24,6 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from kubernetes import client, watch
-from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
@@ -36,10 +36,11 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+        ADOPTED,
         ALL_NAMESPACES,
         POD_EXECUTOR_DONE_KEY,
     )
@@ -51,6 +52,8 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    from kubernetes.client import Configuration, models as k8s
+
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
         KubernetesJobType,
         KubernetesResultsType,
@@ -99,7 +102,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.kube_config = kube_config
 
     def run(self) -> None:
-        """Performs watching."""
+        """Perform watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
@@ -133,7 +136,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
         except ApiException as e:
-            if e.status == 410:  # Resource version is too old
+            if str(e.status) == "410":  # Resource version is too old
                 if self.namespace == ALL_NAMESPACES:
                     pods = kube_client.list_pod_for_all_namespaces(watch=False)
                 else:
@@ -218,17 +221,55 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         pod = event["object"]
         annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
-        if status == "Pending":
+        if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
+            # This will happen only when the task pods are adopted by another executor.
+            # So, there is no change in the pod state.
+            # However, need to free the executor slot from the current executor.
+            self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
+            self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
+        elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
-                self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+                self.watcher_queue.put(
+                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                )
+            elif (
+                self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                and "status" in event["raw_object"]
+            ):
+                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
+                # Init containers and base container statuses to check.
+                # Skipping the other containers statuses check.
+                container_statuses_to_check = []
+                if "initContainerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.extend(event["raw_object"]["status"]["initContainerStatuses"])
+                if "containerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.append(event["raw_object"]["status"]["containerStatuses"][0])
+                for container_status in container_statuses_to_check:
+                    container_status_state = container_status["state"]
+                    if "waiting" in container_status_state:
+                        if (
+                            container_status_state["waiting"]["reason"]
+                            in self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                        ):
+                            if (
+                                container_status_state["waiting"]["reason"] == "ErrImagePull"
+                                and container_status_state["waiting"]["message"] == "pull QPS exceeded"
+                            ):
+                                continue
+                            self.watcher_queue.put(
+                                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                            )
+                            break
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
             self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+            self.watcher_queue.put(
+                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+            )
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
@@ -256,7 +297,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pod_name,
                     annotations_string,
                 )
-                self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+                self.watcher_queue.put(
+                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                )
             else:
                 self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
         else:
@@ -294,7 +337,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_watchers = self._make_kube_watchers()
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
-        """Runs POD asynchronously."""
+        """Run POD asynchronously."""
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -399,7 +442,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes Job created!")
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
-        """Deletes Pod from a namespace. Does not raise if it does not exist."""
+        """Delete Pod from a namespace; does not raise if it does not exist."""
         try:
             self.log.debug("Deleting pod %s in namespace %s", pod_name, namespace)
             self.kube_client.delete_namespaced_pod(
@@ -410,7 +453,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
@@ -427,22 +470,20 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def sync(self) -> None:
         """
-        Checks the status of all currently running kubernetes jobs.
+        Check the status of all currently running kubernetes jobs.
 
         If a job is completed, its status is placed in the result queue to be sent back to the scheduler.
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watchers()
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 task = self.watcher_queue.get_nowait()
                 try:
                     self.log.debug("Processing task %s", task)
                     self.process_watcher_task(task)
                 finally:
                     self.watcher_queue.task_done()
-            except Empty:
-                break
 
     def process_watcher_task(self, task: KubernetesWatchType) -> None:
         """Process the task by watcher."""
@@ -460,19 +501,17 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _flush_watcher_queue(self) -> None:
         self.log.debug("Executor shutting down, watcher_queue approx. size=%d", self.watcher_queue.qsize())
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 task = self.watcher_queue.get_nowait()
                 # Ignoring it since it can only have either FAILED or SUCCEEDED pods
                 self.log.warning("Executor shutting down, IGNORING watcher task=%s", task)
                 self.watcher_queue.task_done()
-            except Empty:
-                break
 
     def terminate(self) -> None:
         """Terminates the watcher."""
         self.log.debug("Terminating kube_watchers...")
-        for namespace, kube_watcher in self.kube_watchers.items():
+        for kube_watcher in self.kube_watchers.values():
             kube_watcher.terminate()
             kube_watcher.join()
             self.log.debug("kube_watcher=%s", kube_watcher)

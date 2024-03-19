@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import Counter
 from enum import IntEnum
 from functools import cached_property
@@ -25,8 +26,8 @@ from typing import Any, AsyncIterator
 
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -49,7 +50,7 @@ class SageMakerTrigger(BaseTrigger):
         job_type: str,
         poke_interval: int = 30,
         max_attempts: int = 480,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
     ):
         super().__init__()
         self.job_name = job_name
@@ -59,7 +60,7 @@ class SageMakerTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SagemakerTrigger arguments and classpath."""
+        """Serialize SagemakerTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
             {
@@ -138,7 +139,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
         pipeline_execution_arn: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
     ):
         self.waiter_type = waiter_type
         self.pipeline_execution_arn = pipeline_execution_arn
@@ -164,12 +165,10 @@ class SageMakerPipelineTrigger(BaseTrigger):
     }
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        attempts = 0
         hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         async with hook.async_conn as conn:
             waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
-            while attempts < self.waiter_max_attempts:
-                attempts = attempts + 1
+            for _ in range(self.waiter_max_attempts):
                 try:
                     await waiter.wait(
                         PipelineExecutionArn=self.pipeline_execution_arn, WaiterConfig={"MaxAttempts": 1}
@@ -198,3 +197,83 @@ class SageMakerPipelineTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.waiter_delay))
 
             raise AirflowException("Waiter error: max attempts reached")
+
+
+class SageMakerTrainingPrintLogTrigger(BaseTrigger):
+    """
+    SageMakerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
+
+    :param job_name: name of the job to check status
+    :param poke_interval:  polling period in seconds to check for the status
+    :param aws_conn_id: AWS connection ID for sagemaker
+    """
+
+    def __init__(
+        self,
+        job_name: str,
+        poke_interval: float,
+        aws_conn_id: str | None = "aws_default",
+    ):
+        super().__init__()
+        self.job_name = job_name
+        self.poke_interval = poke_interval
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize SageMakerTrainingPrintLogTrigger arguments and classpath."""
+        return (
+            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger",
+            {
+                "poke_interval": self.poke_interval,
+                "aws_conn_id": self.aws_conn_id,
+                "job_name": self.job_name,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
+        stream_names: list[str] = []  # The list of log streams
+        positions: dict[str, Any] = {}  # The current position in each stream, map of stream name -> position
+
+        last_description = await self.hook.describe_training_job_async(self.job_name)
+        instance_count = last_description["ResourceConfig"]["InstanceCount"]
+        status = last_description["TrainingJobStatus"]
+        job_already_completed = status not in self.hook.non_terminal_states
+        state = LogState.COMPLETE if job_already_completed else LogState.TAILING
+        last_describe_job_call = time.time()
+        while True:
+            try:
+                (
+                    state,
+                    last_description,
+                    last_describe_job_call,
+                ) = await self.hook.describe_training_job_with_log_async(
+                    self.job_name,
+                    positions,
+                    stream_names,
+                    instance_count,
+                    state,
+                    last_description,
+                    last_describe_job_call,
+                )
+                status = last_description["TrainingJobStatus"]
+                if status in self.hook.non_terminal_states:
+                    await asyncio.sleep(self.poke_interval)
+                elif status in self.hook.failed_states:
+                    reason = last_description.get("FailureReason", "(No reason provided)")
+                    error_message = f"SageMaker job failed because {reason}"
+                    yield TriggerEvent({"status": "error", "message": error_message})
+                else:
+                    billable_seconds = SageMakerHook.count_billable_seconds(
+                        training_start_time=last_description["TrainingStartTime"],
+                        training_end_time=last_description["TrainingEndTime"],
+                        instance_count=instance_count,
+                    )
+                    self.log.info("Billable seconds: %d", billable_seconds)
+                    yield TriggerEvent({"status": "success", "message": last_description})
+            except Exception as e:
+                yield TriggerEvent({"status": "error", "message": str(e)})

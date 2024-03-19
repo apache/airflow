@@ -28,7 +28,6 @@ TEST_PATH = "test"
 class TestAzureDataLakeStorageDeleteOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.adls.AzureDataLakeHook")
     def test_execute(self, mock_hook):
-
         operator = ADLSDeleteOperator(task_id=TASK_ID, path=TEST_PATH)
 
         operator.execute(None)

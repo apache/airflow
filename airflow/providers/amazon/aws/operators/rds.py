@@ -23,8 +23,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from mypy_boto3_rds.type_defs import TagTypeDef
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -34,11 +32,14 @@ from airflow.providers.amazon.aws.triggers.rds import (
     RdsDbDeletedTrigger,
     RdsDbStoppedTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
+    from mypy_boto3_rds.type_defs import TagTypeDef
+
     from airflow.utils.context import Context
 
 
@@ -51,7 +52,7 @@ class RdsBaseOperator(BaseOperator):
     def __init__(
         self,
         *args,
-        aws_conn_id: str = "aws_conn_id",
+        aws_conn_id: str | None = "aws_conn_id",
         region_name: str | None = None,
         hook_params: dict | None = None,
         **kwargs,
@@ -328,6 +329,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     :param s3_prefix: The Amazon S3 bucket prefix to use as the file name and path of the exported snapshot.
     :param export_only: The data to be exported from the snapshot.
     :param wait_for_completion:  If True, waits for the DB snapshot export to complete. (default: True)
+    :param waiter_interval: The number of seconds to wait before checking the export status. (default: 30)
+    :param waiter_max_attempts: The number of attempts to make before failing. (default: 40)
     """
 
     template_fields = (
@@ -351,6 +354,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         s3_prefix: str = "",
         export_only: list[str] | None = None,
         wait_for_completion: bool = True,
+        waiter_interval: int = 30,
+        waiter_max_attempts: int = 40,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -363,6 +368,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         self.s3_prefix = s3_prefix
         self.export_only = export_only or []
         self.wait_for_completion = wait_for_completion
+        self.waiter_interval = waiter_interval
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
@@ -378,7 +385,12 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.wait_for_export_task_state(self.export_task_identifier, target_state="complete")
+            self.hook.wait_for_export_task_state(
+                export_task_id=self.export_task_identifier,
+                target_state="complete",
+                check_interval=self.waiter_interval,
+                max_attempts=self.waiter_max_attempts,
+            )
         return json.dumps(start_export, default=str)
 
 
@@ -626,11 +638,13 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             )
         return json.dumps(create_db_instance, default=str)
 
-    def execute_complete(self, context, event=None) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"DB instance creation failed: {event}")
-        else:
-            return json.dumps(event["response"], default=str)
+
+        return json.dumps(event["response"], default=str)
 
 
 class RdsDeleteDbInstanceOperator(RdsBaseOperator):
@@ -709,11 +723,13 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             )
         return json.dumps(delete_db_instance, default=str)
 
-    def execute_complete(self, context, event=None) -> str:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"DB instance deletion failed: {event}")
-        else:
-            return json.dumps(event["response"], default=str)
+
+        return json.dumps(event["response"], default=str)
 
 
 class RdsStartDbOperator(RdsBaseOperator):
@@ -775,10 +791,12 @@ class RdsStartDbOperator(RdsBaseOperator):
         return json.dumps(start_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")
-        else:
-            return json.dumps(event["response"], default=str)
+
+        return json.dumps(event["response"], default=str)
 
     def _start_db(self):
         self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
@@ -872,10 +890,12 @@ class RdsStopDbOperator(RdsBaseOperator):
         return json.dumps(stop_db_response, default=str)
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
-        if event is None or event["status"] != "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")
-        else:
-            return json.dumps(event["response"], default=str)
+
+        return json.dumps(event["response"], default=str)
 
     def _stop_db(self):
         self.log.info("Stopping DB %s '%s'", self.db_type.value, self.db_identifier)

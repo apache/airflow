@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Looker hook."""
+
 from __future__ import annotations
 
 import json
 import time
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
 from looker_sdk.sdk.api40 import methods as methods40
@@ -28,8 +30,10 @@ from packaging.version import parse as parse_version
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class LookerHook(BaseHook):
@@ -51,7 +55,7 @@ class LookerHook(BaseHook):
         query_params: dict | None = None,
     ):
         """
-        Submits a PDT materialization job to Looker.
+        Submit a PDT materialization job to Looker.
 
         :param model: Required. The model of the PDT to start building.
         :param view: Required. The view of the PDT to start building.
@@ -80,7 +84,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ):
         """
-        Gets the PDT materialization job status from Looker.
+        Get the PDT materialization job status from Looker.
 
         :param materialization_id: Required. The materialization id to check status for.
         """
@@ -97,7 +101,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ) -> dict:
         """
-        Gets the PDT materialization job status.
+        Get the PDT materialization job status.
 
         :param materialization_id: Required. The materialization id to check status for.
         """
@@ -117,7 +121,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ):
         """
-        Starts a PDT materialization job cancellation request.
+        Start a PDT materialization job cancellation request.
 
         :param materialization_id: Required. The materialization id to stop.
         """
@@ -137,7 +141,7 @@ class LookerHook(BaseHook):
         timeout: int | None = None,
     ) -> None:
         """
-        Helper method which polls a PDT materialization job to check if it finishes.
+        Poll a PDT materialization job to check if it finishes.
 
         :param materialization_id: Required. The materialization id to wait for.
         :param wait_time: Optional. Number of seconds between checks.
@@ -155,7 +159,6 @@ class LookerHook(BaseHook):
             JobStatus.CANCELLED.value,
             JobStatus.UNKNOWN.value,
         ):
-
             if timeout and start + timeout < time.monotonic():
                 self.stop_pdt_build(materialization_id=materialization_id)
                 raise AirflowException(
@@ -183,7 +186,7 @@ class LookerHook(BaseHook):
         self.log.info("PDT materialization job completed successfully. Job id: %s.", materialization_id)
 
     def get_looker_sdk(self):
-        """Returns Looker SDK client for Looker API 4.0."""
+        """Return Looker SDK client for Looker API 4.0."""
         conn = self.get_connection(self.looker_conn_id)
         settings = LookerApiSettings(conn)
 
@@ -191,7 +194,7 @@ class LookerHook(BaseHook):
         return methods40.Looker40SDK(
             auth_session.AuthSession(settings, transport, serialize.deserialize40, "4.0"),
             serialize.deserialize40,
-            serialize.serialize,
+            serialize.serialize40,
             transport,
             "4.0",
         )
@@ -209,7 +212,7 @@ class LookerApiSettings(api_settings.ApiSettings):
 
     def read_config(self):
         """
-        Fetches the connection settings from Airflow's connection object.
+        Fetch the connection settings from Airflow's connection object.
 
         Overrides the default logic of getting connection settings.
         """

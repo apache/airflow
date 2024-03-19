@@ -20,6 +20,7 @@ This module provides everything to search mail for a specific attachment and dow
 
 It uses the imaplib library that is already integrated in python 3.
 """
+
 from __future__ import annotations
 
 import email
@@ -27,12 +28,14 @@ import imaplib
 import os
 import re
 import ssl
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class ImapHook(BaseHook):
@@ -118,7 +121,7 @@ class ImapHook(BaseHook):
         self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
     ) -> bool:
         """
-        Checks the mail folder for mails containing attachments with the given name.
+        Check the mail folder for mails containing attachments with the given name.
 
         :param name: The name of the attachment that will be searched for.
         :param check_regex: Checks the name for a regular expression.
@@ -130,7 +133,7 @@ class ImapHook(BaseHook):
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
         )
-        return len(mail_attachments) > 0
+        return bool(mail_attachments)
 
     def retrieve_mail_attachments(
         self,
@@ -143,7 +146,7 @@ class ImapHook(BaseHook):
         not_found_mode: str = "raise",
     ) -> list[tuple]:
         """
-        Retrieves mail's attachments in the mail folder by its name.
+        Retrieve mail's attachments in the mail folder by its name.
 
         :param name: The name of the attachment that will be downloaded.
         :param check_regex: Checks the name for a regular expression.
@@ -179,7 +182,7 @@ class ImapHook(BaseHook):
         not_found_mode: str = "raise",
     ) -> None:
         """
-        Downloads mail's attachments in the mail folder by its name to the local directory.
+        Download mail's attachments in the mail folder by its name to the local directory.
 
         :param name: The name of the attachment that will be downloaded.
         :param local_output_directory: The output directory on the local machine
@@ -302,7 +305,7 @@ class Mail(LoggingMixin):
 
     def has_attachments(self) -> bool:
         """
-        Checks the mail for a attachments.
+        Check the mail for a attachments.
 
         :returns: True if it has attachments and False if not.
         """
@@ -312,7 +315,7 @@ class Mail(LoggingMixin):
         self, name: str, check_regex: bool, find_first: bool = False
     ) -> list[tuple[Any, Any]]:
         """
-        Gets all attachments by name for the mail.
+        Get all attachments by name for the mail.
 
         :param name: The name of the attachment to look for.
         :param check_regex: Checks the name for a regular expression.
@@ -354,7 +357,7 @@ class MailPart:
 
     def is_attachment(self) -> bool:
         """
-        Checks if the part is a valid mail attachment.
+        Check if the part is a valid mail attachment.
 
         :returns: True if it is an attachment and False if not.
         """
@@ -362,7 +365,7 @@ class MailPart:
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
-        Checks if the given name matches the part's name.
+        Check if the given name matches the part's name.
 
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
@@ -371,7 +374,7 @@ class MailPart:
 
     def has_equal_name(self, name: str) -> bool:
         """
-        Checks if the given name is equal to the part's name.
+        Check if the given name is equal to the part's name.
 
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
@@ -380,7 +383,7 @@ class MailPart:
 
     def get_file(self) -> tuple:
         """
-        Gets the file including name and payload.
+        Get the file including name and payload.
 
         :returns: the part's name and payload.
         """

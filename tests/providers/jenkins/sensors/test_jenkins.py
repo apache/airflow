@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.sensors.jenkins import JenkinsBuildSensor
 
@@ -44,7 +44,7 @@ class TestJenkinsBuildSensor:
     )
     @patch("jenkins.Jenkins")
     def test_poke_buliding(self, mock_jenkins, build_number, build_state, result):
-        target_build_number = build_number if build_number else 10
+        target_build_number = build_number or 10
 
         jenkins_mock = MagicMock()
         jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
@@ -70,6 +70,9 @@ class TestJenkinsBuildSensor:
             jenkins_mock.get_build_info.assert_called_once_with("a_job_on_jenkins", target_build_number)
 
     @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @pytest.mark.parametrize(
         "build_number, build_state, result",
         [
             (
@@ -85,8 +88,10 @@ class TestJenkinsBuildSensor:
         ],
     )
     @patch("jenkins.Jenkins")
-    def test_poke_finish_building(self, mock_jenkins, build_number, build_state, result):
-        target_build_number = build_number if build_number else 10
+    def test_poke_finish_building(
+        self, mock_jenkins, build_number, build_state, result, soft_fail, expected_exception
+    ):
+        target_build_number = build_number or 10
 
         jenkins_mock = MagicMock()
         jenkins_mock.get_job_info.return_value = {"lastBuild": {"number": target_build_number}}
@@ -103,9 +108,10 @@ class TestJenkinsBuildSensor:
                 job_name="a_job_on_jenkins",
                 build_number=target_build_number,
                 target_states=["SUCCESS"],
+                soft_fail=soft_fail,
             )
             if result not in sensor.target_states:
-                with pytest.raises(AirflowException):
+                with pytest.raises(expected_exception):
                     sensor.poke(None)
                     assert jenkins_mock.get_build_info.call_count == 2
             else:

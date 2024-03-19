@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vision operator."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -23,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Sequence, Tuple
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.vision_v1 import (
     AnnotateImageRequest,
     Image,
@@ -31,12 +31,14 @@ from google.cloud.vision_v1 import (
     ProductSet,
     ReferenceImage,
 )
-from google.protobuf.field_mask_pb2 import FieldMask  # type: ignore
 
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 

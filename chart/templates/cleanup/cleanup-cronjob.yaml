@@ -26,10 +26,11 @@
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.cleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.cleanup) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.cleanup) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ .Release.Name }}-cleanup
+  name: {{ include "airflow.fullname" . }}-cleanup
   labels:
     tier: airflow
     component: airflow-cleanup-pods
@@ -76,6 +77,9 @@ spec:
           restartPolicy: Never
           nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
           affinity: {{- toYaml $affinity | nindent 12 }}
+          {{- if .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
           tolerations: {{- toYaml $tolerations | nindent 12 }}
           topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
           serviceAccountName: {{ include "cleanup.serviceAccountName" . }}
@@ -88,6 +92,7 @@ spec:
             - name: airflow-cleanup-pods
               image: {{ template "airflow_image" . }}
               imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+              securityContext: {{ $containerSecurityContext | nindent 16 }}
               {{- if .Values.cleanup.command }}
               command: {{ tpl (toYaml .Values.cleanup.command) . | nindent 16 }}
               {{- end }}

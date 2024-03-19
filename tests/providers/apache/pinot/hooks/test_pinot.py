@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
 import subprocess
+from io import BytesIO
 from unittest import mock
 
 import pytest
@@ -158,7 +158,7 @@ class TestPinotAdminHook:
     def test_run_cli_success(self, mock_popen):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
-        mock_proc.stdout = io.BytesIO(b"")
+        mock_proc.stdout = BytesIO(b"")
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         params = ["foo", "bar", "baz"]
@@ -173,7 +173,7 @@ class TestPinotAdminHook:
         msg = b"Exception caught"
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 0
-        mock_proc.stdout = io.BytesIO(msg)
+        mock_proc.stdout = BytesIO(msg)
         mock_popen.return_value.__enter__.return_value = mock_proc
         params = ["foo", "bar", "baz"]
         with pytest.raises(AirflowException):
@@ -187,7 +187,7 @@ class TestPinotAdminHook:
     def test_run_cli_failure_status_code(self, mock_popen):
         mock_proc = mock.MagicMock()
         mock_proc.returncode = 1
-        mock_proc.stdout = io.BytesIO(b"")
+        mock_proc.stdout = BytesIO(b"")
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         self.db_hook.pinot_admin_system_exit = True
@@ -202,6 +202,7 @@ class TestPinotAdminHook:
         )
 
 
+@pytest.mark.db_test
 class TestPinotAdminHookCreation:
     def test_exception_when_overriding_cmd_path(self):
         with pytest.raises(RuntimeError):

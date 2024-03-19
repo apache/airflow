@@ -20,9 +20,10 @@ from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
+    from typing_extensions import Literal
+
     from airflow.utils.context import Context
 
 
@@ -80,7 +81,7 @@ class SalesforceBulkOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Makes an HTTP request to Salesforce Bulk API.
+        Make an HTTP request to Salesforce Bulk API.
 
         :param context: The task context during execution.
         :return: API response if do_xcom_push is True

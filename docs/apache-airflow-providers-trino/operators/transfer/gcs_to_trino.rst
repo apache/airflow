@@ -27,12 +27,6 @@ querying data where it lives, including Hive, Cassandra, relational databases or
 A single Trino query can combine data from multiple sources, allowing for analytics across your entire
 organization.
 
-
-Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
-
-.. include::/operators/_partials/prerequisite_tasks.rst
-
 .. _howto/operator:GCSToPresto:
 
 Load CSV from GCS to Trino Table

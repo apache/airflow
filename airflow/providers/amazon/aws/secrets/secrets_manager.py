@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing secrets from AWS Secrets Manager."""
+
 from __future__ import annotations
 
 import json
@@ -217,10 +218,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
-            try:
-                conn_d[conn_field] = [v for k, v in secret.items() if k in possible_words][0]
-            except IndexError:
-                conn_d[conn_field] = None
+            conn_d[conn_field] = next((v for k, v in secret.items() if k in possible_words), None)
 
         return conn_d
 

@@ -16,39 +16,93 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Kubernetes Engine operators."""
+
 from __future__ import annotations
 
+import re
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+import requests
+import yaml
+from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
-from kubernetes.client.models import V1Pod
+from kubernetes.client import V1JobList
+from kubernetes.utils.create_from_yaml import FailToCreateError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.operators.resource import (
+    KubernetesCreateResourceOperator,
+    KubernetesDeleteResourceOperator,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-
-try:
-    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKECustomResourceHook,
+    GKEDeploymentHook,
+    GKEHook,
+    GKEJobHook,
+    GKEPodHook,
+)
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
+    KubernetesEngineJobLink,
     KubernetesEnginePodLink,
+    KubernetesEngineWorkloadsLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import V1Job, V1Pod
+
     from airflow.utils.context import Context
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
+
+
+class GKEClusterAuthDetails:
+    """
+    Helper for fetching information about cluster for connecting.
+
+    :param cluster_name: The name of the Google Kubernetes Engine cluster.
+    :param project_id: The Google Developers Console project id.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param cluster_hook: airflow hook for working with kubernetes cluster.
+    """
+
+    def __init__(
+        self,
+        cluster_name,
+        project_id,
+        use_internal_ip,
+        cluster_hook,
+    ):
+        self.cluster_name = cluster_name
+        self.project_id = project_id
+        self.use_internal_ip = use_internal_ip
+        self.cluster_hook = cluster_hook
+        self._cluster_url = None
+        self._ssl_ca_cert = None
+
+    def fetch_cluster_info(self) -> tuple[str, str]:
+        """Fetch cluster info for connecting to it."""
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
+            project_id=self.project_id,
+        )
+
+        if not self.use_internal_ip:
+            self._cluster_url = f"https://{cluster.endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+        self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
+        return self._cluster_url, self._ssl_ca_cert
 
 
 class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
@@ -159,11 +213,11 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         return operation.self_link if operation is not None else None
 
     def execute_complete(self, context: Context, event: dict) -> str:
-        """Method to be executed after trigger job is done."""
+        """Execute after trigger job is done."""
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 
@@ -191,15 +245,14 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
     The **minimum** required to define a cluster to create is:
 
     ``dict()`` ::
-        cluster_def = {'name': 'my-cluster-name',
-                       'initial_node_count': 1}
+        cluster_def = {"name": "my-cluster-name", "initial_node_count": 1}
 
     or
 
     ``Cluster`` proto ::
         from google.cloud.container_v1.types import Cluster
 
-        cluster_def = Cluster(name='my-cluster-name', initial_node_count=1)
+        cluster_def = Cluster(name="my-cluster-name", initial_node_count=1)
 
     **Operator Creation**: ::
 
@@ -314,14 +367,14 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
             raise AirflowException("Operator has incorrect or missing input.")
 
     def _body_field(self, field_name: str, default_value: Any = None) -> Any:
-        """Extracts the value of the given field name."""
+        """Extract the value of the given field name."""
         if isinstance(self.body, dict):
             return self.body.get(field_name, default_value)
         else:
             return getattr(self.body, field_name, default_value)
 
     def _alert_deprecated_body_fields(self) -> None:
-        """Generates warning messages if deprecated fields were used in the body."""
+        """Generate warning messages if deprecated fields were used in the body."""
         deprecated_body_fields_with_replacement = [
             ("initial_node_count", "node_pool.initial_node_count"),
             ("node_config", "node_pool.config"),
@@ -331,7 +384,9 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         for deprecated_field, replacement in deprecated_body_fields_with_replacement:
             if self._body_field(deprecated_field):
                 warnings.warn(
-                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead."
+                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
                 )
 
     def execute(self, context: Context) -> str:
@@ -370,7 +425,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 
@@ -389,6 +444,152 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
             )
 
         return self._hook
+
+
+class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
+    """
+    Installs Kueue of specific version inside Cluster.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEStartKueueInsideClusterOperator`
+
+    .. seealso::
+        For more details about Kueue have a look at the reference:
+        https://kueue.sigs.k8s.io/docs/overview/
+
+    :param project_id: The Google Developers Console [project ID or project number].
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster resides.
+    :param cluster_name: The Cluster name in which to install Kueue.
+    :param kueue_version: Version of Kueue to install.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "location",
+        "kueue_version",
+        "cluster_name",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+    operator_extra_links = (KubernetesEngineClusterLink(),)
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        kueue_version: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.kueue_version = kueue_version
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+        self._kueue_yaml_url = (
+            f"https://github.com/kubernetes-sigs/kueue/releases/download/{self.kueue_version}/manifests.yaml"
+        )
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def deployment_hook(self) -> GKEDeploymentHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKEDeploymentHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    @cached_property
+    def pod_hook(self) -> GKEPodHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKEPodHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    @staticmethod
+    def _get_yaml_content_from_file(kueue_yaml_url) -> list[dict]:
+        """Download content of YAML file and separate it into several dictionaries."""
+        response = requests.get(kueue_yaml_url, allow_redirects=True)
+        yaml_dicts = []
+        if response.status_code == 200:
+            yaml_data = response.text
+            documents = re.split(r"---\n", yaml_data)
+
+            for document in documents:
+                document_dict = yaml.safe_load(document)
+                yaml_dicts.append(document_dict)
+        else:
+            raise AirflowException("Was not able to read the yaml file from given URL")
+        return yaml_dicts
+
+    def execute(self, context: Context):
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
+            project_id=self.project_id,
+        )
+        KubernetesEngineClusterLink.persist(context=context, task_instance=self, cluster=cluster)
+
+        yaml_objects = self._get_yaml_content_from_file(kueue_yaml_url=self._kueue_yaml_url)
+
+        if self.cluster_hook.check_cluster_autoscaling_ability(cluster=cluster):
+            try:
+                self.pod_hook.apply_from_yaml_file(yaml_objects=yaml_objects)
+
+                self.deployment_hook.check_kueue_deployment_running(
+                    name="kueue-controller-manager", namespace="kueue-system"
+                )
+
+                self.log.info("Kueue installed successfully!")
+            except FailToCreateError:
+                self.log.info("Kueue is already enabled for the cluster")
+        else:
+            self.log.info(
+                "Cluster doesn't have ability to autoscale, will not install Kueue inside. Aborting"
+            )
 
 
 class GKEStartPodOperator(KubernetesPodOperator):
@@ -429,7 +630,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param regional: The location param is region name.
     :param deferrable: Run operator in the deferrable mode.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
@@ -514,13 +715,12 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @staticmethod
+    @deprecated(
+        reason="Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_gke_config_file():
-        warnings.warn(
-            "The `get_gke_config_file` method is deprecated, "
-            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=1,
-        )
+        pass
 
     @cached_property
     def cluster_hook(self) -> GKEHook:
@@ -539,18 +739,20 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
 
         hook = GKEPodHook(
+            gcp_conn_id=self.gcp_conn_id,
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            impersonation_chain=self.impersonation_chain,
         )
         return hook
 
     def execute(self, context: Context):
-        """Executes process of creating pod and executing provided command inside it."""
+        """Execute process of creating pod and executing provided command inside it."""
         self.fetch_cluster_info()
         return super().execute(context)
 
     def fetch_cluster_info(self) -> tuple[str, str | None]:
-        """Fetches cluster info for connecting to it."""
+        """Fetch cluster info for connecting to it."""
         cluster = self.cluster_hook.get_cluster(
             name=self.cluster_name,
             project_id=self.project_id,
@@ -564,7 +766,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         return self._cluster_url, self._ssl_ca_cert
 
     def invoke_defer_method(self):
-        """Method to easily redefine triggers which are being used in child classes."""
+        """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=GKEStartPodTrigger(
@@ -580,6 +782,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 in_cluster=self.in_cluster,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action,
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
@@ -591,3 +795,661 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self._ssl_ca_cert = kwargs["ssl_ca_cert"]
 
         return super().execute_complete(context, event, **kwargs)
+
+
+class GKEStartJobOperator(KubernetesJobOperator):
+    """
+    Executes a Kubernetes job in the specified Google Kubernetes Engine cluster.
+
+    This Operator assumes that the system has gcloud installed and has configured a
+    connection id with a service account.
+
+    The **minimum** required to define a cluster to create are the variables
+    ``task_id``, ``project_id``, ``location``, ``cluster_name``, ``name``,
+    ``namespace``, and ``image``
+
+    .. seealso::
+        For more detail about Kubernetes Engine authentication have a look at the reference:
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#internal_ip
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEStartJobOperator`
+
+    :param location: The name of the Google Kubernetes Engine zone or region in which the
+        cluster resides, e.g. 'us-central1-a'
+    :param cluster_name: The name of the Google Kubernetes Engine cluster
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param project_id: The Google Developers Console project id
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
+        users to specify a service account.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param location: The location param is region name.
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"project_id", "location", "cluster_name"} | set(KubernetesJobOperator.template_fields)
+    )
+    operator_extra_links = (KubernetesEngineJobLink(),)
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+
+        self.job: V1Job | None = None
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
+
+        if self.gcp_conn_id is None:
+            raise AirflowException(
+                "The gcp_conn_id parameter has become required. If you want to use Application Default "
+                "Credentials (ADC) strategy for authorization, create an empty connection "
+                "called `google_cloud_default`.",
+            )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEStartJobOperator.
+        if self.config_file:
+            raise AirflowException("config_file is not an allowed parameter for the GKEStartJobOperator.")
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKEJobHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+
+        hook = GKEJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+        return hook
+
+    def execute(self, context: Context):
+        """Execute process of creating Job."""
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        return super().execute(context)
+
+
+class GKEDescribeJobOperator(GoogleCloudBaseOperator):
+    """
+    Retrieve information about Job by given name.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEDescribeJobOperator`
+
+    :param job_name: The name of the Job to delete
+    :param project_id: The Google Developers Console project id.
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster
+        resides.
+    :param cluster_name: The name of the Google Kubernetes Engine cluster.
+    :param namespace: The name of the Google Kubernetes Engine namespace.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "gcp_conn_id",
+        "job_name",
+        "namespace",
+        "cluster_name",
+        "location",
+        "impersonation_chain",
+    )
+    operator_extra_links = (KubernetesEngineJobLink(),)
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        location: str,
+        namespace: str,
+        cluster_name: str,
+        project_id: str | None = None,
+        use_internal_ip: bool = False,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.job_name = job_name
+        self.namespace = namespace
+        self.cluster_name = cluster_name
+        self.use_internal_ip = use_internal_ip
+        self.impersonation_chain = impersonation_chain
+
+        self.job: V1Job | None = None
+        self._ssl_ca_cert: str
+        self._cluster_url: str
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKEJobHook:
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        return GKEJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    def execute(self, context: Context) -> None:
+        self.job = self.hook.get_job(job_name=self.job_name, namespace=self.namespace)
+        self.log.info(
+            "Retrieved description of Job %s from cluster %s:\n %s",
+            self.job_name,
+            self.cluster_name,
+            self.job,
+        )
+        KubernetesEngineJobLink.persist(context=context, task_instance=self)
+        return None
+
+
+class GKEListJobsOperator(GoogleCloudBaseOperator):
+    """
+    Retrieve list of Jobs.
+
+    If namespace parameter is specified, the list of Jobs from dedicated
+    namespace will be retrieved. If no namespace specified, it will output Jobs from all namespaces.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEListJobsOperator`
+
+    :param project_id: The Google Developers Console project id.
+    :param location: The name of the Google Kubernetes Engine zone or region in which the cluster
+        resides.
+    :param cluster_name: The name of the Google Kubernetes Engine cluster.
+    :param namespace: The name of the Google Kubernetes Engine namespace.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param do_xcom_push: If set to True the result list of Jobs will be pushed to the task result.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "gcp_conn_id",
+        "namespace",
+        "cluster_name",
+        "location",
+        "impersonation_chain",
+    )
+    operator_extra_links = (KubernetesEngineWorkloadsLink(),)
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        namespace: str | None = None,
+        project_id: str | None = None,
+        use_internal_ip: bool = False,
+        do_xcom_push: bool = True,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.location = location
+        self.namespace = namespace
+        self.cluster_name = cluster_name
+        self.use_internal_ip = use_internal_ip
+        self.do_xcom_push = do_xcom_push
+        self.impersonation_chain = impersonation_chain
+
+        self._ssl_ca_cert: str
+        self._cluster_url: str
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKEJobHook:
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        return GKEJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    def execute(self, context: Context) -> dict:
+        if self.namespace:
+            jobs = self.hook.list_jobs_from_namespace(namespace=self.namespace)
+        else:
+            jobs = self.hook.list_jobs_all_namespaces()
+        for job in jobs.items:
+            self.log.info("Retrieved description of Job:\n %s", job)
+        if self.do_xcom_push:
+            ti = context["ti"]
+            ti.xcom_push(key="jobs_list", value=V1JobList.to_dict(jobs))
+        KubernetesEngineWorkloadsLink.persist(context=context, task_instance=self)
+        return V1JobList.to_dict(jobs)
+
+
+class GKECreateCustomResourceOperator(KubernetesCreateResourceOperator):
+    """
+    Create a resource in the specified Google Kubernetes Engine cluster.
+
+    This Operator assumes that the system has gcloud installed and has configured a
+    connection id with a service account.
+
+    .. seealso::
+        For more detail about Kubernetes Engine authentication have a look at the reference:
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#internal_ip
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKECreateCustomResourceOperator`
+
+    :param location: The name of the Google Kubernetes Engine zone or region in which the
+        cluster resides, e.g. 'us-central1-a'
+    :param cluster_name: The name of the Google Kubernetes Engine cluster.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param project_id: The Google Developers Console project id
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
+        users to specify a service account.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"project_id", "location", "cluster_name"} | set(KubernetesCreateResourceOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
+
+        if self.gcp_conn_id is None:
+            raise AirflowException(
+                "The gcp_conn_id parameter has become required. If you want to use Application Default "
+                "Credentials (ADC) strategy for authorization, create an empty connection "
+                "called `google_cloud_default`.",
+            )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
+        if self.config_file:
+            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKECustomResourceHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKECustomResourceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context):
+        """Execute process of creating Custom Resource."""
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+        return super().execute(context)
+
+
+class GKEDeleteCustomResourceOperator(KubernetesDeleteResourceOperator):
+    """
+    Delete a resource in the specified Google Kubernetes Engine cluster.
+
+    This Operator assumes that the system has gcloud installed and has configured a
+    connection id with a service account.
+
+    .. seealso::
+        For more detail about Kubernetes Engine authentication have a look at the reference:
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#internal_ip
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEDeleteCustomResourceOperator`
+
+    :param location: The name of the Google Kubernetes Engine zone or region in which the
+        cluster resides, e.g. 'us-central1-a'
+    :param cluster_name: The name of the Google Kubernetes Engine cluster.
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param project_id: The Google Developers Console project id
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
+        users to specify a service account.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"project_id", "location", "cluster_name"} | set(KubernetesDeleteResourceOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
+
+        if self.gcp_conn_id is None:
+            raise AirflowException(
+                "The gcp_conn_id parameter has become required. If you want to use Application Default "
+                "Credentials (ADC) strategy for authorization, create an empty connection "
+                "called `google_cloud_default`.",
+            )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
+        if self.config_file:
+            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKECustomResourceHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+        return GKECustomResourceHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def execute(self, context: Context):
+        """Execute process of deleting Custom Resource."""
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+        return super().execute(context)
+
+
+class GKEStartKueueJobOperator(GKEStartJobOperator):
+    """
+    Executes a Kubernetes Job in Kueue in the specified Google Kubernetes Engine cluster.
+
+    :param queue_name: The name of the Queue in the cluster
+    """
+
+    def __init__(
+        self,
+        *,
+        queue_name: str,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.queue_name = queue_name
+
+        if self.suspend is False:
+            raise AirflowException(
+                "The `suspend` parameter can't be False. If you want to use Kueue for running Job"
+                " in a Kubernetes cluster, set the `suspend` parameter to True.",
+            )
+        elif self.suspend is None:
+            warnings.warn(
+                f"You have not set parameter `suspend` in class {self.__class__.__name__}. "
+                "For running a Job in Kueue the `suspend` parameter should set to True.",
+                UserWarning,
+                stacklevel=2,
+            )
+            self.suspend = True
+        self.labels.update({"kueue.x-k8s.io/queue-name": queue_name})
+        self.annotations.update({"kueue.x-k8s.io/queue-name": queue_name})
+
+
+class GKEDeleteJobOperator(KubernetesDeleteJobOperator):
+    """
+    Delete a Kubernetes job in the specified Google Kubernetes Engine cluster.
+
+    This Operator assumes that the system has gcloud installed and has configured a
+    connection id with a service account.
+
+    The **minimum** required to define a cluster to create are the variables
+    ``task_id``, ``project_id``, ``location``, ``cluster_name``, ``name``,
+    ``namespace``
+
+    .. seealso::
+        For more detail about Kubernetes Engine authentication have a look at the reference:
+        https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl#internal_ip
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GKEDeleteJobOperator`
+
+    :param location: The name of the Google Kubernetes Engine zone or region in which the
+        cluster resides, e.g. 'us-central1-a'
+    :param cluster_name: The name of the Google Kubernetes Engine cluster
+    :param use_internal_ip: Use the internal IP address as the endpoint.
+    :param project_id: The Google Developers Console project id
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
+        users to specify a service account.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = tuple(
+        {"project_id", "location", "cluster_name"} | set(KubernetesDeleteJobOperator.template_fields)
+    )
+
+    def __init__(
+        self,
+        *,
+        location: str,
+        cluster_name: str,
+        use_internal_ip: bool = False,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.cluster_name = cluster_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
+
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
+
+        if self.gcp_conn_id is None:
+            raise AirflowException(
+                "The gcp_conn_id parameter has become required. If you want to use Application Default "
+                "Credentials (ADC) strategy for authorization, create an empty connection "
+                "called `google_cloud_default`.",
+            )
+        # There is no need to manage the kube_config file, as it will be generated automatically.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEDeleteJobOperator.
+        if self.config_file:
+            raise AirflowException("config_file is not an allowed parameter for the GKEDeleteJobOperator.")
+
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    @cached_property
+    def hook(self) -> GKEJobHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
+            )
+
+        return GKEJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+
+    def execute(self, context: Context):
+        """Execute process of deleting Job."""
+        self._cluster_url, self._ssl_ca_cert = GKEClusterAuthDetails(
+            cluster_name=self.cluster_name,
+            project_id=self.project_id,
+            use_internal_ip=self.use_internal_ip,
+            cluster_hook=self.cluster_hook,
+        ).fetch_cluster_info()
+
+        return super().execute(context)

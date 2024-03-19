@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    KubernetesExecutor details <kubernetes_executor>
+    LocalKubernetesExecutor details <local_kubernetes_executor>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/kubernetes>
@@ -73,38 +81,40 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-cncf-kubernetes
+apache-airflow-providers-cncf-kubernetes package
 ------------------------------------------------------
 
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 7.4.1
+Release: 8.0.1
 
 Provider package
 ----------------
 
-This is a provider package for ``cncf.kubernetes`` provider. All classes for this provider package
-are in ``airflow.providers.cncf.kubernetes`` python package.
+This package is for the ``cncf.kubernetes`` provider.
+All classes for this package are included in the ``airflow.providers.cncf.kubernetes`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-cncf-kubernetes``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-cncf-kubernetes``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
 
-======================  ==================
+======================  =====================
 PIP package             Version required
-======================  ==================
-``apache-airflow``      ``>=2.4.0``
+======================  =====================
+``aiofiles``            ``>=23.2.0``
+``apache-airflow``      ``>=2.6.0``
 ``asgiref``             ``>=3.5.2``
 ``cryptography``        ``>=2.0.0``
-``kubernetes``          ``>=21.7.0,<24``
-``kubernetes_asyncio``  ``>=18.20.1,<25``
-======================  ==================
+``kubernetes``          ``>=28.1.0,<=29.0.0``
+``kubernetes_asyncio``  ``>=28.1.0,<=29.0.0``
+``google-re2``          ``>=1.0``
+======================  =====================

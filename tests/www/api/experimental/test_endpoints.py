@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from datetime import timedelta
 from unittest import mock
 from urllib.parse import quote_plus
@@ -38,6 +39,8 @@ from tests.test_utils.db import clear_db_pools
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
 )
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -332,6 +335,10 @@ class TestLineageApiExperimental(TestBase):
             dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
+    @pytest.mark.skipif(
+        sys.version_info >= (3, 12),
+        reason="Skipped as papermill used with experimental lineage is not Python 3.12 compatible",
+    )
     @mock.patch("airflow.settings.DAGS_FOLDER", PAPERMILL_EXAMPLE_DAGS)
     def test_lineage_info(self):
         url_template = "/api/experimental/lineage/{}/{}"
@@ -369,7 +376,6 @@ class TestLineageApiExperimental(TestBase):
 
 
 class TestPoolApiExperimental(TestBase):
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
@@ -383,6 +389,7 @@ class TestPoolApiExperimental(TestBase):
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=False,
             )
             self.session.add(pool)
             self.pools.append(pool)
@@ -434,6 +441,7 @@ class TestPoolApiExperimental(TestBase):
         assert pool["pool"] == "foo"
         assert pool["slots"] == 1
         assert pool["description"] == ""
+        assert pool["include_deferred"] is False
         assert self._get_pool_count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_with_bad_name(self):

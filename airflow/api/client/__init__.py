@@ -16,13 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """API Client that allows interacting with Airflow API."""
+
 from __future__ import annotations
 
 from importlib import import_module
+from typing import TYPE_CHECKING
 
 from airflow import api
-from airflow.api.client.api_client import Client
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    from airflow.api.client.api_client import Client
 
 
 def get_current_api_client() -> Client:

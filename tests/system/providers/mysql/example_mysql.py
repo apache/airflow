@@ -18,6 +18,7 @@
 """
 Example use of MySql related operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_mysql]
 
     drop_table_mysql_task = MySqlOperator(

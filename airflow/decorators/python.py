@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.operators.python import PythonOperator
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
 
 class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
@@ -60,7 +63,8 @@ def python_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a function into an Airflow operator.
+    """
+    Wrap a function into an Airflow operator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

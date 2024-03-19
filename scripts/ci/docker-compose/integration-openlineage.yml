@@ -1,0 +1,66 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+version: "3.8"
+services:
+  marquez:
+    image: marquezproject/marquez:0.40.0
+    labels:
+      breeze.description: "Integration required for Openlineage hooks."
+    environment:
+      - POSTGRES_USER=marquez
+      - POSTGRES_PASSWORD=marquez
+      - POSTGRES_DB=marquez
+    ports:
+      - "${MARQUEZ_API_HOST_PORT:-25000}:5000"
+      - "${MARQUEZ_API_ADMIN_HOST_PORT:-25001}:5001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["./entrypoint.sh"]
+
+  marquez_web:
+    image: marquezproject/marquez-web:0.40.0
+    environment:
+      - MARQUEZ_HOST=marquez
+      - MARQUEZ_PORT=5000
+    ports:
+      - "${MARQUEZ_HOST_PORT:-23100}:3000"
+    stdin_open: true
+    tty: true
+    depends_on:
+      - marquez
+
+  postgres:
+    environment:
+      - MARQUEZ_USER=marquez
+      - MARQUEZ_PASSWORD=marquez
+      - MARQUEZ_DB=marquez
+    volumes:
+      - ./marquez/init-marquez-db.sh:/docker-entrypoint-initdb.d/init-marquez-db.sh
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-U", "marquez"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow:
+    depends_on:
+      - marquez_web
+    environment:
+      AIRFLOW__OPENLINEAGE__NAMESPACE: "airflow"
+      AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "http", "url": "http://marquez:5000", "verify": "false" }'

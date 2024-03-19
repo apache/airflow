@@ -293,6 +293,7 @@ class TestGcfFunctionDeploy:
         )
         mock_hook.reset_mock()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "source_code, message",
         [

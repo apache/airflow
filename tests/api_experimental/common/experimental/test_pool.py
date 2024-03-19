@@ -29,10 +29,11 @@ from airflow.models.pool import Pool
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_pools
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestPool:
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
@@ -45,6 +46,7 @@ class TestPool:
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=True,
             )
             self.pools.append(pool)
         with create_session() as session:
@@ -77,10 +79,12 @@ class TestPool:
             assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self):
-        pool = pool_api.create_pool(name=self.pools[0].pool, slots=5, description="")
-        assert pool.pool == self.pools[0].pool
+        pool = pool_api.create_pool(name=self.pools[1].pool, slots=5, description="")
+        assert pool.pool == self.pools[1].pool
         assert pool.slots == 5
         assert pool.description == ""
+        # do not change include_deferred on an existing pool
+        assert pool.include_deferred is True
         with create_session() as session:
             assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT
 
@@ -97,7 +101,7 @@ class TestPool:
         long_name = "".join(random.choices(string.ascii_lowercase, k=300))
         column_length = models.Pool.pool.property.columns[0].type.length
         with pytest.raises(
-            AirflowBadRequest, match="^Pool name can't be more than %d characters$" % column_length
+            AirflowBadRequest, match=f"^Pool name can't be more than {column_length} characters$"
         ):
             pool_api.create_pool(
                 name=long_name,

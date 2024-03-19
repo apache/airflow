@@ -28,16 +28,18 @@ import { hoverDelay } from "src/utils";
 
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
 import { useKeysPress } from "src/utils/useKeysPress";
-import Details from "./details";
+import { useSearchParams } from "react-router-dom";
+import Details, { TAB_PARAM } from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
 import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
+import { DagRunSelectionContext, RUN_ID } from "./useSelection";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
-const collapsedWidth = "28px";
+const collapsedWidth = "32px";
 
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(
@@ -60,17 +62,20 @@ const headerHeight =
     10
   ) || 0;
 
-const Main = () => {
+const MainInContext = () => {
   const {
     data: { groups },
     isLoading,
   } = useGridData();
   const [isGridCollapsed, setIsGridCollapsed] = useState(false);
+  const [searchParams] = useSearchParams();
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
-  const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
+  const isPanelOpen =
+    localStorage.getItem(detailsPanelKey) !== "true" ||
+    !!searchParams.get(TAB_PARAM);
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
@@ -249,6 +254,17 @@ const Main = () => {
         keyboardShortcutIdentifier={keyboardShortcutIdentifier}
       />
     </Box>
+  );
+};
+
+const Main = () => {
+  const [searchParams] = useSearchParams();
+  const [firstRunIdSetByUrl] = useState(searchParams.get(RUN_ID));
+
+  return (
+    <DagRunSelectionContext.Provider value={firstRunIdSetByUrl}>
+      <MainInContext />
+    </DagRunSelectionContext.Provider>
   );
 };
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains an operator to move data from an S3 bucket to Hive."""
+
 from __future__ import annotations
 
 import bz2
@@ -106,7 +107,7 @@ class S3ToHiveOperator(BaseOperator):
         headers: bool = False,
         check_headers: bool = False,
         wildcard_match: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
         hive_cli_conn_id: str = "hive_cli_default",
         input_compressed: bool = False,
@@ -247,16 +248,16 @@ class S3ToHiveOperator(BaseOperator):
                 "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
             )
             return False
-        test_field_match = [h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names)]
-        if not all(test_field_match):
+        test_field_match = all(h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names))
+        if test_field_match:
+            return True
+        else:
             self.log.warning(
                 "Headers do not match field names File headers:\n %s\nField names: \n %s\n",
                 header_list,
                 field_names,
             )
             return False
-        else:
-            return True
 
     @staticmethod
     def _delete_top_row_and_compress(input_file_name, output_file_ext, dest_dir):

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 
 for i in range(1, 2):

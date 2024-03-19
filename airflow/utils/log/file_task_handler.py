@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
@@ -31,7 +33,7 @@ from urllib.parse import urljoin
 import pendulum
 
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -41,7 +43,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,7 @@ def _set_task_deferred_context_var():
 
 
 def _fetch_logs_from_service(url, log_relative_path):
+    # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import httpx
 
     from airflow.utils.jwt_signer import JWTSigner
@@ -109,14 +112,13 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
     timestamp = None
     next_timestamp = None
     for idx, line in enumerate(lines):
-        if not line:
-            continue
-        with suppress(Exception):
-            # next_timestamp unchanged if line can't be parsed
-            next_timestamp = _parse_timestamp(line)
-        if next_timestamp:
-            timestamp = next_timestamp
-        yield timestamp, idx, line
+        if line:
+            with suppress(Exception):
+                # next_timestamp unchanged if line can't be parsed
+                next_timestamp = _parse_timestamp(line)
+            if next_timestamp:
+                timestamp = next_timestamp
+            yield timestamp, idx, line
 
 
 def _interleave_logs(*logs):
@@ -132,6 +134,32 @@ def _interleave_logs(*logs):
         last = v
 
 
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+    """Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    if not isinstance(ti, TaskInstanceKey):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if isinstance(val, TaskInstance):
+        val._try_number = ti.try_number
+        return val
+    else:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -144,6 +172,9 @@ class FileTaskHandler(logging.Handler):
     """
 
     trigger_should_wrap = True
+    inherits_from_empty_operator_log_message = (
+        "Operator inherits from empty operator and thus does not have logs"
+    )
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
@@ -171,7 +202,7 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -182,18 +213,24 @@ class FileTaskHandler(logging.Handler):
         functionality is only used in unit testing.
 
         :param ti: task instance object
+        :param identifier: if set, adds suffix to log file. For use when relaying exceptional messages
+            to task logs from a context other than task or trigger run
         """
-        local_loc = self._init_file(ti)
+        local_loc = self._init_file(ti, identifier=identifier)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
+    @cached_property
+    def supports_task_context_logging(self) -> bool:
+        return "identifier" in inspect.signature(self.set_context).parameters
+
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
         """
-        Helper for deriving trigger log filename from task log filename.
+        Derive trigger log filename from task log filename.
 
         E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
         is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
@@ -218,9 +255,10 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
-        """Returns the worker log filename."""
+    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        """Return the worker log filename."""
         with create_session() as session:
+            ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)
@@ -419,7 +457,8 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
-    def _prepare_log_folder(self, directory: Path):
+    @staticmethod
+    def _prepare_log_folder(directory: Path, new_folder_permissions: int):
         """
         Prepare the log folder and ensure its mode is as configured.
 
@@ -443,23 +482,11 @@ class FileTaskHandler(logging.Handler):
         sure that the same group is set as default group for both - impersonated user and main airflow
         user.
         """
-        new_folder_permissions = int(
-            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
-        )
-        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-        if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
-            print(f"Changing {directory} permission to {new_folder_permissions}")
-            try:
-                directory.chmod(new_folder_permissions)
-            except PermissionError as e:
-                # In some circumstances (depends on user and filesystem) we might not be able to
-                # change the permission for the folder (when the folder was created by another user
-                # before or when the filesystem does not allow to change permission). We should not
-                # fail in this case but rather ignore it.
-                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
-                pass
+        for parent in reversed(directory.parents):
+            parent.mkdir(mode=new_folder_permissions, exist_ok=True)
+        directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
-    def _init_file(self, ti):
+    def _init_file(self, ti, *, identifier: str | None = None):
         """
         Create log directory and give it permissions that are configured.
 
@@ -473,30 +500,34 @@ class FileTaskHandler(logging.Handler):
         )
         local_relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, local_relative_path)
-        if ti.is_trigger_log_context is True:
+        if identifier:
+            full_path += f".{identifier}.log"
+        elif ti.is_trigger_log_context is True:
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
-        self._prepare_log_folder(Path(full_path).parent)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        self._prepare_log_folder(Path(full_path).parent, new_folder_permissions)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logging.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
         messages = []
-        logs = []
-        files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if files:
-            messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
-        for file in sorted(files):
-            logs.append(Path(file).read_text())
+        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        if paths:
+            messages.append("Found local files:")
+            messages.extend(f"  * {x}" for x in paths)
+        logs = [file.read_text() for file in paths]
         return messages, logs
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
@@ -521,8 +552,13 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {str(e)}")
-            logger.exception("Could not read served logs")
+            from httpx import UnsupportedProtocol
+
+            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+                messages.append(self.inherits_from_empty_operator_log_message)
+            else:
+                messages.append(f"Could not read served logs: {e}")
+                logger.exception("Could not read served logs")
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:

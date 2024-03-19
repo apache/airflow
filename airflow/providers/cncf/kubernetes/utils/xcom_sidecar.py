@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Attach a sidecar container that blocks the pod from completing until Airflow pulls result data."""
+
 from __future__ import annotations
 
 import copy
@@ -50,7 +51,7 @@ def add_xcom_sidecar(
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
 ) -> k8s.V1Pod:
-    """Adds sidecar."""
+    """Add sidecar."""
     pod_cp = copy.deepcopy(pod)
     pod_cp.spec.volumes = pod.spec.volumes or []
     pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)

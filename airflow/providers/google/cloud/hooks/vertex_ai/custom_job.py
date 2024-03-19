@@ -16,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Vertex AI hook."""
+
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform import (
     CustomContainerTrainingJob,
     CustomPythonPackageTrainingJob,
@@ -32,16 +32,20 @@ from google.cloud.aiplatform import (
     models,
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
-from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
-from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
-    ListPipelineJobsPager,
-    ListTrainingPipelinesPager,
-)
-from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
+    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
+        ListPipelineJobsPager,
+        ListTrainingPipelinesPager,
+    )
+    from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 
 class CustomJobHook(GoogleBaseHook):
@@ -70,7 +74,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> PipelineServiceClient:
-        """Returns PipelineServiceClient."""
+        """Return PipelineServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -83,7 +87,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> JobServiceClient:
-        """Returns JobServiceClient."""
+        """Return JobServiceClient object."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -116,7 +120,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ) -> CustomContainerTrainingJob:
-        """Returns CustomContainerTrainingJob object."""
+        """Return CustomContainerTrainingJob object."""
         return CustomContainerTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -165,7 +169,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomPythonPackageTrainingJob object."""
+        """Return CustomPythonPackageTrainingJob object."""
         return CustomPythonPackageTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -215,7 +219,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomTrainingJob object."""
+        """Return CustomTrainingJob object."""
         return CustomTrainingJob(
             display_name=display_name,
             script_path=script_path,
@@ -243,21 +247,21 @@ class CustomJobHook(GoogleBaseHook):
 
     @staticmethod
     def extract_model_id(obj: dict) -> str:
-        """Returns unique id of the Model."""
+        """Return unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
     @staticmethod
     def extract_training_id(resource_name: str) -> str:
-        """Returns unique id of the Training pipeline."""
+        """Return unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
     @staticmethod
     def extract_custom_job_id(custom_job_name: str) -> str:
-        """Returns unique id of the Custom Job pipeline."""
+        """Return unique id of the Custom Job pipeline."""
         return custom_job_name.rpartition("/")[-1]
 
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -301,6 +305,10 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """Run Job for training pipeline."""
         model = job.run(
@@ -330,6 +338,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(job.resource_name)
         custom_job_id = self.extract_custom_job_id(
@@ -347,6 +359,10 @@ class CustomJobHook(GoogleBaseHook):
         return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.cancel_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def cancel_pipeline_job(
         self,
         project_id: str,
@@ -357,9 +373,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a PipelineJob.
+        Cancel a PipelineJob.
 
-        Starts asynchronous cancellation on the PipelineJob. The server makes a best
+        Starts asynchronous cancellation on the PipelineJob. The server makes the best
         effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
         methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -367,6 +383,8 @@ class CustomJobHook(GoogleBaseHook):
         pipeline with a [PipelineJob.error][google.cloud.aiplatform.v1.PipelineJob.error] value with a
         [google.rpc.Status.code][google.rpc.Status.code] of 1, corresponding to ``Code.CANCELLED``, and
         [PipelineJob.state][google.cloud.aiplatform.v1.PipelineJob.state] is set to ``CANCELLED``.
+
+        This method is deprecated, please use `PipelineJobHook.cancel_pipeline_job` method.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -398,10 +416,10 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a TrainingPipeline.
+        Cancel a TrainingPipeline.
 
         Starts asynchronous cancellation on the TrainingPipeline. The server makes
-        a best effort to cancel the pipeline, but success is not guaranteed. Clients can use
+        the best effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetTrainingPipeline][google.cloud.aiplatform.v1.PipelineService.GetTrainingPipeline]
         or other methods to check whether the cancellation succeeded or whether the pipeline completed despite
         cancellation. On successful cancellation, the TrainingPipeline is not deleted; instead it becomes a
@@ -439,9 +457,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a CustomJob.
+        Cancel a CustomJob.
 
-        Starts asynchronous cancellation on the CustomJob. The server makes a best effort
+        Starts asynchronous cancellation on the CustomJob. The server makes the best effort
         to cancel the job, but success is not guaranteed. Clients can use
         [JobService.GetCustomJob][google.cloud.aiplatform.v1.JobService.GetCustomJob] or other methods to
         check whether the cancellation succeeded or whether the job completed despite cancellation. On
@@ -470,6 +488,10 @@ class CustomJobHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.create_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_pipeline_job(
         self,
         project_id: str,
@@ -481,7 +503,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Creates a PipelineJob. A PipelineJob will run immediately when created.
+        Create a PipelineJob. A PipelineJob will run immediately when created.
+
+        This method is deprecated, please use `PipelineJobHook.create_pipeline_job` method.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -520,7 +544,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
-        Creates a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
+        Create a TrainingPipeline. A created TrainingPipeline right away will be attempted to be run.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -554,7 +578,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
-        Creates a CustomJob. A created CustomJob right away will be attempted to be run.
+        Create a CustomJob. A created CustomJob right away will be attempted to be run.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -597,6 +621,10 @@ class CustomJobHook(GoogleBaseHook):
         model_instance_schema_uri: str | None = None,
         model_parameters_schema_uri: str | None = None,
         model_prediction_schema_uri: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         labels: dict[str, str] | None = None,
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
@@ -714,6 +742,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -931,6 +977,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id
@@ -988,6 +1038,10 @@ class CustomJobHook(GoogleBaseHook):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
         """
@@ -1072,6 +1126,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -1289,6 +1361,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id
@@ -1313,6 +1389,10 @@ class CustomJobHook(GoogleBaseHook):
         model_instance_schema_uri: str | None = None,
         model_parameters_schema_uri: str | None = None,
         model_prediction_schema_uri: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         labels: dict[str, str] | None = None,
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
@@ -1430,6 +1510,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -1647,11 +1745,19 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.delete_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def delete_pipeline_job(
         self,
         project_id: str,
@@ -1662,7 +1768,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a PipelineJob.
+        Delete a PipelineJob.
+
+        This method is deprecated, please use `PipelineJobHook.delete_pipeline_job` method.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1695,7 +1803,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a TrainingPipeline.
+        Delete a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1728,7 +1836,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deletes a CustomJob.
+        Delete a CustomJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1751,6 +1859,10 @@ class CustomJobHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.get_pipeline_job`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_pipeline_job(
         self,
         project_id: str,
@@ -1761,7 +1873,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PipelineJob:
         """
-        Gets a PipelineJob.
+        Get a PipelineJob.
+
+        This method is deprecated, please use `PipelineJobHook.get_pipeline_job` method.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1794,7 +1908,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TrainingPipeline:
         """
-        Gets a TrainingPipeline.
+        Get a TrainingPipeline.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1827,7 +1941,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> CustomJob:
         """
-        Gets a CustomJob.
+        Get a CustomJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1850,6 +1964,10 @@ class CustomJobHook(GoogleBaseHook):
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        reason="Please use `PipelineJobHook.list_pipeline_jobs`",
+        category=AirflowProviderDeprecationWarning,
+    )
     def list_pipeline_jobs(
         self,
         project_id: str,
@@ -1863,7 +1981,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListPipelineJobsPager:
         """
-        Lists PipelineJobs in a Location.
+        List PipelineJobs in a Location.
+
+        This method is deprecated, please use `PipelineJobHook.list_pipeline_jobs` method.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1951,7 +2071,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListTrainingPipelinesPager:
         """
-        Lists TrainingPipelines in a Location.
+        List TrainingPipelines in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -2012,7 +2132,7 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListCustomJobsPager:
         """
-        Lists CustomJobs in a Location.
+        List CustomJobs in a Location.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

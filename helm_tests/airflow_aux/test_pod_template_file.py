@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 import jmespath
 import pytest
 
+from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
 from tests.charts.helm_template_generator import render_chart
 
 
@@ -69,10 +70,12 @@ class TestPodTemplateFile:
                     "gitSync": {
                         "enabled": True,
                         "containerName": "git-sync-test",
-                        "wait": 66,
+                        "wait": None,
+                        "period": "66s",
                         "maxFailures": 70,
                         "subPath": "path1/path2",
                         "rev": "HEAD",
+                        "ref": "test-branch",
                         "depth": 1,
                         "repo": "https://github.com/apache/airflow.git",
                         "branch": "test-branch",
@@ -94,15 +97,23 @@ class TestPodTemplateFile:
             "imagePullPolicy": "Always",
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                {"name": "GITSYNC_REF", "value": "test-branch"},
                 {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
                 {"name": "GIT_SYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
                 {"name": "GIT_SYNC_DEPTH", "value": "1"},
+                {"name": "GITSYNC_DEPTH", "value": "1"},
                 {"name": "GIT_SYNC_ROOT", "value": "/git"},
+                {"name": "GITSYNC_ROOT", "value": "/git"},
                 {"name": "GIT_SYNC_DEST", "value": "repo"},
+                {"name": "GITSYNC_LINK", "value": "repo"},
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
-                {"name": "GIT_SYNC_WAIT", "value": "66"},
+                {"name": "GITSYNC_ADD_USER", "value": "true"},
+                {"name": "GITSYNC_PERIOD", "value": "66s"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
                 {"name": "GIT_SYNC_ONE_TIME", "value": "true"},
+                {"name": "GITSYNC_ONE_TIME", "value": "true"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},
@@ -184,10 +195,19 @@ class TestPodTemplateFile:
         assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
         assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
+        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
         assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.initContainers[0].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
             "spec.initContainers[0].env", docs[0]
         )
         assert {
@@ -255,6 +275,16 @@ class TestPodTemplateFile:
             "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
         } in jmespath.search("spec.initContainers[0].env", docs[0])
 
+        # Testing git-sync v4
+        assert {
+            "name": "GITSYNC_USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+        assert {
+            "name": "GITSYNC_PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
+        } in jmespath.search("spec.initContainers[0].env", docs[0])
+
     def test_should_set_the_dags_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
             values={"dags": {"persistence": {"enabled": True, "existingClaim": "test-claim"}}},
@@ -266,29 +296,42 @@ class TestPodTemplateFile:
             "spec.volumes", docs[0]
         )
 
-    def test_should_use_empty_dir_for_gitsync_without_persistence(self):
+    @pytest.mark.parametrize(
+        "dags_gitsync_values, expected",
+        [
+            ({"enabled": True}, {"emptyDir": {}}),
+            ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
+        ],
+    )
+    def test_should_use_empty_dir_for_gitsync_without_persistence(self, dags_gitsync_values, expected):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}}},
+            values={"dags": {"gitSync": dags_gitsync_values}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-
-        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
+        assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected",
+        "log_values, expected",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected):
+    def test_logs_persistence_changes_volume(self, log_values, expected):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"logs": log_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -319,7 +362,7 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {"configMap": {"name": "release-name-airflow-config"}, "name": "config"} in jmespath.search(
+        assert {"configMap": {"name": "release-name-config"}, "name": "config"} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
@@ -503,6 +546,18 @@ class TestPodTemplateFile:
         assert "dynamic-pods" == tolerations[0]["key"]
         assert expected_topology_spread_constraints == jmespath.search(
             "spec.topologySpreadConstraints[0]", docs[0]
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.schedulerName",
+            docs[0],
         )
 
     def test_should_not_create_default_affinity(self):
@@ -750,3 +805,43 @@ class TestPodTemplateFile:
         )
 
         assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])
+
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, hook_type="preStop"):
+        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
+        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+        docs = render_chart(
+            name=lifecycle_hook_params["release_name"],
+            values={
+                "workers": {"containerLifecycleHooks": lifecycle_hooks_config},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
+            f"spec.containers[0].lifecycle.{hook_type}", docs[0]
+        )
+
+    def test_termination_grace_period_seconds(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "terminationGracePeriodSeconds": 123,
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert 123 == jmespath.search("spec.terminationGracePeriodSeconds", docs[0])
+
+    def test_runtime_class_name_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {"runtimeClassName": "nvidia"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"

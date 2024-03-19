@@ -17,19 +17,21 @@
 from __future__ import annotations
 
 import re
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from unittest import mock
 
 import pytest
-from google.api_core.gapic_v1.method import _MethodDefault
-from google.api_core.retry import Retry
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
+
+if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
+    from google.api_core.retry import Retry
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_PROJECT_ID: str = "test-project-id"

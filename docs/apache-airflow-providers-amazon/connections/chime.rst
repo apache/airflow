@@ -20,7 +20,9 @@
 Amazon Chime Connection
 ==========================
 
-The Chime connection works with calling Chime webhooks to send messages to a chime room.
+`Amazon Chime <https://aws.amazon.com/chime/>`__ connection works with
+`Chime Incoming Webhooks <https://docs.aws.amazon.com/chime/latest/ag/webhooks.html>`__ to send messages to a
+`Chime Chat Room <https://docs.aws.amazon.com/chime/latest/ug/chime-chat-room.html>`__.
 
 Authenticating to Amazon Chime
 ---------------------------------
@@ -34,27 +36,28 @@ The default connection ID is ``chime_default``.
 
 Configuring the Connection
 --------------------------
-Chime Webhook Endpoint:
+Chime Webhook Endpoint
     Specify the entire url or the base of the url for the service.
 
-
-Chime Webhook token:
+Chime Webhook token
     The token for authentication including the webhook ID.
 
-Schema:
+Schema
     Whether or not the endpoint should be http or https
 
 
 Examples
 --------
 
-**Connection**
+.. list-table:: Amazon Chime Connection Sample
+   :widths: 25 25
+   :header-rows: 1
 
-* **Chime Webhook Endpoint**: hooks.chime.aws
-* **Chime Webhook Token**:
-
-.. code-block:: text
-
-    abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken
-
-* **Schema**: https
+   * - Parameter
+     - Input
+   * - **Chime Webhook Endpoint**
+     - ``hooks.chime.aws``
+   * - **Chime Webhook Token**
+     - ``abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken``
+   * - **Schema**
+     - ``https``

@@ -28,7 +28,7 @@ def get_docs_url(page: str | None = None) -> str:
 
     if any(suffix in version for suffix in ["dev", "a", "b"]):
         result = (
-            "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
+            "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/stable/"
         )
     else:
         result = f"https://airflow.apache.org/docs/apache-airflow/{version}/"

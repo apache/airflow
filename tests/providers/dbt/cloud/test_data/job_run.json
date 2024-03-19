@@ -1,0 +1,33 @@
+{
+    "data": {
+        "account_id": 194246,
+        "project_id": 283445,
+        "job": {
+            "id": 408411,
+            "account_id": 194246,
+            "project_id": 283445,
+            "execute_steps": [
+                "dbt build"
+            ]
+        },
+        "run_steps": [
+            {
+                "index": 1,
+                "name": "Clone Git Repository"
+            },
+            {
+                "index": 2,
+                "name": "Create Profile from Connection Snowflake "
+            },
+            {
+                "index": 3,
+                "name": "Invoke dbt with `dbt deps`"
+            },
+            {
+                "index": 4,
+                "name": "Invoke dbt with `dbt build`"
+            }
+        ],
+        "job_id": 408411
+    }
+}

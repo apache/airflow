@@ -20,11 +20,13 @@ from __future__ import annotations
 import os
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BashSensor(BaseSensorOperator):
@@ -68,44 +70,45 @@ class BashSensor(BaseSensorOperator):
         """Execute the bash command in a temporary directory."""
         bash_command = self.bash_command
         self.log.info("Tmp dir root location: %s", gettempdir())
-        with TemporaryDirectory(prefix="airflowtmp") as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
-                f.write(bytes(bash_command, "utf_8"))
-                f.flush()
-                fname = f.name
-                script_location = tmp_dir + "/" + fname
-                self.log.info("Temporary script location: %s", script_location)
-                self.log.info("Running command: %s", bash_command)
+        with TemporaryDirectory(prefix="airflowtmp") as tmp_dir, NamedTemporaryFile(
+            dir=tmp_dir, prefix=self.task_id
+        ) as f:
+            f.write(bytes(bash_command, "utf_8"))
+            f.flush()
+            fname = f.name
+            script_location = tmp_dir + "/" + fname
+            self.log.info("Temporary script location: %s", script_location)
+            self.log.info("Running command: %s", bash_command)
 
-                with Popen(
-                    ["bash", fname],
-                    stdout=PIPE,
-                    stderr=STDOUT,
-                    close_fds=True,
-                    cwd=tmp_dir,
-                    env=self.env,
-                    preexec_fn=os.setsid,
-                ) as resp:
-                    if resp.stdout:
-                        self.log.info("Output:")
-                        for line in iter(resp.stdout.readline, b""):
-                            self.log.info(line.decode(self.output_encoding).strip())
-                    resp.wait()
-                    self.log.info("Command exited with return code %s", resp.returncode)
+            with Popen(
+                ["bash", fname],
+                stdout=PIPE,
+                stderr=STDOUT,
+                close_fds=True,
+                cwd=tmp_dir,
+                env=self.env,
+                preexec_fn=os.setsid,
+            ) as resp:
+                if resp.stdout:
+                    self.log.info("Output:")
+                    for line in iter(resp.stdout.readline, b""):
+                        self.log.info(line.decode(self.output_encoding).strip())
+                resp.wait()
+                self.log.info("Command exited with return code %s", resp.returncode)
 
-                    # zero code means success, the sensor can go green
-                    if resp.returncode == 0:
-                        return True
+                # zero code means success, the sensor can go green
+                if resp.returncode == 0:
+                    return True
 
-                    # we have a retry exit code, sensor retries if return code matches, otherwise error
-                    elif self.retry_exit_code is not None:
-                        if resp.returncode == self.retry_exit_code:
-                            self.log.info("Return code matches retry code, will retry later")
-                            return False
-                        else:
-                            raise AirflowFailException(f"Command exited with return code {resp.returncode}")
-
-                    # backwards compatibility: sensor retries no matter the error code
-                    else:
-                        self.log.info("Non-zero return code and no retry code set, will retry later")
+                # we have a retry exit code, sensor retries if return code matches, otherwise error
+                elif self.retry_exit_code is not None:
+                    if resp.returncode == self.retry_exit_code:
+                        self.log.info("Return code matches retry code, will retry later")
                         return False
+                    else:
+                        raise AirflowFailException(f"Command exited with return code {resp.returncode}")
+
+                # backwards compatibility: sensor retries no matter the error code
+                else:
+                    self.log.info("Non-zero return code and no retry code set, will retry later")
+                    return False

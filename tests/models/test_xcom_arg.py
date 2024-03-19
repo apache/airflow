@@ -25,6 +25,9 @@ from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 VALUE = 42
 
 
@@ -51,7 +54,6 @@ def build_python_op(dag_maker):
 def clear_db():
     clear_db_runs()
     clear_db_dags()
-    yield
 
 
 class TestXComArgBuild:

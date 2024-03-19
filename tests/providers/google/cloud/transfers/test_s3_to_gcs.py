@@ -23,8 +23,7 @@ from unittest.mock import PropertyMock
 import pytest
 import time_machine
 
-from airflow import AirflowException
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.timezone import utcnow
@@ -240,7 +239,6 @@ class TestS3ToGoogleCloudStorageOperator:
         gcs_destination,
         gcs_object,
     ):
-
         operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,
@@ -481,6 +479,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
 
         mock_log.return_value.info.assert_not_called()
 
+    @pytest.mark.db_test
     def test_get_transfer_hook(self):
         operator = S3ToGCSOperator(
             task_id=TASK_ID,

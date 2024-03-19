@@ -54,6 +54,7 @@ def admin_user(google_openid_app):
     return role_admin
 
 
+@pytest.mark.db_test
 class TestGoogleOpenID:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, google_openid_app, admin_user) -> None:

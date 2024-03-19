@@ -18,11 +18,12 @@
 """
 Example DAG demonstrating the usage of labels with different branches.
 """
+
 from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.edgemodifier import Label
 

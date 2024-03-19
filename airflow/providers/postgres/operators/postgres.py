@@ -18,12 +18,21 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping, Sequence
+from typing import Mapping
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
+@deprecated(
+    reason=(
+        "Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`."
+        "Also, you can provide `hook_params={'schema': <database>}`."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class PostgresOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Postgres database.
@@ -46,9 +55,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields: Sequence[str] = ("sql",)
-    template_fields_renderers = {"sql": "postgresql"}
-    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
     ui_color = "#ededed"
 
     def __init__(
@@ -75,10 +82,3 @@ class PostgresOperator(SQLExecuteQueryOperator):
             kwargs["hook_params"] = {"options": options, **hook_params}
 
         super().__init__(conn_id=postgres_conn_id, **kwargs)
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
-            Also, you can provide `hook_params={'schema': <database>}`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )

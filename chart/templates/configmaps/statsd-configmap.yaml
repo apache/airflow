@@ -24,7 +24,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-statsd
+  name: {{ include "airflow.fullname" . }}-statsd
   labels:
     tier: airflow
     component: config
@@ -34,13 +34,17 @@ metadata:
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
+  {{- with .Values.statsd.configMapAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
   mappings.yml: |-
     {{- if .Values.statsd.overrideMappings }}
     mappings:
       {{- toYaml .Values.statsd.overrideMappings | nindent 6 }}
     {{- else }}
-      {{- .Files.Get "files/statsd-mappings.yml" | nindent 4 }}
+      {{- tpl (.Files.Get "files/statsd-mappings.yml") . | nindent 4 }}
       {{- if .Values.statsd.extraMappings }}
         {{- toYaml .Values.statsd.extraMappings | nindent 6 }}
       {{- end }}

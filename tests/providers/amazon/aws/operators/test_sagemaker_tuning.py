@@ -89,7 +89,7 @@ class TestSageMakerTuningOperator:
         mock_tuning.return_value = {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2, key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, key3 in EXPECTED_INTEGER_FIELDS:
             assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
 
     @mock.patch.object(SageMakerHook, "get_conn")

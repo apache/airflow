@@ -65,6 +65,12 @@
                 {
                     "matcher": "path",
                     "argument": "Cluster.Status.State",
+                    "expected": "RUNNING",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
                     "expected": "TERMINATED",
                     "state": "success"
                 },
@@ -121,6 +127,37 @@
                 {
                     "matcher": "path",
                     "argument": "Step.Status.State",
+                    "expected": "INTERRUPTED",
+                    "state": "failure"
+                }
+            ]
+        },
+        "steps_wait_for_terminal": {
+            "operation": "ListSteps",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "pathAll",
+                    "argument": "Steps[].Status.State",
+                    "expected": "COMPLETED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
+                    "expected": "CANCELLED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "pathAny",
+                    "argument": "Steps[].Status.State",
                     "expected": "INTERRUPTED",
                     "state": "failure"
                 }

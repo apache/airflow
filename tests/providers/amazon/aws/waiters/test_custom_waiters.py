@@ -18,17 +18,21 @@
 from __future__ import annotations
 
 import json
+from typing import Sequence
 from unittest import mock
 
 import boto3
 import pytest
 from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
-from moto import mock_eks
+from moto import mock_aws
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
 
@@ -69,9 +73,25 @@ class TestBaseWaiter:
         waiter = BaseBotoWaiter(client_name, waiter_model_config)
 
         # WaiterModel objects don't implement an eq() so equivalence checking manually.
-        for attr, _ in expected_model.__dict__.items():
+        for attr in expected_model.__dict__:
             assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(attr)
         assert waiter.client == client_name
+
+    @pytest.mark.parametrize("boto_type", ["client", "resource"])
+    def test_get_botocore_waiter(self, boto_type, monkeypatch):
+        kw = {f"{boto_type}_type": "s3"}
+        if boto_type == "client":
+            fake_client = boto3.client("s3", region_name="eu-west-3")
+        elif boto_type == "resource":
+            fake_client = boto3.resource("s3", region_name="eu-west-3")
+        else:
+            raise ValueError(f"Unexpected value {boto_type!r} for `boto_type`.")
+        monkeypatch.setattr(AwsBaseHook, "conn", fake_client)
+
+        hook = AwsBaseHook(**kw)
+        with mock.patch("botocore.client.BaseClient.get_waiter") as m:
+            hook.get_waiter(waiter_name="FooBar")
+            m.assert_called_once_with("FooBar")
 
 
 class TestCustomEKSServiceWaiters:
@@ -84,7 +104,7 @@ class TestCustomEKSServiceWaiters:
             assert waiter in hook.list_waiters()
             assert waiter in hook._list_custom_waiters()
 
-    @mock_eks
+    @mock_aws
     def test_existing_waiter_inherited(self):
         """
         AwsBaseHook::get_waiter will first check if there is a custom waiter with the
@@ -98,7 +118,7 @@ class TestCustomEKSServiceWaiters:
 
         assert_all_match(hook_waiter.name, client_waiter.name, boto_waiter.name)
         assert_all_match(len(hook_waiter.__dict__), len(client_waiter.__dict__), len(boto_waiter.__dict__))
-        for attr, _ in hook_waiter.__dict__.items():
+        for attr in hook_waiter.__dict__:
             # Not all attributes in a Waiter are directly comparable
             # so the best we can do it make sure the same attrs exist.
             assert hasattr(boto_waiter, attr)
@@ -230,8 +250,9 @@ class TestCustomDynamoDBServiceWaiters:
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, monkeypatch):
-        self.client = boto3.client("dynamodb", region_name="eu-west-3")
-        monkeypatch.setattr(DynamoDBHook, "conn", self.client)
+        self.resource = boto3.resource("dynamodb", region_name="eu-west-3")
+        monkeypatch.setattr(DynamoDBHook, "conn", self.resource)
+        self.client = self.resource.meta.client
 
     @pytest.fixture
     def mock_describe_export(self):
@@ -253,16 +274,15 @@ class TestCustomDynamoDBServiceWaiters:
 
     def test_export_table_to_point_in_time_completed(self, mock_describe_export):
         """Test state transition from `in progress` to `completed` during init."""
-        with mock.patch("boto3.client") as client:
-            client.return_value = self.client
-            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
-            mock_describe_export.side_effect = [
-                self.describe_export(self.STATUS_IN_PROGRESS),
-                self.describe_export(self.STATUS_COMPLETED),
-            ]
-            waiter.wait(
-                ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
-            )
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
+        mock_describe_export.side_effect = [
+            self.describe_export(self.STATUS_IN_PROGRESS),
+            self.describe_export(self.STATUS_COMPLETED),
+        ]
+        waiter.wait(
+            ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
 
     def test_export_table_to_point_in_time_failed(self, mock_describe_export):
         """Test state transition from `in progress` to `failed` during init."""
@@ -274,4 +294,133 @@ class TestCustomDynamoDBServiceWaiters:
             ]
             waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
             with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
-                waiter.wait(ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry")
+                waiter.wait(
+                    ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+                    WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+                )
+
+
+class TestCustomBatchServiceWaiters:
+    """Test waiters from ``amazon/aws/waiters/batch.json``."""
+
+    JOB_ID = "test_job_id"
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("batch", region_name="eu-west-3")
+        monkeypatch.setattr(BatchClientHook, "conn", self.client)
+
+    @pytest.fixture
+    def mock_describe_jobs(self):
+        """Mock ``BatchClientHook.Client.describe_jobs`` method."""
+        with mock.patch.object(self.client, "describe_jobs") as m:
+            yield m
+
+    def test_service_waiters(self):
+        hook_waiters = BatchClientHook(aws_conn_id=None).list_waiters()
+        assert "batch_job_complete" in hook_waiters
+
+    @staticmethod
+    def describe_jobs(status: str):
+        """
+        Helper function for generate minimal DescribeJobs response for a single job.
+        https://docs.aws.amazon.com/batch/latest/APIReference/API_DescribeJobs.html
+        """
+        return {
+            "jobs": [
+                {
+                    "status": status,
+                },
+            ],
+        }
+
+    def test_job_succeeded(self, mock_describe_jobs):
+        """Test job succeeded"""
+        mock_describe_jobs.side_effect = [
+            self.describe_jobs(BatchClientHook.RUNNING_STATE),
+            self.describe_jobs(BatchClientHook.SUCCESS_STATE),
+        ]
+        waiter = BatchClientHook(aws_conn_id=None).get_waiter("batch_job_complete")
+        waiter.wait(jobs=[self.JOB_ID], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+
+    def test_job_failed(self, mock_describe_jobs):
+        """Test job failed"""
+        mock_describe_jobs.side_effect = [
+            self.describe_jobs(BatchClientHook.RUNNING_STATE),
+            self.describe_jobs(BatchClientHook.FAILURE_STATE),
+        ]
+        waiter = BatchClientHook(aws_conn_id=None).get_waiter("batch_job_complete")
+
+        with pytest.raises(WaiterError, match="Waiter encountered a terminal failure state"):
+            waiter.wait(jobs=[self.JOB_ID], WaiterConfig={"Delay": 0.01, "MaxAttempts": 2})
+
+
+class TestCustomEmrServiceWaiters:
+    """Test waiters from ``amazon/aws/waiters/emr.json``."""
+
+    JOBFLOW_ID = "test_jobflow_id"
+    STEP_ID1 = "test_step_id_1"
+    STEP_ID2 = "test_step_id_2"
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.client = boto3.client("emr", region_name="eu-west-3")
+        monkeypatch.setattr(EmrHook, "conn", self.client)
+
+    @pytest.fixture
+    def mock_list_steps(self):
+        """Mock ``EmrHook.Client.list_steps`` method."""
+        with mock.patch.object(self.client, "list_steps") as m:
+            yield m
+
+    def test_service_waiters(self):
+        hook_waiters = EmrHook(aws_conn_id=None).list_waiters()
+        assert "steps_wait_for_terminal" in hook_waiters
+
+    @staticmethod
+    def list_steps(step_records: Sequence[tuple[str, str]]):
+        """
+        Helper function to generate minimal ListSteps response.
+        https://docs.aws.amazon.com/emr/latest/APIReference/API_ListSteps.html
+        """
+        return {
+            "Steps": [
+                {
+                    "Id": step_record[0],
+                    "Status": {
+                        "State": step_record[1],
+                    },
+                }
+                for step_record in step_records
+            ],
+        }
+
+    def test_steps_succeeded(self, mock_list_steps):
+        """Test steps succeeded"""
+        mock_list_steps.side_effect = [
+            self.list_steps([(self.STEP_ID1, "PENDING"), (self.STEP_ID2, "RUNNING")]),
+            self.list_steps([(self.STEP_ID1, "RUNNING"), (self.STEP_ID2, "COMPLETED")]),
+            self.list_steps([(self.STEP_ID1, "COMPLETED"), (self.STEP_ID2, "COMPLETED")]),
+        ]
+        waiter = EmrHook(aws_conn_id=None).get_waiter("steps_wait_for_terminal")
+        waiter.wait(
+            ClusterId=self.JOBFLOW_ID,
+            StepIds=[self.STEP_ID1, self.STEP_ID2],
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+    def test_steps_failed(self, mock_list_steps):
+        """Test steps failed"""
+        mock_list_steps.side_effect = [
+            self.list_steps([(self.STEP_ID1, "PENDING"), (self.STEP_ID2, "RUNNING")]),
+            self.list_steps([(self.STEP_ID1, "RUNNING"), (self.STEP_ID2, "COMPLETED")]),
+            self.list_steps([(self.STEP_ID1, "FAILED"), (self.STEP_ID2, "COMPLETED")]),
+        ]
+        waiter = EmrHook(aws_conn_id=None).get_waiter("steps_wait_for_terminal")
+
+        with pytest.raises(WaiterError, match="Waiter encountered a terminal failure state"):
+            waiter.wait(
+                ClusterId=self.JOBFLOW_ID,
+                StepIds=[self.STEP_ID1, self.STEP_ID2],
+                WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+            )

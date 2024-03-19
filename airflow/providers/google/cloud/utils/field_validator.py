@@ -129,6 +129,7 @@ Here are the guidelines that you should follow to make validation forward-compat
   backwards-incompatible changes that might sometimes occur in the APIs.
 
 """
+
 from __future__ import annotations
 
 import re
@@ -158,20 +159,20 @@ def _int_greater_than_zero(value):
 
 
 EXAMPLE_VALIDATION_SPECIFICATION = [
-    dict(name="name", allow_empty=False),
-    dict(name="description", allow_empty=False, optional=True),
-    dict(name="availableMemoryMb", custom_validation=_int_greater_than_zero, optional=True),
-    dict(name="labels", optional=True, type="dict"),
-    dict(
-        name="an_union",
-        type="union",
-        fields=[
-            dict(name="variant_1", regexp=r"^.+$"),
-            dict(name="variant_2", regexp=r"^.+$", api_version="v1beta2"),
-            dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
-            dict(name="variant_4"),
+    {"name": "name", "allow_empty": False},
+    {"name": "description", "allow_empty": False, "optional": True},
+    {"name": "availableMemoryMb", "custom_validation": _int_greater_than_zero, "optional": True},
+    {"name": "labels", "optional": True, "type": "dict"},
+    {
+        "name": "an_union",
+        "type": "union",
+        "fields": [
+            {"name": "variant_1", "regexp": r"^.+$"},
+            {"name": "variant_2", "regexp": r"^.+$", "api_version": "v1beta2"},
+            {"name": "variant_3", "type": "dict", "fields": [{"name": "url", "regexp": r"^.+$"}]},
+            {"name": "variant_4"},
         ],
-    ),
+    },
 ]
 
 
@@ -257,8 +258,8 @@ class GcpBodyFieldValidator(LoggingMixin):
             self._validate_field(
                 validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
             )
-        all_dict_keys = [spec["name"] for spec in children_validation_specs]
-        for field_name in value.keys():
+        all_dict_keys = {spec["name"] for spec in children_validation_specs}
+        for field_name in value:
             if field_name not in all_dict_keys:
                 self.log.warning(
                     "The field '%s' is in the body, but is not specified in the "
@@ -309,7 +310,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     def _validate_field(self, validation_spec, dictionary_to_validate, parent=None, force_optional=False):
         """
-        Validates if field is OK.
+        Validate if field is OK.
 
         :param validation_spec: specification of the field
         :param dictionary_to_validate: dictionary where the field should be present
@@ -413,7 +414,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     def validate(self, body_to_validate: dict) -> None:
         """
-        Validates if the body (dictionary) follows specification that the validator was instantiated with.
+        Validate if the body (dictionary) follows specification that the validator was instantiated with.
 
         Raises ValidationSpecificationException or ValidationFieldException in case of problems
         with specification or the body not conforming to the specification respectively.
@@ -421,6 +422,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         :param body_to_validate: body that must follow the specification
         :return: None
         """
+        if body_to_validate is None:
+            raise RuntimeError("The body to validate is `None`. Please provide a dictionary to validate.")
         try:
             for validation_spec in self._validation_specs:
                 self._validate_field(validation_spec=validation_spec, dictionary_to_validate=body_to_validate)
@@ -428,22 +431,20 @@ class GcpBodyFieldValidator(LoggingMixin):
             raise GcpFieldValidationException(
                 f"There was an error when validating: body '{body_to_validate}': '{e}'"
             )
-        all_field_names = [
+        all_field_names = {
             spec["name"]
             for spec in self._validation_specs
             if spec.get("type") != "union" and spec.get("api_version") != self._api_version
-        ]
+        }
         all_union_fields = [spec for spec in self._validation_specs if spec.get("type") == "union"]
         for union_field in all_union_fields:
-            all_field_names.extend(
-                [
-                    nested_union_spec["name"]
-                    for nested_union_spec in union_field["fields"]
-                    if nested_union_spec.get("type") != "union"
-                    and nested_union_spec.get("api_version") != self._api_version
-                ]
+            all_field_names.update(
+                nested_union_spec["name"]
+                for nested_union_spec in union_field["fields"]
+                if nested_union_spec.get("type") != "union"
+                and nested_union_spec.get("api_version") != self._api_version
             )
-        for field_name in body_to_validate.keys():
+        for field_name in body_to_validate:
             if field_name not in all_field_names:
                 self.log.warning(
                     "The field '%s' is in the body, but is not specified in the "

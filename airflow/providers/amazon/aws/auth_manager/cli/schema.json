@@ -1,0 +1,203 @@
+{
+    "Airflow": {
+        "actions": {
+            "Connection.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Connection.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Connection"]
+                }
+            },
+            "Custom.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Custom.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Custom"]
+                }
+            },
+            "Configuration.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Configuration"]
+                }
+            },
+            "Dag.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "type": "String",
+                                "required": false
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dag.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dag"],
+                    "context": {
+                        "attributes": {
+                            "dag_entity": {
+                                "required": false,
+                                "type": "String"
+                            }
+                        },
+                        "type": "Record"
+                    }
+                }
+            },
+            "Dataset.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Dataset"]
+                }
+            },
+            "Menu.MENU": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Menu"]
+                }
+            },
+            "Pool.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Pool.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Pool"]
+                }
+            },
+            "Variable.DELETE": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable.POST": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "Variable.PUT": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["Variable"]
+                }
+            },
+            "View.GET": {
+                "appliesTo": {
+                    "principalTypes": ["User"],
+                    "resourceTypes": ["View"]
+                }
+            }
+        },
+        "entityTypes": {
+            "Configuration": {},
+            "Connection": {},
+            "Custom": {},
+            "Dag": {},
+            "Dataset": {},
+            "Menu": {},
+            "Pool": {},
+            "Group": {},
+            "User": {
+                "memberOfTypes": [
+                    "Group"
+                ]
+            },
+            "Variable": {},
+            "View": {}
+        }
+    }
+}

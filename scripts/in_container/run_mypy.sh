@@ -22,6 +22,9 @@ export PYTHONPATH=${AIRFLOW_SOURCES}
 
 ADDITIONAL_MYPY_OPTIONS=()
 
+export MYPY_FORCE_COLOR=true
+export TERM=ansi
+
 if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]];
 then
     for folder in ${SUSPENDED_PROVIDERS_FOLDERS=}

@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 

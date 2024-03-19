@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from celery.app import control
 
+from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -39,7 +40,6 @@ class CeleryQueueSensor(BaseSensorOperator):
     """
 
     def __init__(self, *, celery_queue: str, target_task_id: str | None = None, **kwargs) -> None:
-
         super().__init__(**kwargs)
         self.celery_queue = celery_queue
         self.target_task_id = target_task_id
@@ -56,7 +56,6 @@ class CeleryQueueSensor(BaseSensorOperator):
         return celery_result.ready()
 
     def poke(self, context: Context) -> bool:
-
         if self.target_task_id:
             return self._check_task_id(context)
 
@@ -74,4 +73,13 @@ class CeleryQueueSensor(BaseSensorOperator):
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            raise KeyError(f"Could not locate Celery queue {self.celery_queue}")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Could not locate Celery queue {self.celery_queue}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise KeyError(message)
+        except Exception as err:
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException from err
+            raise

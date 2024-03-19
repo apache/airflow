@@ -20,12 +20,16 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Response
 
-from airflow.api_connexion.types import APIResponse
+from airflow.jobs.job import Job, most_recent_job
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from airflow.api_connexion.types import APIResponse
 
 log = logging.getLogger(__name__)
 
@@ -35,8 +39,12 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
-    from airflow.models.dag import DagModel
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.secrets.metastore import MetastoreBackend
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -44,8 +52,17 @@ def _initialize_map() -> dict[str, Callable]:
         DagFileProcessorManager.deactivate_stale_dags,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
+        DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        Job._add_to_db,
+        Job._fetch_from_db,
+        Job._kill,
+        Job._update_heartbeat,
+        Job._update_in_db,
+        most_recent_job,
+        MetastoreBackend._fetch_connection,
+        MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,
@@ -53,6 +70,19 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        DAG.fetch_callback,
+        DAG.fetch_dagrun,
+        DagRun.fetch_task_instances,
+        DagRun.get_previous_dagrun,
+        DagRun.get_previous_scheduled_dagrun,
+        DagRun.fetch_task_instance,
+        DagRun._get_log_template,
+        SerializedDagModel.get_serialized_dag,
+        TaskInstance._check_and_change_state_before_execution,
+        TaskInstance.get_task_instance,
+        TaskInstance.fetch_handle_failure_context,
+        TaskInstance.save_to_db,
+        TaskInstance._schedule_downstream_tasks,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,
@@ -65,7 +95,7 @@ def _initialize_map() -> dict[str, Callable]:
 
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
-    """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
+    """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":
@@ -84,20 +114,20 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
-    except Exception as err:
-        log.error("Error deserializing parameters.")
-        log.error(err)
+    except Exception as e:
+        log.error("Error when deserializing parameters for method: %s.", method_name)
+        log.exception(e)
         return Response(response="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %.", {method_name})
+    log.debug("Calling method %s.", method_name)
     try:
-        output = handler(**params)
-        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
-        log.debug("Returning response")
-        return Response(
-            response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}
-        )
+        # Session must be created there as it may be needed by serializer for lazy-loaded fields.
+        with create_session() as session:
+            output = handler(**params, session=session)
+            output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
+            response = json.dumps(output_json) if output_json is not None else None
+            return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception as e:
-        log.error("Error when calling method %s.", method_name)
-        log.error(e)
+        log.error("Error executing method: %s.", method_name)
+        log.exception(e)
         return Response(response=f"Error executing method: {method_name}.", status=500)

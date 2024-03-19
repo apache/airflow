@@ -70,7 +70,7 @@ Below is an example of using this operator to execute an Azure Service Bus Send 
 Receive Message Azure Service Bus Queue
 ========================================
 
-To Receive Message or list of message or Batch message message in a Queue you can use
+To Receive Message or list of message or Batch message in a Queue you can use
 :class:`~airflow.providers.microsoft.azure.operators.asb.AzureServiceBusReceiveMessageOperator`.
 
 Below is an example of using this operator to execute an Azure Service Bus Create Queue.

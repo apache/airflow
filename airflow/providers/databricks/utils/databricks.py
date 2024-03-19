@@ -36,19 +36,13 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     normalise = normalise_json_content
     if isinstance(content, (str, bool)):
         return content
-    elif isinstance(
-        content,
-        (
-            int,
-            float,
-        ),
-    ):
+    elif isinstance(content, (int, float)):
         # Databricks can tolerate either numeric or string types in the API backend.
         return str(content)
     elif isinstance(content, (list, tuple)):
         return [normalise(e, f"{json_path}[{i}]") for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: normalise(v, f"{json_path}[{k}]") for k, v in list(content.items())}
+        return {k: normalise(v, f"{json_path}[{k}]") for k, v in content.items()}
     else:
         param_type = type(content)
         msg = f"Type {param_type} used for parameter {json_path} is not a number or a string"
@@ -57,7 +51,7 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
 
 def validate_trigger_event(event: dict):
     """
-    Validates correctness of the event received from DatabricksExecutionTrigger.
+    Validate correctness of the event received from DatabricksExecutionTrigger.
 
     See: :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
     """

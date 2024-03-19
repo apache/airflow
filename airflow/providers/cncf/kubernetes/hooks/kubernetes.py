@@ -20,11 +20,12 @@ import contextlib
 import json
 import tempfile
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any, Generator
 
+import aiofiles
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
-from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
@@ -36,7 +37,18 @@ from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
+if TYPE_CHECKING:
+    from kubernetes.client import V1JobList
+    from kubernetes.client.models import V1Deployment, V1Job, V1Pod
+
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
+
+JOB_FINAL_STATUS_CONDITION_TYPES = {
+    "Complete",
+    "Failed",
+}
+
+JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
 
 
 def _load_body_to_dict(body: str) -> dict:
@@ -83,18 +95,18 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     DEFAULT_NAMESPACE = "default"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "in_cluster": BooleanField(lazy_gettext("In cluster configuration")),
             "kube_config_path": StringField(lazy_gettext("Kube config path"), widget=BS3TextFieldWidget()),
-            "kube_config": StringField(
-                lazy_gettext("Kube config (JSON format)"), widget=BS3TextFieldWidget()
+            "kube_config": PasswordField(
+                lazy_gettext("Kube config (JSON format)"), widget=BS3PasswordFieldWidget()
             ),
             "namespace": StringField(lazy_gettext("Namespace"), widget=BS3TextFieldWidget()),
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
@@ -108,9 +120,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -169,7 +181,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def _get_field(self, field_name):
         """
-        Handles backcompat for extra fields.
+        Handle backcompat for extra fields.
 
         Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
         we needed to store them with the prefix ``extra__kubernetes__``. This method
@@ -186,12 +198,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.conn_extras.get(prefixed_name) or None
 
     def get_conn(self) -> client.ApiClient:
-        """Returns kubernetes api session for use with requests."""
+        """Return kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
         kubeconfig = self._get_field("kube_config")
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -280,14 +292,22 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return client.CoreV1Api(api_client=self.api_client)
 
     @cached_property
+    def apps_v1_client(self) -> client.AppsV1Api:
+        return client.AppsV1Api(api_client=self.api_client)
+
+    @cached_property
     def custom_object_client(self) -> client.CustomObjectsApi:
         return client.CustomObjectsApi(api_client=self.api_client)
+
+    @cached_property
+    def batch_v1_client(self) -> client.BatchV1Api:
+        return client.BatchV1Api(api_client=self.api_client)
 
     def create_custom_object(
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
         """
-        Creates custom resource definition object in Kubernetes.
+        Create custom resource definition object in Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -358,17 +378,17 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
 
     def get_namespace(self) -> str | None:
-        """Returns the namespace that defined in the connection."""
+        """Return the namespace that defined in the connection."""
         if self.conn_id:
             return self._get_field("namespace")
         return None
 
     def get_xcom_sidecar_container_image(self):
-        """Returns the xcom sidecar image that defined in the connection."""
+        """Return the xcom sidecar image that defined in the connection."""
         return self._get_field("xcom_sidecar_container_image")
 
     def get_xcom_sidecar_container_resources(self):
-        """Returns the xcom sidecar resources that defined in the connection."""
+        """Return the xcom sidecar resources that defined in the connection."""
         field = self._get_field("xcom_sidecar_container_resources")
         if not field:
             return None
@@ -381,7 +401,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str | None = None,
     ) -> tuple[watch.Watch, Generator[str, None, None]]:
         """
-        Retrieves a log stream for a container in a kubernetes pod.
+        Retrieve a log stream for a container in a kubernetes pod.
 
         :param pod_name: pod name
         :param container: container name
@@ -405,7 +425,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str | None = None,
     ):
         """
-        Retrieves a container's log from the specified pod.
+        Retrieve a container's log from the specified pod.
 
         :param pod_name: pod name
         :param container: container name
@@ -433,7 +453,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         **kwargs,
     ):
         """
-        Retrieves a list of Kind pod which belong default kubernetes namespace.
+        Retrieve a list of Kind pod which belong default kubernetes namespace.
 
         :param label_selector: A selector to restrict the list of returned objects by their labels
         :param namespace: kubernetes namespace
@@ -447,9 +467,132 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             **kwargs,
         )
 
+    def get_deployment_status(
+        self,
+        name: str,
+        namespace: str = "default",
+        **kwargs,
+    ) -> V1Deployment:
+        """Get status of existing Deployment.
+
+        :param name: Name of Deployment to retrieve
+        :param namespace: Deployment namespace
+        """
+        try:
+            return self.apps_v1_client.read_namespaced_deployment_status(
+                name=name, namespace=namespace, pretty=True, **kwargs
+            )
+        except Exception as exc:
+            raise exc
+
+    def create_job(
+        self,
+        job: V1Job,
+        **kwargs,
+    ) -> V1Job:
+        """
+        Run Job.
+
+        :param job: A kubernetes Job object
+        """
+        sanitized_job = self.batch_v1_client.api_client.sanitize_for_serialization(job)
+        json_job = json.dumps(sanitized_job, indent=2)
+
+        self.log.debug("Job Creation Request: \n%s", json_job)
+        try:
+            resp = self.batch_v1_client.create_namespaced_job(
+                body=sanitized_job, namespace=job.metadata.namespace, **kwargs
+            )
+            self.log.debug("Job Creation Response: %s", resp)
+        except Exception as e:
+            self.log.exception(
+                "Exception when attempting to create Namespaced Job: %s", str(json_job).replace("\n", " ")
+            )
+            raise e
+        return resp
+
+    def get_job(self, job_name: str, namespace: str) -> V1Job:
+        """Get Job of specified name and namespace.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :return: Job object
+        """
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+
+    def get_job_status(self, job_name: str, namespace: str) -> V1Job:
+        """Get job with status of specified name and namespace.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :return: Job object
+        """
+        return self.batch_v1_client.read_namespaced_job_status(
+            name=job_name, namespace=namespace, pretty=True
+        )
+
+    def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
+        """Block job of specified name and namespace until it is complete or failed.
+
+        :param job_name: Name of Job to fetch.
+        :param namespace: Namespace of the Job.
+        :param job_poll_interval: Interval in seconds between polling the job status
+        :return: Job object
+        """
+        while True:
+            self.log.info("Requesting status for the job '%s' ", job_name)
+            job: V1Job = self.get_job_status(job_name=job_name, namespace=namespace)
+            if self.is_job_complete(job=job):
+                return job
+            self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", job_name, job_poll_interval)
+            sleep(job_poll_interval)
+
+    def list_jobs_all_namespaces(self) -> V1JobList:
+        """Get list of Jobs from all namespaces.
+
+        :return: V1JobList object
+        """
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
+
+    def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
+        """Get list of Jobs from dedicated namespace.
+
+        :param namespace: Namespace of the Job.
+        :return: V1JobList object
+        """
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
+
+    def is_job_complete(self, job: V1Job) -> bool:
+        """Check whether the given job is complete (with success or fail).
+
+        :return: Boolean indicating that the given job is complete.
+        """
+        if conditions := job.status.conditions:
+            if final_condition_types := list(
+                c for c in conditions if c.type in JOB_FINAL_STATUS_CONDITION_TYPES and c.status
+            ):
+                s = "s" if len(final_condition_types) > 1 else ""
+                self.log.info(
+                    "The job '%s' state%s: %s",
+                    job.metadata.name,
+                    s,
+                    ", ".join(f"{c.type} at {c.last_transition_time}" for c in final_condition_types),
+                )
+                return True
+        return False
+
+    @staticmethod
+    def is_job_failed(job: V1Job) -> bool:
+        """Check whether the given job is failed.
+
+        :return: Boolean indicating that the given job is failed.
+        """
+        conditions = job.status.conditions or []
+        return bool(next((c for c in conditions if c.type == "Failed" and c.status), None))
+
 
 def _get_bool(val) -> bool | None:
-    """Converts val to bool if can be done with certainty; if we cannot infer intention we return None."""
+    """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
@@ -468,13 +611,13 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = None
 
     async def _load_config(self):
-        """Returns Kubernetes API session for use with requests."""
+        """Return Kubernetes API session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -500,13 +643,13 @@ class AsyncKubernetesHook(KubernetesHook):
             return async_client.ApiClient()
 
         if kubeconfig is not None:
-            with tempfile.NamedTemporaryFile() as temp_config:
+            async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
-                temp_config.write(kubeconfig.encode())
-                temp_config.flush()
+                await temp_config.write(kubeconfig.encode())
+                await temp_config.flush()
                 self._is_in_cluster = False
                 await async_config.load_kube_config(
                     config_file=temp_config.name,
@@ -553,7 +696,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
         """
-        Gets pod's object.
+        Get pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
@@ -568,7 +711,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def delete_pod(self, name: str, namespace: str):
         """
-        Deletes pod's object.
+        Delete pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
@@ -581,12 +724,12 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
-                if e.status != 404:
+                if str(e.status) != "404":
                     raise
 
     async def read_logs(self, name: str, namespace: str):
         """
-        Reads logs inside the pod while starting containers inside.
+        Read logs inside the pod while starting containers inside.
 
         All the logs will be outputted with its timestamp to track
         the logs after the execution of the pod is completed. The

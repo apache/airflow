@@ -33,9 +33,8 @@ from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
-from airflow.utils.sqlalchemy import skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -48,11 +47,13 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.dag import DAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
@@ -97,7 +98,7 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str
+    weight_rule: PriorityWeightStrategy
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -266,7 +267,7 @@ class AbstractOperator(Templater, DAGNode):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
@@ -290,8 +291,19 @@ class AbstractOperator(Templater, DAGNode):
             if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
+
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
+        """
+        Return relevant upstream setups.
+
+        This method is meant to be used when we are checking task dependencies where we need
+        to wait for all the upstream setups to complete before we can run the task.
+        """
+        for task in self.get_upstreams_only_setups_and_teardowns():
+            if task.is_setup:
+                yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
@@ -354,19 +366,9 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        parent = self.task_group
-        while parent is not None:
-            if isinstance(parent, MappedTaskGroup):
-                yield parent
-            parent = parent.task_group
-
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group.
-
-        :meta private:
-        """
-        if self.node_id not in task_group.children:
-            task_group.add(self)
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.
@@ -396,11 +398,17 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
-        if self.weight_rule == WeightRule.ABSOLUTE:
+        from airflow.task.priority_strategy import (
+            _AbsolutePriorityWeightStrategy,
+            _DownstreamPriorityWeightStrategy,
+            _UpstreamPriorityWeightStrategy,
+        )
+
+        if type(self.weight_rule) == _AbsolutePriorityWeightStrategy:
             return self.priority_weight
-        elif self.weight_rule == WeightRule.DOWNSTREAM:
+        elif type(self.weight_rule) == _DownstreamPriorityWeightStrategy:
             upstream = False
-        elif self.weight_rule == WeightRule.UPSTREAM:
+        elif type(self.weight_rule) == _UpstreamPriorityWeightStrategy:
             upstream = True
         else:
             upstream = False
@@ -471,7 +479,8 @@ class AbstractOperator(Templater, DAGNode):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of mapped task instances that can be created on DAG run creation.
+        """
+        Return the number of mapped task instances that can be created on DAG run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -487,7 +496,8 @@ class AbstractOperator(Templater, DAGNode):
         return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of mapped TaskInstances that can be created at run time.
+        """
+        Return the number of mapped TaskInstances that can be created at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The
@@ -621,7 +631,7 @@ class AbstractOperator(Templater, DAGNode):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
         to_update = session.scalars(query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
@@ -655,7 +665,6 @@ class AbstractOperator(Templater, DAGNode):
             dag = self.get_dag()
         return super().get_template_env(dag=dag)
 
-    @provide_session
     def _do_render_template_fields(
         self,
         parent: Any,
@@ -663,8 +672,6 @@ class AbstractOperator(Templater, DAGNode):
         context: Context,
         jinja_env: jinja2.Environment,
         seen_oids: set[int],
-        *,
-        session: Session = NEW_SESSION,
     ) -> None:
         """Override the base to use custom error logging."""
         for attr_name in template_fields:
@@ -675,7 +682,6 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-
             try:
                 if not value:
                     continue

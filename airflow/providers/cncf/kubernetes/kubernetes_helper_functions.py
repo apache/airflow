@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import secrets
 import string
+import warnings
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -26,6 +27,7 @@ from slugify import slugify
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -33,6 +35,8 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 alphanum_lower = string.ascii_lowercase + string.digits
+
+POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value minus 1.
 
 
 def rand_str(num):
@@ -43,7 +47,19 @@ def rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
+def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
+    """Add random string to pod or job name while staying under max length.
+
+    :param name: name of the pod or job
+    :param rand_len: length of the random string to append
+    :param max_len: maximum length of the pod name
+    :meta private:
+    """
+    suffix = "-" + rand_str(rand_len)
+    return name[: max_len - len(suffix)].strip("-.") + suffix
+
+
+def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
     """Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
@@ -51,23 +67,25 @@ def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = 80) -> st
     :param max_len: maximum length of the pod name
     :meta private:
     """
+    warnings.warn(
+        "This function is deprecated. Please use `add_unique_suffix`.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
+
     suffix = "-" + rand_str(rand_len)
     return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
 
-def create_pod_id(
+def create_unique_id(
     dag_id: str | None = None,
     task_id: str | None = None,
     *,
-    max_length: int = 80,
+    max_length: int = POD_NAME_MAX_LENGTH,
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
-
-    The default of 80 for max length is somewhat arbitrary, mainly a balance between
-    content and not overwhelming terminal windows of reasonable width. The true
-    upper limit is 253, and this is enforced in construct_pod.
+    Generate unique pod or job ID given a dag_id and / or task_id.
 
     :param dag_id: DAG ID
     :param task_id: Task ID
@@ -75,6 +93,44 @@ def create_pod_id(
     :param unique: whether a random string suffix should be added
     :return: A valid identifier for a kubernetes pod name
     """
+    if not (dag_id or task_id):
+        raise ValueError("Must supply either dag_id or task_id.")
+    name = ""
+    if dag_id:
+        name += dag_id
+    if task_id:
+        if name:
+            name += "-"
+        name += task_id
+    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
+    if unique:
+        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
+    else:
+        return base_name
+
+
+def create_pod_id(
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    *,
+    max_length: int = POD_NAME_MAX_LENGTH,
+    unique: bool = True,
+) -> str:
+    """
+    Generate unique pod ID given a dag_id and / or task_id.
+
+    :param dag_id: DAG ID
+    :param task_id: Task ID
+    :param max_length: max number of characters
+    :param unique: whether a random string suffix should be added
+    :return: A valid identifier for a kubernetes pod name
+    """
+    warnings.warn(
+        "This function is deprecated. Please use `create_unique_id`.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
+
     if not (dag_id or task_id):
         raise ValueError("Must supply either dag_id or task_id.")
     name = ""

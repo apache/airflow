@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP to Google Cloud Storage operator."""
+
 from __future__ import annotations
 
 import os
@@ -69,6 +70,7 @@ class SFTPToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -90,21 +92,25 @@ class SFTPToGCSOperator(BaseOperator):
         gzip: bool = False,
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
+        sftp_prefetch: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
         self.source_path = source_path
-        self.destination_path = self._set_destination_path(destination_path)
-        self.destination_bucket = self._set_bucket_name(destination_bucket)
+        self.destination_path = destination_path
+        self.destination_bucket = destination_bucket
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
         self.gzip = gzip
         self.sftp_conn_id = sftp_conn_id
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
+        self.sftp_prefetch = sftp_prefetch
 
     def execute(self, context: Context):
+        self.destination_path = self._set_destination_path(self.destination_path)
+        self.destination_bucket = self._set_bucket_name(self.destination_bucket)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -142,7 +148,7 @@ class SFTPToGCSOperator(BaseOperator):
         source_path: str,
         destination_object: str,
     ) -> None:
-        """Helper function to copy single object."""
+        """Copy single object."""
         self.log.info(
             "Executing copy of %s to gs://%s/%s",
             source_path,
@@ -151,7 +157,7 @@ class SFTPToGCSOperator(BaseOperator):
         )
 
         with NamedTemporaryFile("w") as tmp:
-            sftp_hook.retrieve_file(source_path, tmp.name)
+            sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
 
             gcs_hook.upload(
                 bucket_name=self.destination_bucket,

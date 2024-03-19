@@ -26,6 +26,7 @@ from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDr
 
 MODULE = "airflow.providers.google.suite.transfers.gcs_to_gdrive"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+DELEGATE_TO = "test_account@xxx.zzz"
 
 
 class TestGcsToGDriveOperator:
@@ -41,6 +42,8 @@ class TestGcsToGDriveOperator:
             source_bucket="data",
             source_object="sales/sales-2017/january.avro",
             destination_object="copied_sales/2017/january-backup.avro",
+            impersonation_chain=None,
+            delegate_to=DELEGATE_TO,
         )
 
         task.execute(mock.MagicMock())
@@ -60,13 +63,14 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
+                    delegate_to=DELEGATE_TO,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
                 mock.call().upload_file(
                     local_location="TMP1",
                     remote_location="copied_sales/2017/january-backup.avro",
-                    folder_id=None,
+                    folder_id="root",
                 ),
             ]
         )
@@ -84,6 +88,7 @@ class TestGcsToGDriveOperator:
             source_object="sales/sales-2017/january.avro",
             destination_object="copied_sales/2017/january-backup.avro",
             destination_folder_id="aAopls6bE4tUllZVGJvRUU",
+            delegate_to=DELEGATE_TO,
         )
 
         task.execute(mock.MagicMock())
@@ -104,6 +109,7 @@ class TestGcsToGDriveOperator:
             [
                 mock.call(
                     gcp_conn_id="google_cloud_default",
+                    delegate_to=DELEGATE_TO,
                     impersonation_chain=None,
                 ),
                 mock.call().upload_file(
@@ -130,6 +136,7 @@ class TestGcsToGDriveOperator:
             source_object="sales/sales-2017/*.avro",
             destination_object="copied_sales/2017/",
             impersonation_chain=IMPERSONATION_CHAIN,
+            delegate_to=DELEGATE_TO,
         )
 
         task.execute(mock.MagicMock())
@@ -152,17 +159,18 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
+                    delegate_to=DELEGATE_TO,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
                 ),
             ]
         )
@@ -181,6 +189,7 @@ class TestGcsToGDriveOperator:
             source_object="sales/sales-2017/*.avro",
             move_object=True,
             impersonation_chain=IMPERSONATION_CHAIN,
+            delegate_to=DELEGATE_TO,
         )
 
         task.execute(mock.MagicMock())
@@ -206,17 +215,18 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
+                    delegate_to=DELEGATE_TO,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
                 ),
             ]
         )

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -156,7 +156,6 @@ class S3ToGCSOperator(S3ListOperator):
         poll_interval: int = 10,
         **kwargs,
     ):
-
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
         self.apply_gcs_prefix = apply_gcs_prefix
         self.gcp_conn_id = gcp_conn_id
@@ -220,7 +219,7 @@ class S3ToGCSOperator(S3ListOperator):
 
     def s3_to_gcs_object(self, s3_object: str) -> str:
         """
-        Transforms S3 path to GCS path according to the operator's logic.
+        Transform S3 path to GCS path according to the operator's logic.
 
         If apply_gcs_prefix == True then <s3_prefix><content> => <gcs_prefix><content>
         If apply_gcs_prefix == False then <s3_prefix><content> => <gcs_prefix><s3_prefix><content>
@@ -234,7 +233,7 @@ class S3ToGCSOperator(S3ListOperator):
 
     def gcs_to_s3_object(self, gcs_object: str) -> str:
         """
-        Transforms GCS path to S3 path according to the operator's logic.
+        Transform GCS path to S3 path according to the operator's logic.
 
         If apply_gcs_prefix == True then <gcs_prefix><content> => <s3_prefix><content>
         If apply_gcs_prefix == False then <gcs_prefix><s3_prefix><content> => <s3_prefix><content>
@@ -262,7 +261,7 @@ class S3ToGCSOperator(S3ListOperator):
             self.log.info("All done, uploaded %d files to Google Cloud Storage", len(s3_objects))
 
     def transfer_files_async(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> None:
-        """Submits Google Cloud Storage Transfer Service job to copy files from AWS S3 to GCS."""
+        """Submit Google Cloud Storage Transfer Service job to copy files from AWS S3 to GCS."""
         if not len(files):
             raise ValueError("List of transferring files cannot be empty")
         job_names = self.submit_transfer_jobs(files=files, gcs_hook=gcs_hook, s3_hook=s3_hook)
@@ -277,7 +276,7 @@ class S3ToGCSOperator(S3ListOperator):
         )
 
     def submit_transfer_jobs(self, files: list[str], gcs_hook: GCSHook, s3_hook: S3Hook) -> list[str]:
-        now = datetime.utcnow()
+        now = datetime.now(tz=timezone.utc)
         one_time_schedule = {"day": now.day, "month": now.month, "year": now.year}
 
         gcs_bucket, gcs_prefix = _parse_gcs_url(self.dest_gcs)
@@ -320,20 +319,17 @@ class S3ToGCSOperator(S3ListOperator):
             body[TRANSFER_SPEC][OBJECT_CONDITIONS][INCLUDE_PREFIXES] = files_chunk
             job = transfer_hook.create_transfer_job(body=body)
 
-            s = "s" if len(files_chunk) > 1 else ""
-            self.log.info(f"Submitted job {job['name']} to transfer {len(files_chunk)} file{s}")
+            self.log.info("Submitted job %s to transfer %s file(s).", job["name"], len(files_chunk))
             job_names.append(job["name"])
 
         if len(files) > chunk_size:
-            js = "s" if len(job_names) > 1 else ""
-            fs = "s" if len(files) > 1 else ""
-            self.log.info(f"Overall submitted {len(job_names)} job{js} to transfer {len(files)} file{fs}")
+            self.log.info("Overall submitted %s job(s) to transfer %s file(s).", len(job_names), len(files))
 
         return job_names
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """

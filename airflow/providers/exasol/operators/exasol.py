@@ -38,10 +38,11 @@ class ExasolOperator(SQLExecuteQueryOperator):
     :param handler: (optional) handler to process the results of the query
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = ("sql", "exasol_conn_id")
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
     ui_color = "#ededed"
+    conn_id_field = "exasol_conn_id"
 
     def __init__(
         self,
@@ -51,6 +52,7 @@ class ExasolOperator(SQLExecuteQueryOperator):
         handler=exasol_fetch_all_handler,
         **kwargs,
     ) -> None:
+        self.exasol_conn_id = exasol_conn_id
         if schema is not None:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"schema": schema, **hook_params}

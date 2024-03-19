@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.apache.pig.hooks.pig import PigCliHook
 from airflow.providers.apache.pig.operators.pig import PigOperator
 
@@ -40,6 +42,7 @@ class TestPigOperator:
         operator.prepare_template()
         assert "sh echo {{ DATE }};" == operator.pig
 
+    @pytest.mark.db_test
     @mock.patch.object(PigCliHook, "run_cli")
     def test_execute(self, mock_run_cli):
         pig_opts = "-x mapreduce"
@@ -48,6 +51,7 @@ class TestPigOperator:
 
         mock_run_cli.assert_called_once_with(pig=PIG, pig_opts=pig_opts)
 
+    @pytest.mark.db_test
     @mock.patch.object(PigCliHook, "run_cli")
     def test_execute_default_pig_opts_to_none(self, mock_run_cli):
         operator = PigOperator(pig=PIG, task_id=TEST_TASK_ID)
@@ -55,6 +59,7 @@ class TestPigOperator:
 
         mock_run_cli.assert_called_once_with(pig=PIG, pig_opts=None)
 
+    @pytest.mark.db_test
     @mock.patch.object(PigCliHook, "run_cli")
     @mock.patch.object(PigCliHook, "kill")
     def test_on_kill(self, mock_kill, mock_rul_cli):

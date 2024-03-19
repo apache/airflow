@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow logging settings."""
+
 from __future__ import annotations
 
 import os
@@ -54,6 +55,10 @@ PROCESSOR_LOG_FOLDER: str = conf.get_mandatory_value("scheduler", "CHILD_PROCESS
 
 DAG_PROCESSOR_MANAGER_LOG_LOCATION: str = conf.get_mandatory_value(
     "logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION"
+)
+
+DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
+    "logging", "DAG_PROCESSOR_MANAGER_LOG_STDOUT"
 )
 
 # FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
@@ -171,6 +176,19 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     },
 }
 
+if DAG_PROCESSOR_MANAGER_LOG_STDOUT == "True":
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["handlers"].update(
+        {
+            "console": {
+                "class": "airflow.utils.log.logging_mixin.RedirectStdHandler",
+                "formatter": "airflow",
+                "stream": "sys.stdout",
+                "filters": ["mask_secrets"],
+            }
+        }
+    )
+    DEFAULT_DAG_PARSING_LOGGING_CONFIG["loggers"]["airflow.processor_manager"]["handlers"].append("console")
+
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
 # in multiple processes.
@@ -193,7 +211,6 @@ if os.environ.get("CONFIG_PROCESSOR_MANAGER_LOGGER") == "True":
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
 
 if REMOTE_LOGGING:
-
     ELASTICSEARCH_HOST: str | None = conf.get("elasticsearch", "HOST")
 
     # Storage bucket URL for remote logging
@@ -246,13 +263,16 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith("wasb"):
+        wasb_log_container = conf.get_mandatory_value(
+            "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
+        )
         WASB_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             "task": {
                 "class": "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "wasb_log_folder": REMOTE_BASE_LOG_FOLDER,
-                "wasb_container": "airflow-logs",
+                "wasb_container": wasb_log_container,
                 "filename_template": FILENAME_TEMPLATE,
             },
         }

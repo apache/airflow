@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -103,15 +105,42 @@ class DockerHook(BaseHook):
         :param ssl_version: Version of SSL to use when communicating with docker daemon.
         """
         if ca_cert and client_cert and client_key:
-            # Ignore type error on SSL version here.
-            # It is deprecated and type annotation is wrong, and it should be string.
-            return TLSConfig(
-                ca_cert=ca_cert,
-                client_cert=(client_cert, client_key),
-                verify=verify,
-                ssl_version=ssl_version,
-                assert_hostname=assert_hostname,
-            )
+            from packaging.version import Version
+
+            if sys.version_info >= (3, 9):
+                from importlib.metadata import version
+            else:
+                from importlib_metadata import version
+
+            tls_config = {
+                "ca_cert": ca_cert,
+                "client_cert": (client_cert, client_key),
+                "verify": verify,
+                "assert_hostname": assert_hostname,
+                "ssl_version": ssl_version,
+            }
+
+            docker_py_version = Version(version("docker"))
+            if docker_py_version.major >= 7:
+                # `ssl_version` and `assert_hostname` removed into the `docker>=7`
+                # see: https://github.com/docker/docker-py/pull/3185
+                if tls_config.pop("ssl_version", None) is not None:
+                    warnings.warn(
+                        f"`ssl_version` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                if tls_config.pop("assert_hostname", None) is not None:
+                    warnings.warn(
+                        f"`assert_hostname` removed in `docker.TLSConfig` constructor arguments "
+                        f"since `docker>=7`, but you use {docker_py_version}. "
+                        f"This parameter does not have any affect.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+            return TLSConfig(**tls_config)
         return False
 
     @cached_property
@@ -166,9 +195,9 @@ class DockerHook(BaseHook):
             self.log.error("Login failed")
             raise
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection form widgets."""
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection form widgets."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -183,7 +212,7 @@ class DockerHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {

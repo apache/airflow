@@ -28,7 +28,7 @@ kind: ClusterRole
 kind: Role
 {{- end }}
 metadata:
-  name: {{ .Release.Name }}-pod-launcher-role
+  name: {{ include "airflow.fullname" . }}-pod-launcher-role
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}

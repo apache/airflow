@@ -16,6 +16,7 @@
 # under the License.
 
 """This module contains the Apache Livy Trigger."""
+
 from __future__ import annotations
 
 import asyncio
@@ -64,7 +65,7 @@ class LivyTrigger(BaseTrigger):
         self._livy_hook_async = livy_hook_async
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes LivyTrigger arguments and classpath."""
+        """Serialize LivyTrigger arguments and classpath."""
         return (
             "airflow.providers.apache.livy.triggers.livy.LivyTrigger",
             {
@@ -101,7 +102,7 @@ class LivyTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "batch_id": self._batch_id,
-                    "response": f"Batch {self._batch_id} did not succeed with {str(exc)}",
+                    "response": f"Batch {self._batch_id} did not succeed with {exc}",
                     "log_lines": None,
                 }
             )

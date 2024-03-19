@@ -34,13 +34,14 @@ import LoadingWrapper from "src/components/LoadingWrapper";
 
 const formatData = (
   data?: API.PoolCollection
-): Array<[string, number, number, number, number]> =>
+): Array<[string, number, number, number, number, number]> =>
   data?.pools?.map((pool) => [
     pool.name || "",
     pool.openSlots || 0,
     pool.queuedSlots || 0,
     pool.runningSlots || 0,
     pool.scheduledSlots || 0,
+    pool.deferredSlots || 0,
   ]) || [];
 
 const Pools = (props: BoxProps) => {
@@ -49,7 +50,7 @@ const Pools = (props: BoxProps) => {
   const option: ReactEChartsProps["option"] = {
     dataset: {
       source: [
-        ["pool", "open", "queued", "running", "scheduled"],
+        ["pool", "open", "queued", "running", "scheduled", "deferred"],
         ...formatData(data),
       ],
     },
@@ -60,7 +61,7 @@ const Pools = (props: BoxProps) => {
       },
     },
     legend: {
-      data: ["open", "queued", "running", "scheduled"],
+      data: ["open", "queued", "running", "scheduled", "deferred"],
     },
     grid: {
       left: "0%",
@@ -106,6 +107,14 @@ const Pools = (props: BoxProps) => {
         barMaxWidth: 10,
         itemStyle: {
           color: stateColors.scheduled,
+        },
+      },
+      {
+        type: "bar",
+        stack: "total",
+        barMaxWidth: 10,
+        itemStyle: {
+          color: stateColors.deferred,
         },
       },
     ],

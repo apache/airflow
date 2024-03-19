@@ -23,7 +23,9 @@ import pytest
 
 from airflow import models
 from airflow.cli import cli_parser
+from airflow.executors import local_executor
 from airflow.providers.celery.executors import celery_executor, celery_kubernetes_executor
+from airflow.providers.cncf.kubernetes.executors import kubernetes_executor, local_kubernetes_executor
 from tests.test_utils.config import conf_vars
 
 # Create custom executors here because conftest is imported first
@@ -34,17 +36,14 @@ custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
 custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
     "CustomCeleryKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
 )
-custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
-    "CustomLocalExecutor", (celery_executor.CeleryExecutor,), {}
+custom_executor_module.CustomLocalExecutor = type(  # type:  ignore
+    "CustomLocalExecutor", (local_executor.LocalExecutor,), {}
 )
-custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
-    "CustomLocalKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
+custom_executor_module.CustomLocalKubernetesExecutor = type(  # type: ignore
+    "CustomLocalKubernetesExecutor", (local_kubernetes_executor.LocalKubernetesExecutor,), {}
 )
-custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
-    "CustomKubernetesExecutor", (celery_executor.CeleryExecutor,), {}
-)
-custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
-    "CustomCeleryKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
+custom_executor_module.CustomKubernetesExecutor = type(  # type:  ignore
+    "CustomKubernetesExecutor", (kubernetes_executor.KubernetesExecutor,), {}
 )
 sys.modules["custom_executor"] = custom_executor_module
 

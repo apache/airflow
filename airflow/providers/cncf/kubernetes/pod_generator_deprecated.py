@@ -22,6 +22,7 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
+
 from __future__ import annotations
 
 import copy
@@ -30,8 +31,7 @@ import uuid
 import re2
 from kubernetes.client import models as k8s
 
-# replace it with airflow.utils.hashlib_wrapper.md5 when min airflow version for k8s provider is 2.6.0
-from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
+from airflow.utils.hashlib_wrapper import md5
 
 MAX_POD_ID_LEN = 253
 
@@ -217,7 +217,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod."""
+        """Generate pod."""
         result = None
 
         if result is None:
@@ -235,7 +235,7 @@ class PodGenerator:
 
     @staticmethod
     def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar."""
+        """Add sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -247,7 +247,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 

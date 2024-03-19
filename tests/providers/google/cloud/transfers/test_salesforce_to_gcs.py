@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from collections import OrderedDict
 from unittest import mock
+
+import pytest
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
@@ -32,18 +33,11 @@ EXPECTED_GCS_URI = f"gs://{GCS_BUCKET}/{GCS_OBJECT_PATH}"
 GCP_CONNECTION_ID = "google_cloud_default"
 SALESFORCE_RESPONSE = {
     "records": [
-        OrderedDict(
-            [
-                (
-                    "attributes",
-                    OrderedDict(
-                        [("type", "Lead"), ("url", "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK")]
-                    ),
-                ),
-                ("Id", "00Q3t00001eJ7AnEAK"),
-                ("Company", "Hello World Inc"),
-            ]
-        )
+        {
+            "attributes": {"type": "Lead", "url": "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK"},
+            "Id": "00Q3t00001eJ7AnEAK",
+            "Company": "Hello World Inc",
+        }
     ],
     "totalSize": 1,
     "done": True,
@@ -53,6 +47,7 @@ QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
 
 class TestSalesforceToGcsOperator:
+    @pytest.mark.db_test
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(SalesforceHook, "write_object_to_file")
     @mock.patch.object(SalesforceHook, "make_query")

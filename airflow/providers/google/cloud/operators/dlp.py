@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem,
     ContentItem,
@@ -44,7 +43,6 @@ from google.cloud.dlp_v2.types import (
     StoredInfoType,
     StoredInfoTypeConfig,
 )
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.cloud.links.data_loss_prevention import (
@@ -63,6 +61,9 @@ from airflow.providers.google.cloud.links.data_loss_prevention import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 

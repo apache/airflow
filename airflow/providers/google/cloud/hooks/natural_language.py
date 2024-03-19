@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Natural Language Hook."""
+
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.language_v1 import EncodingType, LanguageServiceClient
 from google.cloud.language_v1.types import (
     AnalyzeEntitiesResponse,
@@ -36,6 +36,9 @@ from google.cloud.language_v1.types import (
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudNaturalLanguageHook(GoogleBaseHook):
@@ -72,7 +75,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
     def get_conn(self) -> LanguageServiceClient:
         """
-        Retrieves connection to Cloud Natural Language service.
+        Retrieve connection to Cloud Natural Language service.
 
         :return: Cloud Natural Language service object
         """
@@ -90,7 +93,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
         """
-        Finds named entities in the text along with various properties.
+        Find named entities in the text along with various properties.
 
         Examples properties: entity types, salience, mentions for each entity, and others.
 
