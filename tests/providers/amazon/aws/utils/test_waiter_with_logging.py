@@ -222,7 +222,7 @@ class TestWaiter:
                 "MaxAttempts": 1,
             },
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples

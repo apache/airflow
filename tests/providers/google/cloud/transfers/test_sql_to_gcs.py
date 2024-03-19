@@ -183,7 +183,7 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_file.write.call_args_list == [
+        assert mock_file.write.call_args_list == [
             mock.call(OUTPUT_DATA),
             mock.call(b"\n"),
             mock.call(OUTPUT_DATA),
@@ -227,7 +227,7 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_file.write.call_args_list == [
+        assert mock_file.write.call_args_list == [
             mock.call(OUTPUT_DATA),
             mock.call(b"\n"),
             mock.call(OUTPUT_DATA),

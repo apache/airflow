@@ -2000,9 +2000,9 @@ class TestBackfillJob:
         # Check that every task has a start and end date
         tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
         assert len(tis) == 3
-        tis[("get_things", -1)].state == TaskInstanceState.SUCCESS
-        tis[("this_fails", -1)].state == TaskInstanceState.FAILED
-        tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
+        assert tis[("get_things", -1)].state == TaskInstanceState.SUCCESS
+        assert tis[("this_fails", -1)].state == TaskInstanceState.FAILED
+        assert tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
 
     def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
         with dag_maker() as dag:

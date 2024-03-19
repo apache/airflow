@@ -109,7 +109,7 @@ class TestEmrServerlessCreateApplicationOperator:
 
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
         assert id == application_id
-        mock_conn.get_application.call_count == 2
+        assert mock_conn.get_application.call_count == 2
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
@@ -232,7 +232,7 @@ class TestEmrServerlessCreateApplicationOperator:
             type=job_type,
             **config,
         )
-        mock_conn.create_application.call_count == 2
+        assert mock_conn.create_application.call_count == 2
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
@@ -644,7 +644,7 @@ class TestEmrServerlessStartJobOperator:
         assert "Serverless Job failed:" in str(ex_message.value)
         default_name = operator.name
 
-        mock_conn.get_application.call_count == 2
+        assert mock_conn.get_application.call_count == 2
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
             applicationId=application_id,

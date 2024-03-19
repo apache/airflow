@@ -147,7 +147,7 @@ class TestSageMakerProcessingOperator:
                 (key3,) = key3
                 assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
             else:
-                sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])
+                assert sagemaker.config[key1][key2] == int(sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
     @mock.patch.object(SageMakerHook, "count_processing_jobs_by_name", return_value=0)

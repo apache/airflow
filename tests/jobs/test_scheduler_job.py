@@ -1921,7 +1921,7 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
         # check that next_dagrun is dr.execution_date
-        dag_maker.dag_model.next_dagrun == dr.execution_date
+        assert dag_maker.dag_model.next_dagrun == dr.execution_date
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
@@ -3971,7 +3971,7 @@ class TestSchedulerJob:
         dag_models = query.all()
         self.job_runner._create_dag_runs(dag_models, session)
         dr = session.query(DagRun).one()
-        dr.state == DagRunState.QUEUED
+        assert dr.state == DagRunState.QUEUED
         assert session.query(DagRun).count() == 1
         assert dag_maker.dag_model.next_dagrun_create_after is None
         session.flush()

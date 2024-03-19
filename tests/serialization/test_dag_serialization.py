@@ -679,9 +679,9 @@ class TestStringifiedDAGs:
             # MappedOperator.operator_class holds a backup of the serialized
             # data; checking its entirety basically duplicates this validation
             # function, so we just do some satiny checks.
-            serialized_task.operator_class["_task_type"] == type(task).__name__
+            assert serialized_task.operator_class["_task_type"] == type(task).__name__
             if isinstance(serialized_task.operator_class, DecoratedOperator):
-                serialized_task.operator_class["_operator_name"] == task._operator_name
+                assert serialized_task.operator_class["_operator_name"] == task._operator_name
 
             # Serialization cleans up default values in partial_kwargs, this
             # adds them back to both sides.
@@ -2305,7 +2305,7 @@ def test_operator_expand_kwargs_literal_serde(strict):
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
     resolved_expand_value = serialized_dag.task_dict["task_2"].expand_input.value
-    resolved_expand_value == [{"a": "x"}, {"a": PlainXComArg(serialized_dag.task_dict["op1"])}]
+    assert resolved_expand_value == [{"a": "x"}, {"a": PlainXComArg(serialized_dag.task_dict["op1"])}]
 
 
 @pytest.mark.parametrize("strict", [True, False])

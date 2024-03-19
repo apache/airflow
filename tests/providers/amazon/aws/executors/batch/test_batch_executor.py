@@ -223,7 +223,7 @@ class TestAwsBatchExecutor:
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 1
 
         caplog.clear()
@@ -246,7 +246,7 @@ class TestAwsBatchExecutor:
             assert mock_executor.batch.submit_job.call_args_list[i].kwargs == submit_job_args
         assert "Pending Batch jobs failed to launch for the following reasons" in caplog.messages[0]
         assert len(mock_executor.pending_jobs) == 1
-        mock_executor.pending_jobs[0].command == airflow_cmd1
+        assert mock_executor.pending_jobs[0].command == airflow_cmd1
         assert len(mock_executor.active_workers.get_all_jobs()) == 3
 
         caplog.clear()

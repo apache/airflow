@@ -1321,7 +1321,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_fetchone(self, mock_next, mock_get_service):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.fetchone()
-        mock_next.call_count == 1
+        assert mock_next.call_count == 1
         assert mock_next.return_value == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

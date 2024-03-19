@@ -1347,6 +1347,7 @@ extend-select = [
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "B015", # Detects pointless comparison, most likely a missing assertion
 ]
 ignore = [
     "D203",
