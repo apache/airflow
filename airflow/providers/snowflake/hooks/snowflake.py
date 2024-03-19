@@ -479,7 +479,7 @@ class SnowflakeHook(DbApiHook):
             self.log.warning(
                 "For Snowlake data transfer mode pandas and sbowflake-connector-python[pandas] have to be installed"
             )
-            super().data_transfer(table, source_hook, source_sql, source_sql_parameters, rows_chunk)
+            return super().data_transfer(table, source_hook, source_sql, source_sql_parameters, rows_chunk)
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
