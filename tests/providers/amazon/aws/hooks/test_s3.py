@@ -30,7 +30,7 @@ from urllib.parse import parse_qs
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto import mock_s3
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -45,7 +45,7 @@ from airflow.utils.timezone import datetime
 
 @pytest.fixture
 def mocked_s3_res():
-    with mock_s3():
+    with mock_aws():
         yield boto3.resource("s3")
 
 
@@ -57,10 +57,14 @@ def s3_bucket(mocked_s3_res):
 
 
 class TestAwsS3Hook:
-    @mock_s3
+    @mock_aws
     def test_get_conn(self):
         hook = S3Hook()
         assert hook.get_conn() is not None
+
+    def test_resource(self):
+        hook = S3Hook()
+        assert hook.resource is not None
 
     def test_use_threads_default_value(self):
         hook = S3Hook()
@@ -129,18 +133,18 @@ class TestAwsS3Hook:
         assert hook.check_for_bucket(s3_bucket) is True
         assert hook.check_for_bucket("not-a-bucket") is False
 
-    @mock_s3
+    @mock_aws
     def test_get_bucket(self):
         hook = S3Hook()
         assert hook.get_bucket("bucket") is not None
 
-    @mock_s3
+    @mock_aws
     def test_create_bucket_default_region(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
         assert hook.get_bucket("new_bucket") is not None
 
-    @mock_s3
+    @mock_aws
     def test_create_bucket_us_standard_region(self, monkeypatch):
         monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
 
@@ -153,7 +157,7 @@ class TestAwsS3Hook:
         # If location is "us-east-1", LocationConstraint should be None
         assert region is None
 
-    @mock_s3
+    @mock_aws
     def test_create_bucket_other_region(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket", region_name="us-east-2")
@@ -162,7 +166,7 @@ class TestAwsS3Hook:
         region = bucket.meta.client.get_bucket_location(Bucket=bucket.name).get("LocationConstraint")
         assert region == "us-east-2"
 
-    @mock_s3
+    @mock_aws
     @pytest.mark.parametrize("region_name", ["eu-west-1", "us-east-1"])
     def test_create_bucket_regional_endpoint(self, region_name, monkeypatch):
         conn = Connection(
@@ -316,7 +320,7 @@ class TestAwsS3Hook:
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
-        bucket.put_object(Key="my_key", Body=b"Cont\xC3\xA9nt")
+        bucket.put_object(Key="my_key", Body=b"Cont\xc3\xa9nt")
 
         assert hook.read_key("my_key", s3_bucket) == "Contént"
 
@@ -324,7 +328,7 @@ class TestAwsS3Hook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = {
-            "Payload": [{"Records": {"Payload": b"Cont\xC3"}}, {"Records": {"Payload": b"\xA9nt"}}]
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
         hook = S3Hook()
         assert hook.select_key("my_key", s3_bucket) == "Contént"
@@ -382,14 +386,14 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
-        assert resource.get()["Body"].read() == b"Cont\xC3\xA9nt"
+        assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, compression="gzip")
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         data = gz.decompress(resource.get()["Body"].read())
-        assert data == b"Cont\xC3\xA9nt"
+        assert data == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress_exception(self, s3_bucket):
         hook = S3Hook()
@@ -959,7 +963,7 @@ class TestAwsS3Hook:
         )
         assert (response["Grants"][0]["Permission"] == "FULL_CONTROL") and (len(response["Grants"]) == 1)
 
-    @mock_s3
+    @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
         # assert if the bucket is created
         mock_hook = S3Hook()
@@ -968,12 +972,12 @@ class TestAwsS3Hook:
         mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
         assert not mock_hook.check_for_bucket(s3_bucket)
 
-    @mock_s3
-    def test_delete_bucket_if_not_bucket_exist(self, s3_bucket):
+    @mock_aws
+    def test_delete_bucket_if_bucket_not_exist(self, s3_bucket):
         # assert if exception is raised if bucket not present
-        mock_hook = S3Hook()
+        mock_hook = S3Hook(aws_conn_id=None)
         with pytest.raises(ClientError) as ctx:
-            assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
+            assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
     @pytest.mark.db_test
@@ -1241,7 +1245,7 @@ class TestAwsS3Hook:
             second_call_extra_args,
         ]
 
-    @mock_s3
+    @mock_aws
     def test_get_bucket_tagging_no_tags_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1249,14 +1253,14 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
-    @mock_s3
+    @mock_aws
     def test_get_bucket_tagging_no_bucket_raises_error(self):
         hook = S3Hook()
 
         with pytest.raises(ClientError, match=r".*NoSuchBucket.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_valid_set(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1265,7 +1269,7 @@ class TestAwsS3Hook:
 
         assert hook.get_bucket_tagging(bucket_name="new_bucket") == tag_set
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_dict(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1274,7 +1278,7 @@ class TestAwsS3Hook:
 
         assert hook.get_bucket_tagging(bucket_name="new_bucket") == [{"Key": "Color", "Value": "Green"}]
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_pair(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1285,7 +1289,7 @@ class TestAwsS3Hook:
 
         assert hook.get_bucket_tagging(bucket_name="new_bucket") == tag_set
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_pair_and_set(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1299,7 +1303,7 @@ class TestAwsS3Hook:
         assert len(result) == 2
         assert result == expected
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_key_but_no_value_raises_error(self):
         hook = S3Hook()
 
@@ -1308,7 +1312,7 @@ class TestAwsS3Hook:
         with pytest.raises(ValueError):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key)
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_value_but_no_key_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1316,7 +1320,7 @@ class TestAwsS3Hook:
         with pytest.raises(ValueError):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value)
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_key_and_set_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1325,7 +1329,7 @@ class TestAwsS3Hook:
         with pytest.raises(ValueError):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tag_set=tag_set)
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_with_value_and_set_raises_error(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1334,7 +1338,7 @@ class TestAwsS3Hook:
         with pytest.raises(ValueError):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tag_set=tag_set)
 
-    @mock_s3
+    @mock_aws
     def test_put_bucket_tagging_when_tags_exist_overwrites(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1350,7 +1354,7 @@ class TestAwsS3Hook:
         assert len(result) == 1
         assert result == new_tag_set
 
-    @mock_s3
+    @mock_aws
     def test_delete_bucket_tagging(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
@@ -1362,7 +1366,7 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
-    @mock_s3
+    @mock_aws
     def test_delete_bucket_tagging_with_no_tags(self):
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")

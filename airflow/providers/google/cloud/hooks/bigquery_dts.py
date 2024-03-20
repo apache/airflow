@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a BigQuery Hook."""
+
 from __future__ import annotations
 
 from copy import copy
@@ -43,7 +44,7 @@ if TYPE_CHECKING:
 
 
 def get_object_id(obj: dict) -> str:
-    """Returns unique id of the object."""
+    """Return unique id of the object."""
     return obj["name"].rpartition("/")[-1]
 
 
@@ -101,7 +102,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
     def get_conn(self) -> DataTransferServiceClient:
         """
-        Retrieves connection to Google Bigquery.
+        Retrieve connection to Google Bigquery.
 
         :return: Google Bigquery API client
         """
@@ -122,7 +123,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferConfig:
         """
-        Creates a new data transfer configuration.
+        Create a new data transfer configuration.
 
         :param transfer_config: Data transfer configuration to create.
         :param project_id: The BigQuery project id where the transfer configuration should be
@@ -164,7 +165,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes transfer configuration.
+        Delete transfer configuration.
 
         :param transfer_config_id: Id of transfer config to be used.
         :param project_id: The BigQuery project id where the transfer configuration should be
@@ -252,7 +253,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> TransferRun:
         """
-        Returns information about the particular transfer run.
+        Return information about the particular transfer run.
 
         :param run_id: ID of the transfer run.
         :param transfer_config_id: ID of transfer config to be used.
@@ -327,7 +328,7 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
-        Returns information about the particular transfer run.
+        Return information about the particular transfer run.
 
         :param run_id: ID of the transfer run.
         :param config_id: ID of transfer config to be used.

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Looker hook."""
+
 from __future__ import annotations
 
 import json
@@ -54,7 +55,7 @@ class LookerHook(BaseHook):
         query_params: dict | None = None,
     ):
         """
-        Submits a PDT materialization job to Looker.
+        Submit a PDT materialization job to Looker.
 
         :param model: Required. The model of the PDT to start building.
         :param view: Required. The view of the PDT to start building.
@@ -83,7 +84,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ):
         """
-        Gets the PDT materialization job status from Looker.
+        Get the PDT materialization job status from Looker.
 
         :param materialization_id: Required. The materialization id to check status for.
         """
@@ -100,7 +101,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ) -> dict:
         """
-        Gets the PDT materialization job status.
+        Get the PDT materialization job status.
 
         :param materialization_id: Required. The materialization id to check status for.
         """
@@ -120,7 +121,7 @@ class LookerHook(BaseHook):
         materialization_id: str,
     ):
         """
-        Starts a PDT materialization job cancellation request.
+        Start a PDT materialization job cancellation request.
 
         :param materialization_id: Required. The materialization id to stop.
         """
@@ -140,7 +141,7 @@ class LookerHook(BaseHook):
         timeout: int | None = None,
     ) -> None:
         """
-        Helper method which polls a PDT materialization job to check if it finishes.
+        Poll a PDT materialization job to check if it finishes.
 
         :param materialization_id: Required. The materialization id to wait for.
         :param wait_time: Optional. Number of seconds between checks.
@@ -185,7 +186,7 @@ class LookerHook(BaseHook):
         self.log.info("PDT materialization job completed successfully. Job id: %s.", materialization_id)
 
     def get_looker_sdk(self):
-        """Returns Looker SDK client for Looker API 4.0."""
+        """Return Looker SDK client for Looker API 4.0."""
         conn = self.get_connection(self.looker_conn_id)
         settings = LookerApiSettings(conn)
 
@@ -211,7 +212,7 @@ class LookerApiSettings(api_settings.ApiSettings):
 
     def read_config(self):
         """
-        Fetches the connection settings from Airflow's connection object.
+        Fetch the connection settings from Airflow's connection object.
 
         Overrides the default logic of getting connection settings.
         """

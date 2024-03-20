@@ -36,17 +36,17 @@ _MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
     "GET": ACTION_CAN_READ,
     "PUT": ACTION_CAN_EDIT,
     "DELETE": ACTION_CAN_DELETE,
+    "MENU": ACTION_CAN_ACCESS_MENU,
 }
 
 
 def get_fab_action_from_method_map():
-    """Returns the map associating a method to a FAB action."""
+    """Return the map associating a method to a FAB action."""
     return _MAP_METHOD_NAME_TO_FAB_ACTION_NAME
 
 
 def get_method_from_fab_action_map():
-    """Returns the map associating a FAB action to a method."""
+    """Return the map associating a FAB action to a method."""
     return {
         **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
-        ACTION_CAN_ACCESS_MENU: "GET",
     }

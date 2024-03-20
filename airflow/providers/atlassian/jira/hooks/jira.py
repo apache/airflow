@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for JIRA."""
+
 from __future__ import annotations
 
 import warnings
@@ -85,7 +86,7 @@ class JiraHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to Atlassian Jira Connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
 
@@ -95,7 +96,7 @@ class JiraHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for Atlassian Jira Connection."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage operator."""
+
 from __future__ import annotations
 
 import warnings
@@ -449,7 +450,7 @@ class GCSToGCSOperator(BaseOperator):
             )
 
     def _check_exact_match(self, source_object: str, prefix: str) -> bool:
-        """Checks whether source_object's name matches the prefix according to the exact_match flag."""
+        """Check whether source_object's name matches the prefix according to the exact_match flag."""
         if self.exact_match and (source_object != prefix or not source_object.endswith(prefix)):
             return False
         return True
@@ -553,7 +554,7 @@ class GCSToGCSOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """
-        Implementing _on_complete because execute method does preprocessing on internals.
+        Implement _on_complete because execute method does preprocessing on internals.
 
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.

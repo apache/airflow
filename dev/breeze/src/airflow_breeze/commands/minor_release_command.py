@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 import click
 
@@ -158,7 +159,18 @@ def create_constraints(version_branch):
 @option_answer
 def create_minor_version_branch(version_branch):
     for obj in version_branch.split("-"):
-        assert isinstance(int(obj), int)
+        if not obj.isdigit():
+            console_print(f"[error]Failed `version_branch` part {obj!r} not a digit.")
+            sys.exit(1)
+        elif len(obj) > 1 and obj.startswith("0"):
+            # `01` is a valid digit string, as well as it could be converted to the integer,
+            # however, it might be considered as typo (e.g. 10) so better stop here
+            console_print(
+                f"[error]Found leading zero into the `version_branch` part {obj!r} ",
+                f"if it is not a typo consider to use {int(obj)} instead.",
+            )
+            sys.exit(1)
+
     os.chdir(AIRFLOW_SOURCES_ROOT)
     repo_root = os.getcwd()
     console_print()

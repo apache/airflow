@@ -96,7 +96,7 @@ def dag_with_runs(dag_without_runs):
         execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
     )
 
-    yield run_1, run_2
+    return run_1, run_2
 
 
 def test_no_runs(admin_client, dag_without_runs):
@@ -187,7 +187,6 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
-    yield
 
 
 @pytest.mark.usefixtures("freeze_time_for_dagruns")
@@ -501,10 +500,13 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
         resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
 
     assert resp.status_code == 200, resp.json
-    assert resp.json == [
-        {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
-        {"id": ds2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
-    ]
+    assert resp.json == {
+        "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "events": [
+            {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
+            {"id": ds2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
+        ],
+    }
 
 
 def test_next_run_datasets_404(admin_client):

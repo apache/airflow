@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.5.4
+.....
+
+Latest change: 2024-02-28
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`2bc103698f <https://github.com/apache/airflow/commit/2bc103698fad1b7c0bebed0d5cbdda0ec7ea83c3>`_  2024-02-28   ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+`b52b227c04 <https://github.com/apache/airflow/commit/b52b227c048674117e11d720dfd01c4eeacea854>`_  2024-02-26   ``Implement AIP-60 Dataset URI formats (#37005)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
+=================================================================================================  ===========  ==================================================================
+
+5.5.3
+.....
+
+Latest change: 2024-02-12
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+`dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+=================================================================================================  ===========  ==================================================================================
+
 5.5.2
 .....
 
-Latest change: 2024-01-22
+Latest change: 2024-01-26
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
 `c29632aab4 <https://github.com/apache/airflow/commit/c29632aab4cf13a861bfffcbd11f1c9964d8910a>`_  2024-01-08   ``Bump min version of mysql-connector-python (#36668)``

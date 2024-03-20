@@ -69,6 +69,7 @@
                 <th>{{ sortable_column("Task ID", "task_id") }}</th>
                 <th>{{ sortable_column("Event", "event") }}</th>
                 <th>{{ sortable_column("Logical Date", "execution_date") }}</th>
+                <th>{{ sortable_column("Run ID", "run_id") }}</th>
                 <th>Owner
                   <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="This is the user who triggered the event.">info</span>
                 </th>
@@ -86,6 +87,8 @@
               <td>{{ log.event if log.event else None }}</td>
               <!--     Execution Date     -->
               <td>{{ log.execution_date if log.execution_date else None }}</td>
+              <!--     Dagrun ID     -->
+              <td>{{ log.run_id if log.run_id else None }}</td>
               <!--     By User     -->
               <td>{{ log.owner if log.owner else None }}</td>
               <!--     Details     -->

@@ -18,16 +18,20 @@
 from __future__ import annotations
 
 import datetime as dt
+from importlib import metadata
 from typing import TYPE_CHECKING, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
+from packaging import version
 from pendulum.datetime import DateTime
 
 if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-_PENDULUM3 = pendulum.__version__.startswith("3")
+    from airflow.typing_compat import Literal
+
+_PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 # UTC Timezone as a tzinfo instance. Actual value depends on pendulum version:
 # - Timezone("UTC") in pendulum 3
 # - FixedTimezone(0, "UTC") in pendulum 2
@@ -60,13 +64,7 @@ def is_naive(value):
 
 def utcnow() -> dt.datetime:
     """Get the current date and time in UTC."""
-    # pendulum utcnow() is not used as that sets a TimezoneInfo object
-    # instead of a Timezone. This is not picklable and also creates issues
-    # when using replace()
-    result = dt.datetime.utcnow()
-    result = result.replace(tzinfo=utc)
-
-    return result
+    return dt.datetime.now(tz=utc)
 
 
 def utc_epoch() -> dt.datetime:
@@ -81,13 +79,11 @@ def utc_epoch() -> dt.datetime:
 
 
 @overload
-def convert_to_utc(value: None) -> None:
-    ...
+def convert_to_utc(value: None) -> None: ...
 
 
 @overload
-def convert_to_utc(value: dt.datetime) -> DateTime:
-    ...
+def convert_to_utc(value: dt.datetime) -> DateTime: ...
 
 
 def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
@@ -108,18 +104,15 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
 
 
 @overload
-def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None:
-    ...
+def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime:
-    ...
+def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime:
-    ...
+def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime: ...
 
 
 def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
@@ -212,18 +205,15 @@ def parse(string: str, timezone=None, *, strict=False) -> DateTime:
 
 
 @overload
-def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None:
-    ...
+def coerce_datetime(v: None, tz: dt.tzinfo | None = None) -> None: ...
 
 
 @overload
-def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: DateTime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 @overload
-def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime:
-    ...
+def coerce_datetime(v: dt.datetime, tz: dt.tzinfo | None = None) -> DateTime: ...
 
 
 def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateTime | None:
@@ -305,3 +295,23 @@ def local_timezone() -> FixedTimezone | Timezone:
     :meta private:
     """
     return pendulum.tz.local_timezone()
+
+
+def from_timestamp(
+    timestamp: int | float, tz: str | FixedTimezone | Timezone | Literal["local"] = utc
+) -> DateTime:
+    """
+    Parse timestamp and return DateTime in a given time zone.
+
+    :param timestamp: epoch time in seconds.
+    :param tz: In which timezone should return a resulting object.
+        Could be either one of pendulum timezone, IANA timezone or `local` literal.
+
+    :meta private:
+    """
+    result = coerce_datetime(dt.datetime.fromtimestamp(timestamp, tz=utc))
+    if tz != utc or tz != "UTC":
+        if isinstance(tz, str) and tz.lower() == "local":
+            tz = local_timezone()
+        result = result.in_timezone(tz)
+    return result

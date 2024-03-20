@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_events
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 
 
-@mock_events
+@mock_aws
 class TestEventBridgeHook:
     def test_conn_returns_a_boto3_connection(self):
         hook = EventBridgeHook(aws_conn_id="aws_default")

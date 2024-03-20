@@ -428,6 +428,7 @@ can be used for CI images:
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                                                                     | increasing this number will reinstall all apt dependencies                                                                                                 |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                                                                         | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                         |
 | `PIP_NO_CACHE_DIR`                | `true`                                                                  | if true, then no pip cache will be stored                                                                                                                  |
+| `UV_NO_CACHE`                     | `true`                                                                  | if true, then no uv cache will be stored                                                                                                                   |
 | `HOME`                            | `/root`                                                                 | Home directory of the root user (CI image has root user as default)                                                                                        |
 | `AIRFLOW_HOME`                    | `/root/airflow`                                                         | Airflow's HOME (that's where logs and sqlite databases are stored)                                                                                         |
 | `AIRFLOW_SOURCES`                 | `/opt/airflow`                                                          | Mounted sources of Airflow                                                                                                                                 |
@@ -446,7 +447,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    | Empty - install default dependencies (see `install_os_dependencies.sh`) | Dev APT dependencies installed in the first part of the image                                                                                              |
 | `ADDITIONAL_DEV_APT_DEPS`         |                                                                         | Additional apt dev dependencies installed in the first part of the image                                                                                   |
 | `ADDITIONAL_DEV_APT_ENV`          |                                                                         | Additional env variables defined when installing dev deps                                                                                                  |
-| `AIRFLOW_PIP_VERSION`             | `23.3.2`                                                                | PIP version used.                                                                                                                                          |
+| `AIRFLOW_PIP_VERSION`             | `24.0`                                                                  | PIP version used.                                                                                                                                          |
+| `AIRFLOW_UV_VERSION`              | `0.1.10`                                                                | UV version used.                                                                                                                                           |
+| `AIRFLOW_USE_UV`                  | `true`                                                                  | Whether to use UV for installation.                                                                                                                        |
 | `PIP_PROGRESS_BAR`                | `on`                                                                    | Progress bar for PIP installation                                                                                                                          |
 
 Here are some examples of how CI images can built manually. CI is always
@@ -571,7 +574,7 @@ percent-encoded when you access them via UI (/ = %2F)
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.8",
-  "3.9", "3.10", "3.11"\].
+  "3.9", "3.10", "3.11", "3.12" \].
 - \<COMMIT_SHA\> - full-length SHA of commit either from the tip of the
   branch (for pushes/schedule) or commit from the tip of the branch used
   for the PR.

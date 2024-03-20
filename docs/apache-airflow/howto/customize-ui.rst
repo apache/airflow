@@ -18,6 +18,8 @@
 Customizing the UI
 ==================
 
+.. _customizing-the-ui:
+
 Customizing state colours
 -------------------------
 
@@ -26,11 +28,7 @@ Customizing state colours
 To change the colors for TaskInstance/DagRun State in the Airflow Webserver, perform the
 following steps:
 
-1.  Create ``airflow_local_settings.py`` file and put in on ``$PYTHONPATH`` or
-    to ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` on ``PYTHONPATH`` when
-    Airflow is initialized)
-
-2.  Add the following contents to ``airflow_local_settings.py`` file. Change the colors to whatever you
+1.  Add the following contents to ``airflow_local_settings.py`` file. Change the colors to whatever you
     would like.
 
     .. code-block:: python
@@ -50,9 +48,10 @@ following steps:
           "upstream_failed": "orange",
       }
 
+    See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+    configure local settings.
 
-
-3.  Restart Airflow Webserver.
+2.  Restart Airflow Webserver.
 
 Screenshots
 ^^^^^^^^^^^
@@ -134,11 +133,7 @@ Add custom alert messages on the dashboard
 Extra alert messages can be shown on the UI dashboard. This can be useful for warning about setup issues
 or announcing changes to end users. The following example shows how to add a simple alert message:
 
-1.  Create ``airflow_local_settings.py`` file and put in on ``$PYTHONPATH`` or
-    to ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` on ``PYTHONPATH`` when
-    Airflow is initialized)
-
-2.  Add the following contents to ``airflow_local_settings.py`` file.
+1.  Add the following contents to ``airflow_local_settings.py`` file.
 
     .. code-block:: python
 
@@ -148,7 +143,10 @@ or announcing changes to end users. The following example shows how to add a sim
           UIAlert("Welcome to Airflow"),
       ]
 
-3.  Restart Airflow Webserver, and you should now see:
+    See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+    configure local settings.
+
+2.  Restart Airflow Webserver, and you should now see:
 
 .. image:: ../img/ui-alert-message.png
 

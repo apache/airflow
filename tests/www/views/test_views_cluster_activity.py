@@ -47,7 +47,6 @@ def clean():
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2023-05-02T00:00:00+00:00", tick=False)
-    yield
 
 
 @pytest.fixture

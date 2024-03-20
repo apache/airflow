@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module defines dep for pool slots availability."""
+
 from __future__ import annotations
 
 from sqlalchemy import select

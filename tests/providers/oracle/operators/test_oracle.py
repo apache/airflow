@@ -40,7 +40,7 @@ class TestOracleOperator:
         context = "test_context"
         task_id = "test_task_id"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This class is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated class *"):
             operator = OracleOperator(
                 sql=sql,
                 oracle_conn_id=oracle_conn_id,

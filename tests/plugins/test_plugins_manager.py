@@ -165,7 +165,7 @@ def test_flaskappbuilder_nomenu_views():
 
 
 class TestPluginsManager:
-    @pytest.fixture(autouse=True, scope="function")
+    @pytest.fixture(autouse=True)
     def clean_plugins(self):
         from airflow import plugins_manager
 
@@ -209,7 +209,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 6 == len(plugins_manager.plugins)
+            assert 7 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert "postload" == plugin.name

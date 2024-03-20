@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, AsyncIterator, Sequence
 
+from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import ListJobsRequest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -227,7 +227,7 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
                     )
                     is_running = bool([job async for job in jobs if job.name == self.job_name])
                 except Exception as e:
-                    self.log.exception(f"Exception occurred while requesting jobs with name {self.job_name}")
+                    self.log.exception("Exception occurred while requesting jobs with name %s", self.job_name)
                     yield TriggerEvent({"status": "error", "message": str(e)})
                     return
                 if is_running:
@@ -252,6 +252,10 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
         return
 
 
+@deprecated(
+    reason="`BeamPipelineTrigger` is deprecated. Please use `BeamPythonPipelineTrigger`.",
+    category=AirflowProviderDeprecationWarning,
+)
 class BeamPipelineTrigger(BeamPythonPipelineTrigger):
     """
     Trigger to perform checking the Python pipeline status until it reaches terminate state.
@@ -262,9 +266,4 @@ class BeamPipelineTrigger(BeamPythonPipelineTrigger):
     """
 
     def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "`BeamPipelineTrigger` is deprecated. Please use `BeamPythonPipelineTrigger`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(*args, **kwargs)

@@ -27,6 +27,38 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Change the URL building in HttpHookAsync to match the behavior of HttpHook (#37696)``
+
+Misc
+~~~~
+
+* ``Return back removed public HttpHook's method (#37738)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
+4.9.1
+.....
+
+Misc
+~~~~
+
+* ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Get rid of pytest-httpx as dependency (#37334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Added D401 support to http, smtp and sftp provider (#37303)``
+   * ``Upgrade mypy to 1.8.0 (#36428)``
+
 4.9.0
 .....
 
@@ -180,8 +212,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-4.4.0
-.....
+4.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the

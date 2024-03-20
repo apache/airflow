@@ -92,7 +92,7 @@ class SnowflakeHook(DbApiHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -114,7 +114,7 @@ class SnowflakeHook(DbApiHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         import json
 
         return {
@@ -256,6 +256,15 @@ class SnowflakeHook(DbApiHook):
             conn_config["private_key"] = pkb
             conn_config.pop("password", None)
 
+        refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        if refresh_token:
+            conn_config["refresh_token"] = refresh_token
+            conn_config["authenticator"] = "oauth"
+            conn_config["client_id"] = conn.login
+            conn_config["client_secret"] = conn.password
+            conn_config.pop("login", None)
+            conn_config.pop("password", None)
+
         return conn_config
 
     def get_uri(self) -> str:
@@ -273,7 +282,7 @@ class SnowflakeHook(DbApiHook):
         )
 
     def get_conn(self) -> SnowflakeConnection:
-        """Returns a snowflake.connection object."""
+        """Return a snowflake.connection object."""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
@@ -312,8 +321,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -325,8 +333,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,
@@ -338,13 +345,11 @@ class SnowflakeHook(DbApiHook):
         return_last: bool = True,
         return_dictionaries: bool = False,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Runs a command or a list of commands.
+        """Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
-        execute sequentially. The variable ``execution_info`` is returned so
-        that it can be used in the Operators to modify the behavior depending on
-        the result of the query (i.e fail the operator if the copy has processed
-        0 files).
+        execute sequentially. The result of the queries is returned if the
+        ``handler`` callable is set.
 
         :param sql: The SQL string to be executed with possibly multiple
             statements, or a list of sql statements to execute
@@ -454,7 +459,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """
-        Attempts to get current schema.
+        Attempt to get current schema.
 
         Usually ``SELECT CURRENT_SCHEMA();`` should work.
         However, apparently you may set ``database`` without ``schema``

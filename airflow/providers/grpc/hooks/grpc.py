@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """GRPC Hook."""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Generator
@@ -53,7 +54,7 @@ class GrpcHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to GRPC connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField

@@ -39,6 +39,7 @@ from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
@@ -121,6 +122,10 @@ class Job(Base, LoggingMixin):
     @cached_property
     def executor(self):
         return ExecutorLoader.get_default_executor()
+
+    @cached_property
+    def executors(self):
+        return ExecutorLoader.init_executors()
 
     @cached_property
     def heartrate(self) -> float:
@@ -264,6 +269,8 @@ class Job(Base, LoggingMixin):
     def _heartrate(job_type: str) -> float:
         if job_type == "TriggererJob":
             return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+        elif job_type == "SchedulerJob":
+            return conf.getfloat("scheduler", "SCHEDULER_HEARTBEAT_SEC")
         else:
             # Heartrate used to be hardcoded to scheduler, so in all other
             # cases continue to use that value for back compat
@@ -302,6 +309,7 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
+    @retry_db_transaction
     def _fetch_from_db(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
         if isinstance(job, Job):
             # not Internal API
@@ -342,6 +350,7 @@ class Job(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
+    @retry_db_transaction
     def _update_heartbeat(job: Job | JobPydantic, session: Session = NEW_SESSION) -> Job | JobPydantic:
         orm_job: Job | None = session.scalar(select(Job).where(Job.id == job.id).limit(1))
         if orm_job is None:

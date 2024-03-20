@@ -17,9 +17,15 @@
  * under the License.
  */
 
+import { createContext, useContext } from "react";
 import { useSearchParams } from "react-router-dom";
+import {
+  LIMIT_PARAM,
+  OFFSET_PARAM,
+  SORT_PARAM,
+} from "src/components/NewTable/searchParams";
 
-const RUN_ID = "dag_run_id";
+export const RUN_ID = "dag_run_id";
 const TASK_ID = "task_id";
 const MAP_INDEX = "map_index";
 
@@ -29,20 +35,43 @@ export interface SelectionProps {
   mapIndex?: number;
 }
 
+// The first run_id need to be treated differently from the selection, because it is used in backend to
+// calculate the base_date, which we don't want jumping around when user is clicking in the grid.
+export const DagRunSelectionContext = createContext<string | null>(null);
+
 const useSelection = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const firstRunIdSetByUrl = useContext(DagRunSelectionContext);
 
   // Clear selection, but keep other search params
   const clearSelection = () => {
+    const params = new URLSearchParams(window.location.search);
     searchParams.delete(RUN_ID);
     searchParams.delete(TASK_ID);
     searchParams.delete(MAP_INDEX);
+    [...searchParams.keys()].forEach((key) => {
+      if (
+        key === OFFSET_PARAM ||
+        key === LIMIT_PARAM ||
+        key.includes(SORT_PARAM)
+      )
+        params.delete(key);
+    });
     setSearchParams(searchParams);
   };
 
   const onSelect = ({ runId, taskId, mapIndex }: SelectionProps) => {
     // Check the window, in case params have changed since this hook was loaded
     const params = new URLSearchParams(window.location.search);
+
+    [...searchParams.keys()].forEach((key) => {
+      if (
+        key === OFFSET_PARAM ||
+        key === LIMIT_PARAM ||
+        key.includes(SORT_PARAM)
+      )
+        params.delete(key);
+    });
 
     if (runId) params.set(RUN_ID, runId);
     else params.delete(RUN_ID);
@@ -70,6 +99,7 @@ const useSelection = () => {
     },
     clearSelection,
     onSelect,
+    firstRunIdSetByUrl,
   };
 };
 

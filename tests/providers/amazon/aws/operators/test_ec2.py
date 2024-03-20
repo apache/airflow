@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from moto import mock_ec2
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
@@ -61,7 +61,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.max_attempts == 20
         assert ec2_operator.poll_interval == 20
 
-    @mock_ec2
+    @mock_aws
     def test_create_instance(self):
         ec2_hook = EC2Hook()
         create_instance = EC2CreateInstanceOperator(
@@ -72,7 +72,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
 
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
-    @mock_ec2
+    @mock_aws
     def test_create_multiple_instances(self):
         ec2_hook = EC2Hook()
         create_instances = EC2CreateInstanceOperator(
@@ -99,7 +99,7 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.max_attempts == 20
         assert ec2_operator.poll_interval == 20
 
-    @mock_ec2
+    @mock_aws
     def test_terminate_instance(self):
         ec2_hook = EC2Hook()
 
@@ -118,7 +118,7 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
 
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "terminated"
 
-    @mock_ec2
+    @mock_aws
     def test_terminate_multiple_instances(self):
         ec2_hook = EC2Hook()
         create_instances = EC2CreateInstanceOperator(
@@ -156,7 +156,7 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.region_name == "region-test"
         assert ec2_operator.check_interval == 3
 
-    @mock_ec2
+    @mock_aws
     def test_start_instance(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -191,7 +191,7 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.region_name == "region-test"
         assert ec2_operator.check_interval == 3
 
-    @mock_ec2
+    @mock_aws
     def test_stop_instance(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -220,7 +220,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.task_id == "task_test"
         assert ec2_operator.instance_ids == "i-123abc"
 
-    @mock_ec2
+    @mock_aws
     def test_hibernate_instance(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -240,7 +240,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         # assert instance state is stopped
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
 
-    @mock_ec2
+    @mock_aws
     def test_hibernate_multiple_instances(self):
         ec2_hook = EC2Hook()
         create_instances = EC2CreateInstanceOperator(
@@ -263,7 +263,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "stopped"
 
-    @mock_ec2
+    @mock_aws
     def test_cannot_hibernate_instance(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -289,7 +289,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
-    @mock_ec2
+    @mock_aws
     def test_cannot_hibernate_some_instances(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -332,7 +332,7 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.task_id == "task_test"
         assert ec2_operator.instance_ids == "i-123abc"
 
-    @mock_ec2
+    @mock_aws
     def test_reboot_instance(self):
         # create instance
         ec2_hook = EC2Hook()
@@ -351,7 +351,7 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
-    @mock_ec2
+    @mock_aws
     def test_reboot_multiple_instances(self):
         ec2_hook = EC2Hook()
         create_instances = EC2CreateInstanceOperator(

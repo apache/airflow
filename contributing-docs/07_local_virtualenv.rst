@@ -37,12 +37,12 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.8, 3.9, 3.10, 3.11)
+* Python (One of: 3.8, 3.9, 3.10, 3.11, 3.12)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
 
-Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
+Refer to the `Dockerfile.ci <../Dockerfile.ci>`__ for a comprehensive list
 of required packages.
 
 .. note::
@@ -95,7 +95,7 @@ You are STRONGLY encouraged to also install and use `pre-commit hooks <08_static
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
-The full list of extras is available in `<pyproject.toml>`_ and can be easily retrieved using hatch via
+The full list of extras is available in `pyproject.toml <../pyproject.toml>`_ and can be easily retrieved using hatch via
 
 .. note::
 
@@ -186,6 +186,8 @@ This is what it shows currently:
 +-------------+---------+----------+---------------------------------------------------------------+
 | airflow-311 | virtual | devel    | Environment with Python 3.11                                  |
 +-------------+---------+----------+---------------------------------------------------------------+
+| airflow-312 | virtual | devel    | Environment with Python 3.12                                  |
++-------------+---------+----------+---------------------------------------------------------------+
 
 The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.8
 virtualenv for maximum compatibility with ``devel`` extra installed - this devel extra contains the minimum set
@@ -252,7 +254,7 @@ You can clean the env by running:
 
     hatch env prune
 
-More information about hatch can be found in https://hatch.pypa.io/1.9/environment/
+More information about hatch can be found in `Hatch: Environments <https://hatch.pypa.io/latest/environment/>`__
 
 ## Using Hatch to build your packages
 
@@ -313,12 +315,12 @@ When you install airflow from sources using editable install, you can develop to
 of Airflow and providers, which is pretty convenient, because you can use the same environment for both.
 
 
-Running ``pipinstall -e .`` will install Airflow in editable mode, but all provider code will also be
+Running ``pip install -e .`` will install Airflow in editable mode, but all provider code will also be
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable
-mode with provider id as extra. You can see the list of provider's extras in the
-`extras reference <./docs/apache-airflow/extra-packages-ref.rst>`_.
+mode with ``provider id`` as extra (with ``-`` instead of ``.``) . You can see the list of provider's extras in the
+`extras reference <../docs/apache-airflow/extra-packages-ref.rst>`_.
 
 For example, if you want to develop Google provider, you can install it with:
 
@@ -366,8 +368,16 @@ all basic devel requirements and requirements of google provider as last success
 
 .. code:: bash
 
-    pip install -e ".[devel,google]"" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
+    pip install -e ".[devel,google]" \
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
+
+Make sure to use latest main for such installation, those constraints are "development constraints" and they
+are refreshed several times a day to make sure they are up to date with the latest changes in the main branch.
+
+Note that this might not always work as expected, because the constraints are not always updated
+immediately after the dependencies are updated, sometimes there is a very recent change (few hours, rarely more
+than a day) which still runs in ``canary`` build and constraints will not be updated until the canary build
+succeeds. Usually what works in this case is running your install command without constraints.
 
 You can upgrade just airflow, without paying attention to provider's dependencies by using
 the 'constraints-no-providers' constraint files. This allows you to keep installed provider dependencies
@@ -398,7 +408,7 @@ of Integration tests. You can technically use local virtualenv to run those test
 set up all necessary dependencies for all the providers you are going to tests and also setup
 databases - and sometimes other external components (for integration test).
 
-So, generally it should be easier to use the `Breeze <dev/breeze/doc/README.rst>`__ development environment
+So, generally it should be easier to use the `Breeze <../dev/breeze/doc/README.rst>`__ development environment
 (especially for Integration tests).
 
 

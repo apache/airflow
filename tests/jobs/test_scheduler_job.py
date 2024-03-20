@@ -193,6 +193,16 @@ class TestSchedulerJob:
                 not scheduler_job.is_alive()
             ), "Completed jobs even with recent heartbeat should not be alive"
 
+    @pytest.mark.parametrize(
+        "heartrate",
+        [10, 5],
+    )
+    def test_heartrate(self, heartrate):
+        with conf_vars({("scheduler", "scheduler_heartbeat_sec"): str(heartrate)}):
+            scheduler_job = Job(executor=self.null_exec)
+            _ = SchedulerJobRunner(job=scheduler_job)
+            assert scheduler_job.heartrate == heartrate
+
     def run_single_scheduler_loop_with_no_dags(self, dags_folder):
         """
         Utility function that runs a single scheduler loop without actually

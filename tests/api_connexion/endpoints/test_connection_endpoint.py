@@ -87,7 +87,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
-        _check_last_log(session, dag_id=None, event="connection.delete", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.delete", execution_date=None)
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -375,7 +375,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="connection.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.edit", execution_date=None)
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -539,7 +539,9 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
-        _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.connection.create", execution_date=None, expected_extra=payload
+        )
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}

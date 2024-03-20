@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.4
+    rev: v1.5.5
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -172,15 +172,42 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==23.10.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.9.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
-        name: Update black versions everywhere
+        name: Update black versions everywhere (manual)
         entry: ./scripts/ci/pre_commit/pre_commit_update_black_version.py
+        stages: ['manual']
         language: python
         files: ^.pre-commit-config.yaml$
         additional_dependencies: ['pyyaml']
+        pass_filenames: false
+        require_serial: true
+      - id: update-build-dependencies
+        name: Update build-dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_build_dependencies.py
+        stages: ['manual']
+        language: python
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
+        pass_filenames: false
+        require_serial: true
+      - id: update-installers
+        name: Update installers to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_installers.py
+        stages: ['manual']
+        language: python
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_installers.py$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
+      - id: update-chart-dependencies
+        name: Update chart dependencies to latest (manual)
+        entry: ./scripts/ci/pre_commit/pre_commit_update_chart_dependencies.py
+        stages: ['manual']
+        language: python
+        additional_dependencies: ['pyyaml', 'rich>=12.4.4', 'requests']
+        files: ^.pre-commit-config.yaml$|^scripts/ci/pre_commit/pre_commit_update_build_dependencies.py$
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/asottile/blacken-docs
@@ -248,7 +275,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.33.0
+    rev: v1.35.1
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -300,23 +327,6 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*/(operators|transfers|sensors)/.*\.py$
         additional_dependencies: [ 'rich>=12.4.4' ]
-        # TODO: Handle the provider-specific exclusions and remove them from the list, see:
-        #       https://github.com/apache/airflow/issues/36484
-        exclude: |
-          (?x)^(
-              ^.*__init__\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/bigquery\.py$|
-              ^airflow\/providers\/amazon\/aws\/transfers\/gcs_to_s3\.py$|
-              ^airflow\/providers\/databricks\/operators\/databricks\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/cloud_storage_transfer_service\.py$|
-              ^airflow\/providers\/google\/cloud\/transfers\/bigquery_to_mysql\.py$|
-              ^airflow\/providers\/amazon\/aws\/transfers\/redshift_to_s3\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/compute\.py$|
-              ^airflow\/providers\/google\/cloud\/operators\/vertex_ai\/custom_job\.py$|
-              ^airflow\/providers\/cncf\/kubernetes\/operators\/pod\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/emr\.py$|
-              ^airflow\/providers\/amazon\/aws\/operators\/eks\.py$
-          )$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -325,7 +335,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
@@ -335,7 +345,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.1.11"]
+        additional_dependencies: ["ruff==0.3.3"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
       - id: replace-bad-characters
         name: Replace bad characters
@@ -353,7 +363,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator>=0.6.0']
+        additional_dependencies: ['openapi-spec-validator>=0.7.1', 'openapi-schema-validator>=0.6.2']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -439,7 +449,7 @@ repos:
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
         language: python
-        files: ^setup\.py$|^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$
+        files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'tomli']
       - id: check-extras-order
@@ -678,7 +688,7 @@ repos:
         name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
-        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
+        exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$|^tests/.*$
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
@@ -742,7 +752,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^dev/.*_installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
@@ -755,6 +765,14 @@ repos:
       - id: lint-helm-chart
         name: Lint Helm Chart
         entry: ./scripts/ci/pre_commit/pre_commit_helm_lint.py
+        language: python
+        pass_filenames: false
+        files: ^chart
+        require_serial: true
+        additional_dependencies: ['rich>=12.4.4','requests']
+      - id: kubeconform
+        name: Kubeconform check on our helm chart
+        entry: ./scripts/ci/pre_commit/pre_commit_kubeconform.py
         language: python
         pass_filenames: false
         files: ^chart
@@ -1083,9 +1101,27 @@ repos:
           airflow/example_dags/.*
         args:
           - "--skip"
-          - "B301,B324,B403,B404,B603"
+          - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: pylint
+        name: pylint
+        description: "Pylint is a static code analyser for Python 2 or 3."
+        entry: pylint
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['pylint==3.1.0']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          # Use pylint only for the specific check, which are not available into the ruff
+          - "--disable=all"
+          # W0133: "Exception statement has no effect"
+          # see: https://github.com/astral-sh/ruff/issues/10145
+          - "--enable=W0133"
       - id: check-fab-migrations
         language: pygrep
         name: Check no migration is done on FAB related table

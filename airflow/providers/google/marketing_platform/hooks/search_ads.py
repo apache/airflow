@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Search Ads 360 hook."""
+
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -45,7 +46,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         self.api_version = api_version
 
     def get_conn(self):
-        """Retrieves connection to Google SearchAds."""
+        """Retrieve connection to Google SearchAds."""
         if not self._conn:
             http_authorized = self._authorize()
             self._conn = build(
@@ -58,7 +59,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
 
     def insert_report(self, report: dict[str, Any]) -> Any:
         """
-        Inserts a report request into the reporting system.
+        Insert a report request into the reporting system.
 
         :param report: Report to be generated.
         """
@@ -67,7 +68,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
 
     def get(self, report_id: str) -> Any:
         """
-        Polls for the status of a report request.
+        Poll for the status of a report request.
 
         :param report_id: ID of the report request being polled.
         """
@@ -76,7 +77,7 @@ class GoogleSearchAdsHook(GoogleBaseHook):
 
     def get_file(self, report_fragment: int, report_id: str) -> Any:
         """
-        Downloads a report file encoded in UTF-8.
+        Download a report file encoded in UTF-8.
 
         :param report_fragment: The index of the report fragment to download.
         :param report_id: ID of the report.

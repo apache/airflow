@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """MsSQL to GCS operator."""
+
 from __future__ import annotations
 
 import datetime
@@ -76,7 +77,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
 
     def query(self):
         """
-        Queries MSSQL and returns a cursor of results.
+        Query MSSQL and returns a cursor of results.
 
         :return: mssql cursor
         """

@@ -307,6 +307,63 @@ class TestDbtCloudRunJobOperator:
 
             mock_get_job_run.assert_not_called()
 
+    @patch.object(DbtCloudHook, "get_job_runs")
+    @patch.object(DbtCloudHook, "trigger_job_run")
+    @pytest.mark.parametrize(
+        "conn_id, account_id",
+        [(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
+        ids=["default_account", "explicit_account"],
+    )
+    def test_execute_no_wait_for_termination_and_reuse_existing_run(
+        self, mock_run_job, mock_get_jobs_run, conn_id, account_id
+    ):
+        mock_get_jobs_run.return_value.json.return_value = {
+            "data": [
+                {
+                    "id": 10000,
+                    "status": 1,
+                    "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                        account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+                    ),
+                },
+                {
+                    "id": 10001,
+                    "status": 2,
+                    "href": EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
+                        account_id=DEFAULT_ACCOUNT_ID, project_id=PROJECT_ID, run_id=RUN_ID
+                    ),
+                },
+            ]
+        }
+
+        operator = DbtCloudRunJobOperator(
+            task_id=TASK_ID,
+            dbt_cloud_conn_id=conn_id,
+            account_id=account_id,
+            trigger_reason=None,
+            dag=self.dag,
+            wait_for_termination=False,
+            reuse_existing_run=True,
+            **self.config,
+        )
+
+        assert operator.dbt_cloud_conn_id == conn_id
+        assert operator.job_id == self.config["job_id"]
+        assert operator.account_id == account_id
+        assert operator.check_interval == self.config["check_interval"]
+        assert operator.timeout == self.config["timeout"]
+        assert not operator.wait_for_termination
+        assert operator.steps_override == self.config["steps_override"]
+        assert operator.schema_override == self.config["schema_override"]
+        assert operator.additional_run_config == self.config["additional_run_config"]
+
+        with patch.object(DbtCloudHook, "get_job_run") as mock_get_job_run:
+            operator.execute(context=self.mock_context)
+
+            mock_run_job.assert_not_called()
+
+            mock_get_job_run.assert_not_called()
+
     @patch.object(DbtCloudHook, "trigger_job_run")
     @pytest.mark.parametrize(
         "conn_id, account_id",

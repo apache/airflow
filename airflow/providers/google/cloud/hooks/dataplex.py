@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataplex hook."""
+
 from __future__ import annotations
 
 import time
@@ -93,7 +94,7 @@ class DataplexHook(GoogleBaseHook):
         self.location = location
 
     def get_dataplex_client(self) -> DataplexServiceClient:
-        """Returns DataplexServiceClient."""
+        """Return DataplexServiceClient."""
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataplexServiceClient(
@@ -101,7 +102,7 @@ class DataplexHook(GoogleBaseHook):
         )
 
     def get_dataplex_data_scan_client(self) -> DataScanServiceClient:
-        """Returns DataScanServiceClient."""
+        """Return DataScanServiceClient."""
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataScanServiceClient(
@@ -109,7 +110,7 @@ class DataplexHook(GoogleBaseHook):
         )
 
     def wait_for_operation(self, timeout: float | None, operation: Operation):
-        """Waits for long-lasting operation to complete."""
+        """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except Exception:
@@ -130,7 +131,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Creates a task resource within a lake.
+        Create a task resource within a lake.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -212,7 +213,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Lists tasks under the given lake.
+        List tasks under the given lake.
 
         :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
         :param region: Required. The ID of the Google Cloud region that the task belongs to.
@@ -332,7 +333,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Creates a lake resource.
+        Create a lake resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -407,7 +408,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Creates a zone resource within a lake.
+        Create a zone resource within a lake.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -447,7 +448,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Deletes a zone resource. All assets within a zone must be deleted before the zone can be deleted.
+        Delete a zone resource. All assets within a zone must be deleted before the zone can be deleted.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -484,7 +485,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Creates an asset resource.
+        Create an asset resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -526,7 +527,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Deletes an asset resource.
+        Delete an asset resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -562,7 +563,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Creates a DataScan resource.
+        Create a DataScan resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -600,7 +601,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Runs an on-demand execution of a DataScan.
+        Run an on-demand execution of a DataScan.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -636,7 +637,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Gets a DataScan Job resource.
+        Get a DataScan Job resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -715,7 +716,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Gets a DataScan resource.
+        Get a DataScan resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -750,7 +751,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Updates a DataScan resource.
+        Update a DataScan resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -802,7 +803,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Deletes a DataScan resource.
+        Delete a DataScan resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -837,7 +838,7 @@ class DataplexHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Lists DataScanJobs under the given DataScan.
+        List DataScanJobs under the given DataScan.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
@@ -881,7 +882,7 @@ class DataplexAsyncHook(GoogleBaseAsyncHook):
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 
     async def get_dataplex_data_scan_client(self) -> DataScanServiceAsyncClient:
-        """Returns DataScanServiceAsyncClient."""
+        """Return DataScanServiceAsyncClient."""
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataScanServiceAsyncClient(
@@ -902,7 +903,7 @@ class DataplexAsyncHook(GoogleBaseAsyncHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Gets a DataScan Job resource.
+        Get a DataScan Job resource.
 
         :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.

@@ -23,9 +23,9 @@ import os
 from unittest import mock
 
 import boto3
-import moto
 import pytest
 from botocore.exceptions import ClientError
+from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -37,9 +37,9 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(autouse=True)
 def s3mock():
-    with moto.mock_s3():
+    with mock_aws():
         yield
 
 
@@ -72,9 +72,6 @@ class TestS3TaskHandler:
         self.ti.state = State.RUNNING
 
         self.conn = boto3.client("s3")
-        # We need to create the bucket since this is all in Moto's 'virtual'
-        # AWS account
-        moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn.create_bucket(Bucket="bucket")
 
         yield

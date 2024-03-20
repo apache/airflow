@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
@@ -31,6 +32,13 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
+@deprecated(
+    reason=(
+        "This trigger is deprecated, please use the other RDS triggers "
+        "such as RdsDbDeletedTrigger, RdsDbStoppedTrigger or RdsDbAvailableTrigger"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class RdsDbInstanceTrigger(BaseTrigger):
     """
     Deprecated Trigger for RDS operations. Do not use.
@@ -51,16 +59,10 @@ class RdsDbInstanceTrigger(BaseTrigger):
         db_instance_identifier: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None,
         response: dict[str, Any],
     ):
-        warnings.warn(
-            "This trigger is deprecated, please use the other RDS triggers "
-            "such as RdsDbDeletedTrigger, RdsDbStoppedTrigger or RdsDbAvailableTrigger",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         self.db_instance_identifier = db_instance_identifier
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -131,7 +133,7 @@ class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
         db_identifier: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         response: dict[str, Any],
         db_type: RdsDbType | str,
         region_name: str | None = None,
@@ -184,7 +186,7 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
         db_identifier: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         response: dict[str, Any],
         db_type: RdsDbType | str,
         region_name: str | None = None,
@@ -237,7 +239,7 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
         db_identifier: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         response: dict[str, Any],
         db_type: RdsDbType | str,
         region_name: str | None = None,
