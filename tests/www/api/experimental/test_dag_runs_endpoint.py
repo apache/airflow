@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import warnings
 
 import pytest
@@ -64,7 +63,7 @@ class TestDagRunsEndpoint:
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
-        data = json.loads(response.data.decode("utf-8"))
+        data = response.json()
 
         assert isinstance(data, list)
         assert len(data) == 1
@@ -79,7 +78,7 @@ class TestDagRunsEndpoint:
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
-        data = json.loads(response.data.decode("utf-8"))
+        data = response.json()
 
         assert isinstance(data, list)
         assert len(data) == 1
@@ -94,7 +93,7 @@ class TestDagRunsEndpoint:
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
-        data = json.loads(response.data.decode("utf-8"))
+        data = response.json()
 
         assert isinstance(data, list)
         assert len(data) == 1
@@ -116,7 +115,7 @@ class TestDagRunsEndpoint:
 
         response = self.app.get(url_template.format(dag_id))
         assert 400 == response.status_code
-        data = json.loads(response.data.decode("utf-8"))
+        data = response.json()
 
         assert not isinstance(data, list)
 
@@ -126,7 +125,7 @@ class TestDagRunsEndpoint:
 
         response = self.app.get(url_template.format(dag_id))
         assert 200 == response.status_code
-        data = json.loads(response.data.decode("utf-8"))
+        data = response.json()
 
         assert isinstance(data, list)
         assert len(data) == 0
