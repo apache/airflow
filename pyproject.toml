@@ -975,6 +975,9 @@ weaviate = [ # source: airflow/providers/weaviate/provider.yaml
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
+  "python-dateutil>=2.8.0",
+  "requests>=2.27.0,<3",
+  "yandex-query-client>=0.1.2",
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
