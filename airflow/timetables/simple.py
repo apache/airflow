@@ -183,11 +183,13 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         if not events:
             return DataInterval(logical_date, logical_date)
 
+        # filter out events that are triggered by RESTful API whose source_dag_run attributes are None
+        filtered_events = list(filter(lambda event: event.source_dag_run is not None, events))
         start = min(
-            events, key=operator.attrgetter("source_dag_run.data_interval_start")
+            filtered_events, key=operator.attrgetter("source_dag_run.data_interval_start")
         ).source_dag_run.data_interval_start
         end = max(
-            events, key=operator.attrgetter("source_dag_run.data_interval_end")
+            filtered_events, key=operator.attrgetter("source_dag_run.data_interval_end")
         ).source_dag_run.data_interval_end
         return DataInterval(start, end)
 
