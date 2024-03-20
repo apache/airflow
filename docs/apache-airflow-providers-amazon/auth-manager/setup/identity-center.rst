@@ -42,9 +42,9 @@ See :doc:`how to set AWS auth manager as auth manager </auth-manager/setup/confi
 
 Once done, to create the resources, please run the following command:
 
-.. code-block::bash
+.. code-block:: bash
 
-   airflow aws-auth-manager init-identity-center
+  airflow aws-auth-manager init-identity-center
 
 The CLI command should exit successfully with the message. ::
 
