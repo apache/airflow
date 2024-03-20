@@ -541,6 +541,7 @@ class GKEStartKueueInsideClusterOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            enable_tcp_keepalive=True,
         )
 
     @staticmethod
@@ -743,6 +744,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
             impersonation_chain=self.impersonation_chain,
+            enable_tcp_keepalive=True,
         )
         return hook
 

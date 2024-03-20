@@ -34,13 +34,14 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEStartKueueInsideClusterOperator,
     GKEStartKueueJobOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_engine_kueue"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_LOCATION = "europe-west3"
-CLUSTER_NAME = f"cluster-name-test-kueue-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = f"gke-kueue-{ENV_ID}".replace("_", "-")
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1, "autopilot": {"enabled": True}}
 
 flavor_conf = """
@@ -55,6 +56,7 @@ kind: ClusterQueue
 metadata:
   name: cluster-queue
 spec:
+  namespaceSelector: {}
   queueingStrategy: BestEffortFIFO
   resourceGroups:
   - coveredResources: ["cpu", "memory", "nvidia.com/gpu", "ephemeral-storage"]
@@ -114,6 +116,7 @@ with DAG(
         custom_resource_definition=True,
         namespaced=False,
     )
+
     create_cluster_queue = GKECreateCustomResourceOperator(
         task_id="create_cluster_queue",
         project_id=GCP_PROJECT_ID,
@@ -144,6 +147,7 @@ with DAG(
         image="perl:5.34.0",
         cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
         name="test-pi",
+        suspend=True,
         container_resources=k8s.V1ResourceRequirements(
             requests={
                 "cpu": 1,
@@ -151,6 +155,7 @@ with DAG(
             },
         ),
     )
+
     # [END howto_operator_kueue_start_job]
 
     delete_cluster = GKEDeleteClusterOperator(
@@ -158,6 +163,7 @@ with DAG(
         name=CLUSTER_NAME,
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
