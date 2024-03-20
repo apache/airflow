@@ -24,7 +24,7 @@ import pytest
 
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
-from airflow.operators.python import task, PythonOperator
+from airflow.operators.python import PythonOperator, task
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
