@@ -130,8 +130,8 @@
           <span class="text-muted">DAG:</span> {{ dag.dag_id }}
           <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
           {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
-           <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="auto-pause: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
-          {% endif %}
+           <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
+            {% endif %}
         {% endif %}
         {% if root %}
           <span class="text-muted">ROOT:</span> {{ root }}
