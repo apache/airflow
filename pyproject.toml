@@ -63,6 +63,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Topic :: System :: Monitoring",
 ]
+# When you remove a dependency from the list, you should also make sure to add the dependency to be removed
+# in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
+# in order to make sure the dependency is not installed in the CI image build process from the main
+# of Airflow branch. After your PR is merged, you should remove it from the list there.
 dependencies = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
@@ -581,7 +585,7 @@ apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0;python_version != \"3.12\"",
+  "cassandra-driver>=3.29.1",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
@@ -702,7 +706,7 @@ exasol = [ # source: airflow/providers/exasol/provider.yaml
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.11",
+  "flask-appbuilder==4.4.1",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
@@ -971,6 +975,9 @@ weaviate = [ # source: airflow/providers/weaviate/provider.yaml
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
+  "python-dateutil>=2.8.0",
+  "requests>=2.27.0,<3",
+  "yandex-query-client>=0.1.2",
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
@@ -1505,7 +1512,6 @@ combine-as-imports = true
 "tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
 "tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
 "tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
-"tests/providers/apache/beam/hooks/test_beam.py" = ["PT012"]
 "tests/providers/apache/hive/hooks/test_hive.py" = ["PT012"]
 "tests/providers/apache/hive/sensors/test_named_hive_partition.py" = ["PT012"]
 "tests/providers/celery/sensors/test_celery_queue.py" = ["PT012"]
