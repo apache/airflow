@@ -81,6 +81,7 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance._check_and_change_state_before_execution,
         TaskInstance.get_task_instance,
         TaskInstance._get_dagrun,
+        TaskInstance._set_state,
         TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
         TaskInstance._schedule_downstream_tasks,
