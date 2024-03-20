@@ -48,13 +48,12 @@ def get_current_task_instance_session() -> Session:
 @contextlib.contextmanager
 def set_current_task_instance_session(session: Session):
     global __current_task_instance_session
-    if session:
-        if __current_task_instance_session:
-            raise RuntimeError(
-                "Session already set for this task. "
-                "You can only have one 'set_current_task_session' context manager active at a time."
-            )
-        __current_task_instance_session = session
+    if __current_task_instance_session:
+        raise RuntimeError(
+            "Session already set for this task. "
+            "You can only have one 'set_current_task_session' context manager active at a time."
+        )
+    __current_task_instance_session = session
     try:
         yield
     finally:

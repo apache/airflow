@@ -1718,27 +1718,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .all()
             )
 
-            if zombies:
-                self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+        if zombies:
+            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
 
-            for ti, file_loc, processor_subdir in zombies:
-                zombie_message_details = self._generate_zombie_message_details(ti)
-                request = TaskCallbackRequest(
-                    full_filepath=file_loc,
-                    processor_subdir=processor_subdir,
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti),
-                    msg=str(zombie_message_details),
-                )
-                log_message = (
-                    f"Detected zombie job: {request} "
-                    "(See https://airflow.apache.org/docs/apache-airflow/"
-                    "stable/core-concepts/tasks.html#zombie-undead-tasks)"
-                )
-                self._task_context_logger.error(log_message, ti=ti)
-                self.job.executor.send_callback(request)
-                ti.set_state(state="failed", session=session)
-                session.commit()
-                Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
+        for ti, file_loc, processor_subdir in zombies:
+            zombie_message_details = self._generate_zombie_message_details(ti)
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                processor_subdir=processor_subdir,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg=str(zombie_message_details),
+            )
+            log_message = (
+                f"Detected zombie job: {request} "
+                "(See https://airflow.apache.org/docs/apache-airflow/"
+                "stable/core-concepts/tasks.html#zombie-undead-tasks)"
+            )
+            self._task_context_logger.error(log_message, ti=ti)
+            self.job.executor.send_callback(request)
+            Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     # [END find_zombies]
 

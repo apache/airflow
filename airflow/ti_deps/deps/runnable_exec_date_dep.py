@@ -50,8 +50,8 @@ class RunnableExecDateDep(BaseTIDep):
                     f"after the task's end date {ti.task.end_date.isoformat()}."
                 )
             )
-        dag = ti.dag_model.serialized_dag.dag
-        if dag.end_date and logical_date > dag.end_date:
+
+        if ti.task.dag and ti.task.dag.end_date and logical_date > ti.task.dag.end_date:
             yield self._failing_status(
                 reason=(
                     f"The execution date is {logical_date.isoformat()} but this is after "

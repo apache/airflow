@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable,
 
 from sqlalchemy import select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -705,17 +704,17 @@ class AbstractOperator(Templater, DAGNode):
                 # This may happen if the templated field points to a class which does not support `__bool__`,
                 # such as Pandas DataFrames:
                 # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
-                op.log.info(
+                self.log.info(
                     "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
                     type(value).__name__,
-                    op.task_id,
+                    self.task_id,
                     attr_name,
                 )
                 # We may still want to render custom classes which do not support __bool__
                 pass
 
             try:
-                rendered_content = op.render_template(
+                rendered_content = self.render_template(
                     value,
                     context,
                     jinja_env,
@@ -723,9 +722,9 @@ class AbstractOperator(Templater, DAGNode):
                 )
             except Exception:
                 value_masked = redact(name=attr_name, value=value)
-                op.log.exception(
+                self.log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
-                    op.task_id,
+                    self.task_id,
                     attr_name,
                     value_masked,
                 )

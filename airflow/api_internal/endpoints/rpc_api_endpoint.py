@@ -85,7 +85,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
         TaskInstance._schedule_downstream_tasks,
-        TaskInstance._refresh_from_db,
         TaskInstance._clear_xcom_data,
         Trigger.from_object,
         Trigger.bulk_fetch,
