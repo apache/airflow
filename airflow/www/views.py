@@ -3677,8 +3677,16 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
+            latest_run = dag_model.get_last_dagrun()
+
             events = [
-                dict(info)
+                {
+                    "id": info.id,
+                    "uri": info.uri,
+                    "lastUpdate": info.lastUpdate
+                    if not latest_run or (info.lastUpdate and info.lastUpdate > latest_run.execution_date)
+                    else None,
+                }
                 for info in session.execute(
                     select(
                         DatasetModel.id,
