@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import typing
+from typing import TYPE_CHECKING
 
 from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE, OpenLineageAdapter
 from airflow.providers.openlineage.utils.utils import get_job_name
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 
@@ -35,6 +35,9 @@ def lineage_run_id(task_instance: TaskInstance):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
+    if TYPE_CHECKING:
+        assert task_instance.task
+
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task.task_id,

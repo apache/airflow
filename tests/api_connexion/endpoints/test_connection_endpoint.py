@@ -539,7 +539,9 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
-        _check_last_log(session, dag_id=None, event="api.connection.create", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.connection.create", execution_date=None, expected_extra=payload
+        )
 
     def test_post_should_respond_200_extra_null(self, session):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type", "extra": None}

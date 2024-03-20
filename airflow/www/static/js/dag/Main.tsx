@@ -20,15 +20,27 @@
 /* global localStorage */
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Box, Flex, Divider, Spinner, useDisclosure } from "@chakra-ui/react";
+import {
+  Box,
+  Flex,
+  Spinner,
+  useDisclosure,
+  IconButton,
+  Accordion,
+  AccordionItem,
+  AccordionButton,
+  AccordionPanel,
+} from "@chakra-ui/react";
 import { isEmpty, debounce } from "lodash";
+import { MdDoubleArrow } from "react-icons/md";
+import { useSearchParams } from "react-router-dom";
 
 import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
 
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
 import { useKeysPress } from "src/utils/useKeysPress";
-import { useSearchParams } from "react-router-dom";
+
 import Details, { TAB_PARAM } from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
@@ -68,11 +80,20 @@ const MainInContext = () => {
     isLoading,
   } = useGridData();
   const [isGridCollapsed, setIsGridCollapsed] = useState(false);
+
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>([0]);
+  const isFilterCollapsed = !accordionIndexes.length;
+  const toggleFilterCollapsed = () => {
+    if (isFilterCollapsed) setAccordionIndexes([0]);
+    else setAccordionIndexes([]);
+  };
+
   const [searchParams] = useSearchParams();
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const ganttScrollRef = useRef<HTMLDivElement>(null);
+
   const isPanelOpen =
     localStorage.getItem(detailsPanelKey) !== "true" ||
     !!searchParams.get(TAB_PARAM);
@@ -182,6 +203,17 @@ const MainInContext = () => {
     onToggleShortcut
   );
 
+  const isFullScreen = isFilterCollapsed && isGridCollapsed;
+  const toggleFullScreen = () => {
+    if (!isFullScreen) {
+      setAccordionIndexes([]);
+      setIsGridCollapsed(true);
+    } else {
+      setAccordionIndexes([0]);
+      setIsGridCollapsed(false);
+    }
+  };
+
   return (
     <Box
       flex={1}
@@ -191,9 +223,30 @@ const MainInContext = () => {
       overflow="hidden"
       position="relative"
     >
-      <FilterBar />
-      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
-      <Divider mb={5} borderBottomWidth={2} />
+      <IconButton
+        position="absolute"
+        variant="ghost"
+        color="gray.400"
+        top={0}
+        left={0}
+        onClick={toggleFilterCollapsed}
+        icon={<MdDoubleArrow />}
+        aria-label="Toggle filters bar"
+        transform={isFilterCollapsed ? "rotateZ(90deg)" : "rotateZ(270deg)"}
+        transition="all 0.2s"
+      />
+      <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
+        <AccordionItem>
+          <AccordionButton display="none" />
+          <AccordionPanel p={0}>
+            <FilterBar />
+            <LegendRow
+              onStatusHover={onStatusHover}
+              onStatusLeave={onStatusLeave}
+            />
+          </AccordionPanel>
+        </AccordionItem>
+      </Accordion>
       <Flex height="100%">
         {isLoading || isEmpty(groups) ? (
           <Spinner />
@@ -240,6 +293,8 @@ const MainInContext = () => {
                     hoveredTaskState={hoveredTaskState}
                     gridScrollRef={gridScrollRef}
                     ganttScrollRef={ganttScrollRef}
+                    isFullScreen={isFullScreen}
+                    toggleFullScreen={toggleFullScreen}
                   />
                 </Box>
               </>

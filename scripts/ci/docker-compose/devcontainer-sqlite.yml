@@ -14,29 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from marshmallow import fields
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
-
-from airflow.models import Trigger
-
-
-class TriggerSchema(SQLAlchemySchema):
-    """Trigger Schema."""
-
-    class Meta:
-        """Meta."""
-
-        model = Trigger
-
-    id = auto_field(dump_only=True)
-    classpath = auto_field(dump_only=True)
-    kwargs = fields.Method("get_kwars", dump_only=True)
-    created_date = auto_field(dump_only=True)
-    triggerer_id = auto_field(dump_only=True)
-
-    @staticmethod
-    def get_kwars(trigger: Trigger) -> str:
-        return str(trigger.kwargs)
+---
+services:
+  airflow:
+    environment:
+      - BACKEND=sqlite
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////root/airflow/sqlite/airflow.db
+    volumes:
+      - sqlite-db-volume:/root/airflow/sqlite
+volumes:
+  sqlite-db-volume:
