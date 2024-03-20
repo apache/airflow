@@ -119,9 +119,7 @@ $("#pause_resume").on("change", function onChange() {
   const requireConfirmation = $input.data("require-confirmation");
   if (requireConfirmation) {
     const confirmation = window.confirm(
-      `Are you sure you want to ${
-        isPaused ? "resume" : "pause"
-      } this DAG?`
+       `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`
     );
     if (!confirmation) {
       $input.prop("checked", !isPaused);
