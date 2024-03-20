@@ -62,7 +62,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -1850,16 +1850,14 @@ class TaskInstance(Base, LoggingMixin):
     @internal_api_call
     def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
         if not isinstance(ti, TaskInstance):
-            ti = (
-                session.query(TaskInstance)
-                .filter(
+            ti = session.scalars(
+                select(TaskInstance).where(
                     TaskInstance.task_id == ti.task_id,
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.run_id == ti.run_id,
                     TaskInstance.map_index == ti.map_index,
                 )
-                .one()
-            )
+            ).one()
 
         if ti.state == state:
             return False
