@@ -117,7 +117,7 @@ class NeptuneClusterStoppedTrigger(AwsBaseWaiterTrigger):
 
 class NeptuneClusterInstancesAvailableTrigger(AwsBaseWaiterTrigger):
     """
-    Triggers when a Neptune Cluster Instances available.
+    Triggers when a Neptune Cluster Instance is available.
 
     :param db_cluster_id: Cluster ID to wait on instances from
     :param waiter_delay: The amount of time in seconds to wait between attempts.
