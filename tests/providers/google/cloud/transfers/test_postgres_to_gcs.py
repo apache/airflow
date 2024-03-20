@@ -28,6 +28,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 TABLES = {"postgres_to_gcs_operator", "postgres_to_gcs_operator_empty"}
 
 TASK_ID = "test-postgres-to-gcs"
+LONG_TASK_ID = "t" * 100
 POSTGRES_CONN_ID = "postgres_default"
 SQL = "SELECT * FROM postgres_to_gcs_operator"
 BUCKET = "gs://test"
@@ -138,6 +139,25 @@ class TestPostgresToGoogleCloudStorageOperator:
         """Test the execute in case where the run is successful while using server side cursor."""
         op = PostgresToGCSOperator(
             task_id=TASK_ID,
+            postgres_conn_id=POSTGRES_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            use_server_side_cursor=True,
+            cursor_itersize=100,
+        )
+        gcs_hook_mock = gcs_hook_mock_class.return_value
+        gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
+        op.execute(None)
+
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
+    def test_exec_success_server_side_cursor_unique_name(self, gcs_hook_mock_class):
+        """
+        Test that the server side cursor unique name generator is successful
+        with a task id that surpasses postgres identifier limit.
+        """
+        op = PostgresToGCSOperator(
+            task_id=LONG_TASK_ID,
             postgres_conn_id=POSTGRES_CONN_ID,
             sql=SQL,
             bucket=BUCKET,
