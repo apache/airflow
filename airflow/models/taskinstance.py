@@ -405,10 +405,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
-        if task_instance.next_method:
-            execute_callable = task_to_execute.resume_execution
-            execute_callable_kwargs["next_method"] = task_instance.next_method
-            execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
+        execute_callable = task_to_execute.resume_execution
+        execute_callable_kwargs["next_method"] = task_instance.next_method
+        execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
 
