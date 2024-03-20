@@ -233,7 +233,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         schema_path = Path(__file__).parents[0] / "schema.json"
         with open(schema_path) as schema_file:
-            latest_schema = json.loads(schema_file.read())
+            latest_schema = json.load(schema_file)
 
         return policy_store_schema == latest_schema
 
