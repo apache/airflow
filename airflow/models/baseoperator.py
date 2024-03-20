@@ -261,7 +261,7 @@ def partial(
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     run_as_user: str | None | ArgNotSet = NOTSET,
-    executor: str | None = None,
+    executor: str | None | ArgNotSet = NOTSET,
     executor_config: dict | None | ArgNotSet = NOTSET,
     inlets: Any | None | ArgNotSet = NOTSET,
     outlets: Any | None | ArgNotSet = NOTSET,
@@ -686,7 +686,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         runs across execution_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
-    :param executor: which executor to target when running this task. NOT YET SUPPORTED
+    :param executor: Which executor to target when running this task. NOT YET SUPPORTED
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -934,7 +934,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if executor:
             warnings.warn(
                 "Specifying executors for operators is not yet"
-                f"supported, the value {executor} will have no effect"
+                f"supported, the value {executor!r} will have no effect"
             )
         self.executor = executor
         self.executor_config = executor_config or {}
