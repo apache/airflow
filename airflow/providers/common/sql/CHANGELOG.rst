@@ -25,14 +25,6 @@
 Changelog
 ---------
 
-1.12.0
-......
-
-Features
-~~~~~~~~
-
-* ``New generic SQL tranfer opertor: SqlToSqlOperator``
-
 1.11.1
 ......
 
