@@ -62,7 +62,7 @@ class TestMySql:
         from tests.providers.mysql.hooks.test_mysql import MySqlContext
 
         with MySqlContext(client):
-            sql = "SELECT * FROM connection;"
+            sql = "SELECT * FROM connection LIMIT 10;"
             op = SqlToSqlOperator(
                 task_id="test_m2m",
                 source_conn_id="airflow_db",
