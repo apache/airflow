@@ -114,8 +114,11 @@ def patch_pool(
         update_mask = [i.strip() for i in update_mask]
         _patch_body = {}
         try:
+            # MyPy infers a List[Optional[str]]  type here but it should be a List[str]
+            # there is no way field is None here (UpdateMask is a List[str])
+            # so if pool_schema.declared_fields[field].attribute is None file is returned
             update_mask = [
-                pool_schema.declared_fields[field].attribute
+                pool_schema.declared_fields[field].attribute  # type: ignore[misc]
                 if pool_schema.declared_fields[field].attribute
                 else field
                 for field in update_mask

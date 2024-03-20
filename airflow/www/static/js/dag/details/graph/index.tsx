@@ -28,7 +28,9 @@ import ReactFlow, {
   Panel,
   useOnViewportChange,
   Viewport,
+  ControlButton,
 } from "reactflow";
+import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { useDatasets, useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
@@ -47,11 +49,19 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
 const dagId = getMetaValue("dag_id");
 
-const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const Graph = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  isFullScreen,
+  toggleFullScreen,
+}: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
@@ -105,6 +115,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           sourceId: dataset.id.toString(),
           // Point upstream datasets to the first task
           targetId: data.nodes?.children[0].id,
+          isSourceDataset: true,
         });
       }
     }
@@ -224,7 +235,15 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             </Box>
           </Panel>
           <Background />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false}>
+            <ControlButton
+              onClick={toggleFullScreen}
+              aria-label="Toggle full screen"
+              title="Toggle full screen"
+            >
+              {isFullScreen ? <BiCollapse /> : <BiExpand />}
+            </ControlButton>
+          </Controls>
           <MiniMap
             nodeStrokeWidth={15}
             nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}
@@ -238,17 +257,9 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   );
 };
 
-const GraphWrapper = ({
-  openGroupIds,
-  onToggleGroups,
-  hoveredTaskState,
-}: Props) => (
+const GraphWrapper = (props: Props) => (
   <ReactFlowProvider>
-    <Graph
-      openGroupIds={openGroupIds}
-      onToggleGroups={onToggleGroups}
-      hoveredTaskState={hoveredTaskState}
-    />
+    <Graph {...props} />
   </ReactFlowProvider>
 );
 

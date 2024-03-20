@@ -166,7 +166,7 @@ def test_get_documentation_package_path():
             "",
             """
     "apache-airflow>=2.9.0",
-    "flask-appbuilder==4.3.11",
+    "flask-appbuilder==4.4.1",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -178,7 +178,7 @@ def test_get_documentation_package_path():
             "dev0",
             """
     "apache-airflow>=2.9.0.dev0",
-    "flask-appbuilder==4.3.11",
+    "flask-appbuilder==4.4.1",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -190,7 +190,7 @@ def test_get_documentation_package_path():
             "beta0",
             """
     "apache-airflow>=2.9.0b0",
-    "flask-appbuilder==4.3.11",
+    "flask-appbuilder==4.4.1",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",

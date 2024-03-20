@@ -166,6 +166,7 @@ export interface EdgeData {
     isSetupTeardown?: boolean;
     parentNode?: string;
     isZoomedOut?: boolean;
+    isSourceDataset?: boolean;
   };
 }
 
@@ -181,6 +182,7 @@ export interface WebserverEdge {
   targetId: string;
   isSetupTeardown?: boolean;
   parentNode?: string;
+  isSourceDataset?: boolean;
 }
 
 interface DatasetListItem extends API.Dataset {

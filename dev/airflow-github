@@ -323,12 +323,8 @@ def changelog(previous_version, target_version, github_token, disable_progress_b
     gh = Github(github_token)
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
-    existing_commits = set()
-    with open("../RELEASE_NOTES.rst") as file:
-        for line in file.readlines():
-            match = re.search(r"\(#(\w+)\)", line)
-            if match:
-                existing_commits.add(match.group(1))
+    with open("RELEASE_NOTES.rst") as file:
+        existing_pr_nos = re.findall(r"\(#(\d+)\)", file.read())
 
     console = Console(width=180)
 
@@ -340,7 +336,8 @@ def changelog(previous_version, target_version, github_token, disable_progress_b
                 issue = gh_repo.get_issue(number=int(tickets[0][1:]))
                 issue_type = get_issue_type(issue)
                 files = files_touched(repo, commit["id"])
-                if commit["id"] in existing_commits:
+                if str(issue.number) in existing_pr_nos:
+                    print(f"Skipping {issue.number} as it's already in RELEASE_NOTES.rst")
                     continue
                 if is_core_commit(files):
                     sections[issue_type].append(commit["subject"])

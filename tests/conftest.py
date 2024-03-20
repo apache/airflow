@@ -1355,7 +1355,24 @@ if TYPE_CHECKING:
 
     # pytest-mock
     @pytest.fixture
-    def mocker() -> MockerFixture: ...
+    def mocker() -> MockerFixture:
+        """Function scoped mocker."""
+
+    @pytest.fixture(scope="class")
+    def class_mocker() -> MockerFixture:
+        """Class scoped mocker."""
+
+    @pytest.fixture(scope="module")
+    def module_mocker() -> MockerFixture:
+        """Module scoped mocker."""
+
+    @pytest.fixture(scope="package")
+    def package_mocker() -> MockerFixture:
+        """Package scoped mocker."""
+
+    @pytest.fixture(scope="session")
+    def session_mocker() -> MockerFixture:
+        """Session scoped mocker."""
 
     # requests-mock
     @pytest.fixture

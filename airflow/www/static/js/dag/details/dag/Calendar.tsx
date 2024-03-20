@@ -21,11 +21,12 @@
 
 import React from "react";
 import type { EChartsOption } from "echarts";
-import { Spinner } from "@chakra-ui/react";
+import { Box, Spinner, Flex } from "@chakra-ui/react";
 
 import ReactECharts from "src/components/ReactECharts";
 import { useCalendarData } from "src/api";
 import useFilters from "src/dag/useFilters";
+import InfoTooltip from "src/components/InfoTooltip";
 
 const Calendar = () => {
   const { onBaseDateChange } = useFilters();
@@ -189,7 +190,18 @@ const Calendar = () => {
     },
   };
 
-  return <ReactECharts option={option} events={events} />;
+  return (
+    <Box height="100%">
+      <Flex>
+        <InfoTooltip
+          label="        Only showing the next year of planned DAG runs or the next 2000 runs,
+          whichever comes first."
+          size={16}
+        />
+      </Flex>
+      <ReactECharts option={option} events={events} />
+    </Box>
+  );
 };
 
 export default Calendar;

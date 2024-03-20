@@ -19,17 +19,13 @@
 
 import React from "react";
 import { Box, Tooltip, Flex } from "@chakra-ui/react";
-
 import useSelection from "src/dag/useSelection";
 import { getDuration } from "src/datetime_utils";
-import { SimpleStatus, boxSize } from "src/dag/StatusBox";
+import { SimpleStatus } from "src/dag/StatusBox";
 import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
 import type { Task } from "src/types";
-import { useTaskFails } from "src/api";
-
 import GanttTooltip from "./GanttTooltip";
-import TaskFail from "./TaskFail";
 
 interface Props {
   ganttWidth?: number;
@@ -63,12 +59,6 @@ const Row = ({
       : true);
   const isOpen = openGroupIds.includes(task.id || "");
 
-  const { data: taskFails } = useTaskFails({
-    taskId: task.id || undefined,
-    runId: runId || undefined,
-    enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task fails if it even has a try number > 1
-  });
-
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
   const queuedDuration = hasValidQueuedDttm
@@ -94,14 +84,12 @@ const Row = ({
   return (
     <div>
       <Box
+        py="4px"
         borderBottomWidth={1}
         borderBottomColor={!!task.children && isOpen ? "gray.400" : "gray.200"}
         bg={isSelected ? "blue.100" : "inherit"}
-        position="relative"
-        width={ganttWidth}
-        height={`${boxSize + 9}px`}
       >
-        {instance && (
+        {instance ? (
           <Tooltip
             label={<GanttTooltip task={task} instance={instance} />}
             hasArrow
@@ -111,11 +99,9 @@ const Row = ({
           >
             <Flex
               width={`${width + queuedWidth}px`}
-              position="absolute"
               cursor="pointer"
               pointerEvents="auto"
-              top="4px"
-              left={`${offsetMargin}px`}
+              marginLeft={`${offsetMargin}px`}
               onClick={() => {
                 onSelect({
                   runId: instance.runId,
@@ -143,24 +129,9 @@ const Row = ({
               />
             </Flex>
           </Tooltip>
+        ) : (
+          <Box height="10px" />
         )}
-        {/* Only show fails before the most recent task instance */}
-        {(taskFails || [])
-          .filter(
-            (tf) =>
-              tf.startDate !== instance?.startDate &&
-              // @ts-ignore
-              moment(tf.startDate).isAfter(ganttStartDate)
-          )
-          .map((taskFail) => (
-            <TaskFail
-              key={`${taskFail.taskId}-${taskFail.startDate}`}
-              taskFail={taskFail}
-              ganttStartDate={ganttStartDate}
-              ganttWidth={ganttWidth}
-              runDuration={runDuration}
-            />
-          ))}
       </Box>
       {isOpen &&
         !!task.children &&

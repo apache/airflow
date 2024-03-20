@@ -62,7 +62,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -411,10 +411,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
-        if task_instance.next_method:
-            execute_callable = task_to_execute.resume_execution
-            execute_callable_kwargs["next_method"] = task_instance.next_method
-            execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
+        execute_callable = task_to_execute.resume_execution
+        execute_callable_kwargs["next_method"] = task_instance.next_method
+        execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
 
@@ -1811,33 +1810,66 @@ class TaskInstance(Base, LoggingMixin):
         """
         _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
+    def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
         """Clear all XCom data from the database for the task instance.
 
         If the task is unmapped, all XComs matching this task ID in the same DAG
         run are removed. If the task is mapped, only the one with matching map
         index is removed.
 
+        :param ti: The TI for which we need to clear xcoms.
         :param session: SQLAlchemy ORM Session
         """
-        self.log.debug("Clearing XCom data")
-        if self.map_index < 0:
+        ti.log.debug("Clearing XCom data")
+        if ti.map_index < 0:
             map_index: int | None = None
         else:
-            map_index = self.map_index
+            map_index = ti.map_index
         XCom.clear(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
             map_index=map_index,
             session=session,
         )
+
+    @provide_session
+    def clear_xcom_data(self, session: Session = NEW_SESSION):
+        self._clear_xcom_data(ti=self, session=session)
 
     @property
     def key(self) -> TaskInstanceKey:
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+
+    @staticmethod
+    @internal_api_call
+    def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
+        if not isinstance(ti, TaskInstance):
+            ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                )
+            ).one()
+
+        if ti.state == state:
+            return False
+
+        current_time = timezone.utcnow()
+        ti.log.debug("Setting task state for %s to %s", ti, state)
+        ti.state = state
+        ti.start_date = ti.start_date or current_time
+        if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
+            ti.end_date = ti.end_date or current_time
+            ti.duration = (ti.end_date - ti.start_date).total_seconds()
+        session.merge(ti)
+        return True
 
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
@@ -1848,18 +1880,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: Was the state changed
         """
-        if self.state == state:
-            return False
-
-        current_time = timezone.utcnow()
-        self.log.debug("Setting task state for %s to %s", self, state)
-        self.state = state
-        self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
-            self.end_date = self.end_date or current_time
-            self.duration = (self.end_date - self.start_date).total_seconds()
-        session.merge(self)
-        return True
+        return self._set_state(ti=self, state=state, session=session)
 
     @property
     def is_premature(self) -> bool:
@@ -2108,6 +2129,14 @@ class TaskInstance(Base, LoggingMixin):
         """Check on whether the task instance is in the right state and timeframe to be retried."""
         return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
+    @staticmethod
+    @internal_api_call
+    def _get_dagrun(dag_id, run_id, session) -> DagRun:
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+        return dr
+
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
         """
@@ -2124,13 +2153,10 @@ class TaskInstance(Base, LoggingMixin):
                 self.dag_run.dag = self.task.dag
             return self.dag_run
 
-        from airflow.models.dagrun import DagRun  # Avoid circular import
-
-        dr = session.query(DagRun).filter(DagRun.dag_id == self.dag_id, DagRun.run_id == self.run_id).one()
+        dr = self._get_dagrun(self.dag_id, self.run_id, session)
         if getattr(self, "task", None) is not None:
             if TYPE_CHECKING:
                 assert self.task
-
             dr.dag = self.task.dag
         # Record it in the instance for next time. This means that `self.execution_date` will work correctly
         set_committed_value(self, "dag_run", dr)
