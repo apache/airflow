@@ -23,6 +23,25 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+Airflow Helm Chart 1.13.1 (2024-03-25)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.8.3`` (#38036)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.8.3``, previously it was ``2.8.2``.
+
+Bug Fixes
+^^^^^^^^^
+- Don't overwrite .Values.airflowPodAnnotations (#37917)
+
+Misc
+^^^^
+- Chart: Default airflow version to 2.8.3 (#38036)
+
 Airflow Helm Chart 1.13.0 (2024-03-05)
 --------------------------------------
 
