@@ -86,6 +86,9 @@ def create_app(config=None, testing=False):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
 
     instance_name = conf.get(section="webserver", key="instance_name", fallback="Airflow")
+    require_confirmation_dag_change = conf.getboolean(
+        section="webserver", key="require_confirmation_dag_change", fallback=False
+    )
     instance_name_has_markup = conf.getboolean(
         section="webserver", key="instance_name_has_markup", fallback=False
     )
@@ -93,6 +96,7 @@ def create_app(config=None, testing=False):
         instance_name = Markup(instance_name).striptags()
 
     flask_app.config["APP_NAME"] = instance_name
+    flask_app.config["REQUIRE_CONFIRMATION_DAG_CHANGE"] = require_confirmation_dag_change
 
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):

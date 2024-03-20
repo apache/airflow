@@ -123,6 +123,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def clear_xcom_data(self, session: Session | None = None):
         TaskInstance._clear_xcom_data(ti=self, session=session)
 
+    def set_state(self, state, session: Session | None = None) -> bool:
+        return TaskInstance._set_state(ti=self, state=state, session=session)
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw
