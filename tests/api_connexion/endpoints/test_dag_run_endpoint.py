@@ -2193,7 +2193,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         from airflow.www import app as application
 
         app = application.create_app(testing=True)
-        app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        app.app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         dag_runs = self._create_test_dag_run(DagRunState.SUCCESS)
         session.add_all(dag_runs)
         session.commit()
