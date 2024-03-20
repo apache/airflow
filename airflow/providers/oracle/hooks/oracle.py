@@ -446,6 +446,10 @@ class OracleHook(DbApiHook):
             rows_transfered = 0
 
             for rows in iter(lambda: source_cursor.fetchmany(rows_chunk), []):
+                # Additional check for mySQL. It provides empty list instead of None object
+                if len(rows) == 0:
+                    break
+
                 self.bulk_insert_rows(
                     table=table, rows=rows, target_fields=target_fields, commit_every=rows_chunk
                 )
