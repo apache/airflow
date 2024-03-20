@@ -581,7 +581,7 @@ apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0;python_version != \"3.12\"",
+  "cassandra-driver>=3.29.1",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
