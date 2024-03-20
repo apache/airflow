@@ -1180,6 +1180,9 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "python-dateutil>=2.8.0",
+      "requests>=2.27.0,<3",
+      "yandex-query-client>=0.1.2",
       "yandexcloud>=0.228.0"
     ],
     "devel-deps": [],
