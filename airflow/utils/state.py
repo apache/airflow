@@ -87,6 +87,22 @@ class DagRunState(str, Enum):
         return self.value
 
 
+class DagPausedState(str, Enum):
+    """All possible states that a Dag can be in.
+
+    "paused": Dag is paused in UI
+    "unpaused": Dag is unpaused in UI
+    "drain": Dag is paused in UI by user, but waiting for all the current tasks to be completed.
+    """
+
+    PAUSED = "paused"
+    UNPAUSED = "unpaused"
+    DRAIN = "drain"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class State:
     """Static class with task instance state constants and color methods to avoid hard-coding."""
 

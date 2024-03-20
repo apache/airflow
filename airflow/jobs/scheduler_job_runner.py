@@ -71,7 +71,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagPausedState, DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -880,7 +880,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .join(DagRun.dag_model)
                 .join(TI)
                 .where(
-                    DagModel.is_paused == expression.true(),
+                    DagModel.is_paused != DagPausedState.UNPAUSED,
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
                 )

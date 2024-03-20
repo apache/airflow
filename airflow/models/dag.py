@@ -136,7 +136,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagPausedState, DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -1426,7 +1426,10 @@ class DAG(LoggingMixin):
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
-        return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+        return (
+            session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
+            != DagPausedState.UNPAUSED
+        )
 
     @property
     def is_paused(self):
@@ -3098,7 +3101,9 @@ class DAG(LoggingMixin):
             orm_dag = DagModel(dag_id=missing_dag_id)
             dag = dag_by_ids[missing_dag_id]
             if dag.is_paused_upon_creation is not None:
-                orm_dag.is_paused = dag.is_paused_upon_creation
+                orm_dag.is_paused = (
+                    DagPausedState.PAUSED if dag.is_paused_upon_creation else DagPausedState.UNPAUSED
+                )
             orm_dag.tags = []
             log.info("Creating ORM DAG for %s", dag.dag_id)
             session.add(orm_dag)
@@ -3564,7 +3569,9 @@ class DagModel(Base):
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
-    is_paused = Column(Boolean, default=is_paused_at_creation)
+    is_paused = Column(
+        String(25), default=DagPausedState.PAUSED if is_paused_at_creation else DagPausedState.UNPAUSED
+    )
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
@@ -3714,7 +3721,7 @@ class DagModel(Base):
 
     def get_is_paused(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
-        return self.is_paused
+        return self.is_paused == DagPausedState.PAUSED
 
     def get_is_active(self, *, session: Session | None = None) -> bool:
         """Provide interface compatibility to 'DAG'."""
@@ -3733,7 +3740,7 @@ class DagModel(Base):
         """
         paused_dag_ids = session.execute(
             select(DagModel.dag_id)
-            .where(DagModel.is_paused == expression.true())
+            .where(DagModel.is_paused != DagPausedState.UNPAUSED)
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
@@ -3778,7 +3785,7 @@ class DagModel(Base):
         session.execute(
             update(DagModel)
             .where(or_(*filter_query))
-            .values(is_paused=is_paused)
+            .values(is_paused=DagPausedState.PAUSED if is_paused else DagPausedState.UNPAUSED)
             .execution_options(synchronize_session="fetch")
         )
         session.commit()

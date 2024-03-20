@@ -128,7 +128,7 @@ from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagPausedState, DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
@@ -810,8 +810,8 @@ class Airflow(AirflowBaseView):
                 return redirect(url_for("Airflow.index"))
 
             all_dags = dags_query
-            active_dags = dags_query.where(~DagModel.is_paused)
-            paused_dags = dags_query.where(DagModel.is_paused)
+            active_dags = dags_query.where(DagModel.is_paused == DagPausedState.UNPAUSED)
+            paused_dags = dags_query.where(DagModel.is_paused != DagPausedState.UNPAUSED)
 
             # find DAGs which have a RUNNING DagRun
             running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).where(
@@ -851,8 +851,10 @@ class Airflow(AirflowBaseView):
                 ).all()
             )
 
-            status_count_active = is_paused_count.get(False, 0)
-            status_count_paused = is_paused_count.get(True, 0)
+            status_count_active = is_paused_count.get(DagPausedState.UNPAUSED, 0)
+            status_count_paused = is_paused_count.get(DagPausedState.PAUSED, 0) + is_paused_count.get(
+                DagPausedState.DRAIN, 0
+            )
 
             status_count_running = get_query_count(running_dags, session=session)
             status_count_failed = get_query_count(failed_dags, session=session)
@@ -5872,11 +5874,11 @@ class AutocompleteView(AirflowBaseView):
         # Hide DAGs if not showing status: "all"
         status = flask_session.get(FILTER_STATUS_COOKIE)
         if status == "active":
-            dag_ids_query = dag_ids_query.where(~DagModel.is_paused)
-            owners_query = owners_query.where(~DagModel.is_paused)
+            dag_ids_query = dag_ids_query.where(DagModel.is_paused == DagPausedState.UNPAUSED)
+            owners_query = owners_query.where(DagModel.is_paused == DagPausedState.UNPAUSED)
         elif status == "paused":
-            dag_ids_query = dag_ids_query.where(DagModel.is_paused)
-            owners_query = owners_query.where(DagModel.is_paused)
+            dag_ids_query = dag_ids_query.where(DagModel.is_paused != DagPausedState.UNPAUSED)
+            owners_query = owners_query.where(DagModel.is_paused != DagPausedState.UNPAUSED)
 
         filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 

@@ -45,7 +45,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
-from sqlalchemy.sql.expression import false, select, true
+from sqlalchemy.sql.expression import select, true
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -67,7 +67,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagPausedState, DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunType
 
 if TYPE_CHECKING:
@@ -406,7 +406,7 @@ class DagRun(Base, LoggingMixin):
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
             .where(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .where(DagModel.is_paused == false(), DagModel.is_active == true())
+            .where(DagModel.is_paused == DagPausedState.UNPAUSED, DagModel.is_active == true())
         )
         if state == DagRunState.QUEUED:
             # For dag runs in the queued state, we check if they have reached the max_active_runs limit

@@ -41,6 +41,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagPausedState
 from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -111,9 +112,9 @@ def get_dags(
         dags_query = dags_query.where(DagModel.is_active)
     if paused is not None:
         if paused:
-            dags_query = dags_query.where(DagModel.is_paused)
+            dags_query = dags_query.where(DagModel.is_paused != DagPausedState.UNPAUSED)
         else:
-            dags_query = dags_query.where(~DagModel.is_paused)
+            dags_query = dags_query.where(DagModel.is_paused == DagPausedState.UNPAUSED)
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
