@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-20T06:34:02.410660
+# This constraints file was automatically generated on 2024-03-20T10:48:49.421342
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -121,6 +121,7 @@ boto3==1.34.51
 botocore==1.34.51
 cachelib==0.9.0
 cachetools==5.3.3
+cassandra-driver==3.29.1
 cattrs==23.2.3
 celery==5.3.6
 certifi==2024.2.2
@@ -183,6 +184,7 @@ gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.2.0
 gcsfs==2023.12.2.post1
+geomet==0.2.1.post1
 gevent==24.2.1
 gitdb==4.0.11
 google-ads==23.1.0
