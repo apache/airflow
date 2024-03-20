@@ -86,9 +86,8 @@ def create_app(config=None, testing=False):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
 
     instance_name = conf.get(section="webserver", key="instance_name", fallback="Airflow")
-    require_confirmation_dag_change = conf.getboolean(
-        section="webserver", key="require_confirmation_dag_change", fallback=False
-    )
+    require_confirmation_dag_change = conf.getboolean(section="webserver",
+                                                      key="require_confirmation_dag_change", fallback=False)
     instance_name_has_markup = conf.getboolean(
         section="webserver", key="instance_name_has_markup", fallback=False
     )
