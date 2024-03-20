@@ -268,7 +268,7 @@ class TestProviderManager:
             widgets["extra__test__my_param"] = widget_field
             widgets["my_param"] = dummy_field
         else:
-            raise Exception("unexpected")
+            raise ValueError("unexpected")
 
         provider_manager._add_widgets(
             package_name="abc",
@@ -456,9 +456,9 @@ def test_lazy_cache_dict_resolving(value, expected_outputs):
 
 def test_lazy_cache_dict_raises_error():
     def raise_method():
-        raise Exception("test")
+        raise RuntimeError("test")
 
     lazy_cache_dict = LazyDictWithCache()
     lazy_cache_dict["key"] = raise_method
-    with pytest.raises(Exception, match="test"):
+    with pytest.raises(RuntimeError, match="test"):
         _ = lazy_cache_dict["key"]
