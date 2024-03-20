@@ -51,8 +51,10 @@ Misc
    * ``Prepare docs 1st wave of Providers January 2024 (#36640)``
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 
-1.6.0
-.....
+1.6.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``The release had broken backwards compatibility with Airflow 2.8.* release``
 
 Features
 ~~~~~~~~

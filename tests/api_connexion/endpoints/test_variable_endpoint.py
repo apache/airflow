@@ -250,17 +250,20 @@ class TestGetVariables(TestVariableEndpoint):
 class TestPatchVariable(TestVariableEndpoint):
     def test_should_update_variable(self, session):
         Variable.set("var1", "foo")
+        payload = {
+            "key": "var1",
+            "value": "updated",
+        }
         response = self.client.patch(
             "/api/v1/variables/var1",
-            json={
-                "key": "var1",
-                "value": "updated",
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == {"key": "var1", "value": "updated", "description": None}
-        _check_last_log(session, dag_id=None, event="api.variable.edit", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.variable.edit", execution_date=None, expected_extra=payload
+        )
 
     def test_should_update_variable_with_mask(self, session):
         Variable.set("var1", "foo", description="before update")
@@ -353,13 +356,37 @@ class TestPostVariables(TestVariableEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="api.variable.create", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.variable.create", execution_date=None, expected_extra=payload
+        )
         response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
             "key": "var_create",
             "value": "{}",
             "description": description,
         }
+
+    def test_should_create_masked_variable(self, session):
+        payload = {"key": "api_key", "value": "secret_key", "description": "secret"}
+        response = self.client.post(
+            "/api/v1/variables",
+            json=payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        expected_extra = {
+            **payload,
+            "value": "***",
+        }
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.variable.create",
+            execution_date=None,
+            expected_extra=expected_extra,
+        )
+        response = self.client.get("/api/v1/variables/api_key", environ_overrides={"REMOTE_USER": "test"})
+        assert response.json == payload
 
     def test_should_reject_invalid_request(self, session):
         response = self.client.post(

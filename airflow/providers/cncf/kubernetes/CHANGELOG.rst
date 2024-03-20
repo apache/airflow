@@ -951,6 +951,8 @@ Bug Fixes
 3.1.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -965,6 +967,8 @@ Misc
 3.1.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Misc
 ~~~~~
 
@@ -972,6 +976,8 @@ Misc
 
 3.1.0 (YANKED)
 ..............
+
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Features
 ~~~~~~~~
@@ -993,6 +999,8 @@ Misc
 3.0.2 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
+
 Bug Fixes
 ~~~~~~~~~
 
@@ -1009,6 +1017,7 @@ Bug Fixes
 3.0.1 (YANKED)
 ..............
 
+.. warning:: This release has been **yanked** with a reason: ``Installing on Airflow 2.1, 2.2 allows to install unsupported kubernetes library > 11.0.0``
 
 Misc
 ~~~~

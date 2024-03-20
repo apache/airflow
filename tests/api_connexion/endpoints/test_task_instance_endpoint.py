@@ -1249,7 +1249,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
         _check_last_log(
-            session, dag_id=request_dag, event="api.post_clear_task_instances", execution_date=None
+            session,
+            dag_id=request_dag,
+            event="api.post_clear_task_instances",
+            execution_date=None,
+            expected_extra=payload,
         )
 
     @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")

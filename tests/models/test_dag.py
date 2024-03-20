@@ -1533,21 +1533,19 @@ class TestDag:
 
     def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
-        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-                op1 = EmptyOperator(task_id="t1")
-                op2 = BashOperator(task_id="t1", bash_command="sleep 1")
-                op1 >> op2
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            op1 = EmptyOperator(task_id="t1")
+            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
+                BashOperator(task_id="t1", bash_command="sleep 1")
 
         assert dag.task_dict == {op1.task_id: op1}
 
     def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
+        dag = DAG("test_dag", start_date=DEFAULT_DATE)
+        op1 = EmptyOperator(task_id="t1", dag=dag)
         with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            dag = DAG("test_dag", start_date=DEFAULT_DATE)
-            op1 = EmptyOperator(task_id="t1", dag=dag)
-            op2 = EmptyOperator(task_id="t1", dag=dag)
-            op1 >> op2
+            EmptyOperator(task_id="t1", dag=dag)
 
         assert dag.task_dict == {op1.task_id: op1}
 
