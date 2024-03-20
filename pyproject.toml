@@ -104,9 +104,9 @@ dependencies = [
     "gunicorn>=20.1.0",
     "httpx",
     "importlib_metadata>=1.7;python_version<\"3.9\"",
-    # Importib_resources 6.2.0 break pytest_rewrite
+    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
-    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
+    "importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<\"3.9\"",
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -343,6 +343,7 @@ devel-static-checks = [
     "yamllint>=1.33.0",
 ]
 devel-tests = [
+    "aiofiles>=23.2.0",
     "aioresponses>=0.7.6",
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
@@ -770,6 +771,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "pandas-gbq",
   "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
+  "python-slugify>=5.0",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
 ]
@@ -1317,6 +1319,7 @@ extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
@@ -1345,6 +1348,7 @@ extend-select = [
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
 ]
 ignore = [
     "D203",
