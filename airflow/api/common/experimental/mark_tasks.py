@@ -16,11 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task Instance APIs. This module is deprecated. Please use :mod:`airflow.api.common.mark_tasks` instead."""
+
 from __future__ import annotations
 
 import warnings
 
-from airflow.api.common.mark_tasks import (  # noqa
+from airflow.api.common.mark_tasks import (  # noqa: F401
     _create_dagruns,
     set_dag_run_state_to_failed,
     set_dag_run_state_to_running,

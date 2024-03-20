@@ -17,22 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.microsoft.azure.transfers.local_to_adls import (
-    LocalFilesystemToADLSOperator,
-)
+from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFilesystemToADLSOperator
 
 TASK_ID = "test-adls-upload-operator"
-FILE_SYSTEM_NAME = "Fabric"
 LOCAL_PATH = "test/*"
 BAD_LOCAL_PATH = "test/**"
 REMOTE_PATH = "TEST-DIR"
-DATA = json.dumps({"name": "David", "surname": "Blain", "gender": "M"}).encode("utf-8")
 
 
 class TestADLSUploadOperator:

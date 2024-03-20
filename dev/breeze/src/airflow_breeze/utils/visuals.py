@@ -17,6 +17,7 @@
 """
 Visuals displayed to the user when entering Breeze shell.
 """
+
 from __future__ import annotations
 
 from airflow_breeze.global_constants import (
@@ -128,7 +129,7 @@ CHEATSHEET = f"""
 
         You can disable this cheatsheet by running:
 
-            breeze setup config --no-cheatsheet
+            breeze setup config --no-cheatshee
 
 """
 CHEATSHEET_STYLE = "white"

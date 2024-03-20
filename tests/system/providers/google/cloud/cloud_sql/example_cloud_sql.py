@@ -20,6 +20,7 @@ Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and 
 creates, patches and deletes a database inside the instance, in Google Cloud.
 
 """
+
 from __future__ import annotations
 
 import os

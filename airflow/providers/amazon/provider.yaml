@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1707636119
+source-date-epoch: 1709554658
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.19.0
   - 8.18.0
   - 8.17.0
   - 8.16.0
@@ -838,6 +839,79 @@ config:
         version_added: 8.7.2
         example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
         default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
+  aws_batch_executor:
+    description: |
+      This section only applies if you are using the AwsBatchExecutor in
+      Airflow's ``[core]`` configuration.
+      For more information on any of these execution parameters, see the link below:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.submit_job
+      For boto3 credential management, see
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the Batch executor to make API calls to AWS Batch.
+        version_added: "8.11"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Batch is configured. Required.
+        version_added: "8.11"
+        type: string
+        example: "us-east-1"
+        default: ~
+      max_submit_job_attempts:
+        description: |
+          The maximum number of times the Batch Executor should attempt to run a Batch Job.
+        version_added: "8.11"
+        type: integer
+        example: "3"
+        default: "3"
+      check_health_on_startup:
+        description: |
+          Whether or not to check the Batch Executor health on startup.
+        version_added: "8.11"
+        type: boolean
+        example: "True"
+        default: "True"
+      job_name:
+        description: |
+          The name of the job submitted to AWS Batch. It can be up to 128 letters long.
+          The first character must be alphanumeric, can contain uppercase and lowercase
+          letters, numbers, hyphens (-), and underscores (_).
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job"
+        default: ~
+      job_queue:
+        description: |
+          The job queue where the job is submitted. You can specify either the name
+          or the Amazon Resource Name (ARN) of the queue.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-queue"
+        default: ~
+      job_definition:
+        description: |
+          The job definition used by the job. You can specify either the name
+          or the Amazon Resource Name (ARN) of the job definition with or
+          without the revision. If the revision is not specified, then the
+          latest active revision is used.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-definition"
+        default: ~
+      submit_job_kwargs:
+        description: |
+          Additional parameters to pass to the submit_job method of the
+          AWS Batch client.
+        version_added: "8.11"
+        type: string
+        example: '{"Tags": [{"Key": "key", "Value": "value"}]}'
+        default: ~
+
   aws_ecs_executor:
     description: |
       This section only applies if you are using the AwsEcsExecutor in

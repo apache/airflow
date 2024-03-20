@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Unit tests for RenderedTaskInstanceFields."""
+
 from __future__ import annotations
 
 import os
@@ -137,9 +138,11 @@ class TestRenderedTaskInstanceFields:
         session.add(rtif)
         session.flush()
 
-        assert {"bash_command": expected_rendered_field, "env": None} == RTIF.get_templated_fields(
-            ti=ti, session=session
-        )
+        assert {
+            "bash_command": expected_rendered_field,
+            "env": None,
+            "cwd": None,
+        } == RTIF.get_templated_fields(ti=ti, session=session)
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
@@ -261,7 +264,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None}) == result
+        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None}) == result
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -287,7 +290,7 @@ class TestRenderedTaskInstanceFields:
         assert (
             "test_write",
             "test",
-            {"bash_command": "echo test_val_updated", "env": None},
+            {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
         ) == result_updated
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
@@ -301,8 +304,10 @@ class TestRenderedTaskInstanceFields:
             )
         dr = dag_maker.create_dagrun()
         redact.side_effect = [
-            "val 1",
-            "val 2",
+            # Order depends on order in Operator template_fields
+            "val 1",  # bash_command
+            "val 2",  # env
+            "val 3",  # cwd
         ]
 
         ti = dr.task_instances[0]
@@ -311,4 +316,5 @@ class TestRenderedTaskInstanceFields:
         assert rtif.rendered_fields == {
             "bash_command": "val 1",
             "env": "val 2",
+            "cwd": "val 3",
         }

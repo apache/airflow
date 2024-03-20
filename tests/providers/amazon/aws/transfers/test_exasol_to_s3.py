@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from Exasol database into a S3 Bucket."""
+
 from __future__ import annotations
 
 from unittest import mock

@@ -22,6 +22,7 @@ This module allows to connect to a InfluxDB database.
 
     FluxTable
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

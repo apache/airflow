@@ -21,8 +21,5 @@
 
 common::get_colors
 common::get_packaging_tool
-common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::show_packaging_tool_version_and_location
-
 common::install_packaging_tools

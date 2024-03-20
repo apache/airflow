@@ -286,9 +286,8 @@ EOF
 Content is generated with:
 
 ```shell
-./dev/prepare_release_issue.py generate-issue-content --previous-release helm-chart/<PREVIOUS_RELEASE> \
-    --current-release helm-chart/${VERSION}${VERSION_SUFFIX} --is-helm-chart
-
+breeze release-management generate-issue-content-helm-chart
+--previous-release helm-chart/<PREVIOUS_RELEASE> --current-release helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 Copy the URL of the issue.

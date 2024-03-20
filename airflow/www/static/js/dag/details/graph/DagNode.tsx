@@ -80,7 +80,7 @@ const DagNode = ({
 
   const nodeBorderColor =
     instance?.state && stateColors[instance.state]
-      ? `${stateColors[instance.state]}.400`
+      ? stateColors[instance.state]
       : "gray.400";
 
   return (

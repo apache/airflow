@@ -202,12 +202,12 @@ class TestSparkSqlHook:
         mock_popen.return_value.wait.return_value = status
 
         # When
+        hook = SparkSqlHook(
+            conn_id="spark_default",
+            sql=sql,
+            master=master,
+        )
         with pytest.raises(AirflowException) as ctx:
-            hook = SparkSqlHook(
-                conn_id="spark_default",
-                sql=sql,
-                master=master,
-            )
             hook.run_query(params)
 
         # Then

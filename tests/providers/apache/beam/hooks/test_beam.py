@@ -20,6 +20,8 @@ import copy
 import os
 import re
 import subprocess
+import sys
+from importlib.metadata import version as importlib_version
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 
@@ -66,6 +68,11 @@ Jun 15, 2020 2:57:28 PM org.apache.beam.runners.dataflow.DataflowRunner run
 INFO: To cancel the job using the 'gcloud' tool, run:
 > gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
 """
+
+try:
+    APACHE_BEAM_VERSION = importlib_version("apache-beam")
+except ImportError:
+    APACHE_BEAM_VERSION = None
 
 
 class TestBeamHook:
@@ -424,7 +431,24 @@ class TestBeamOptionsToArgs:
         assert args == expected_args
 
 
+@pytest.fixture
+def mocked_beam_version_async():
+    with mock.patch.object(BeamAsyncHook, "_beam_version", return_value="2.39.0") as m:
+        yield m
+
+
 class TestBeamAsyncHook:
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(APACHE_BEAM_VERSION is None, reason="Apache Beam not installed in current env")
+    async def test_beam_version(self):
+        version = await BeamAsyncHook._beam_version(sys.executable)
+        assert version == APACHE_BEAM_VERSION
+
+    @pytest.mark.asyncio
+    async def test_beam_version_error(self):
+        with pytest.raises(AirflowException, match="Unable to retrieve Apache Beam version"):
+            await BeamAsyncHook._beam_version("python1")
+
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     async def test_start_pipline_async(self, mock_runner):
@@ -447,7 +471,7 @@ class TestBeamAsyncHook:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
-    async def test_start_python_pipeline(self, mock_create_dir, mock_runner):
+    async def test_start_python_pipeline(self, mock_create_dir, mock_runner, mocked_beam_version_async):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
         mock_create_dir.return_value = AsyncMock()
         mock_runner.return_value = 0
@@ -474,8 +498,8 @@ class TestBeamAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.35.0")
-    async def test_start_python_pipeline_unsupported_option(self, mock_check_output):
+    async def test_start_python_pipeline_unsupported_option(self, mocked_beam_version_async):
+        mocked_beam_version_async.return_value = "2.35.0"
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
 
         with pytest.raises(
@@ -505,9 +529,12 @@ class TestBeamAsyncHook:
     )
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     async def test_start_python_pipeline_with_custom_interpreter(
-        self, mock_check_output, mock_create_dir, mock_runner, py_interpreter
+        self,
+        mock_create_dir,
+        mock_runner,
+        py_interpreter,
+        mocked_beam_version_async,
     ):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
         mock_create_dir.return_value = AsyncMock()
@@ -545,18 +572,17 @@ class TestBeamAsyncHook:
     )
     @mock.patch(BEAM_STRING.format("prepare_virtualenv"))
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook.run_beam_command_async")
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._create_tmp_dir")
     @mock.patch("airflow.providers.apache.beam.hooks.beam.BeamAsyncHook._cleanup_tmp_dir")
     async def test_start_python_pipeline_with_non_empty_py_requirements_and_without_system_packages(
         self,
         mock_cleanup_dir,
         mock_create_dir,
-        mock_check_output,
         mock_runner,
         mock_virtualenv,
         current_py_requirements,
         current_py_system_site_packages,
+        mocked_beam_version_async,
     ):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
         mock_create_dir.return_value = AsyncMock()
@@ -594,9 +620,8 @@ class TestBeamAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch(BEAM_STRING.format("run_beam_command"))
-    @mock.patch("airflow.providers.apache.beam.hooks.beam.subprocess.check_output", return_value=b"2.39.0")
     async def test_start_python_pipeline_with_empty_py_requirements_and_without_system_packages(
-        self, mock_check_output, mock_runner
+        self, mock_runner, mocked_beam_version_async
     ):
         hook = BeamAsyncHook(runner=DEFAULT_RUNNER)
 

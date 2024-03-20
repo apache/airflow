@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google Cloud Run Operators.
 """
+
 from __future__ import annotations
 
 import os

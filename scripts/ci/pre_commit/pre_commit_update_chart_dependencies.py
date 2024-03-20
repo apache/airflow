@@ -74,7 +74,7 @@ if __name__ == "__main__":
     result_lines.append("")
     VALUES_YAML_FILE.write_text("\n".join(result_lines))
     schema_file = json.loads(VALUES_SCHEMA_FILE.read_text())
-    schema_file["properties"]["images"]["properties"]["statsd"]["properties"]["tag"][
-        "default"
-    ] = latest_prometheus_statsd_exporter_version
+    schema_file["properties"]["images"]["properties"]["statsd"]["properties"]["tag"]["default"] = (
+        latest_prometheus_statsd_exporter_version
+    )
     VALUES_SCHEMA_FILE.write_text(json.dumps(schema_file, indent=4) + "\n")

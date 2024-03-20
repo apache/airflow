@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Dag sub-commands."""
+
 from __future__ import annotations
 
 import ast
@@ -309,6 +310,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
+        "max_consecutive_failed_dag_runs": dag.max_consecutive_failed_dag_runs,
         "has_task_concurrency_limits": any(
             t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None for t in dag.tasks
         ),

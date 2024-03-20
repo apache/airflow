@@ -32,7 +32,7 @@ development environment (inside the Breeze container).
 
 You can use additional ``breeze`` flags to choose your environment. You can specify a Python
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
-environments as we have in matrix builds in the CI.
+environments as we have in matrix builds in the CI. See next chapter for backend selection.
 
 For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
 as follows:
@@ -69,6 +69,40 @@ that user used last time.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands (for example in output of ``breeze config --help``).
+
+Selecting Backend
+-----------------
+
+When you run breeze commands, you can additionally select which backend you want to use. Currently Airflow
+supports Sqlite, MySQL and Postgres as backends - MySQL and Postgres are supported in various versions.
+
+You can choose which backend to use by adding ``--backend`` flag and additionally you can select version
+of the backend, if you want to start a different version of backend (for example for ``--backend postgres``
+you can specify ``--postgres-version 13`` to start Postgres 13). The ``--help`` command in breeze commands
+will show you which backends are supported and which versions are available for each backend.
+
+The choice you made for backend and version are ``sticky`` - the last used selection is cached in the
+``.build`` folder and next time you run any of the ``breeze`` commands that use backend the will use the
+last selected backend and version.
+
+.. note::
+
+  You can also (temporarily for the time of running a single command) override the backend version
+  used via ``BACKEND_VERSION`` environment variable. This is used mostly in CI where we have common way of
+  running tests for all backends and we want to specify different parameters. In order to override the
+  backend version, it has to be a valid version for the backend you are using. For example if you set
+  ``BACKEND_VERSION`` to ``13`` and you are using ``--backend postgres``, Postgres 13 will be used, but
+  if you set ``BACKEND_VERSION`` to ``8.0`` and you are using ``--backend postgres``, the last used Postgres
+  version will be used.
+
+Breeze will inform you at startup which backend and version it is using:
+
+.. raw:: html
+
+    <div align="center">
+        <img src="images/version_information.png" width="640" alt="Version information printed by Breeze">
+    </div>
+
 
 Port Forwarding
 ---------------
@@ -198,7 +232,7 @@ For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core
+     breeze static-checks --type mypy-airflow
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
@@ -215,7 +249,7 @@ re-run latest pre-commits on your changes, but it can take a long time (few minu
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --all-files
+     breeze static-checks --type mypy-airflow --all-files
 
 The above will run mypy check for all files.
 
@@ -224,7 +258,7 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     breeze static-checks --type mypy-airflow --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
@@ -236,19 +270,19 @@ of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --last-commit
+     breeze static-checks --type mypy-airflow --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --only-my-changes
+     breeze static-checks --type mypy-airflow --only-my-changes
 
 The above will run mypy check for all commits in your branch which were added since you branched off from main.
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks --type mypy-airflow --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)

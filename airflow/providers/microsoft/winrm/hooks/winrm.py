@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for winrm remote execution."""
+
 from __future__ import annotations
 
 from winrm.protocol import Protocol

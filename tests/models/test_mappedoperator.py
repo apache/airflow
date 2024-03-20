@@ -1658,8 +1658,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:
@@ -1686,8 +1685,7 @@ class TestMappedSetupTeardown:
                 return n * 2
 
             @task
-            def last(n):
-                ...
+            def last(n): ...
 
             @task_group
             def group(n: int) -> None:

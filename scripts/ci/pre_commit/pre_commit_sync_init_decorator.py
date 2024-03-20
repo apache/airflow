@@ -24,6 +24,7 @@ import collections.abc
 import itertools
 import pathlib
 import sys
+from typing import TYPE_CHECKING
 
 PACKAGE_ROOT = pathlib.Path(__file__).resolve().parents[3].joinpath("airflow")
 DAG_PY = PACKAGE_ROOT.joinpath("models", "dag.py")
@@ -93,7 +94,9 @@ def _match_arguments(
         if dec is None and ini is not None:
             yield f"Argument present in {init_name} but missing from @{deco_name}: {ini.arg}"
             return
-        assert ini is not None and dec is not None  # Because None is only possible as fillvalue.
+
+        if TYPE_CHECKING:
+            assert ini is not None and dec is not None  # Because None is only possible as fillvalue.
 
         if ini.arg != dec.arg:
             yield f"Argument {i + 1} mismatch: {init_name} has {ini.arg} but @{deco_name} has {dec.arg}"

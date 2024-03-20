@@ -53,7 +53,7 @@ res = run_command_via_breeze_shell(
     ],
     warn_image_upgrade_needed=True,
     extra_env={
-        "INCLUDE_MYPY_VOLUME": "true",
+        "INCLUDE_MYPY_VOLUME": os.environ.get("INCLUDE_MYPY_VOLUME", "true"),
         # Need to mount local sources when running it - to not have to rebuild the image
         # and to let CI work on it when running on PRs from forks - because mypy-dev uses files
         # that are not available at the time when image is built in CI

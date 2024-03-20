@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for asynchronous mode of Google Kubernetes Engine.
 """
+
 from __future__ import annotations
 
 import os

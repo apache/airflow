@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage hook."""
+
 from __future__ import annotations
 
 import functools
@@ -279,8 +280,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> bytes:
-        ...
+    ) -> bytes: ...
 
     @overload
     def download(
@@ -292,8 +292,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> str:
-        ...
+    ) -> str: ...
 
     def download(
         self,
@@ -1338,7 +1337,15 @@ class GCSHook(GoogleBaseHook):
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
             destination_blob = destination_names_index[current_name]
-            # If the objects are different, save it
+            # If either object is CMEK-protected, use the Cloud Storage Objects Get API to retrieve them
+            # so that the crc32c is included
+            if source_blob.kms_key_name:
+                source_blob = source_bucket.get_blob(source_blob.name, generation=source_blob.generation)
+            if destination_blob.kms_key_name:
+                destination_blob = destination_bucket.get_blob(
+                    destination_blob.name, generation=destination_blob.generation
+                )
+            # if the objects are different, save it
             if source_blob.crc32c != destination_blob.crc32c:
                 to_rewrite_blobs.add(source_blob)
 

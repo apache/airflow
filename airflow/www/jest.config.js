@@ -32,6 +32,7 @@ const config = {
   transformIgnorePatterns: [
     `node_modules/(?!${[
       // specify modules that needs to be transformed for jest. (esm modules)
+      "ansi_up",
       "axios",
       "bail",
       "ccount",

@@ -89,15 +89,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 None,
@@ -113,15 +113,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 None,
@@ -152,15 +152,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 {"contextMap": {"context_param": {"string": "value"}}},

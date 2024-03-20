@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """json_formatter module stores all related to ElasticSearch specific logger classes."""
+
 from __future__ import annotations
 
 import json

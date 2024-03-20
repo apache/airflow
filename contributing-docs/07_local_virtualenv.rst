@@ -37,7 +37,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.8, 3.9, 3.10, 3.11)
+* Python (One of: 3.8, 3.9, 3.10, 3.11, 3.12)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -186,6 +186,8 @@ This is what it shows currently:
 +-------------+---------+----------+---------------------------------------------------------------+
 | airflow-311 | virtual | devel    | Environment with Python 3.11                                  |
 +-------------+---------+----------+---------------------------------------------------------------+
+| airflow-312 | virtual | devel    | Environment with Python 3.12                                  |
++-------------+---------+----------+---------------------------------------------------------------+
 
 The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.8
 virtualenv for maximum compatibility with ``devel`` extra installed - this devel extra contains the minimum set
@@ -313,7 +315,7 @@ When you install airflow from sources using editable install, you can develop to
 of Airflow and providers, which is pretty convenient, because you can use the same environment for both.
 
 
-Running ``pipinstall -e .`` will install Airflow in editable mode, but all provider code will also be
+Running ``pip install -e .`` will install Airflow in editable mode, but all provider code will also be
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable

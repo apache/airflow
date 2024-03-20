@@ -18,6 +18,7 @@
 """
 DAG designed to test a PythonOperator that calls a functool.partial
 """
+
 from __future__ import annotations
 
 import functools

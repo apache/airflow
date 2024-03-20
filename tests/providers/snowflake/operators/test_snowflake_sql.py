@@ -20,7 +20,19 @@ from __future__ import annotations
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from databricks.sql.types import Row
+from _pytest.outcomes import importorskip
+
+databricks = importorskip("databricks")
+
+try:
+    from databricks.sql.types import Row
+except ImportError:
+    # Row is used in the parametrize so it's parsed during collection and we need to have a viable
+    # replacement for the collection time when databricks is not installed (Python 3.12 for now)
+    def Row(*args, **kwargs):
+        return MagicMock()
+
+
 from openlineage.client.facet import (
     ColumnLineageDatasetFacet,
     ColumnLineageDatasetFacetFieldsAdditional,

@@ -125,7 +125,7 @@ consumer_logger = logging.getLogger("airflow")
 def consumer_function(message, prefix=None):
     key = json.loads(message.key())
     value = json.loads(message.value())
-    consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
+    consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
     return
 
 
@@ -133,7 +133,7 @@ def consumer_function_batch(messages, prefix=None):
     for message in messages:
         key = json.loads(message.key())
         value = json.loads(message.value())
-        consumer_logger.info(f"{prefix} {message.topic()} @ {message.offset()}; {key} : {value}")
+        consumer_logger.info("%s %s @ %s; %s : %s", prefix, message.topic(), message.offset(), key, value)
     return
 
 
@@ -229,12 +229,12 @@ with DAG(
     )
     # [END howto_sensor_await_message]
 
-    t5.doc_md = "A deferable task. Reads the topic `test_1` until a message with a value"
+    t5.doc_md = "A deferrable task. Reads the topic `test_1` until a message with a value"
     "divisible by 5 is encountered."
 
     t6 = PythonOperator(task_id="hello_kafka", python_callable=hello_kafka)
 
-    t6.doc_md = "The task that is executed after the deferable task returns for execution."
+    t6.doc_md = "The task that is executed after the deferrable task returns for execution."
 
     t0 >> t1 >> t2
     t0 >> t3 >> [t4, t4b] >> t5 >> t6

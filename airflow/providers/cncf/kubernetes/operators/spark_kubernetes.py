@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
@@ -124,7 +125,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def manage_template_specs(self):
         if self.application_file:
-            template_body = _load_body_to_dict(open(self.application_file))
+            try:
+                filepath = Path(self.application_file.rstrip()).resolve(strict=True)
+            except (FileNotFoundError, OSError, RuntimeError, ValueError):
+                application_file_body = self.application_file
+            else:
+                application_file_body = filepath.read_text()
+            template_body = _load_body_to_dict(application_file_body)
+            if not isinstance(template_body, dict):
+                msg = f"application_file body can't transformed into the dictionary:\n{application_file_body}"
+                raise TypeError(msg)
         elif self.template_spec:
             template_body = self.template_spec
         else:

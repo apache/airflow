@@ -879,12 +879,12 @@ class TestBackfillJob:
         dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)
-        ] = State.UP_FOR_RETRY
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=1)] = (
+            State.UP_FOR_RETRY
+        )
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, DEFAULT_DATE, try_number=2)] = (
+            State.UP_FOR_RETRY
+        )
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
             job=job,
@@ -907,9 +907,9 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun(state=None)
 
         executor = MockExecutor(parallelism=16)
-        executor.mock_task_results[
-            TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)
-        ] = State.UP_FOR_RETRY
+        executor.mock_task_results[TaskInstanceKey(dag.dag_id, task1.task_id, dr.run_id, try_number=1)] = (
+            State.UP_FOR_RETRY
+        )
         executor.mock_task_fail(dag.dag_id, task1.task_id, dr.run_id, try_number=2)
         job = Job(executor=executor)
         job_runner = BackfillJobRunner(
@@ -1046,10 +1046,10 @@ class TestBackfillJob:
 
         # raises backwards
         expected_msg = "You cannot backfill backwards because one or more tasks depend_on_past: test_dop_task"
+        executor = MockExecutor()
+        job = Job(executor=executor)
+        job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
         with pytest.raises(AirflowException, match=expected_msg):
-            executor = MockExecutor()
-            job = Job(executor=executor)
-            job_runner = BackfillJobRunner(job=job, dag=dag, run_backwards=True, **kwargs)
             run_job(job=job, execute_callable=job_runner._execute)
 
     def test_cli_receives_delay_arg(self):

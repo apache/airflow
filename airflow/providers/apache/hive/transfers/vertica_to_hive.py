@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains an operator to move data from Vertica to Hive."""
+
 from __future__ import annotations
 
 import csv

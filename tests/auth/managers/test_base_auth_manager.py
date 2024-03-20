@@ -31,7 +31,6 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.exceptions import AirflowException
-from airflow.security import permissions
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.security_manager import AirflowSecurityManagerV2
 
@@ -95,6 +94,11 @@ class EmptyAuthManager(BaseAuthManager):
     def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
+    def is_authorized_custom_view(
+        self, *, method: ResourceMethod, resource_name: str, user: BaseUser | None = None
+    ):
+        raise NotImplementedError()
+
     def is_logged_in(self) -> bool:
         raise NotImplementedError()
 
@@ -153,13 +157,6 @@ class TestBaseAuthManager:
 
     def test_get_url_user_profile_return_none(self, auth_manager):
         assert auth_manager.get_url_user_profile() is None
-
-    def test_is_authorized_custom_view_raise_exception(self, auth_manager):
-        with pytest.raises(AirflowException, match="The resource `.*` does not exist in the environment."):
-            auth_manager.is_authorized_custom_view(
-                fab_action_name=permissions.ACTION_CAN_READ,
-                fab_resource_name=permissions.RESOURCE_MY_PASSWORD,
-            )
 
     @pytest.mark.parametrize(
         "return_values, expected",

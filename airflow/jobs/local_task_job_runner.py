@@ -116,6 +116,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
         self.task_runner = get_task_runner(self)
 
+        # Print a marker post execution for internals of post task processing
+        self.log.info("::group::Pre task execution logs")
+
         def signal_handler(signum, frame):
             """Set kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
@@ -215,6 +218,9 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     )
             return return_code
         finally:
+            # Print a marker for log grouping of details before task execution
+            self.log.info("::endgroup::")
+
             self.on_kill()
 
     def handle_task_exit(self, return_code: int) -> None:
@@ -251,6 +257,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
+        if TYPE_CHECKING:
+            assert ti.task
 
         if ti.state == TaskInstanceState.RUNNING:
             fqdn = get_hostname()

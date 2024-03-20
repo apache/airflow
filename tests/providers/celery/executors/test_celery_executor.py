@@ -75,7 +75,7 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor.app", test_app)
+    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor_utils.app", test_app)
     patch_execute = mock.patch(
         "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
     )
@@ -250,7 +250,6 @@ class TestCeleryExecutor:
         tis = [ti]
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
-
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
@@ -258,8 +257,8 @@ class TestCeleryExecutor:
             executor.cleanup_stuck_queued_tasks(tis)
             executor.sync()
         assert executor.tasks == {}
-        assert app.control.revoke.called_with("231")
-        assert mock_fail.called_once()
+        app.control.revoke.assert_called_once_with("231")
+        mock_fail.assert_called_once()
 
     @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
     @mock.patch("celery.Celery")

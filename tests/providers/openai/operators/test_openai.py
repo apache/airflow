@@ -42,9 +42,9 @@ def test_execute_with_input_text():
 
 @pytest.mark.parametrize("invalid_input", ["", None, 123])
 def test_execute_with_invalid_input(invalid_input):
+    operator = OpenAIEmbeddingOperator(
+        task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=invalid_input
+    )
+    context = Context()
     with pytest.raises(ValueError):
-        operator = OpenAIEmbeddingOperator(
-            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=invalid_input
-        )
-        context = Context()
         operator.execute(context)

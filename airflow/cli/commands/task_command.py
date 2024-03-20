@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task sub-commands."""
+
 from __future__ import annotations
 
 import functools
@@ -212,7 +213,8 @@ def _run_task_by_selected_method(
     - as raw task
     - by executor
     """
-    assert not isinstance(ti, TaskInstancePydantic), "Wait for AIP-44 implementation to complete"
+    if TYPE_CHECKING:
+        assert not isinstance(ti, TaskInstancePydantic)  # Wait for AIP-44 implementation to complete
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
@@ -512,8 +514,7 @@ def task_list(args, dag: DAG | None = None) -> None:
 
 
 class _SupportedDebugger(Protocol):
-    def post_mortem(self) -> None:
-        ...
+    def post_mortem(self) -> None: ...
 
 
 SUPPORTED_DEBUGGER_MODULES = [

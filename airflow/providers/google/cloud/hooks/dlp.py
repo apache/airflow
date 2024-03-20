@@ -23,6 +23,7 @@ This module contains a CloudDLPHook which allows you to connect to Google Cloud 
     ImageRedactionConfig
     RedactImageRequest
 """
+
 from __future__ import annotations
 
 import re

@@ -73,9 +73,9 @@ def test_mark_failure_externally(ti):
         session.merge(ti)
         session.commit()
 
-    # This should not happen -- the state change should be noticed and the task should get killed
     sleep(10)
-    assert False
+    msg = "This should not happen -- the state change should be noticed and the task should get killed"
+    raise RuntimeError(msg)
 
 
 PythonOperator(
@@ -95,9 +95,9 @@ def test_mark_skipped_externally(ti):
         session.merge(ti)
         session.commit()
 
-    # This should not happen -- the state change should be noticed and the task should get killed
     sleep(10)
-    assert False
+    msg = "This should not happen -- the state change should be noticed and the task should get killed"
+    raise RuntimeError(msg)
 
 
 PythonOperator(task_id="test_mark_skipped_externally", python_callable=test_mark_skipped_externally, dag=dag)

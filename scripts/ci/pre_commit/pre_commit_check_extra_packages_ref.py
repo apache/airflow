@@ -19,6 +19,7 @@
 """
 Checks if all the libraries in setup.py are listed in installation.rst file
 """
+
 from __future__ import annotations
 
 import re

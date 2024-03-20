@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS Lambda hook."""
+
 from __future__ import annotations
 
 import base64

@@ -636,34 +636,32 @@ def test_duplicate_group_id():
 
     execution_date = pendulum.parse("20200101")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("task1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"), TaskGroup("task1"):
+            pass
+
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"), TaskGroup("group1"):
                 pass
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1", prefix_group_id=False):
-                with TaskGroup("group1"):
-                    pass
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            with TaskGroup("group1", prefix_group_id=False):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
                 _ = EmptyOperator(task_id="group1")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
                 _ = EmptyOperator(task_id="downstream_join_id")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
                 _ = EmptyOperator(task_id="upstream_join_id")
 
 
@@ -1144,8 +1142,7 @@ def test_decorator_unknown_args():
     with pytest.raises(TypeError):
 
         @task_group_decorator(b=2)
-        def tg():
-            ...
+        def tg(): ...
 
 
 def test_decorator_multiple_use_task():
@@ -1539,12 +1536,10 @@ def test_task_group_arrow_with_setup_group():
         with TaskGroup("group_1") as g1:
 
             @setup
-            def setup_1():
-                ...
+            def setup_1(): ...
 
             @setup
-            def setup_2():
-                ...
+            def setup_2(): ...
 
             s1 = setup_1()
             s2 = setup_2()
@@ -1552,19 +1547,16 @@ def test_task_group_arrow_with_setup_group():
         with TaskGroup("group_2") as g2:
 
             @teardown
-            def teardown_1():
-                ...
+            def teardown_1(): ...
 
             @teardown
-            def teardown_2():
-                ...
+            def teardown_2(): ...
 
             t1 = teardown_1()
             t2 = teardown_2()
 
         @task_decorator
-        def work():
-            ...
+        def work(): ...
 
         w1 = work()
         g1 >> w1 >> g2
@@ -1602,16 +1594,13 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
         with TaskGroup("group_1") as g1:
 
             @setup
-            def setup_1():
-                ...
+            def setup_1(): ...
 
             @setup
-            def setup_2():
-                ...
+            def setup_2(): ...
 
             @teardown
-            def teardown_0():
-                ...
+            def teardown_0(): ...
 
             s1 = setup_1()
             s2 = setup_2()
@@ -1621,19 +1610,16 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
         with TaskGroup("group_2") as g2:
 
             @teardown
-            def teardown_1():
-                ...
+            def teardown_1(): ...
 
             @teardown
-            def teardown_2():
-                ...
+            def teardown_2(): ...
 
             t1 = teardown_1()
             t2 = teardown_2()
 
         @task_decorator
-        def work():
-            ...
+        def work(): ...
 
         w1 = work()
         g1 >> w1 >> g2

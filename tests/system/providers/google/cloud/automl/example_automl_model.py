@@ -19,6 +19,7 @@
 """
 Example Airflow DAG for Google AutoML service testing model operations.
 """
+
 from __future__ import annotations
 
 import os

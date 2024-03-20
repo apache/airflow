@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default authentication backend - everything is allowed"""
+
 from __future__ import annotations
 
 import logging

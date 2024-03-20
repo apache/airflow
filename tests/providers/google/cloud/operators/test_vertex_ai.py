@@ -23,7 +23,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
@@ -84,8 +84,10 @@ from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     ListPipelineJobOperator,
     RunPipelineJobOperator,
 )
+from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
+VERTEX_AI_LINKS_PATH = "airflow.providers.google.cloud.links.vertex_ai.{}"
 TIMEOUT = 120
 RETRY = mock.MagicMock(Retry)
 METADATA = [("key", "value")]
@@ -475,6 +477,35 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
+
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            DeleteCustomTrainingJobOperator,
+            # Templated fields
+            training_pipeline_id="{{ 'training-pipeline-id' }}",
+            custom_job_id="{{ 'custom_job_id' }}",
+            region="{{ 'region' }}",
+            project_id="{{ 'project_id' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: DeleteCustomTrainingJobOperator = ti.task
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.custom_job_id == "custom_job_id"
+        assert task.region == "region"
+        assert task.project_id == "project_id"
+        assert task.impersonation_chain == "impersonation-chain"
+
+        # Deprecated aliases
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.training_pipeline == "training-pipeline-id"
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.custom_job == "custom_job_id"
 
 
 class TestVertexAIListCustomTrainingJobOperator:
@@ -997,6 +1028,30 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             metadata=METADATA,
         )
 
+    @pytest.mark.db_test
+    def test_templating(self, create_task_instance_of_operator):
+        ti = create_task_instance_of_operator(
+            DeleteAutoMLTrainingJobOperator,
+            # Templated fields
+            training_pipeline_id="{{ 'training-pipeline-id' }}",
+            region="{{ 'region' }}",
+            project_id="{{ 'project-id' }}",
+            impersonation_chain="{{ 'impersonation-chain' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        ti.render_templates()
+        task: DeleteAutoMLTrainingJobOperator = ti.task
+        assert task.training_pipeline_id == "training-pipeline-id"
+        assert task.region == "region"
+        assert task.project_id == "project-id"
+        assert task.impersonation_chain == "impersonation-chain"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            assert task.training_pipeline == "training-pipeline-id"
+
 
 class TestVertexAIListAutoMLTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
@@ -1036,9 +1091,12 @@ class TestVertexAIListAutoMLTrainingJobOperator:
 
 
 class TestVertexAICreateBatchPredictionJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJob.to_dict"))
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIBatchPredictionJobLink.persist"))
     @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
-    def test_execute(self, mock_hook, to_dict_mock):
+    def test_execute(self, mock_hook, mock_link_persist):
+        mock_job = mock_hook.return_value.submit_batch_prediction_job.return_value
+        mock_job.name = TEST_BATCH_PREDICTION_JOB_ID
+
         op = CreateBatchPredictionJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -1052,9 +1110,11 @@ class TestVertexAICreateBatchPredictionJobOperator:
             create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
             batch_size=TEST_BATCH_SIZE,
         )
-        op.execute(context={"ti": mock.MagicMock()})
+        context = {"ti": mock.MagicMock()}
+        op.execute(context=context)
+
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_hook.return_value.create_batch_prediction_job.assert_called_once_with(
+        mock_hook.return_value.submit_batch_prediction_job.assert_called_once_with(
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             job_display_name=TEST_JOB_DISPLAY_NAME,
@@ -1076,10 +1136,121 @@ class TestVertexAICreateBatchPredictionJobOperator:
             explanation_parameters=None,
             labels=None,
             encryption_spec_key_name=None,
-            sync=True,
             create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
             batch_size=TEST_BATCH_SIZE,
         )
+        mock_job.wait_for_completion.assert_called_once()
+        mock_job.to_dict.assert_called_once()
+        mock_link_persist.assert_called_once_with(
+            context=context, task_instance=op, batch_prediction_job_id=TEST_BATCH_PREDICTION_JOB_ID
+        )
+
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIBatchPredictionJobLink.persist"))
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute_deferrable(self, mock_hook, mock_link_persist):
+        mock_job = mock_hook.return_value.submit_batch_prediction_job.return_value
+        mock_job.name = TEST_BATCH_PREDICTION_JOB_ID
+        op = CreateBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            instances_format="jsonl",
+            predictions_format="jsonl",
+            create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
+            batch_size=TEST_BATCH_SIZE,
+            deferrable=True,
+        )
+        context = {"ti": mock.MagicMock()}
+        with pytest.raises(TaskDeferred) as exception_info:
+            op.execute(context=context)
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.submit_batch_prediction_job.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            instances_format="jsonl",
+            predictions_format="jsonl",
+            gcs_source=None,
+            bigquery_source=None,
+            gcs_destination_prefix=None,
+            bigquery_destination_prefix=None,
+            model_parameters=None,
+            machine_type=None,
+            accelerator_type=None,
+            accelerator_count=None,
+            starting_replica_count=None,
+            max_replica_count=None,
+            generate_explanation=False,
+            explanation_metadata=None,
+            explanation_parameters=None,
+            labels=None,
+            encryption_spec_key_name=None,
+            create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
+            batch_size=TEST_BATCH_SIZE,
+        )
+        mock_job.wait_for_completion.assert_not_called()
+        mock_job.to_dict.assert_not_called()
+        mock_link_persist.assert_called_once_with(
+            batch_prediction_job_id=TEST_BATCH_PREDICTION_JOB_ID,
+            context=context,
+            task_instance=op,
+        )
+        assert hasattr(exception_info.value, "trigger")
+        assert exception_info.value.trigger.conn_id == GCP_CONN_ID
+        assert exception_info.value.trigger.project_id == GCP_PROJECT
+        assert exception_info.value.trigger.location == GCP_LOCATION
+        assert exception_info.value.trigger.job_id == TEST_BATCH_PREDICTION_JOB_ID
+        assert exception_info.value.trigger.poll_interval == 10
+        assert exception_info.value.trigger.impersonation_chain == IMPERSONATION_CHAIN
+
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.CreateBatchPredictionJobOperator.xcom_push"))
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute_complete(self, mock_hook, mock_xcom_push):
+        context = mock.MagicMock()
+        mock_job = {"name": TEST_JOB_DISPLAY_NAME}
+        event = {
+            "status": "success",
+            "job": mock_job,
+        }
+        mock_hook.return_value.extract_batch_prediction_job_id.return_value = TEST_BATCH_PREDICTION_JOB_ID
+
+        op = CreateBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            instances_format="jsonl",
+            predictions_format="jsonl",
+            create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
+            batch_size=TEST_BATCH_SIZE,
+        )
+        execute_complete_result = op.execute_complete(context=context, event=event)
+
+        mock_hook.return_value.extract_batch_prediction_job_id.assert_called_once_with(mock_job)
+        mock_xcom_push.assert_has_calls(
+            [
+                call(context, key="batch_prediction_job_id", value=TEST_BATCH_PREDICTION_JOB_ID),
+                call(
+                    context,
+                    key="training_conf",
+                    value={
+                        "training_conf_id": TEST_BATCH_PREDICTION_JOB_ID,
+                        "region": GCP_LOCATION,
+                        "project_id": GCP_PROJECT,
+                    },
+                ),
+            ]
+        )
+        assert execute_complete_result == mock_job
 
 
 class TestVertexAIDeleteBatchPredictionJobOperator:
@@ -1302,7 +1473,7 @@ class TestVertexAIUndeployModelOperator:
 
 
 class TestVertexAICreateHyperparameterTuningJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.types.HyperparameterTuningJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = CreateHyperparameterTuningJobOperator(
@@ -1347,7 +1518,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
             enable_web_access=False,
             tensorboard=None,
             sync=False,
-            wait_job_completed=True,
+            wait_job_completed=False,
         )
 
     @mock.patch(
@@ -1394,11 +1565,8 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context={"ti": mock.MagicMock()})
 
-    @mock.patch(
-        VERTEX_AI_PATH.format("hyperparameter_tuning_job.CreateHyperparameterTuningJobOperator.xcom_push")
-    )
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
-    def test_execute_complete(self, mock_hook, mock_xcom_push):
+    def test_execute_complete(self, mock_hook):
         test_job_id = "test_job_id"
         test_job = {"name": f"test/{test_job_id}"}
         event = {
@@ -1427,20 +1595,6 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
 
         result = op.execute_complete(context=mock_context, event=event)
 
-        mock_xcom_push.assert_has_calls(
-            [
-                call(mock_context, key="hyperparameter_tuning_job_id", value=test_job_id),
-                call(
-                    mock_context,
-                    key="training_conf",
-                    value={
-                        "training_conf_id": test_job_id,
-                        "region": GCP_LOCATION,
-                        "project_id": GCP_PROJECT,
-                    },
-                ),
-            ]
-        )
         assert result == test_job
 
     def test_execute_complete_error(self):
@@ -1470,7 +1624,7 @@ class TestVertexAICreateHyperparameterTuningJobOperator:
 
 
 class TestVertexAIGetHyperparameterTuningJobOperator:
-    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.types.HyperparameterTuningJob.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("hyperparameter_tuning_job.HyperparameterTuningJobHook"))
     def test_execute(self, mock_hook, to_dict_mock):
         op = GetHyperparameterTuningJobOperator(

@@ -95,6 +95,7 @@ PRE_COMMIT_LIST = [
     "generate-pypi-readme",
     "identity",
     "insert-license",
+    "kubeconform",
     "lint-chart-schema",
     "lint-css",
     "lint-dockerfile",

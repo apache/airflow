@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields."""
+
 from __future__ import annotations
 
 import os
@@ -108,6 +109,10 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self.ti = ti
         if render_templates:
             ti.render_templates()
+
+        if TYPE_CHECKING:
+            assert ti.task
+
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version

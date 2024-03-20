@@ -314,8 +314,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
         try:
             # We only care about the return annotation, not anything about the parameters
-            def fake():
-                ...
+            def fake(): ...
 
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
@@ -459,7 +458,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            map_index_template=partial_kwargs.pop("map_index_template", None),
             params=partial_params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
@@ -560,20 +558,15 @@ class Task(Protocol, Generic[FParams, FReturn]):
     function: Callable[FParams, FReturn]
 
     @property
-    def __wrapped__(self) -> Callable[FParams, FReturn]:
-        ...
+    def __wrapped__(self) -> Callable[FParams, FReturn]: ...
 
-    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
-    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
-        ...
+    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
-        ...
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 class TaskDecorator(Protocol):
@@ -595,8 +588,7 @@ class TaskDecorator(Protocol):
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 def task_decorator_factory(

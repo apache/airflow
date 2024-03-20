@@ -140,7 +140,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
             return
 
-        self.log.exception(f"Job with name [{self.job_name}] timed out")
+        self.log.exception("Job with name [%s] timed out", self.job_name)
         yield TriggerEvent(
             {
                 "job_name": self.job_name,

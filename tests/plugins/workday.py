@@ -20,6 +20,7 @@
 This simply forwards the timetable from ``airflow.example_dags``, so we can make
 it discoverable to unit tests without exposing the entire subpackage.
 """
+
 from __future__ import annotations
 
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable, WorkdayTimetablePlugin

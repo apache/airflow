@@ -17,6 +17,7 @@
 """
 Example Airflow DAG that shows how to use SalesforceToGcsOperator.
 """
+
 from __future__ import annotations
 
 import os

@@ -17,6 +17,7 @@
 """
 Utilities to check - with MD5 - whether files have been modified since the last successful build.
 """
+
 from __future__ import annotations
 
 import hashlib

@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.models import Role
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)
+@requires_access_custom_view("GET", permissions.RESOURCE_USER)
 def get_user(*, username: str) -> APIResponse:
     """Get a user."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
@@ -54,7 +54,7 @@ def get_user(*, username: str) -> APIResponse:
     return user_collection_item_schema.dump(user)
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)
+@requires_access_custom_view("GET", permissions.RESOURCE_USER)
 @format_parameters({"limit": check_limit})
 def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users."""
@@ -86,7 +86,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)
+@requires_access_custom_view("POST", permissions.RESOURCE_USER)
 def post_user() -> APIResponse:
     """Create a new user."""
     try:
@@ -129,7 +129,7 @@ def post_user() -> APIResponse:
     return user_schema.dump(user)
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)
+@requires_access_custom_view("PUT", permissions.RESOURCE_USER)
 def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a user."""
     try:
@@ -198,7 +198,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
     return user_schema.dump(user)
 
 
-@requires_access_custom_view(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)
+@requires_access_custom_view("DELETE", permissions.RESOURCE_USER)
 def delete_user(*, username: str) -> APIResponse:
     """Delete a user."""
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)

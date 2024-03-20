@@ -41,6 +41,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
@@ -611,6 +612,30 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
             "source_map_index": -1,
             "timestamp": self.default_time,
         }
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.create_dataset_event",
+            execution_date=None,
+            expected_extra=event_payload,
+        )
+
+    def test_should_mask_sensitive_extra_logs(self, session):
+        self._create_dataset(session)
+        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
+        response = self.client.post(
+            "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 200
+        expected_extra = {**event_payload, "extra": {"password": "***"}}
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.create_dataset_event",
+            execution_date=None,
+            expected_extra=expected_extra,
+        )
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)
@@ -817,6 +842,9 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(
+            session, dag_id=dag_id, event="api.delete_dag_dataset_queued_event", execution_date=None
+        )
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -1021,6 +1049,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(DatasetDagRunQueue).all()
         assert len(conn) == 0
+        _check_last_log(session, dag_id=None, event="api.delete_dataset_queued_events", execution_date=None)
 
     def test_should_respond_404(self):
         dataset_uri = "not_exists"

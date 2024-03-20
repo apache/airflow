@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
+
 from __future__ import annotations
 
 import json

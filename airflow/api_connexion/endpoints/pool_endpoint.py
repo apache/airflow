@@ -31,6 +31,7 @@ from airflow.api_connexion.parameters import apply_sorting, check_limit, format_
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 
 @security.requires_access_pool("DELETE")
+@action_logging
 @provide_session
 def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a pool."""
@@ -82,6 +84,7 @@ def get_pools(
 
 
 @security.requires_access_pool("PUT")
+@action_logging
 @provide_session
 def patch_pool(
     *,
@@ -135,6 +138,7 @@ def patch_pool(
 
 
 @security.requires_access_pool("POST")
+@action_logging
 @provide_session
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool."""

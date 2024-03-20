@@ -171,8 +171,8 @@ class TestParam:
         p = Param(1.2, type="number")
         assert p.resolve() == 1.2
 
+        p = Param("42", type="number")
         with pytest.raises(ParamValidationError):
-            p = Param("42", type="number")
             p.resolve()
 
     def test_list_param(self):
@@ -212,8 +212,8 @@ class TestParam:
         p = S3Param("s3://my_bucket/my_path")
         assert p.resolve() == "s3://my_bucket/my_path"
 
+        p = S3Param("file://not_valid/s3_path")
         with pytest.raises(ParamValidationError):
-            p = S3Param("file://not_valid/s3_path")
             p.resolve()
 
     def test_value_saved(self):

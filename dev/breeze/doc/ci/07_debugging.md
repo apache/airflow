@@ -54,10 +54,11 @@ maintainer.
   rather than using `Build images` workflow and use the same breeze
   version for building image and testing
 - When you want to test changes to workflows and CI scripts you can set
-  `default versions only` label to the PR. This will make the PR run
-  using the default versions of Python and Kubernetes. This is useful
-  when you want to test changes to the CI scripts and workflows and you
-  want to use far less resources than the full tests.
+  `default versions only` label to the PR or `latest versions only`.
+  This will make the PR run using the default (or latest) versions of
+  Python and Kubernetes. This is useful when you want to test changes to
+  the CI scripts and workflows and you want to use far less resources
+  than the full tests.
 - When you want to test changes to `build-images.yml` workflow you
   should push your branch as `main` branch in your local fork. This will
   run changed `build-images.yml` workflow as it will be in `main` branch
@@ -67,9 +68,11 @@ maintainer.
   in `build-images.yml` workflow, but the workflow is run using the `main`
   version. Setting `non committer build` label will make your PR run using
   the main version of the scripts and the workflow
-- When you want to test how changes in your workflow affect `canary` run,
-  as maintainer, you should push your PR to `apache` repository not to your
-  fork and set `canary` label to the PR
+- When you are a committer want to test how changes in your workflow affect
+  `canary` run, as maintainer, you should push your PR to `apache` repository
+  not to your fork and set `canary` label to the PR
+- When you are a committer and want to test if the tests are passing if the
+  image is freshly built without cache, you can set `disable image cache` label.
 
 -----
 

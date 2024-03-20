@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Compute Engine operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy

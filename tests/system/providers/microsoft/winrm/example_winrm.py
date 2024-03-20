@@ -18,6 +18,7 @@
 """
 This is an example dag for using the WinRMOperator.
 """
+
 from __future__ import annotations
 
 # --------------------------------------------------------------------------------
@@ -32,13 +33,7 @@ from airflow import DAG
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
-
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
-
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 

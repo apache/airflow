@@ -458,8 +458,8 @@ def delete_docker_image(image_name):
     if docker_build.returncode != 0:
         logger.error(
             "Failed to delete local docker image. "
-            "Run 'docker images' to see if you need to clean it yourself.\n"
-            f"error message: {stderr}"
+            "Run 'docker images' to see if you need to clean it yourself.\nerror message: %s",
+            stderr,
         )
 
 

@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 LOGGER = logging.getLogger(__name__)
 
-OriginalCodeBlock: Directive = directives._directives["code-block"]
+OriginalCodeBlock: Directive = directives._directives["code-block"]  # type: ignore[attr-defined]
 
 _SUBSTITUTION_OPTION_NAME = "substitutions"
 
@@ -41,7 +41,7 @@ _SUBSTITUTION_OPTION_NAME = "substitutions"
 class SubstitutionCodeBlock(OriginalCodeBlock):  # type: ignore
     """Similar to CodeBlock but replaces placeholders with variables."""
 
-    option_spec = OriginalCodeBlock.option_spec.copy()
+    option_spec = OriginalCodeBlock.option_spec.copy()  # type: ignore[union-attr]
     option_spec[_SUBSTITUTION_OPTION_NAME] = directives.flag
 
     def run(self) -> list:

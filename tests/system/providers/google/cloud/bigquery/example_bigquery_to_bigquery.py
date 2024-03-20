@@ -18,6 +18,7 @@
 """
 Airflow System Test DAG that verifies BigQueryToBigQueryOperator.
 """
+
 from __future__ import annotations
 
 import os

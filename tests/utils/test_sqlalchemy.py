@@ -155,8 +155,8 @@ class TestSqlAlchemyUtils:
             guard.commit()
 
             # Check the expected_commit is reset
-            with pytest.raises(RuntimeError):
-                self.session.execute(text("SELECT 1"))
+            self.session.execute(text("SELECT 1"))
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):

@@ -2181,6 +2181,42 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         resp = await hook.get_job_output(job_id=JOB_ID, project_id=PROJECT_ID)
         assert resp == response
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    async def test_create_job_for_partition_get_with_table(self, mock_job_instance, mock_client_session):
+        hook = BigQueryAsyncHook()
+        mock_job_client = AsyncMock(Job)
+        mock_job_instance.return_value = mock_job_client
+        mock_session = AsyncMock()
+        mock_client_session.return_value.__aenter__.return_value = mock_session
+        expected_query_request = {
+            "query": "SELECT partition_id "
+            f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`"
+            f" WHERE table_id={TABLE_ID}",
+            "useLegacySql": False,
+        }
+        await hook.create_job_for_partition_get(
+            dataset_id=DATASET_ID, table_id=TABLE_ID, project_id=PROJECT_ID
+        )
+        mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    async def test_create_job_for_partition_get(self, mock_job_instance, mock_client_session):
+        hook = BigQueryAsyncHook()
+        mock_job_client = AsyncMock(Job)
+        mock_job_instance.return_value = mock_job_client
+        mock_session = AsyncMock()
+        mock_client_session.return_value.__aenter__.return_value = mock_session
+        expected_query_request = {
+            "query": f"SELECT partition_id FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`",
+            "useLegacySql": False,
+        }
+        await hook.create_job_for_partition_get(dataset_id=DATASET_ID, project_id=PROJECT_ID)
+        mock_job_client.query.assert_called_once_with(expected_query_request, mock_session)
+
     def test_interval_check_for_airflow_exception(self):
         """
         Assert that check return AirflowException

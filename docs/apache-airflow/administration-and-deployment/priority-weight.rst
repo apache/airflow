@@ -62,3 +62,37 @@ Below are the weighting methods. By default, Airflow's weighting method is ``dow
 
 
 The ``priority_weight`` parameter can be used in conjunction with :ref:`concepts:pool`.
+
+Custom Weight Rule
+------------------
+
+.. versionadded:: 2.9.0
+
+You can implement your own custom weighting method by extending the ``PriorityWeightStrategy`` class and
+registering it in a plugin.
+
+.. exampleinclude:: /../../airflow/example_dags/plugins/decreasing_priority_weight_strategy.py
+    :language: python
+    :dedent: 0
+    :start-after: [START custom_priority_weight_strategy]
+    :end-before: [END custom_priority_weight_strategy]
+
+
+Then to use it, you can create an instance of the custom class and provide it in the ``weight_rule`` parameter
+of the task or provide the path of the custom class:
+
+.. code-block:: python
+
+    from custom_weight_rule_module import CustomPriorityWeightStrategy
+
+    # provide the class instance
+    task1 = BashOperator(task_id="task", bash_command="echo 1", weight_rule=CustomPriorityWeightStrategy())
+
+    # or provide the path of the class
+    task1 = BashOperator(
+        task_id="task",
+        bash_command="echo 1",
+        weight_rule="custom_weight_rule_module.CustomPriorityWeightStrategy",
+    )
+
+|experimental|

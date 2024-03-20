@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Add OpenLineage metrics for event_size and extraction time (#37797)``
+* ``feat: Add OpenLineage support for File and User Airflow's lineage entities (#37744)``
+* ``[OpenLineage] Add support for JobTypeJobFacet properties. (#37255)``
+* ``chore: Update comments and logging in OpenLineage ExtractorManager (#37622)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Check if operator is disabled in DefaultExtractor.extract_on_complete (#37392)``
+
+Misc
+~~~~
+
+* ``docs: Update whole OpenLineage Provider docs. (#37620)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OpenLineage test cases for File to Dataset conversion (#37791)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Follow D401 style in openlineage, slack, and tableau providers (#37312)``
+
 1.5.0
 .....
 

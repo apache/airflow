@@ -18,6 +18,7 @@
 """
 Example Airflow DAG that uses Google PubSub services.
 """
+
 from __future__ import annotations
 
 import os

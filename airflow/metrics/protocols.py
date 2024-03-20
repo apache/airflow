@@ -29,11 +29,9 @@ DeltaType = Union[int, float, datetime.timedelta]
 class TimerProtocol(Protocol):
     """Type protocol for StatsLogger.timer."""
 
-    def __enter__(self) -> Timer:
-        ...
+    def __enter__(self) -> Timer: ...
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        ...
+    def __exit__(self, exc_type, exc_value, traceback) -> None: ...
 
     def start(self) -> Timer:
         """Start the timer."""

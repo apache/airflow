@@ -21,6 +21,7 @@ An Action Logger module.
 Singleton pattern has been applied into this module so that registered
 callbacks can be used all through the same python process.
 """
+
 from __future__ import annotations
 
 import json

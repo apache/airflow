@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import asyncio
 import time
+from functools import cached_property
 
-import boto3
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 DEFAULT_LOG_SUFFIX = "output"
 ERROR_LOG_SUFFIX = "error"
@@ -213,6 +214,13 @@ class GlueJobHook(AwsBaseHook):
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
+    @cached_property
+    def logs_hook(self):
+        """Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook."""
+        return AwsLogsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config
+        )
+
     def print_job_logs(
         self,
         job_name: str,
@@ -225,7 +233,7 @@ class GlueJobHook(AwsBaseHook):
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
         """
-        log_client = boto3.client("logs")
+        log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
@@ -245,8 +253,9 @@ class GlueJobHook(AwsBaseHook):
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     # we land here when the log groups/streams don't exist yet
                     self.log.warning(
-                        "No new Glue driver logs so far.\nIf this persists, check the CloudWatch dashboard "
-                        f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
+                        "No new Glue driver logs so far.\n"
+                        "If this persists, check the CloudWatch dashboard at: %r.",
+                        f"https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home",
                     )
                 else:
                     raise
@@ -263,7 +272,6 @@ class GlueJobHook(AwsBaseHook):
         log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
         log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
         log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
-
         # one would think that the error log group would contain only errors, but it actually contains
         # a lot of interesting logs too, so it's valuable to have both
         continuation_tokens.output_stream_continuation = display_logs_from(
