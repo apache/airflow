@@ -2110,7 +2110,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     @internal_api_call
-    def _get_dagrun(dag_id, run_id, session) -> DagRun | DagRunPydantic:
+    def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
         dr = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
