@@ -162,7 +162,7 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
     if args.verbose:
         log.debug("Response from update_policy_store: %s", response)
 
-    schema_path = Path(__file__).parents[0].joinpath("schema.json").resolve()
+    schema_path = Path(__file__).parents[1] / "avp" / "schema.json"
     with open(schema_path) as schema_file:
         response = client.put_schema(
             policyStoreId=policy_store_id,
