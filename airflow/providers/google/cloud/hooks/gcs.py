@@ -1010,6 +1010,27 @@ class GCSHook(GoogleBaseHook):
         self.log.info("The md5Hash of %s is %s", object_name, blob_md5hash)
         return blob_md5hash
 
+    def get_metadata(self, bucket_name: str, object_name: str) -> dict | None:
+        """
+        Get the metadata of an object in Google Cloud Storage.
+
+        :param bucket_name: Name of the Google Cloud Storage bucket where the object is.
+        :param object_name: The name of the object that posseses the desired metadata
+        :return: The metadata associated with the object
+        """
+        self.log.info(f"Retrieving the metadata dict of object ({object_name}) in bucket ({bucket_name})")
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.get_blob(blob_name=object_name)
+        if blob is None:
+            raise ValueError(f"Object ({object_name}) not found in bucket ({bucket_name})")
+        blob_metadata = blob.metadata
+        if blob_metadata:
+            self.log.info(f"Retrieved metadata of {object_name} with {len(blob_metadata)} fields")
+        else:
+            self.log.info(f"Metadata of {object_name} is empty or it does not exist")
+        return blob_metadata
+
     @GoogleBaseHook.fallback_to_default_project_id
     def create_bucket(
         self,
