@@ -53,6 +53,7 @@ import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
 import useEventLogs from "./useEventLogs";
 import useCalendarData from "./useCalendarData";
 import useTaskFails from "./useTaskFails";
+import useCreateDatasetEvent from "./useCreateDatasetEvent";
 
 axios.interceptors.request.use((config) => {
   config.paramsSerializer = {
@@ -102,4 +103,5 @@ export {
   useEventLogs,
   useCalendarData,
   useTaskFails,
+  useCreateDatasetEvent,
 };

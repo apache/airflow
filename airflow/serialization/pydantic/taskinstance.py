@@ -120,6 +120,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     def _logger_name(self):
         return "airflow.task"
 
+    def clear_xcom_data(self, session: Session | None = None):
+        TaskInstance._clear_xcom_data(ti=self, session=session)
+
     def init_run_context(self, raw: bool = False) -> None:
         """Set the log context."""
         self.raw = raw
@@ -173,11 +176,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param session: SQLAlchemy ORM Session
 
-        TODO: make it works for AIP-44
-
-        :return: Pydantic serialized version of DaGrun
+        :return: Pydantic serialized version of DagRun
         """
-        raise NotImplementedError()
+        return TaskInstance._get_dagrun(dag_id=self.dag_id, run_id=self.run_id, session=session)
 
     def _execute_task(self, context, task_orig):
         """
