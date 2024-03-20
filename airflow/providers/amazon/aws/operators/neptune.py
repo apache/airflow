@@ -337,7 +337,7 @@ class NeptuneStopDbClusterOperator(AwsBaseOperator[NeptuneHook]):
                     self.hook.wait_for_cluster_instance_availability(cluster_id=self.cluster_id)
             else:
                 # re raise for any other type of client error
-                raise ex
+                raise
 
         if self.deferrable:
             self.log.info("Deferring for cluster stop: %s", self.cluster_id)
