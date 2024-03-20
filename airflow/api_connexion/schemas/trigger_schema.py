@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from marshmallow import fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.models import Trigger
@@ -32,6 +33,10 @@ class TriggerSchema(SQLAlchemySchema):
 
     id = auto_field(dump_only=True)
     classpath = auto_field(dump_only=True)
-    kwargs = auto_field(dump_only=True)
+    kwargs = fields.Method("get_kwars", dump_only=True)
     created_date = auto_field(dump_only=True)
     triggerer_id = auto_field(dump_only=True)
+
+    @staticmethod
+    def get_kwars(trigger: Trigger) -> str:
+        return str(trigger.kwargs)
