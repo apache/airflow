@@ -379,7 +379,7 @@ class AirflowAppBuilder:
     def _check_and_init(self, baseview):
         if hasattr(baseview, "datamodel"):
             baseview.datamodel.session = self.session
-        if hasattr(baseview, "__call__"):
+        if callable(baseview):
             baseview = baseview()
         return baseview
 
