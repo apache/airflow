@@ -59,7 +59,6 @@ if TYPE_CHECKING:
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
-# TODO: Is None the right thing here? We want NULL essentially
 DEFAULT_EXECUTOR: str | None = None
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(

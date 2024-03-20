@@ -38,8 +38,6 @@ airflow_version = '2.9.0'
 
 def upgrade():
     """Apply add executor field to task instance"""
-    # NOTE: I cannot find a straightforward sdk doc for SA types. I don't know
-    # if I need default=None. No idea how to tell what are the defaults without docs
     op.add_column('task_instance', sa.Column('executor', sa.String(length=1000), default=None))
 
 

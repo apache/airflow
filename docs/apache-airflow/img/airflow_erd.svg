@@ -1822,7 +1822,7 @@
 <text text-anchor="start" x="1198.1" y="-820.4" font-family="Times,serif" font-size="14.00">1</text>
 =======
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1166.1,-818.52C1196.72,-815.1 1228.55,-811.78 1258.36,-808.91"/>
-<text text-anchor="start" x="1248.36" y="-812.71" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1227.36" y="-812.71" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1166.1" y="-822.32" font-family="Times,serif" font-size="14.00">1</text>
 >>>>>>> 3ce982cef8... Add executor field to the DB
 </g>
@@ -1835,7 +1835,7 @@
 <text text-anchor="start" x="1198.1" y="-833.7" font-family="Times,serif" font-size="14.00">1</text>
 =======
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1166.1,-831.83C1196.72,-828.75 1228.55,-825.32 1258.36,-821.86"/>
-<text text-anchor="start" x="1227.36" y="-825.66" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1248.36" y="-825.66" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1166.1" y="-835.63" font-family="Times,serif" font-size="14.00">1</text>
 >>>>>>> 3ce982cef8... Add executor field to the DB
 </g>
