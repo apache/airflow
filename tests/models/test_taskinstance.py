@@ -402,8 +402,8 @@ class TestTaskInstance:
         test that try to create a task with pool_slots less than 1
         """
 
+        dag = DAG(dag_id="test_run_pooling_task")
         with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
-            dag = DAG(dag_id="test_run_pooling_task")
             EmptyOperator(
                 task_id="test_run_pooling_task_op",
                 dag=dag,

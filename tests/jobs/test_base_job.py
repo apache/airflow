@@ -221,17 +221,18 @@ class TestJob:
     @conf_vars(
         {
             ("scheduler", "max_tis_per_query"): "100",
-            ("core", "executor"): "SequentialExecutor",
         }
     )
     @patch("airflow.jobs.job.ExecutorLoader.get_default_executor")
+    @patch("airflow.jobs.job.ExecutorLoader.init_executors")
     @patch("airflow.jobs.job.get_hostname")
     @patch("airflow.jobs.job.getuser")
-    def test_essential_attr(self, mock_getuser, mock_hostname, mock_default_executor):
+    def test_essential_attr(self, mock_getuser, mock_hostname, mock_init_executors, mock_default_executor):
         mock_sequential_executor = SequentialExecutor()
         mock_hostname.return_value = "test_hostname"
         mock_getuser.return_value = "testuser"
         mock_default_executor.return_value = mock_sequential_executor
+        mock_init_executors.return_value = [mock_sequential_executor]
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
@@ -242,6 +243,7 @@ class TestJob:
         assert test_job.unixname == "testuser"
         assert test_job.state == "running"
         assert test_job.executor == mock_sequential_executor
+        assert test_job.executors == [mock_sequential_executor]
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)

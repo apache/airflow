@@ -26,8 +26,10 @@ from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
+from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     add_unique_suffix,
@@ -306,3 +308,72 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return merge_objects(base_spec, client_spec)
 
         return None
+
+
+class KubernetesDeleteJobOperator(BaseOperator):
+    """
+    Delete a Kubernetes Job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:KubernetesDeleteJobOperator`
+
+    :param name: name of the Job.
+    :param namespace: the namespace to run within kubernetes.
+    :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
+        for the Kubernetes cluster.
+    :param config_file: The path to the Kubernetes config file. (templated)
+        If not specified, default value is ``~/.kube/config``
+    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
+    """
+
+    template_fields: Sequence[str] = (
+        "config_file",
+        "namespace",
+        "cluster_context",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        namespace: str,
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
+        config_file: str | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.name = name
+        self.namespace = namespace
+        self.kubernetes_conn_id = kubernetes_conn_id
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    @cached_property
+    def client(self) -> BatchV1Api:
+        return self.hook.batch_v1_client
+
+    def execute(self, context: Context):
+        try:
+            self.log.info("Deleting kubernetes Job: %s", self.name)
+            self.client.delete_namespaced_job(name=self.name, namespace=self.namespace)
+            self.log.info("Kubernetes job was deleted.")
+        except ApiException as e:
+            if e.status == 404:
+                self.log.info("The Kubernetes job %s does not exist.", self.name)
+            else:
+                raise e

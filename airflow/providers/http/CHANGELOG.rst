@@ -212,8 +212,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-4.4.0
-.....
+4.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the

@@ -1247,11 +1247,10 @@ class TestPatchDag(TestDagEndpoint):
     def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
+        payload = {"is_paused": False}
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
-            json={
-                "is_paused": False,
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -1288,7 +1287,9 @@ class TestPatchDag(TestDagEndpoint):
             "pickle_id": None,
         }
         assert response.json == expected_response
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
+        _check_last_log(
+            session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
+        )
 
     def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
         self._create_dag_models(1)

@@ -155,9 +155,9 @@ class TestCli:
                 args=[],
             )
         ]
+        reload(executor_loader)
         with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
-            reload(executor_loader)
             reload(cli_parser)
 
     def test_falsy_default_value(self):
@@ -229,6 +229,7 @@ class TestCli:
 
         with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=False)("0")
+        with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
@@ -285,8 +286,8 @@ class TestCli:
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser = cli_parser.get_parser()
                 parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
             error_msg = stderr.getvalue()
 
@@ -302,8 +303,8 @@ class TestCli:
     ):
         """Test that invalid choice raises for export-format in db export-cleaned command."""
         with contextlib.redirect_stderr(StringIO()) as stderr:
+            parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser = cli_parser.get_parser()
                 parser.parse_args(
                     ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
                 )

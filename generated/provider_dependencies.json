@@ -86,13 +86,11 @@
   "apache.cassandra": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cassandra-driver>=3.13.0"
+      "cassandra-driver>=3.29.1"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.drill": {
@@ -570,6 +568,7 @@
       "pandas-gbq",
       "pandas>=1.2.5,<2.2",
       "proto-plus>=1.19.6",
+      "python-slugify>=5.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2"
     ],

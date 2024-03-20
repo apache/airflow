@@ -26,7 +26,7 @@ from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -519,3 +519,29 @@ class TestKubernetesJobOperator:
             namespace=mock_job_expected.metadata.namespace,
             job_poll_interval=POLL_INTERVAL,
         )
+
+
+@pytest.mark.execution_timeout(300)
+class TestKubernetesDeleteJobOperator:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_mock = self._default_client_patch.start()
+
+        yield
+
+        patch.stopall()
+
+    @patch("kubernetes.config.load_kube_config")
+    @patch("kubernetes.client.api.BatchV1Api.delete_namespaced_job")
+    def test_delete_execute(self, mock_delete_namespaced_job, mock_load_kube_config):
+        op = KubernetesDeleteJobOperator(
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_delete_job",
+            name="test_job_name",
+            namespace="test_job_namespace",
+        )
+
+        op.execute(None)
+
+        mock_delete_namespaced_job.assert_called()

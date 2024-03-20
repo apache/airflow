@@ -24,7 +24,7 @@
 requires = [
     "GitPython==3.1.42",
     "gitdb==4.0.11",
-    "hatchling==1.22.2",
+    "hatchling==1.22.3",
     "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
@@ -104,9 +104,9 @@ dependencies = [
     "gunicorn>=20.1.0",
     "httpx",
     "importlib_metadata>=1.7;python_version<\"3.9\"",
-    # Importib_resources 6.2.0 break pytest_rewrite
+    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
     # see https://github.com/python/importlib_resources/issues/299
-    "importlib_resources>=5.2,<6.2.0;python_version<\"3.9\"",
+    "importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<\"3.9\"",
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -245,7 +245,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.21",
+    "uv>=0.1.22",
 ]
 virtualenv = [
     "virtualenv",
@@ -343,6 +343,7 @@ devel-static-checks = [
     "yamllint>=1.33.0",
 ]
 devel-tests = [
+    "aiofiles>=23.2.0",
     "aioresponses>=0.7.6",
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
@@ -580,7 +581,7 @@ apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0;python_version != \"3.12\"",
+  "cassandra-driver>=3.29.1",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
@@ -770,6 +771,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "pandas-gbq",
   "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
+  "python-slugify>=5.0",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
 ]
@@ -1317,6 +1319,7 @@ extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
@@ -1345,6 +1348,7 @@ extend-select = [
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
 ]
 ignore = [
     "D203",
@@ -1358,9 +1362,7 @@ ignore = [
     "PT005", # Fixture returns a value, remove leading underscore
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
-    "PT008", # Use return_value= instead of patching with lambda
     "PT011", # pytest.raises() is too broad, set the match parameter
-    "PT012", # [controversial rule] pytest.raises() block should contain a single simple statement.
     "PT018", # assertion should be broken down into multiple parts
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
 ]
@@ -1405,7 +1407,7 @@ combine-as-imports = true
 "dev/breeze/tests/*" = ["TID253", "S101"]
 "tests/*" = ["D", "TID253", "S101"]
 "docker_tests/*" = ["D", "TID253", "S101"]
-"kubernetes_tests/*" = ["D", "TID253", "S101"]
+"kubernetes_tests/*" = ["D", "TID253", "S101", "PT012"]
 "helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
@@ -1487,6 +1489,74 @@ combine-as-imports = true
 "airflow/providers/samba/hooks/samba.py" = ["D105"]
 "airflow/providers/smtp/hooks/smtp.py" = ["D105"]
 "airflow/providers/tableau/hooks/tableau.py" = ["D105"]
+
+# All the test modules which do not follow PT012 yet
+"tests/providers/amazon/aws/hooks/test_base_aws.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_datasync.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_eks.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_redshift_data.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_s3.py" = ["PT012"]
+"tests/providers/amazon/aws/operators/test_emr_serverless.py" = ["PT012"]
+"tests/providers/amazon/aws/operators/test_redshift_data.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_glacier.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_glue.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_lambda_function.py" = ["PT012"]
+"tests/providers/amazon/aws/system/utils/test_helpers.py" = ["PT012"]
+"tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
+"tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
+"tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
+"tests/providers/apache/beam/hooks/test_beam.py" = ["PT012"]
+"tests/providers/apache/hive/hooks/test_hive.py" = ["PT012"]
+"tests/providers/apache/hive/sensors/test_named_hive_partition.py" = ["PT012"]
+"tests/providers/celery/sensors/test_celery_queue.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/hooks/test_kubernetes.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/utils/test_k8s_resource_iterator.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/utils/test_pod_manager.py" = ["PT012"]
+"tests/providers/common/sql/operators/test_sql.py" = ["PT012"]
+"tests/providers/databricks/hooks/test_databricks.py" = ["PT012"]
+"tests/providers/databricks/operators/test_databricks.py" = ["PT012"]
+"tests/providers/databricks/operators/test_databricks_repos.py" = ["PT012"]
+"tests/providers/databricks/sensors/test_databricks_partition.py" = ["PT012"]
+"tests/providers/datadog/sensors/test_datadog.py" = ["PT012"]
+"tests/providers/dbt/cloud/operators/test_dbt.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_bigquery.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_cloud_storage_transfer_service.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_dataflow.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_dataprep.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_kubernetes_engine.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_pubsub.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_bigtable.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_cloud_sql.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_cloud_storage_transfer_service.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_compute.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_datafusion.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_dataproc.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_functions.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_kubernetes_engine.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_mlengine.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_spanner.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_datafusion.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_dataproc.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_gcs.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_pubsub.py" = ["PT012"]
+"tests/providers/google/cloud/transfers/test_gcs_to_bigquery.py" = ["PT012"]
+"tests/providers/google/cloud/utils/test_credentials_provider.py" = ["PT012"]
+"tests/providers/google/common/hooks/test_base_google.py" = ["PT012"]
+"tests/providers/jenkins/sensors/test_jenkins.py" = ["PT012"]
+"tests/providers/microsoft/azure/hooks/test_data_factory.py" = ["PT012"]
+"tests/providers/microsoft/azure/hooks/test_wasb.py" = ["PT012"]
+"tests/providers/microsoft/psrp/hooks/test_psrp.py" = ["PT012"]
+"tests/providers/oracle/hooks/test_oracle.py" = ["PT012"]
+"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
+"tests/providers/ssh/hooks/test_ssh.py" = ["PT012"]
+"tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
+"tests/providers/telegram/hooks/test_telegram.py" = ["PT012"]
+"tests/providers/telegram/operators/test_telegram.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

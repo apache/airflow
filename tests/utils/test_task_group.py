@@ -636,34 +636,32 @@ def test_duplicate_group_id():
 
     execution_date = pendulum.parse("20200101")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("task1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"), TaskGroup("task1"):
+            pass
+
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"), TaskGroup("group1"):
                 pass
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1", prefix_group_id=False):
-                with TaskGroup("group1"):
-                    pass
-
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            with TaskGroup("group1", prefix_group_id=False):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        with TaskGroup("group1", prefix_group_id=False):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
                 _ = EmptyOperator(task_id="group1")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
                 _ = EmptyOperator(task_id="downstream_join_id")
 
-    with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
-        with DAG("test_duplicate_group_id", start_date=execution_date):
-            _ = EmptyOperator(task_id="task1")
-            with TaskGroup("group1"):
+    with DAG("test_duplicate_group_id", start_date=execution_date):
+        _ = EmptyOperator(task_id="task1")
+        with TaskGroup("group1"):
+            with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
                 _ = EmptyOperator(task_id="upstream_join_id")
 
 
