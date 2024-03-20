@@ -406,7 +406,6 @@ class TestBeamRunner:
             b"other-stderr",
         ]
         fake_stdout_fd.readline.side_effect = [b"test-stdout", StopIteration]
-        # mock_proc.stderr.fileno = MagicMock(return_value=mock_stderr_fd)
         mock_select.side_effect = [
             ([fake_stderr_fd], None, None),
             (None, None, None),
@@ -417,7 +416,7 @@ class TestBeamRunner:
         mock_popen.return_value = mock_proc
 
         with pytest.raises(AirflowException, match="Apache Beam process failed with return code 1"):
-            run_beam_command(cmd, fake_logger, None, None)
+            run_beam_command(cmd, fake_logger)
 
         mock_popen.assert_called_once_with(
             cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
@@ -427,7 +426,6 @@ class TestBeamRunner:
         assert "test-stdout" in info_messages
 
         warn_messages = [rt[2] for rt in caplog.record_tuples if rt[0] == "fake-logger" and rt[1] == 30]
-        assert "Running command: test cmd" in info_messages
         assert "test-stderr" in warn_messages
         assert "error-stderr" in warn_messages
         assert "other-stderr" in warn_messages
