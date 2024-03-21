@@ -32,7 +32,7 @@ You can create them either through the vended CLI command or manually.
 Create resources with CLI
 -------------------------
 
-The CLI command is not compatible with AWS account managed through AWS organizations.
+The CLI command is not compatible with AWS accounts that are managed through AWS organizations.
 If your AWS account is managed through AWS Organizations, please follow the
 :ref:`manual configuration <identity_center_manual_configuration>`.
 
