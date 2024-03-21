@@ -390,9 +390,7 @@ class ExecutorSafeguard:
             sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
-                message = (
-                    f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
-                )
+                message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_mixin:
                     raise AirflowException(message)
                 self.log.warning(message)
