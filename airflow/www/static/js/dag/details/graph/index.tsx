@@ -115,6 +115,7 @@ const Graph = ({
           sourceId: dataset.id.toString(),
           // Point upstream datasets to the first task
           targetId: data.nodes?.children[0].id,
+          isSourceDataset: true,
         });
       }
     }

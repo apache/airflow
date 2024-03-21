@@ -264,7 +264,7 @@ class AirflowConfigParser(ConfigParser):
                     )
                 self._default_values.set(section, key, value)
             if errors:
-                raise Exception(
+                raise AirflowConfigException(
                     f"The string config passed as default contains variables. "
                     f"This is not supported. String config: {config_string}"
                 )

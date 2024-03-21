@@ -663,7 +663,7 @@ cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
   "kubernetes_asyncio>=28.1.0,<=29.0.0",
 ]
 cohere = [ # source: airflow/providers/cohere/provider.yaml
-  "cohere>=4.37",
+  "cohere>=4.37,<5",
 ]
 common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
@@ -1514,7 +1514,6 @@ combine-as-imports = true
 "tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
 "tests/providers/apache/hive/hooks/test_hive.py" = ["PT012"]
 "tests/providers/apache/hive/sensors/test_named_hive_partition.py" = ["PT012"]
-"tests/providers/celery/sensors/test_celery_queue.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/hooks/test_kubernetes.py" = ["PT012"]
 "tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]

@@ -3039,14 +3039,14 @@ class TestTaskInstance:
     @pytest.mark.parametrize(
         "code, expected_state",
         [
-            (1, State.FAILED),
-            (-1, State.FAILED),
-            ("error", State.FAILED),
-            (0, State.SUCCESS),
-            (None, State.SUCCESS),
+            pytest.param(1, State.FAILED, id="code-positive-number"),
+            pytest.param(-1, State.FAILED, id="code-negative-number"),
+            pytest.param("error", State.FAILED, id="code-text"),
+            pytest.param(0, State.SUCCESS, id="code-zero"),
+            pytest.param(None, State.SUCCESS, id="code-none"),
         ],
     )
-    def test_handle_system_exit(self, dag_maker, code, expected_state):
+    def test_handle_system_exit_failed(self, dag_maker, code, expected_state):
         with dag_maker():
 
             def f(*args, **kwargs):
@@ -3060,10 +3060,14 @@ class TestTaskInstance:
         session = settings.Session()
         session.merge(ti)
         session.commit()
-        try:
+
+        if expected_state == State.SUCCESS:
+            ctx = contextlib.nullcontext()
+        else:
+            ctx = pytest.raises(AirflowException, match=rf"Task failed due to SystemExit\({code}\)")
+
+        with ctx:
             ti._run_raw_task()
-        except Exception:
-            ...
         ti.refresh_from_db()
         assert ti.state == expected_state
 
