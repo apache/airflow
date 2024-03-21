@@ -25,7 +25,11 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator, KubernetesJobOperator
+from airflow.providers.cncf.kubernetes.operators.job import (
+    KubernetesDeleteJobOperator,
+    KubernetesJobOperator,
+    KubernetesPatchJobOperator,
+)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_job_operator"
@@ -49,6 +53,15 @@ with DAG(
     )
     # [END howto_operator_k8s_job]
 
+    # [START howto_operator_update_job]
+    update_job = KubernetesPatchJobOperator(
+        task_id="update-job-task",
+        namespace="default",
+        name="test-pi",
+        body={"spec": {"suspend": False}},
+    )
+    # [END howto_operator_update_job]
+
     # [START howto_operator_delete_k8s_job]
     delete_job_task = KubernetesDeleteJobOperator(
         task_id="delete_job_task",
@@ -57,7 +70,7 @@ with DAG(
     )
     # [END howto_operator_delete_k8s_job]
 
-    k8s_job >> delete_job_task
+    k8s_job >> update_job >> delete_job_task
 
     from tests.system.utils.watcher import watcher
 
