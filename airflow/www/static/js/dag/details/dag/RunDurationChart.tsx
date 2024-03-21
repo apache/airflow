@@ -62,9 +62,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
 
     // @ts-ignore
     const runDuration = moment.duration(
-      dagRun.startDate && dagRun.endDate
-        ? getDuration(dagRun.startDate, dagRun?.endDate)
-        : 0
+      dagRun.startDate ? getDuration(dagRun.startDate, dagRun?.endDate) : 0
     );
 
     // @ts-ignore

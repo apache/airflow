@@ -62,7 +62,7 @@ const TaskDuration = () => {
     if (!instance) return {};
     // @ts-ignore
     const runDuration = moment.duration(
-      instance.startDate && instance.endDate
+      instance.startDate
         ? getDuration(instance.startDate, instance?.endDate)
         : 0
     );
