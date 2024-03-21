@@ -105,7 +105,13 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetDagRunQueue,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -1081,6 +1087,54 @@ class Airflow(AirflowBaseView):
             "airflow/datasets.html",
             state_color_mapping=state_color_mapping,
         )
+
+    @expose("/dataset_dags/<int:dataset_id>")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        ]
+    )
+    @action_logging
+    def retrieve_related_dags_for_dataset(self, dataset_id: int):
+        """
+        Retrieve related DAGs for a specific dataset.
+
+        :param dataset_id: The dataset id
+        """
+        with create_session() as session:
+            dataset = session.query(DatasetModel).filter_by(id=dataset_id).one_or_none()
+            if not dataset:
+                return flask.json.jsonify({"error": "Dataset not found"}), 404
+
+            # Fetch all consuming DAGs (downstream)
+            consuming_dags_refs = (
+                session.query(DagScheduleDatasetReference).filter_by(dataset_id=dataset_id).all()
+            )
+            consuming_dags = [
+                {
+                    "dag_id": dag_ref.dag_id,
+                    "is_paused": session.query(DagModel).filter_by(dag_id=dag_ref.dag_id).one().is_paused,
+                }
+                for dag_ref in consuming_dags_refs
+            ]
+
+            # Fetch all producing tasks (upstream)
+            producing_tasks_refs = (
+                session.query(TaskOutletDatasetReference).filter_by(dataset_id=dataset_id).all()
+            )
+            producing_tasks = []
+            for task_ref in producing_tasks_refs:
+                dag = session.query(DagModel).filter_by(dag_id=task_ref.dag_id).one()
+                producing_tasks.append(
+                    {
+                        "dag_id": dag.dag_id,
+                        "is_paused": dag.is_paused,
+                        "source_task_instance": {"task_id": task_ref.task_id},
+                    }
+                )
+
+            response_data = consuming_dags + producing_tasks
+            return flask.json.jsonify(response_data), 200
 
     @expose("/cluster_activity")
     @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)

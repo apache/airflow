@@ -22,7 +22,13 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.datasets import Dataset
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models import DagModel
+from airflow.models.dataset import (
+    DagScheduleDatasetReference,
+    DatasetEvent,
+    DatasetModel,
+    TaskOutletDatasetReference,
+)
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets
@@ -453,3 +459,86 @@ class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert response.json == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}
+
+
+class TestRetrieveRelatedDagsForDataset(TestDatasetEndpoint):
+    @pytest.fixture(autouse=True)
+    def cleanup_related_data(self, session):
+        # Clearing related tables to avoid unique key constraint violations
+        session.execute("DELETE FROM dag_schedule_dataset_reference;")
+        session.execute("DELETE FROM task_outlet_dataset_reference;")
+        session.execute("DELETE FROM dag;")
+        clear_db_datasets()
+        session.commit()
+        yield  # Run the test
+
+        # Cleanup after the test
+        session.execute("DELETE FROM dag_schedule_dataset_reference;")
+        session.execute("DELETE FROM task_outlet_dataset_reference;")
+        session.execute("DELETE FROM dag;")
+        clear_db_datasets()
+        session.commit()
+
+    def test_should_respond_404_for_nonexistent_dataset(self, admin_client, session):
+        """Attempt to retrieve related DAGs for a non-existent dataset"""
+        response = admin_client.get(
+            "/dataset_dags/999999999"
+        )  # Assuming 999999999 is an ID that doesn't exist
+        assert response.status_code == 404
+        assert response.json == {"error": "Dataset not found"}
+
+    def test_should_respond_200_with_related_dags(self, admin_client, session):
+        dataset = DatasetModel(id=1, uri="s3://bucket/key/1")
+        session.add(dataset)
+        session.flush()
+
+        consuming_dag = DagModel(dag_id="consuming_dag", is_paused=False)
+        producing_dag = DagModel(dag_id="producing_dag", is_paused=True)
+        session.add_all([consuming_dag, producing_dag])
+        session.flush()
+
+        consuming_ref = DagScheduleDatasetReference(dataset_id=dataset.id, dag_id=consuming_dag.dag_id)
+        producing_ref = TaskOutletDatasetReference(
+            dataset_id=dataset.id, dag_id=producing_dag.dag_id, task_id="task1"
+        )
+        session.add_all([consuming_ref, producing_ref])
+        session.commit()
+
+        response = admin_client.get(f"/dataset_dags/{dataset.id}")
+        assert response.status_code == 200
+        expected_response_data = [
+            {
+                "dag_id": "consuming_dag",
+                "is_paused": False,
+            },
+            {
+                "dag_id": "producing_dag",
+                "is_paused": True,
+                "source_task_instance": {"task_id": "task1"},  # Indicates upstream
+            },
+        ]
+        assert all(item in response.json for item in expected_response_data)
+
+    @pytest.mark.parametrize(
+        "is_paused",
+        [True, False],
+    )
+    def test_paused_status(self, admin_client, session, is_paused):
+        """Check whether the 'is_paused' status of a related DAG is correctly reflected in the API response"""
+        dataset = DatasetModel(id=2, uri="s3://bucket/key/2")
+        dag = DagModel(dag_id="test_dag", is_paused=is_paused)
+        session.add_all([dataset, dag])
+        session.flush()
+
+        dag_ref = DagScheduleDatasetReference(dataset_id=dataset.id, dag_id=dag.dag_id)
+        session.add(dag_ref)
+        session.commit()
+
+        response = admin_client.get(f"/dataset_dags/{dataset.id}")
+        assert response.status_code == 200
+        assert response.json == [
+            {
+                "dag_id": "test_dag",
+                "is_paused": is_paused,
+            },
+        ]
