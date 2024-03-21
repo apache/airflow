@@ -87,7 +87,7 @@ def test_get_connection_url(mock_get_connection: str | None):
         connection_url = hook_instance.get_connection_url()
         assert connection_url == expected_result
     else:
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError, match="Please provide an index URL."):
             hook_instance.get_connection_url()
 
 
