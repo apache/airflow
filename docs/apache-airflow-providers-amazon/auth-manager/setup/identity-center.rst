@@ -32,15 +32,17 @@ You can create them either through the vended CLI command or manually.
 Create resources with CLI
 -------------------------
 
-The CLI command is not compatible with AWS accounts that are managed through AWS organizations.
-If your AWS account is managed through an AWS organization, please follow the
-:ref:`manual configuration <identity_center_manual_configuration>`.
+.. note::
+  The CLI command is not compatible with AWS accounts that are managed through AWS organizations.
+  If your AWS account is managed through an AWS organization, please follow the
+  :ref:`manual configuration <identity_center_manual_configuration>`.
 
-In order to create all resources needed by the AWS auth manager, you can use the CLI command vended as part of the AWS auth manager.
-In order to use it, you first need to set the AWS auth manager as auth manager in Airflow config.
-See :doc:`how to set AWS auth manager as auth manager </auth-manager/setup/config>`.
+.. note::
+  In order to create all resources needed by the AWS auth manager, you can use the CLI command vended as part of the AWS auth manager.
+  In order to use it, you first need to set the AWS auth manager as auth manager in Airflow config.
+  See :doc:`how to set AWS auth manager as auth manager </auth-manager/setup/config>`.
 
-Once done, to create the resources, please run the following command:
+To create the resources, please run the following command:
 
 .. code-block:: bash
 

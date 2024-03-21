@@ -20,17 +20,21 @@ Set AWS auth manager as auth manager
 ====================================
 
 In order to use the AWS auth manager as auth manager in your Airflow environment, you need to set it in your Airflow configuration.
+You also need to specify the AWS region where both services used by the AWS auth manager
+(AWS IAM Identity Center and Amazon Verified Permissions) are configured.
 
 .. note::
-   Configuration options must be consistent across all the hosts/environments running the Airflow components (Scheduler, Webserver, ECS Task containers, etc). See `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__ for more details on setting configurations.
+  Configuration options must be consistent across all the hosts/environments running the Airflow components (Scheduler, Webserver, ECS Task containers, etc). See `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__ for more details on setting configurations.
 
 .. code-block:: ini
 
-    [core]
-    auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager
+  [core]
+  auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager
+  region_name = <region_name>
 
 or
 
 .. code-block:: bash
 
-   export AIRFLOW__CORE__AUTH_MANAGER='airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager'
+  export AIRFLOW__CORE__AUTH_MANAGER='airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager'
+  export AIRFLOW__AWS_AUTH_MANAGER__REGION_NAME='<region_name>'
