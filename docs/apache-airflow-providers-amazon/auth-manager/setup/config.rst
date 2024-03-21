@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-====================================
-Set AWS auth manager as auth manager
-====================================
+=============================================
+Configure Airflow to use the AWS auth manager
+=============================================
 
 In order to use the AWS auth manager as auth manager in your Airflow environment, you need to set it in your Airflow configuration.
 You also need to specify the AWS region where both services used by the AWS auth manager
