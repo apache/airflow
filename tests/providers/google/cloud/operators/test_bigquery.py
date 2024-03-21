@@ -867,7 +867,12 @@ class TestBigQueryGetDataOperator:
             use_legacy_sql=False,
         )
         operator.execute(None)
-        mock_hook.assert_called_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None, use_legacy_sql=False)
+        mock_hook.assert_called_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=None,
+            impersonation_scopes=None,
+            use_legacy_sql=False
+        )
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
