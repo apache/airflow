@@ -138,7 +138,7 @@ def _set_schema(client: BaseClient, policy_store_id: str, args) -> None:
         print(f"Dry run, not updating the schema of the policy store with ID '{policy_store_id}'.")
         return
 
-    schema_path = Path(__file__).parents[0].joinpath("schema.json").resolve()
+    schema_path = Path(__file__).parents[1] / "avp" / "schema.json"
     with open(schema_path) as schema_file:
         response = client.put_schema(
             policyStoreId=policy_store_id,

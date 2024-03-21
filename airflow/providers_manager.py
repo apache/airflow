@@ -619,7 +619,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             self._provider_schema_validator.validate(provider_info)
             provider_info_package_name = provider_info["package-name"]
             if package_name != provider_info_package_name:
-                raise Exception(
+                raise ValueError(
                     f"The package '{package_name}' from setuptools and "
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )

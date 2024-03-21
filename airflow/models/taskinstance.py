@@ -2518,7 +2518,7 @@ class TaskInstance(Base, LoggingMixin):
                 msg = f"Task failed due to SystemExit({e.code})"
                 self.handle_failure(msg, test_mode, context, session=session)
                 session.commit()
-                raise Exception(msg)
+                raise AirflowException(msg)
             except BaseException as e:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
