@@ -33,7 +33,7 @@ Create resources with CLI
 -------------------------
 
 The CLI command is not compatible with AWS accounts that are managed through AWS organizations.
-If your AWS account is managed through AWS Organizations, please follow the
+If your AWS account is managed through an AWS organization, please follow the
 :ref:`manual configuration <identity_center_manual_configuration>`.
 
 In order to create all resources needed by the AWS auth manager, you can use the CLI command vended as part of the AWS auth manager.
