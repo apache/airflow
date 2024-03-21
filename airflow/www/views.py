@@ -1130,8 +1130,7 @@ class Airflow(AirflowBaseView):
             consuming_dags = [
                 {
                     "dag_id": dag_ref.dag_id,
-                    "is_paused": dag_status.get(dag_ref.dag_id, False),
-                    # Default to False if dag_id not found
+                    "is_paused": dag_status[dag_ref.dag_id],
                 }
                 for dag_ref in consuming_dags_refs
             ]
@@ -1139,8 +1138,7 @@ class Airflow(AirflowBaseView):
             producing_tasks = [
                 {
                     "dag_id": task_ref.dag_id,
-                    "is_paused": dag_status.get(task_ref.dag_id, False),
-                    # Default to False if dag_id not found
+                    "is_paused": dag_status[task_ref.dag_id],
                     "source_task_instance": {"task_id": task_ref.task_id},
                 }
                 for task_ref in producing_tasks_refs
