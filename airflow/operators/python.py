@@ -924,16 +924,15 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         On the other hand, `importlib.metadata.version` will retrieve the package version pretty fast
         something below 100ms; this includes new subprocess overhead.
 
-        Possible side effect: it might be a situation that backport package is not available
-        in Python 3.8 and below, which indicates that venv doesn't contain an `apache-airflow`
+        Possible side effect: It might be a situation that `importlib.metadata` is not available (Python < 3.8),
+        as well as backport `importlib_metadata` which might indicate that venv doesn't contain an `apache-airflow`
         or something wrong with the environment.
         """
         return textwrap.dedent(
             """
-            import sys
-            if sys.version_info >= (3, 9):
+            try:
                 from importlib.metadata import version
-            else:
+            except ImportError:
                 from importlib_metadata import version
             print(version("apache-airflow"))
             """
