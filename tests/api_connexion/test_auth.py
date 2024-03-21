@@ -150,7 +150,7 @@ class TestSessionAuth(BaseTestAuth):
         admin_user = client_with_login(self.connexion_app, username="test", password="test")
         response = admin_user.get("/api/v1/pools")
         assert response.status_code == 200
-        assert response.json == {
+        assert response.json() == {
             "pools": [
                 {
                     "name": "default_pool",
