@@ -71,6 +71,9 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
+  {{- if and $stateful .Values.workers.persistence.persistentVolumeClaimRetentionPolicy -}}
+  persistentVolumeClaimRetentionPolicy: {{ .Values.workers.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
   {{- end }}

@@ -66,6 +66,9 @@ spec:
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
+  {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy -}}
+  persistentVolumeClaimRetentionPolicy: {{ .Values.workers.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       tier: airflow
