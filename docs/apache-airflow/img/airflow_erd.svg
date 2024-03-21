@@ -5,10 +5,10 @@
  -->
 <!-- Title: %3 Pages: 1 -->
 <svg width="1591pt" height="5242pt"
- viewBox="0.00 0.00 1591.00 5242.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 5238)">
+ viewBox="0.00 0.00 1591.00 5241.50" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 5237.5)">
 <title>%3</title>
-<polygon fill="white" stroke="transparent" points="-4,4 -4,-5238 1587,-5238 1587,4 -4,4"/>
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-5237.5 1587,-5237.5 1587,4 -4,4"/>
 <!-- job -->
 <g id="node1" class="node">
 <title>job</title>
@@ -1369,14 +1369,14 @@
 <g id="edge43" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1198.1,-829.9C1228.72,-825.88 1260.55,-821.46 1290.36,-817.08"/>
-<text text-anchor="start" x="1259.36" y="-820.88" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1280.36" y="-820.88" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1198.1" y="-833.7" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge44" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1198.1,-843.21C1228.72,-839.53 1260.55,-834.99 1290.36,-830.03"/>
-<text text-anchor="start" x="1280.36" y="-833.83" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1259.36" y="-833.83" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1198.1" y="-847.01" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- rendered_task_instance_fields -->
@@ -1605,8 +1605,8 @@
 <text text-anchor="start" x="697" y="-817.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="506,-783 506,-808 789,-808 789,-783 506,-783"/>
 <text text-anchor="start" x="511" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00">kwargs</text>
-<text text-anchor="start" x="561" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<text text-anchor="start" x="612" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<text text-anchor="start" x="561" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<text text-anchor="start" x="611" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="506,-758 506,-783 789,-783 789,-758 506,-758"/>
 <text text-anchor="start" x="511" y="-767.8" font-family="Helvetica,sans-Serif" font-size="14.00">triggerer_id</text>
 <text text-anchor="start" x="592" y="-767.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
@@ -1618,34 +1618,34 @@
 <text text-anchor="start" x="847.74" y="-829.72" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="796.64" y="-827.62" font-family="Times,serif" font-size="14.00">{0,1}</text>
 </g>
-<!-- alembic_version -->
-<g id="node41" class="node">
-<title>alembic_version</title>
-<polygon fill="none" stroke="black" points="63.5,-5047 63.5,-5075 351.5,-5075 351.5,-5047 63.5,-5047"/>
-<text text-anchor="start" x="135" y="-5058.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">alembic_version</text>
-<polygon fill="none" stroke="black" points="63.5,-5022 63.5,-5047 351.5,-5047 351.5,-5022 63.5,-5022"/>
-<text text-anchor="start" x="68.5" y="-5031.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">version_num</text>
-<text text-anchor="start" x="158.5" y="-5031.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
-<text text-anchor="start" x="270.5" y="-5031.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-</g>
 <!-- session -->
-<g id="node42" class="node">
+<g id="node41" class="node">
 <title>session</title>
-<polygon fill="none" stroke="black" points="106.5,-5202 106.5,-5230 309.5,-5230 309.5,-5202 106.5,-5202"/>
-<text text-anchor="start" x="174" y="-5213.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">session</text>
-<polygon fill="none" stroke="black" points="106.5,-5177 106.5,-5202 309.5,-5202 309.5,-5177 106.5,-5177"/>
-<text text-anchor="start" x="111.5" y="-5186.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="124.5" y="-5186.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
-<text text-anchor="start" x="201.5" y="-5186.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="106.5,-5152 106.5,-5177 309.5,-5177 309.5,-5152 106.5,-5152"/>
-<text text-anchor="start" x="111.5" y="-5161.8" font-family="Helvetica,sans-Serif" font-size="14.00">data</text>
-<text text-anchor="start" x="142.5" y="-5161.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
-<polygon fill="none" stroke="black" points="106.5,-5127 106.5,-5152 309.5,-5152 309.5,-5127 106.5,-5127"/>
-<text text-anchor="start" x="111.5" y="-5136.8" font-family="Helvetica,sans-Serif" font-size="14.00">expiry</text>
-<text text-anchor="start" x="155.5" y="-5136.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<polygon fill="none" stroke="black" points="106.5,-5102 106.5,-5127 309.5,-5127 309.5,-5102 106.5,-5102"/>
-<text text-anchor="start" x="111.5" y="-5111.8" font-family="Helvetica,sans-Serif" font-size="14.00">session_id</text>
-<text text-anchor="start" x="183.5" y="-5111.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(255)]</text>
+<polygon fill="none" stroke="black" points="106.5,-5122 106.5,-5150 309.5,-5150 309.5,-5122 106.5,-5122"/>
+<text text-anchor="start" x="174" y="-5133.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">session</text>
+<polygon fill="none" stroke="black" points="106.5,-5097 106.5,-5122 309.5,-5122 309.5,-5097 106.5,-5097"/>
+<text text-anchor="start" x="111.5" y="-5106.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="124.5" y="-5106.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="201.5" y="-5106.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="106.5,-5072 106.5,-5097 309.5,-5097 309.5,-5072 106.5,-5072"/>
+<text text-anchor="start" x="111.5" y="-5081.8" font-family="Helvetica,sans-Serif" font-size="14.00">data</text>
+<text text-anchor="start" x="142.5" y="-5081.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
+<polygon fill="none" stroke="black" points="106.5,-5047 106.5,-5072 309.5,-5072 309.5,-5047 106.5,-5047"/>
+<text text-anchor="start" x="111.5" y="-5056.8" font-family="Helvetica,sans-Serif" font-size="14.00">expiry</text>
+<text text-anchor="start" x="155.5" y="-5056.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<polygon fill="none" stroke="black" points="106.5,-5022 106.5,-5047 309.5,-5047 309.5,-5022 106.5,-5022"/>
+<text text-anchor="start" x="111.5" y="-5031.8" font-family="Helvetica,sans-Serif" font-size="14.00">session_id</text>
+<text text-anchor="start" x="183.5" y="-5031.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(255)]</text>
+</g>
+<!-- alembic_version -->
+<g id="node42" class="node">
+<title>alembic_version</title>
+<polygon fill="none" stroke="black" points="63.5,-5201 63.5,-5229 351.5,-5229 351.5,-5201 63.5,-5201"/>
+<text text-anchor="start" x="135" y="-5212.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">alembic_version</text>
+<polygon fill="none" stroke="black" points="63.5,-5176 63.5,-5201 351.5,-5201 351.5,-5176 63.5,-5176"/>
+<text text-anchor="start" x="68.5" y="-5185.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">version_num</text>
+<text text-anchor="start" x="158.5" y="-5185.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
+<text text-anchor="start" x="270.5" y="-5185.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 </g>
 </svg>
