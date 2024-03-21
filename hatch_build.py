@@ -36,22 +36,38 @@ AIRFLOW_ROOT_PATH = Path(__file__).parent.resolve()
 GENERATED_PROVIDERS_DEPENDENCIES_FILE = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
 PREINSTALLED_PROVIDERS_FILE = AIRFLOW_ROOT_PATH / "airflow_pre_installed_providers.txt"
 DEPENDENCIES = json.loads(GENERATED_PROVIDERS_DEPENDENCIES_FILE.read_text())
-PREINSTALLED_PROVIDER_IDS = [
+PREINSTALLED_PROVIDER_SPECS = [
     package.strip()
     for package in PREINSTALLED_PROVIDERS_FILE.read_text().splitlines()
     if not package.strip().startswith("#")
 ]
 
+
+def get_provider_id(provider_spec: str) -> str:
+    # in case provider_spec is "<provider_id>=<version>"
+    return provider_spec.split(">=")[0]
+
+
+def get_provider_requirement(provider_spec: str) -> str:
+    if ">=" in provider_spec:
+        provider_id, min_version = provider_spec.split(">=")
+        return f"apache-airflow-providers-{provider_id.replace('.', '-')}>={min_version}"
+    else:
+        return f"apache-airflow-providers-{provider_spec.replace('.', '-')}"
+
+
 # if providers are ready, we can preinstall them
 PREINSTALLED_PROVIDERS = [
-    f"apache-airflow-providers-{provider_id.replace('.','-')}"
-    for provider_id in PREINSTALLED_PROVIDER_IDS
-    if DEPENDENCIES[provider_id]["state"] == "ready"
+    get_provider_requirement(provider_spec)
+    for provider_spec in PREINSTALLED_PROVIDER_SPECS
+    if DEPENDENCIES[get_provider_id(provider_spec)]["state"] == "ready"
 ]
+
 # if provider is in not-ready or pre-release, we need to install its dependencies
 # however we need to skip apache-airflow itself and potentially any providers that are
 PREINSTALLED_NOT_READY_DEPS = []
-for provider_id in PREINSTALLED_PROVIDER_IDS:
+for provider_spec in PREINSTALLED_PROVIDER_SPECS:
+    provider_id = get_provider_id(provider_spec)
     if DEPENDENCIES[provider_id]["state"] not in ["ready", "suspended", "removed"]:
         for dependency in DEPENDENCIES[provider_id]["deps"]:
             if dependency.startswith("apache-airflow-providers"):
