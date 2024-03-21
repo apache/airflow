@@ -1541,6 +1541,25 @@
                             "type": "boolean",
                             "default": true
                         },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "type": [
+                                "object",
+                                "null"
+                            ],
+                            "additionalProperties": false,
+                            "properties": {
+                                "whenDeleted": {
+                                    "description": "Whether to retain the PVC when the StatefulSet is deleted.",
+                                    "type": "string",
+                                    "default": "Retain"
+                                },
+                                "whenScaled": {
+                                    "description": "Whether to retain the PVC when the StatefulSet is scaled.",
+                                    "type": "string",
+                                    "default": "Retain"
+                                }
+                            }
+                        },
                         "size": {
                             "description": "Volume size for worker StatefulSet.",
                             "type": "string",

@@ -73,6 +73,9 @@ spec:
   {{- if and (not $persistence) (.Values.triggerer.strategy) }}
   strategy: {{- toYaml .Values.triggerer.strategy | nindent 4 }}
   {{- end }}
+  {{- if and $persistence .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy -}}
+  persistentVolumeClaimRetentionPolicy: {{ .Values.triggerer.persistence.persistentVolumeClaimRetentionPolicy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:
