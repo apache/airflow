@@ -961,6 +961,7 @@ logformat
 loglevel
 Logstash
 logstash
+longblob
 Lowin
 lshift
 lxml

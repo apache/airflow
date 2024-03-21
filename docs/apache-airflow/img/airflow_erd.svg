@@ -1605,8 +1605,8 @@
 <text text-anchor="start" x="697" y="-817.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="506,-783 506,-808 789,-808 789,-783 506,-783"/>
 <text text-anchor="start" x="511" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00">kwargs</text>
-<text text-anchor="start" x="561" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<text text-anchor="start" x="612" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<text text-anchor="start" x="561" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<text text-anchor="start" x="611" y="-792.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="506,-758 506,-783 789,-783 789,-758 506,-758"/>
 <text text-anchor="start" x="511" y="-767.8" font-family="Helvetica,sans-Serif" font-size="14.00">triggerer_id</text>
 <text text-anchor="start" x="592" y="-767.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
