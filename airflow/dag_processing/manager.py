@@ -989,6 +989,12 @@ class DagFileProcessorManager(LoggingMixin):
             else:
                 self.log.warning("Stopping processor for %s", file_path)
                 Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "stop"})
+                Stats.gauge(
+                    "dag_processing.processes_count",
+                    -1,
+                    delta=True,
+                    tags={"file_path": file_path, "action": "stop"},
+                )
                 processor.terminate()
                 self._file_stats.pop(file_path)
 
@@ -1008,6 +1014,12 @@ class DagFileProcessorManager(LoggingMixin):
     def _collect_results_from_processor(self, processor) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
         Stats.decr("dag_processing.processes", tags={"file_path": processor.file_path, "action": "finish"})
+        Stats.gauge(
+            "dag_processing.processes_count",
+            -1,
+            delta=True,
+            tags={"file_path": processor.file_path, "action": "finish"},
+        )
         last_finish_time = timezone.utcnow()
 
         if processor.result is not None:
@@ -1083,7 +1095,12 @@ class DagFileProcessorManager(LoggingMixin):
 
             del self._callback_to_execute[file_path]
             Stats.incr("dag_processing.processes", tags={"file_path": file_path, "action": "start"})
-
+            Stats.gauge(
+                "dag_processing.processes_count",
+                1,
+                delta=True,
+                tags={"file_path": file_path, "action": "start"},
+            )
             processor.start()
             self.log.debug("Started a process (PID: %s) to generate tasks for %s", processor.pid, file_path)
             self._processors[file_path] = processor
@@ -1207,6 +1224,12 @@ class DagFileProcessorManager(LoggingMixin):
                     processor.start_time.isoformat(),
                 )
                 Stats.decr("dag_processing.processes", tags={"file_path": file_path, "action": "timeout"})
+                Stats.gauge(
+                    "dag_processing.processes_count",
+                    -1,
+                    delta=True,
+                    tags={"file_path": file_path, "action": "timeout"},
+                )
                 Stats.incr("dag_processing.processor_timeouts", tags={"file_path": file_path})
                 # Deprecated; may be removed in a future Airflow release.
                 Stats.incr("dag_file_processor_timeouts")
@@ -1254,6 +1277,12 @@ class DagFileProcessorManager(LoggingMixin):
         for processor in self._processors.values():
             Stats.decr(
                 "dag_processing.processes", tags={"file_path": processor.file_path, "action": "terminate"}
+            )
+            Stats.gauge(
+                "dag_processing.processes_count",
+                -1,
+                delta=True,
+                tags={"file_path": processor.file_path, "action": "terminate"},
             )
             processor.terminate()
 
