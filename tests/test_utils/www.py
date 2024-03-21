@@ -29,7 +29,8 @@ def client_with_login(app, expected_response_code=302, **kwargs):
         check_password_hash.return_value = True
         client = app.test_client()
         resp = client.post("/login/", data=kwargs)
-        assert resp.status_code == expected_response_code
+        assert resp.url.raw_path == b"/home"
+
     return client
 
 
