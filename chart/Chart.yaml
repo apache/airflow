@@ -65,11 +65,17 @@ annotations:
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/2.8.3/_images/code.png
   artifacthub.io/changes: |
-    - description: Don't overwrite .Values.airflowPodAnnotations
+    - description: Don't overwrite ``.Values.airflowPodAnnotations``
       kind: fixed
       links:
       - name: '#37917'
         url: https://github.com/apache/airflow/pull/37917
+    - description: Fix cluster-wide RBAC naming clash when using multiple ``multiNamespace``
+        releases with the same name
+      kind: fixed
+      links:
+      - name: '#37197'
+        url: https://github.com/apache/airflow/pull/37197
     - description: 'Misc: Default airflow version to 2.8.3'
       kind: changed
       links:

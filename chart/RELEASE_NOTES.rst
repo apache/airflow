@@ -36,7 +36,8 @@ The default Airflow image that is used with the Chart is now ``2.8.3``, previous
 
 Bug Fixes
 ^^^^^^^^^
-- Don't overwrite .Values.airflowPodAnnotations (#37917)
+- Don't overwrite ``.Values.airflowPodAnnotations`` (#37917)
+- Fix cluster-wide RBAC naming clash when using multiple ``multiNamespace`` releases with the same name (#37197)
 
 Misc
 ^^^^
