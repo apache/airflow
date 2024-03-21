@@ -180,7 +180,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
               stack: "x",
               markLine: {
                 silent: true,
-                data: [{ type: "average" }],
+                data: [{ type: "median" }],
               },
             } as SeriesOption,
           ]
@@ -195,7 +195,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "average" }],
+          data: [{ type: "median" }],
         },
       },
       {
@@ -209,7 +209,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "average" }],
+          data: [{ type: "median" }],
         },
       },
     ],

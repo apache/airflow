@@ -167,7 +167,7 @@ const TaskDuration = () => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "average" }],
+          data: [{ type: "median" }],
         },
       },
       {
@@ -180,7 +180,7 @@ const TaskDuration = () => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "average" }],
+          data: [{ type: "median" }],
         },
       },
     ],
