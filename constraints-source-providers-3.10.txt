@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-21T12:35:07.032894
+# This constraints file was automatically generated on 2024-03-21T21:23:39.243364
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -161,7 +161,7 @@ db-dtypes==1.2.0
 debugpy==1.8.1
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.16.1
+deltalake==0.16.2
 dill==0.3.1.1
 distlib==0.3.8
 distro==1.9.0
@@ -199,8 +199,8 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==23.1.0
 google-analytics-admin==0.22.7
-google-api-core==2.17.1
-google-api-python-client==2.122.0
+google-api-core==2.18.0
+google-api-python-client==2.123.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.0
 google-auth==2.29.0
@@ -230,7 +230,7 @@ google-cloud-memcache==1.9.3
 google-cloud-monitoring==2.19.3
 google-cloud-orchestration-airflow==1.12.1
 google-cloud-os-login==2.14.3
-google-cloud-pubsub==2.20.2
+google-cloud-pubsub==2.20.3
 google-cloud-redis==2.15.3
 google-cloud-resource-manager==1.12.3
 google-cloud-run==0.10.5
@@ -280,7 +280,7 @@ idna==3.6
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.3.2
+importlib_resources==6.4.0
 impyla==0.19.0
 incremental==22.10.0
 inflection==0.5.1
@@ -378,7 +378,7 @@ opentelemetry-proto==1.23.0
 opentelemetry-sdk==1.23.0
 opentelemetry-semantic-conventions==0.44b0
 opsgenie-sdk==2.1.5
-oracledb==2.1.0
+oracledb==2.1.1
 ordered-set==4.1.0
 orjson==3.9.15
 oss2==2.18.4
@@ -451,7 +451,7 @@ pytest-asyncio==0.23.6
 pytest-cov==4.1.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.12.0
+pytest-mock==3.13.0
 pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
