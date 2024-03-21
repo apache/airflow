@@ -1122,6 +1122,11 @@ class Airflow(AirflowBaseView):
                 for dag in session.query(DagModel).filter(DagModel.dag_id.in_(all_dag_ids)).all()
             }
 
+            # Validate if all dag_ids found
+            missing_dags = all_dag_ids - dag_status.keys()
+            if missing_dags:
+                raise ValueError(f"Missing DAGs in DagModel: {missing_dags}")
+
             consuming_dags = [
                 {
                     "dag_id": dag_ref.dag_id,
