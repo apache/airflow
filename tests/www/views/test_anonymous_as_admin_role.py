@@ -55,8 +55,9 @@ def pool_factory(session):
 def test_delete_pool_anonymous_user_no_role(anonymous_client, pool_factory):
     pool = pool_factory()
     resp = anonymous_client.post(f"pool/delete/{pool.id}")
-    assert 302 == resp.status_code  # TODO: this returns 200 now
-    assert f"/login/?next={quote_plus(f'http://localhost/pool/delete/{pool.id}')}" == resp.headers["Location"]
+    expected_path = f"/login/?next={quote_plus(f'http://testserver/pool/delete/{pool.id}', safe='/:?')}"
+    assert expected_path.encode("utf-8") == resp.url.raw_path
+    assert 200 == resp.status_code
 
 
 def test_delete_pool_anonymous_user_as_admin(anonymous_client_as_admin, pool_factory):
