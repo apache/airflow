@@ -86,13 +86,11 @@
   "apache.cassandra": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cassandra-driver>=3.13.0"
+      "cassandra-driver>=3.29.1"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.drill": {
@@ -332,7 +330,7 @@
   "cohere": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "cohere>=4.37"
+      "cohere>=4.37,<5"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -470,7 +468,7 @@
   "fab": {
     "deps": [
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.3.11",
+      "flask-appbuilder==4.4.1",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0"
@@ -570,6 +568,7 @@
       "pandas-gbq",
       "pandas>=1.2.5,<2.2",
       "proto-plus>=1.19.6",
+      "python-slugify>=5.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2"
     ],
@@ -1181,6 +1180,9 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.6.0",
+      "python-dateutil>=2.8.0",
+      "requests>=2.27.0,<3",
+      "yandex-query-client>=0.1.2",
       "yandexcloud>=0.228.0"
     ],
     "devel-deps": [],

@@ -42,7 +42,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.6.0
-  - cohere>=4.37
+  - cohere>=4.37,<5
 
 hooks:
   - integration-name: Cohere

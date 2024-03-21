@@ -590,6 +590,20 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         conditions = job.status.conditions or []
         return bool(next((c for c in conditions if c.type == "Failed" and c.status), None))
 
+    def patch_namespaced_job(self, job_name: str, namespace: str, body: object) -> V1Job:
+        """
+        Update the specified Job.
+
+        :param job_name: name of the Job
+        :param namespace: the namespace to run within kubernetes
+        :param body: json object with parameters for update
+        """
+        return self.batch_v1_client.patch_namespaced_job(
+            name=job_name,
+            namespace=namespace,
+            body=body,
+        )
+
 
 def _get_bool(val) -> bool | None:
     """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""

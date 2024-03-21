@@ -123,7 +123,7 @@ class ScheduleIntervalSchema(OneOfSchema):
         elif isinstance(obj, CronExpression):
             return "CronExpression"
         else:
-            raise Exception(f"Unknown object type: {obj.__class__.__name__}")
+            raise TypeError(f"Unknown object type: {obj.__class__.__name__}")
 
 
 class ColorField(fields.String):

@@ -54,7 +54,10 @@ def get_backend() -> LineageBackend | None:
 
 
 def _render_object(obj: Any, context: Context) -> dict:
-    return context["ti"].task.render_template(obj, context)
+    ti = context["ti"]
+    if TYPE_CHECKING:
+        assert ti.task
+    return ti.task.render_template(obj, context)
 
 
 T = TypeVar("T", bound=Callable)

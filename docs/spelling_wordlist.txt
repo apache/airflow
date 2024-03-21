@@ -982,6 +982,8 @@ MarketingTeam
 MarkupSafe
 Masternode
 masterType
+Matomo
+matomo
 Maxime
 mb
 md
