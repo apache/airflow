@@ -83,7 +83,9 @@ class TestExecutorSafeguard:
 
         dag_run = dag.test()
         assert dag_run.state == DagRunState.SUCCESS
-        mock_log.warning.assert_called_once_with("HelloWorldOperator.execute cannot be called from execute!")
+        mock_log.warning.assert_called_once_with(
+            "HelloWorldOperator.execute cannot be called outside TaskInstance!"
+        )
 
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_python_operator(
@@ -101,8 +103,6 @@ class TestExecutorSafeguard:
                 dag=dag,
                 python_callable=say_hello,
             )
-
-            say_hello()
 
         dag_run = dag.test()
         assert dag_run.state == DagRunState.FAILED
@@ -126,8 +126,8 @@ class TestExecutorSafeguard:
                 python_callable=say_hello,
             )
 
-            say_hello()
-
         dag_run = dag.test()
         assert dag_run.state == DagRunState.SUCCESS
-        mock_log.warning.assert_called_once_with("HelloWorldOperator.execute cannot be called from execute!")
+        mock_log.warning.assert_called_once_with(
+            "HelloWorldOperator.execute cannot be called outside TaskInstance!"
+        )

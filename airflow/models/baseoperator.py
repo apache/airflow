@@ -29,14 +29,11 @@ import contextlib
 import copy
 import functools
 import logging
-import os
 import sys
-import traceback
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
 from inspect import signature
-from traceback import FrameSummary
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -56,7 +53,6 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
-import airflow
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -80,10 +76,11 @@ from airflow.models.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
 )
+from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
-from airflow.models.taskinstance import TaskInstance, _execute_task, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
@@ -386,44 +383,19 @@ class ExecutorSafeguard:
 
     @classmethod
     def decorator(cls, func):
-        def find_task_instance(frame: FrameSummary):
-            return (
-                frame.name == _execute_task.__name__
-                and _execute_task.__module__.replace(".", os.path.sep) in frame.filename
-            )
-
-        def find_operator(frame: FrameSummary):
-            from airflow.decorators.base import DecoratedOperator
-            from airflow.operators.python import PythonOperator
-
-            return (
-                frame.name == PythonOperator.execute.__name__
-                and PythonOperator.__module__.replace(".", os.path.sep) in frame.filename
-            ) or (
-                frame.name == DecoratedOperator.execute.__name__
-                and DecoratedOperator.__module__.replace(".", os.path.sep) in frame.filename
-            )
-
-        def raise_or_warn(operator: BaseOperator, message: str):
-            if not operator.allow_mixin:
-                raise AirflowException(message)
-            operator.log.warning(message)
-
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if not cls.test_mode:
-                stack_trace = traceback.extract_stack()
-                if next(filter(find_task_instance, stack_trace), None):
-                    frame = next(filter(find_operator, stack_trace), None)
-                    if (
-                        frame
-                        and frame != stack_trace[-1]
-                        and not isinstance(self, airflow.decorators.base.DecoratedOperator)
-                    ):
-                        message = (
-                            f"{self.__class__.__name__}.{func.__name__} cannot be called from {frame.name}!"
-                        )
-                        raise_or_warn(operator=self, message=message)
+            from airflow.decorators.base import DecoratedOperator
+
+            __sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+
+            if not cls.test_mode and not __sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+                message = (
+                    f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
+                )
+                if not self.allow_mixin:
+                    raise AirflowException(message)
+                self.log.warning(message)
             return func(self, *args, **kwargs)
 
         return wrapper

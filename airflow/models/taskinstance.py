@@ -86,7 +86,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.base import Base, StringID, TaskInstanceDependencies
+from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
@@ -408,7 +408,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
-    execute_callable_kwargs: dict[str, Any] = {}
+    execute_callable_kwargs: dict[str, Any] = {f"{task_to_execute.__class__.__name__}__sentinel": _sentinel}
     execute_callable: Callable
     if task_instance.next_method:
         if task_instance.next_method:
