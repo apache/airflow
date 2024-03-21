@@ -379,6 +379,8 @@ class ExecutorSafeguard:
     classic operators.
     """
 
+    test_mode = conf.getboolean("core", "unit_test_mode")
+
     @classmethod
     def decorator(cls, func):
         @wraps(func)
@@ -386,10 +388,11 @@ class ExecutorSafeguard:
             from airflow.decorators.base import DecoratedOperator
 
             sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
-            test_mode = kwargs.pop(f"{self.__class__.__name__}__test_mode", False)
 
-            if not test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
-                message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
+            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+                message = (
+                    f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
+                )
                 if not self.allow_mixin:
                     raise AirflowException(message)
                 self.log.warning(message)

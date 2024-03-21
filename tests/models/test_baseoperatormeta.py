@@ -22,7 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.configuration import conf
+from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import PythonOperator, task
 from airflow.utils.state import DagRunState
 
@@ -36,11 +37,11 @@ class HelloWorldOperator(BaseOperator):
 
 
 class TestExecutorSafeguard:
-    # def setup_method(self):
-    #     ExecutorSafeguard.test_mode = False
-    #
-    # def teardown_method(self, method):
-    #     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
+    def setup_method(self):
+        ExecutorSafeguard.test_mode = False
+
+    def teardown_method(self, method):
+        ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_dag(self, dag_maker):

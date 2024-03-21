@@ -408,10 +408,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
-    execute_callable_kwargs: dict[str, Any] = {
-        f"{task_to_execute.__class__.__name__}__sentinel": _sentinel,
-        f"{task_to_execute.__class__.__name__}__test_mode": task_instance.test_mode,
-    }
+    execute_callable_kwargs: dict[str, Any] = {f"{task_to_execute.__class__.__name__}__sentinel": _sentinel}
     execute_callable: Callable
     if task_instance.next_method:
         execute_callable = task_to_execute.resume_execution
