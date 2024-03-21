@@ -2340,6 +2340,20 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         return project_id, dataset_id, table_id
 
+    @property
+    def scopes(self) -> Sequence[str]:
+        """
+        Return OAuth 2.0 scopes.
+
+        :return: Returns the scope defined in impersonation_scopes, the connection configuration, or the default scope
+        """
+        scope_value: str | None
+        if self.impersonation_chain and self.impersonation_scopes:
+            scope_value = ",".join(self.impersonation_scopes)
+        else:
+            scope_value = self._get_field("scope", None)
+        return _get_scopes(scope_value)
+
 
 class BigQueryConnection:
     """BigQuery connection.
@@ -2739,20 +2753,6 @@ class BigQueryCursor(BigQueryBaseCursor):
     def rowcount(self) -> int:
         """By default, return -1 to indicate that this is not supported."""
         return -1
-    
-    @property
-    def scopes(self) -> Sequence[str]:
-        """
-        Return OAuth 2.0 scopes.
-
-        :return: Returns the scope defined in impersonation_scopes, the connection configuration, or the default scope
-        """
-        scope_value: str | None
-        if self.impersonation_chain and self.impersonation_scopes:
-            scope_value = ",".join(self.impersonation_scopes)
-        else:
-            scope_value = self._get_field("scope", None)
-        return _get_scopes(scope_value)
 
     def execute(self, operation: str, parameters: dict | None = None) -> None:
         """Execute a BigQuery query, and return the job ID.
