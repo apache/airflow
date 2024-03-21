@@ -40,7 +40,6 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
             return True
 
     max_size = conf.getint("core", "max_templated_field_size")
-
     if not is_jsonable(template_field):
         serialized = str(template_field)
         if len(serialized) > max_size:

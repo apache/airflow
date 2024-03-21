@@ -25,10 +25,8 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
-from sqlalchemy import select
 
 from airflow import settings
-from airflow.decorators import task as task_decorator
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
@@ -62,6 +60,14 @@ class ClassWithCustomAttributes:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+
+
+class LargeStrObject:
+    def __init__(self):
+        self.a = "a" * 2560
+
+    def __str__(self):
+        return self.a
 
 
 class TestRenderedTaskInstanceFields:
@@ -113,6 +119,14 @@ class TestRenderedTaskInstanceFields:
                 "'nested2': ClassWithCustomAttributes("
                 "{'att3': '{{ task.task_id }}', 'att4': '{{ task.task_id }}', 'template_fields': ['att3']}), "
                 "'template_fields': ['nested1']})",
+            ),
+            (
+                "a" * 2560,
+                "Value removed due to size. You can change this behaviour in [core]max_templated_field_size",
+            ),
+            (
+                LargeStrObject(),
+                "Value removed due to size. You can change this behaviour in [core]max_templated_field_size",
             ),
         ],
     )
@@ -320,76 +334,4 @@ class TestRenderedTaskInstanceFields:
             "bash_command": "val 1",
             "env": "val 2",
             "cwd": "val 3",
-        }
-
-    def test_large_string_is_not_stored(self, dag_maker, session):
-        """
-        Test that large string is not stored in the database
-        """
-        large_string = "a" * 2560
-        with dag_maker("test_large_objects_are_not_stored"):
-
-            @task_decorator
-            def gentask():
-                return large_string
-
-            @task_decorator
-            def consumer_task(value):
-                return value
-
-            consumer_task(gentask())
-
-        dr = dag_maker.create_dagrun()
-        ti, ti2 = dr.task_instances
-        ti.xcom_push(value=large_string, key="return_value")
-        rtif = RTIF(ti=ti2)
-        rtif.write(session=session)
-        session.flush()
-        rtif = session.query(RTIF).filter(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id).first()
-
-        assert rtif.rendered_fields == {
-            "op_args": "Value removed due to size. "
-            "You can change this behaviour in [core]max_templated_field_size",
-            "op_kwargs": {},
-            "templates_dict": None,
-        }
-
-    def test_large_objects_are_not_stored(self, dag_maker, session):
-        """
-        Test that large objects are not stored in the database
-        """
-
-        class A:
-            def __init__(self):
-                self.a = "a" * 2560
-
-            def __str__(self):
-                return self.a
-
-        large_data = A()
-
-        with dag_maker("test_large_objects_are_not_stored"):
-
-            @task_decorator
-            def gentask():
-                return large_data
-
-            @task_decorator
-            def consumer_task(value):
-                return value
-
-            consumer_task(gentask())
-
-        dr = dag_maker.create_dagrun()
-        ti, ti2 = dr.task_instances
-        ti.xcom_push(value=str(large_data), key="return_value")
-        rtif = RTIF(ti=ti2)
-        rtif.write(session=session)
-        session.flush()
-        rtif = session.scalar(select(RTIF).where(RTIF.dag_id == rtif.dag_id, RTIF.task_id == rtif.task_id))
-        assert rtif.rendered_fields == {
-            "op_args": "Value removed due to size. "
-            "You can change this behaviour in [core]max_templated_field_size",
-            "op_kwargs": {},
-            "templates_dict": None,
         }
