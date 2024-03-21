@@ -379,17 +379,16 @@ class ExecutorSafeguard:
     classic operators.
     """
 
-    test_mode = conf.getboolean("core", "unit_test_mode")
-
     @classmethod
     def decorator(cls, func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
 
-            __sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            test_mode = kwargs.pop(f"{self.__class__.__name__}__test_mode", False)
 
-            if not cls.test_mode and not __sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+            if not test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = (
                     f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 )
