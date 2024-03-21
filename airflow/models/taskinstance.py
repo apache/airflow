@@ -62,7 +62,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.sql.expression import case
+from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -411,10 +411,9 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
     execute_callable_kwargs: dict[str, Any] = {}
     execute_callable: Callable
     if task_instance.next_method:
-        if task_instance.next_method:
-            execute_callable = task_to_execute.resume_execution
-            execute_callable_kwargs["next_method"] = task_instance.next_method
-            execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
+        execute_callable = task_to_execute.resume_execution
+        execute_callable_kwargs["next_method"] = task_instance.next_method
+        execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
 
@@ -1846,6 +1845,32 @@ class TaskInstance(Base, LoggingMixin):
         """Returns a tuple that identifies the task instance uniquely."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
+    @staticmethod
+    @internal_api_call
+    def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
+        if not isinstance(ti, TaskInstance):
+            ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                )
+            ).one()
+
+        if ti.state == state:
+            return False
+
+        current_time = timezone.utcnow()
+        ti.log.debug("Setting task state for %s to %s", ti, state)
+        ti.state = state
+        ti.start_date = ti.start_date or current_time
+        if ti.state in State.finished or ti.state == TaskInstanceState.UP_FOR_RETRY:
+            ti.end_date = ti.end_date or current_time
+            ti.duration = (ti.end_date - ti.start_date).total_seconds()
+        session.merge(ti)
+        return True
+
     @provide_session
     def set_state(self, state: str | None, session: Session = NEW_SESSION) -> bool:
         """
@@ -1855,18 +1880,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: Was the state changed
         """
-        if self.state == state:
-            return False
-
-        current_time = timezone.utcnow()
-        self.log.debug("Setting task state for %s to %s", self, state)
-        self.state = state
-        self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
-            self.end_date = self.end_date or current_time
-            self.duration = (self.end_date - self.start_date).total_seconds()
-        session.merge(self)
-        return True
+        return self._set_state(ti=self, state=state, session=session)
 
     @property
     def is_premature(self) -> bool:

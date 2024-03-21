@@ -2147,7 +2147,7 @@ class Airflow(AirflowBaseView):
             flash(f"{ve}", "error")
             form = DateTimeForm(data={"execution_date": execution_date})
             # Take over "bad" submitted fields for new form display
-            for k, v in form_fields.items():
+            for k in form_fields:
                 if k in run_conf:
                     form_fields[k]["value"] = run_conf[k]
             return self.render_template(
@@ -3512,31 +3512,6 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/task_fails")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @provide_session
-    def task_fails(self, session):
-        """Return task fails."""
-        dag_id = request.args.get("dag_id")
-        task_id = request.args.get("task_id")
-        run_id = request.args.get("run_id")
-
-        query = select(
-            TaskFail.task_id, TaskFail.run_id, TaskFail.map_index, TaskFail.start_date, TaskFail.end_date
-        ).where(TaskFail.dag_id == dag_id)
-
-        if run_id:
-            query = query.where(TaskFail.run_id == run_id)
-        if task_id:
-            query = query.where(TaskFail.task_id == task_id)
-
-        task_fails = [dict(tf) for tf in session.execute(query).all()]
-
-        return (
-            htmlsafe_json_dumps(task_fails, separators=(",", ":"), dumps=flask.json.dumps),
-            {"Content-Type": "application/json; charset=utf-8"},
-        )
-
     @expose("/object/task_instances")
     @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
     def task_instances(self):
@@ -4604,7 +4579,7 @@ class ConnectionModelView(AirflowModelView):
                 )
                 del form.extra
         del extra_json
-        for key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
+        for key, field_name, _ in self._iter_extra_field_names_and_sensitivity():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
