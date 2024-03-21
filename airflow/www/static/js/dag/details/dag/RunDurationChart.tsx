@@ -178,6 +178,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
                 opacity: 0.6,
               },
               stack: "x",
+              markLine: {
+                silent: true,
+                data: [{ type: "median" }],
+              },
             } as SeriesOption,
           ]
         : []),
@@ -189,6 +193,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           opacity: 0.6,
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
       {
         type: "bar",
@@ -199,6 +207,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           color: (params) => stateColors[params.data.state],
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
     ],
     // @ts-ignore
