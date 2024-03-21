@@ -1106,32 +1106,40 @@ class Airflow(AirflowBaseView):
             if not dataset:
                 return flask.json.jsonify({"error": "Dataset not found"}), 404
 
-            # Fetch all consuming DAGs (downstream)
             consuming_dags_refs = (
                 session.query(DagScheduleDatasetReference).filter_by(dataset_id=dataset_id).all()
             )
+            producing_tasks_refs = (
+                session.query(TaskOutletDatasetReference).filter_by(dataset_id=dataset_id).all()
+            )
+
+            # Collect all unique DAG IDs from references
+            all_dag_ids = {ref.dag_id for ref in consuming_dags_refs + producing_tasks_refs}
+
+            # Fetch is_paused status for all DAGs in one query
+            dag_status = {
+                dag.dag_id: dag.is_paused
+                for dag in session.query(DagModel).filter(DagModel.dag_id.in_(all_dag_ids)).all()
+            }
+
             consuming_dags = [
                 {
                     "dag_id": dag_ref.dag_id,
-                    "is_paused": session.query(DagModel).filter_by(dag_id=dag_ref.dag_id).one().is_paused,
+                    "is_paused": dag_status.get(dag_ref.dag_id, False),
+                    # Default to False if dag_id not found
                 }
                 for dag_ref in consuming_dags_refs
             ]
 
-            # Fetch all producing tasks (upstream)
-            producing_tasks_refs = (
-                session.query(TaskOutletDatasetReference).filter_by(dataset_id=dataset_id).all()
-            )
-            producing_tasks = []
-            for task_ref in producing_tasks_refs:
-                dag = session.query(DagModel).filter_by(dag_id=task_ref.dag_id).one()
-                producing_tasks.append(
-                    {
-                        "dag_id": dag.dag_id,
-                        "is_paused": dag.is_paused,
-                        "source_task_instance": {"task_id": task_ref.task_id},
-                    }
-                )
+            producing_tasks = [
+                {
+                    "dag_id": task_ref.dag_id,
+                    "is_paused": dag_status.get(task_ref.dag_id, False),
+                    # Default to False if dag_id not found
+                    "source_task_instance": {"task_id": task_ref.task_id},
+                }
+                for task_ref in producing_tasks_refs
+            ]
 
             response_data = consuming_dags + producing_tasks
             return flask.json.jsonify(response_data), 200
