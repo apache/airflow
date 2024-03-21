@@ -22,8 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import conf
-from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator, task
 from airflow.utils.state import DagRunState
 
