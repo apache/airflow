@@ -351,3 +351,209 @@ class BigQueryToGCSOperator(BaseOperator):
             }
 
         return OperatorLineage(inputs=[input_dataset], outputs=output_datasets, run_facets=run_facets)
+
+
+class BigQueryDatasetToGCSOperator(BaseOperator):
+    """
+    TODO: these doc string things, but first get the linter not hating me.
+
+    Moar writing because linters are weird
+
+    we should do even more writing whenever I get this operator done.
+    """
+
+    template_fields: Sequence[str] = (
+        "source_project_dataset",
+        "destination_cloud_storage_uris",
+        "export_format",
+        "labels",
+        "impersonation_chain",
+        "job_id",
+    )
+    template_ext: Sequence[str] = ()
+    ui_color = "#e4e6f0"
+    operator_extra_links = (BigQueryTableLink(),)
+
+    def __init__(
+        self,
+        *,
+        source_project_dataset: str,
+        destination_cloud_storage_uris: list[str],
+        project_id: str | None = None,
+        compression: str = "NONE",
+        export_format: str = "PARQUET",
+        field_delimiter: str = ",",
+        print_header: bool = True,
+        gcp_conn_id: str = "google_cloud_default",
+        labels: dict | None = None,
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        result_retry: Retry = DEFAULT_RETRY,
+        result_timeout: float | None = None,
+        job_id: str | None = None,
+        force_rerun: bool = False,
+        reattach_states: set[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.source_project_dataset = source_project_dataset
+        self.destination_cloud_storage_uris = destination_cloud_storage_uris
+        self.compression = compression
+        self.export_format = export_format
+        self.field_delimiter = field_delimiter
+        self.print_header = print_header
+        self.gcp_conn_id = gcp_conn_id
+        self.labels = labels
+        self.location = location
+        self.impersonation_chain = impersonation_chain
+        self.result_retry = result_retry
+        self.result_timeout = result_timeout
+        self.job_id = job_id
+        self.force_rerun = force_rerun
+        self.reattach_states: set[str] = reattach_states or set()
+        self.hook: BigQueryHook | None = None
+
+        self._job_id: str = ""
+
+    def _prepare_table_configuration(self, source_project_dataset_table: str) -> dict[str, Any]:
+        source_project, source_dataset, source_table = self.hook.split_tablename(
+            table_input=source_project_dataset_table,
+            default_project_id=self.hook.project_id,
+            var_name="source_project_dataset_table",
+        )
+
+        configuration: dict[str, Any] = {
+            "extract": {
+                "sourceTable": {
+                    "projectId": self.project_id,
+                    "datasetId": self.source_project_dataset,
+                    "tableId": source_table,
+                },
+                "compression": self.compression,
+                "destinationUris": self.destination_cloud_storage_uris,
+                "destinationFormat": self.export_format,
+            }
+        }
+
+        if self.labels:
+            configuration["labels"] = self.labels
+
+        if self.export_format == "CSV":
+            # Only set fieldDelimiter and printHeader fields if using CSV.
+            # Google does not like it if you set these fields for other export
+            # formats.
+            configuration["extract"]["fieldDelimiter"] = self.field_delimiter
+            configuration["extract"]["printHeader"] = self.print_header
+
+        return configuration
+
+    def _create_table_export_job(
+        self, hook: BigQueryHook, source_project_dataset_table: str, logical_date: str
+    ) -> list[str, str]:
+        configuration = self._prepare_table_configuration(source_project_dataset_table)
+        job_id = hook.generate_job_id(
+            job_id=self.job_id,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=logical_date,
+            configuration=configuration,
+            force_rerun=self.force_rerun,
+        )
+
+        return configuration, job_id
+
+    def _submit_job(
+        self,
+        hook: BigQueryHook,
+        job_id: str,
+        configuration: dict,
+    ) -> BigQueryJob:
+        # Submit a new job without waiting for it to complete.
+
+        return hook.insert_job(
+            configuration=configuration,
+            project_id=self.project_id or hook.project_id,
+            location=self.location,
+            job_id=job_id,
+            timeout=self.result_timeout,
+            retry=self.result_retry,
+            nowait=False,
+        )
+
+    def execute(self, context: Context):
+        self.log.info(
+            "Executing extract of %s into: %s",
+            self.source_project_dataset,
+            self.destination_cloud_storage_uris,
+        )
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.hook = hook
+
+        # Get all the table name for the given dataset
+        dataset_tables = self.hook.get_client(self.hook.project_id).get_dataset_tables(
+            self.source_project_dataset
+        )
+
+        # For each table in the list, trigger an export job to the specified GCS path
+        for table in dataset_tables:
+            self.log.info(
+                "Executing table export of %s into: %s",
+                table,
+                self.destination_cloud_storage_uris,
+            )
+            source_project_dataset_table = ".".join([self.project_id, self.source_project_dataset, table])
+            configuration, job_id = self._create_table_export_job(
+                hook, source_project_dataset_table, context["logical_date"]
+            )
+
+            try:
+                self.log.info("Executing: %s", configuration)
+                job: BigQueryJob | UnknownJob = self._submit_job(
+                    hook=hook, job_id=job_id, configuration=configuration
+                )
+            except Conflict:
+                # If the job already exists retrieve it
+                job = hook.get_job(
+                    project_id=self.project_id,
+                    location=self.location,
+                    job_id=job_id,
+                )
+                if job.state in self.reattach_states:
+                    # We are reattaching to a job
+                    job.result(timeout=self.result_timeout, retry=self.result_retry)
+                    self._handle_job_error(job)
+                else:
+                    # Same job configuration so we need force_rerun
+                    raise AirflowException(
+                        f"Job with id: {job_id} already exists and is in {job.state} state. If you "
+                        f"want to force rerun it consider setting `force_rerun=True`."
+                        f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
+                    )
+
+            conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
+            dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
+            BigQueryTableLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=dataset_id,
+                project_id=project_id,
+                table_id=table_id,
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """Return immediately and relies on trigger to throw a success event. Callback for the trigger.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
