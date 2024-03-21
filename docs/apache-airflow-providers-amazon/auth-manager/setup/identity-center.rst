@@ -101,7 +101,7 @@ Please follow the instructions below to create the AWS IAM Identity Center appli
 Attribute mappings configuration
 ================================
 
-Once the application created, you need to configure the attribute mappings.
+Once the application is created, you need to configure the attribute mappings.
 
 1. Go to the details page of the application that you just created.
 2. Choose **Actions**.
