@@ -48,7 +48,7 @@ def client_without_login_as_admin(app):
 
 
 def check_content_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
@@ -58,7 +58,7 @@ def check_content_in_response(text, resp, resp_code=200):
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
-    resp_html = resp.data.decode("utf-8")
+    resp_html = resp.text
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
