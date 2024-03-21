@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import operator
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -183,14 +182,17 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         if not events:
             return DataInterval(logical_date, logical_date)
 
-        # filter out events that are triggered by RESTful API whose source_dag_run attributes are None
-        filtered_events = list(filter(lambda event: event.source_dag_run is not None, events))
-        start = min(
-            filtered_events, key=operator.attrgetter("source_dag_run.data_interval_start")
-        ).source_dag_run.data_interval_start
-        end = max(
-            filtered_events, key=operator.attrgetter("source_dag_run.data_interval_end")
-        ).source_dag_run.data_interval_end
+        start_dates, end_dates = [], []
+        for event in events:
+            if event.source_dag_run is not None:
+                start_dates.append(event.source_dag_run.data_interval_start)
+                end_dates.append(event.source_dag_run.data_interval_end)
+            else:
+                start_dates.append(event.timestamp)
+                end_dates.append(event.timestamp)
+
+        start = min(start_dates)
+        end = max(end_dates)
         return DataInterval(start, end)
 
     def next_dagrun_info(
