@@ -23,7 +23,7 @@ import pendulum
 import requests
 
 from airflow.decorators import dag, task
-from airflow.io.store.path import ObjectStoragePath
+from airflow.io.path import ObjectStoragePath
 
 # [END import_module]
 
@@ -43,11 +43,10 @@ aq_fields = {
 }
 
 # [START create_object_storage_path]
-base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
+base = ObjectStoragePath("s3://aws_default@airflow-tutorial-data/")
 # [END create_object_storage_path]
 
 
-# [START instantiate_dag]
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
@@ -62,9 +61,6 @@ def tutorial_objectstorage():
     located
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/objectstorage.html)
     """
-    # [END instantiate_dag]
-    import duckdb
-    import pandas as pd
 
     # [START get_air_quality_data]
     @task
@@ -74,6 +70,8 @@ def tutorial_objectstorage():
         This task gets air quality data from the Finnish Meteorological Institute's
         open data API. The data is saved as parquet.
         """
+        import pandas as pd
+
         execution_date = kwargs["logical_date"]
         start_time = kwargs["data_interval_start"]
 
@@ -93,7 +91,7 @@ def tutorial_objectstorage():
         response.raise_for_status()
 
         # ensure the bucket exists
-        base.mkdir(exists_ok=True)
+        base.mkdir(exist_ok=True)
 
         formatted_date = execution_date.format("YYYYMMDD")
         path = base / f"air_quality_{formatted_date}.parquet"
@@ -113,6 +111,8 @@ def tutorial_objectstorage():
         #### Analyze
         This task analyzes the air quality data, prints the results
         """
+        import duckdb
+
         conn = duckdb.connect(database=":memory:")
         conn.register_filesystem(path.fs)
         conn.execute(f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path}')")

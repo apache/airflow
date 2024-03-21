@@ -30,7 +30,6 @@ restapi_files = ["tests/api_experimental", "tests/api_connexion", "tests/api_int
 files_not_fully_covered = [
     "airflow/api_connexion/endpoints/forward_to_fab_endpoint.py",
     "airflow/api_connexion/endpoints/task_instance_endpoint.py",
-    "airflow/api_connexion/endpoints/xcom_endpoint.py",
     "airflow/api_connexion/exceptions.py",
     "airflow/api_connexion/schemas/common_schema.py",
     "airflow/api_connexion/security.py",

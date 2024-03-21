@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Internal API command."""
+
 from __future__ import annotations
 
 import logging
@@ -70,10 +71,10 @@ def internal_api(args):
     worker_timeout = args.worker_timeout
 
     if args.debug:
-        log.info(f"Starting the Internal API server on port {args.port} and host {args.hostname}.")
+        log.info("Starting the Internal API server on port %s and host %s.", args.port, args.hostname)
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,
+            debug=True,  # nosec
             use_reloader=not app.config["TESTING"],
             port=args.port,
             host=args.hostname,

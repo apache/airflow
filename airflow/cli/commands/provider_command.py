@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands."""
+
 from __future__ import annotations
 
 import sys
@@ -189,7 +190,20 @@ def auth_backend_list(args):
         data=list(ProvidersManager().auth_backend_module_names),
         output=args.output,
         mapper=lambda x: {
-            "api_auth_backand_module": x,
+            "api_auth_backend_module": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
+def auth_managers_list(args):
+    """List all auth managers at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().auth_managers),
+        output=args.output,
+        mapper=lambda x: {
+            "auth_managers_module": x,
         },
     )
 

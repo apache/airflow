@@ -23,6 +23,7 @@ This module contains Azure Data Explorer hook.
     KustoResponseDataSetV
     kusto
 """
+
 from __future__ import annotations
 
 import warnings
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
 
 class AzureDataExplorerHook(BaseHook):
     """
-    Interacts with Azure Data Explorer (Kusto).
+    Interact with Azure Data Explorer (Kusto).
 
     **Cluster**:
 
@@ -85,7 +86,7 @@ class AzureDataExplorerHook(BaseHook):
     @classmethod
     @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -103,7 +104,7 @@ class AzureDataExplorerHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -142,7 +143,9 @@ class AzureDataExplorerHook(BaseHook):
                 warnings.warn(
                     f"Conflicting params `{key}` and `{backcompat_key}` found in extras for conn "
                     f"{self.conn_id}. Using value for `{key}`.  Please ensure this is the correct value "
-                    f"and remove the backcompat key `{backcompat_key}`."
+                    f"and remove the backcompat key `{backcompat_key}`.",
+                    UserWarning,
+                    stacklevel=2,
                 )
 
         def get_required_param(name: str) -> str:

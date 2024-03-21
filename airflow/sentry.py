@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sentry Integration."""
+
 from __future__ import annotations
 
 import logging
@@ -55,9 +56,6 @@ class DummySentry:
 Sentry: DummySentry = DummySentry()
 if conf.getboolean("sentry", "sentry_on", fallback=False):
     import sentry_sdk
-
-    # Verify blinker installation
-    from blinker import signal  # noqa: F401
     from sentry_sdk.integrations.flask import FlaskIntegration
     from sentry_sdk.integrations.logging import ignore_logger
 
@@ -161,8 +159,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             """
             Decorate errors.
 
-            Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
-            to support task specific tags and breadcrumbs.
+            Wrap TaskInstance._run_raw_task to support task specific tags and breadcrumbs.
             """
             session_args_idx = find_session_idx(func)
 

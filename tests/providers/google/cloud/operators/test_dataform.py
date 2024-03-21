@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.operators.dataform import (
     DataformGetWorkflowInvocationOperator,
     DataformInstallNpmPackagesOperator,
     DataformMakeDirectoryOperator,
+    DataformQueryWorkflowInvocationActionsOperator,
     DataformRemoveDirectoryOperator,
     DataformRemoveFileOperator,
     DataformWriteFileOperator,
@@ -39,6 +40,7 @@ from airflow.providers.google.cloud.operators.dataform import (
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataform.DataformHook"
 WORKFLOW_INVOCATION_STR = "airflow.providers.google.cloud.operators.dataform.WorkflowInvocation"
+WORKFLOW_INVOCATION_ACTION_STR = "airflow.providers.google.cloud.operators.dataform.WorkflowInvocationAction"
 COMPILATION_RESULT_STR = "airflow.providers.google.cloud.operators.dataform.CompilationResult"
 REPOSITORY_STR = "airflow.providers.google.cloud.operators.dataform.Repository"
 WORKSPACE_STR = "airflow.providers.google.cloud.operators.dataform.Workspace"
@@ -162,6 +164,32 @@ class TestDataformGetWorkflowInvocationOperator:
         op.execute(context=mock.MagicMock())
 
         hook_mock.return_value.get_workflow_invocation.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workflow_invocation_id=WORKFLOW_INVOCATION_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestDataformQueryWorkflowInvocationActionsOperator:
+    @mock.patch(HOOK_STR)
+    @mock.patch(WORKFLOW_INVOCATION_ACTION_STR)
+    def test_execute(self, workflow_invocation_action_str, hook_mock):
+        op = DataformQueryWorkflowInvocationActionsOperator(
+            task_id="query_workflow_invocation_action",
+            project_id=PROJECT_ID,
+            region=REGION,
+            repository_id=REPOSITORY_ID,
+            workflow_invocation_id=WORKFLOW_INVOCATION_ID,
+        )
+
+        workflow_invocation_action_str.return_value.to_dict.return_value = None
+        op.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.query_workflow_invocation_actions.assert_called_once_with(
             project_id=PROJECT_ID,
             region=REGION,
             repository_id=REPOSITORY_ID,

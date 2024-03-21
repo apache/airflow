@@ -123,7 +123,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_fail_on_empty(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -163,7 +163,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_failure(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -188,7 +188,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_failure_success(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -217,7 +217,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_failure_success_same(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -243,7 +243,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_invalid_failure(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -266,7 +266,7 @@ class TestSqlSensor:
     )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_invalid_success(
-        self, mock_hook, soft_fail: bool, expected_exception: AirflowException
+        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",

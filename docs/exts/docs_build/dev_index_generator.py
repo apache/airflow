@@ -31,7 +31,7 @@ from docs.exts.provider_yaml_utils import load_package_data
 CURRENT_DIR = os.path.abspath(os.path.dirname(__file__))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 BUILD_DIR = os.path.abspath(os.path.join(DOCS_DIR, "_build"))
-ALL_PROVIDER_YAMLS = load_package_data()
+ALL_PROVIDER_YAMLS_WITH_SUSPENDED = load_package_data(include_suspended=True)
 
 
 def _get_jinja_env():
@@ -46,7 +46,7 @@ def _render_template(template_name, **kwargs):
 
 def _render_content():
     providers = []
-    provider_yamls = {p["package-name"]: p for p in ALL_PROVIDER_YAMLS}
+    provider_yamls = {p["package-name"]: p for p in ALL_PROVIDER_YAMLS_WITH_SUSPENDED}
     for path in sorted(Path(BUILD_DIR).glob("docs/apache-airflow-providers-*/")):
         package_name = path.name
         try:

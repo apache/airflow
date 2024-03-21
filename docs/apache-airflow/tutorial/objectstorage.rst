@@ -25,17 +25,23 @@ This tutorial shows how to use the Object Storage API to manage objects that
 reside on object storage, like S3, gcs and azure blob storage. The API is introduced
 as part of Airflow 2.8.
 
-The tutorial covers a simple pattern that is often used in data engineering and
-data science workflows: accessing a web api, saving and analyzing the result. For the
-tutorial to work you will need to have Duck DB installed, which is a in-process
-analytical database. You can do this by running ``pip install duckdb``. The tutorial
-makes use of S3 Object Storage. This requires that the amazon provider is installed
-including ``s3fs`` by running ``pip install apache-airflow-providers-amazon[s3fs]``.
-If you would like to use a different storage provider, you can do so by changing the
-url in the ``create_object_storage_path`` function to the appropriate url for your
-provider, for example by replacing ``s3://`` with ``gs://`` for Google Cloud Storage.
-You will also need the right provider to be installed then. Finally, you will need
-``pandas``, which can be installed by running ``pip install pandas``.
+The tutorial covers a simple pattern that is often used in data engineering and data
+science workflows: accessing a web api, saving and analyzing the result.
+
+Prerequisites
+-------------
+To complete this tutorial, you need a few things:
+
+- DuckDB, an in-process analytical database,
+  which can be installed by running ``pip install duckdb``.
+- An S3 bucket, along with the Amazon provider including ``s3fs``. You can install
+  the provider package by running
+  ``pip install apache-airflow-providers-amazon[s3fs]``.
+  Alternatively, you can use a different storage provider by changing the URL in
+  the ``create_object_storage_path`` function to the appropriate URL for your
+  provider, for example by replacing ``s3://`` with ``gs://`` for Google Cloud
+  Storage, and installing a different provider.
+- ``pandas``, which you can install by running ``pip install pandas``.
 
 
 Creating an ObjectStoragePath
@@ -49,9 +55,19 @@ It is the fundamental building block of the Object Storage API.
     :start-after: [START create_object_storage_path]
     :end-before: [END create_object_storage_path]
 
-The ObjectStoragePath constructor can take an optional connection id. If supplied
-it will use the connection to obtain the right credentials to access the backend.
-Otherwise it will revert to the default for that backend.
+The username part of the URL given to ObjectStoragePath should be a connection ID.
+The specified connection will be used to obtain the right credentials to access
+the backend. If it is omitted, the default connection for the backend will be used.
+
+The connection ID can alternatively be passed in with a keyword argument:
+
+.. code-block:: python
+
+    ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
+
+This is useful when reusing a URL defined for another purpose (e.g. Dataset),
+which generally does not contain a username part. The explicit keyword argument
+takes precedence over the URL's username value if both are specified.
 
 It is safe to instantiate an ObjectStoragePath at the root of your DAG. Connections
 will not be created until the path is used. This means that you can create the

@@ -97,3 +97,23 @@ inferred by the **Host** field in Connection.
       "database": "dev",
       "profile": "default"
     }
+
+If you want to use IAM with Amazon Redshift Serverless, you need to set **is_serverless** to true and provide
+**serverless_work_group**. You can also set **serverless_token_duration_seconds** to specify the number of seconds
+until the returned temporary password expires; the minimum is 900 seconds, the maximum is 3600 seconds and by default
+it's 3600 seconds.
+
+* **Extra**:
+
+.. code-block:: json
+
+    {
+      "iam": true,
+      "is_serverless": true,
+      "serverless_work_group": "default",
+      "serverless_token_duration_seconds": 3600,
+      "port": 5439,
+      "region": "us-east-1",
+      "database": "dev",
+      "profile": "default"
+    }

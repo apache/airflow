@@ -28,7 +28,6 @@ from marshmallow_oneofschema import OneOfSchema
 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.weight_rule import WeightRule
 
 
 class CronExpression(typing.NamedTuple):
@@ -48,8 +47,7 @@ class TimeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_time_delta(self, data, **kwargs):
         """Create time delta based on data."""
-        if "objectType" in data:
-            del data["objectType"]
+        data.pop("objectType", None)
         return datetime.timedelta(**data)
 
 
@@ -76,9 +74,7 @@ class RelativeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_relative_delta(self, data, **kwargs):
         """Create relative delta based on data."""
-        if "objectType" in data:
-            del data["objectType"]
-
+        data.pop("objectType", None)
         return relativedelta.relativedelta(**data)
 
 
@@ -127,7 +123,7 @@ class ScheduleIntervalSchema(OneOfSchema):
         elif isinstance(obj, CronExpression):
             return "CronExpression"
         else:
-            raise Exception(f"Unknown object type: {obj.__class__.__name__}")
+            raise TypeError(f"Unknown object type: {obj.__class__.__name__}")
 
 
 class ColorField(fields.String):
@@ -141,9 +137,15 @@ class ColorField(fields.String):
 class WeightRuleField(fields.String):
     """Schema for WeightRule."""
 
-    def __init__(self, **metadata):
-        super().__init__(**metadata)
-        self.validators = [validate.OneOf(WeightRule.all_weight_rules()), *self.validators]
+    def _serialize(self, value, attr, obj, **kwargs):
+        from airflow.serialization.serialized_objects import encode_priority_weight_strategy
+
+        return encode_priority_weight_strategy(value)
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        from airflow.serialization.serialized_objects import decode_priority_weight_strategy
+
+        return decode_priority_weight_strategy(value)
 
 
 class TimezoneField(fields.String):

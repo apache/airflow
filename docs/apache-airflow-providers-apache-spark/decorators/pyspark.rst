@@ -23,7 +23,7 @@ PySpark Decorator
 =================
 
 Python callable wrapped within the ``@task.pyspark`` decorator
-is injected with a SparkContext object.
+is injected with a SparkSession and SparkContext object if available.
 
 Parameters
 ----------
@@ -49,3 +49,24 @@ that the ``spark`` and ``sc`` objects are injected into the function.
     :dedent: 4
     :start-after: [START task_pyspark]
     :end-before: [END task_pyspark]
+
+
+Spark Connect
+-------------
+
+In `Apache Spark 3.4 <https://spark.apache.org/docs/latest/spark-connect-overview.html>`_,
+Spark Connect introduced a decoupled client-server architecture
+that allows remote connectivity to Spark clusters using the DataFrame API. Using
+Spark Connect is the preferred way in Airflow to make use of the PySpark decorator,
+because it does not require to run the Spark driver on the same host as Airflow.
+To make use of Spark Connect, you prepend your host url with ``sc://``. For example,
+``sc://spark-cluster:15002``.
+
+
+Authentication
+^^^^^^^^^^^^^^
+
+Spark Connect does not have built-in authentication. The gRPC HTTP/2 interface however
+allows the use of authentication to communicate with the Spark Connect server through
+authenticating proxies. To make use of authentication make sure to create a ``Spark Connect``
+connection and set the right credentials.

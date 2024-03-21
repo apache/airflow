@@ -16,17 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DynamoDBValueSensor(BaseSensorOperator):
+class DynamoDBValueSensor(AwsBaseSensor[DynamoDBHook]):
     """
     Waits for an attribute value to be present for an item in a DynamoDB table.
 
@@ -41,11 +41,20 @@ class DynamoDBValueSensor(BaseSensorOperator):
     :param attribute_value: DynamoDB attribute value
     :param sort_key_name: (optional) DynamoDB sort key name
     :param sort_key_value: (optional) DynamoDB sort key value
-    :param aws_conn_id: aws connection to use
-    :param region_name: aws region to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = DynamoDBHook
+    template_fields: Sequence[str] = aws_template_fields(
         "table_name",
         "partition_key_name",
         "partition_key_value",
@@ -61,11 +70,9 @@ class DynamoDBValueSensor(BaseSensorOperator):
         partition_key_name: str,
         partition_key_value: str,
         attribute_name: str,
-        attribute_value: str,
+        attribute_value: str | Iterable[str],
         sort_key_name: str | None = None,
         sort_key_value: str | None = None,
-        aws_conn_id: str | None = DynamoDBHook.default_conn_name,
-        region_name: str | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -76,8 +83,6 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.attribute_value = attribute_value
         self.sort_key_name = sort_key_name
         self.sort_key_value = sort_key_value
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
 
     def poke(self, context: Context) -> bool:
         """Test DynamoDB item for matching attribute value."""
@@ -99,16 +104,12 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.log.info("Key: %s", key)
         response = table.get_item(Key=key)
         try:
+            item_attribute_value = response["Item"][self.attribute_name]
             self.log.info("Response: %s", response)
             self.log.info("Want: %s = %s", self.attribute_name, self.attribute_value)
-            self.log.info(
-                "Got: {response['Item'][self.attribute_name]} = %s", response["Item"][self.attribute_name]
+            self.log.info("Got: {response['Item'][self.attribute_name]} = %s", item_attribute_value)
+            return item_attribute_value in (
+                [self.attribute_value] if isinstance(self.attribute_value, str) else self.attribute_value
             )
-            return response["Item"][self.attribute_name] == self.attribute_value
         except KeyError:
             return False
-
-    @cached_property
-    def hook(self) -> DynamoDBHook:
-        """Create and return a DynamoDBHook."""
-        return DynamoDBHook(self.aws_conn_id, region_name=self.region_name)

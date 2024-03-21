@@ -81,7 +81,7 @@ class TestSqlAlchemySettings:
         with conf_vars(config):
             settings.configure_orm()
             engine_args = {"arg": 1}
-            if settings.SQL_ALCHEMY_CONN.startswith(("mysql", "mssql")):
+            if settings.SQL_ALCHEMY_CONN.startswith("mysql"):
                 engine_args["isolation_level"] = "READ COMMITTED"
             mock_create_engine.assert_called_once_with(
                 settings.SQL_ALCHEMY_CONN,

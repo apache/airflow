@@ -59,8 +59,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
         xcomarg >> op
         xcomarg << op
-        op >> xcomarg   # By BaseOperator code
-        op << xcomarg   # By BaseOperator code
+        op >> xcomarg  # By BaseOperator code
+        op << xcomarg  # By BaseOperator code
 
     **Example**: The moment you get a result from any operator (decorated or regular) you can ::
 
@@ -406,7 +406,8 @@ class PlainXComArg(XComArg):
         from airflow.models.taskinstance import TaskInstance
 
         ti = context["ti"]
-        assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
+        if not isinstance(ti, TaskInstance):
+            raise NotImplementedError("Wait for AIP-44 implementation to complete")
 
         task_id = self.operator.task_id
         map_indexes = ti.get_relevant_upstream_map_indexes(

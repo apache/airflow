@@ -23,6 +23,7 @@ This module contains a Google Pub/Sub Hook.
     MessageStoragePolicy
     ReceivedMessage
 """
+
 from __future__ import annotations
 
 import warnings
@@ -49,6 +50,7 @@ from airflow.version import version
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.api_core.retry_async import AsyncRetry
     from google.cloud.pubsub_v1.types import (
         DeadLetterPolicy,
         Duration,
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
         PushConfig,
         ReceivedMessage,
         RetryPolicy,
+        SchemaSettings,
     )
 
 
@@ -91,7 +94,7 @@ class PubSubHook(GoogleBaseHook):
 
     def get_conn(self) -> PublisherClient:
         """
-        Retrieves connection to Google Cloud Pub/Sub.
+        Retrieve connection to Google Cloud Pub/Sub.
 
         :return: Google Cloud Pub/Sub client object.
         """
@@ -116,7 +119,7 @@ class PubSubHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> None:
         """
-        Publishes messages to a Pub/Sub topic.
+        Publish messages to a Pub/Sub topic.
 
         :param topic: the Pub/Sub topic to which to publish; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -182,12 +185,14 @@ class PubSubHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
+        schema_settings: dict | SchemaSettings = None,
+        message_retention_duration: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Creates a Pub/Sub topic, if it does not already exist.
+        Create a Pub/Sub topic, if it does not already exist.
 
         :param topic: the Pub/Sub topic name to create; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -206,6 +211,11 @@ class PubSubHook(GoogleBaseHook):
             to be used to protect access to messages published on this topic.
             The expected format is
             ``projects/*/locations/*/keyRings/*/cryptoKeys/*``.
+        :param schema_settings: (Optional) Settings for validating messages published against an
+            existing schema. The expected format is ``projects/*/schemas/*``.
+        :param message_retention_duration: (Optional) Indicates the minimum duration to retain a
+            message after it is published to the topic. The expected format is a duration in
+            seconds with up to nine fractional digits, ending with 's'. Example: "3.5s".
         :param retry: (Optional) A retry object used to retry requests.
             If None is specified, requests will not be retried.
         :param timeout: (Optional) The amount of time, in seconds, to wait for the request
@@ -228,6 +238,8 @@ class PubSubHook(GoogleBaseHook):
                     "labels": labels,
                     "message_storage_policy": message_storage_policy,
                     "kms_key_name": kms_key_name,
+                    "schema_settings": schema_settings,
+                    "message_retention_duration": message_retention_duration,
                 },
                 retry=retry,
                 timeout=timeout,
@@ -253,7 +265,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a Pub/Sub topic if it exists.
+        Delete a Pub/Sub topic if it exists.
 
         :param topic: the Pub/Sub topic name to delete; do not
             include the ``projects/{project}/topics/`` prefix.
@@ -307,7 +319,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
-        Creates a Pub/Sub subscription, if it does not already exist.
+        Create a Pub/Sub subscription, if it does not already exist.
 
         :param topic: the Pub/Sub topic name that the subscription will be bound
             to create; do not include the ``projects/{project}/subscriptions/`` prefix.
@@ -424,7 +436,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a Pub/Sub subscription, if it exists.
+        Delete a Pub/Sub subscription, if it exists.
 
         :param subscription: the Pub/Sub subscription name to delete; do not
             include the ``projects/{project}/subscriptions/`` prefix.
@@ -472,7 +484,7 @@ class PubSubHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:
         """
-        Pulls up to ``max_messages`` messages from Pub/Sub subscription.
+        Pull up to ``max_messages`` messages from Pub/Sub subscription.
 
         :param subscription: the Pub/Sub subscription name to pull from; do not
             include the 'projects/{project}/topics/' prefix.
@@ -585,7 +597,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_subscriber_client(self) -> SubscriberAsyncClient:
         """
-        Returns async connection to the Google PubSub.
+        Return async connection to the Google PubSub.
 
         :return: Google Pub/Sub asynchronous client.
         """
@@ -601,7 +613,7 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         project_id: str,
         ack_ids: list[str] | None = None,
         messages: list[ReceivedMessage] | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
@@ -655,12 +667,12 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> list[ReceivedMessage]:
         """
-        Pulls up to ``max_messages`` messages from Pub/Sub subscription.
+        Pull up to ``max_messages`` messages from Pub/Sub subscription.
 
         :param subscription: the Pub/Sub subscription name to pull from; do not
             include the 'projects/{project}/topics/' prefix.

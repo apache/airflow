@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from flask import g
 from sqlalchemy import select
 
 from airflow.api_connexion import security
@@ -27,9 +26,9 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
 )
+from airflow.api_connexion.security import get_readable_dags
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagwarning import DagWarning as DagWarningModel
-from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -61,7 +60,7 @@ def get_dag_warnings(
     if dag_id:
         query = query.where(DagWarningModel.dag_id == dag_id)
     else:
-        readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        readable_dags = get_readable_dags()
         query = query.where(DagWarningModel.dag_id.in_(readable_dags))
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)

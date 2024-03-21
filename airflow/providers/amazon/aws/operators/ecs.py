@@ -21,21 +21,23 @@ import re
 import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterActiveTrigger,
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
 
@@ -45,21 +47,11 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID = "aws_default"
 
-
-class EcsBaseOperator(BaseOperator):
+class EcsBaseOperator(AwsBaseOperator[EcsHook]):
     """This is the base operator for all Elastic Container Service operators."""
 
-    def __init__(self, *, aws_conn_id: str | None = DEFAULT_CONN_ID, region: str | None = None, **kwargs):
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
-
-    @cached_property
-    def hook(self) -> EcsHook:
-        """Create and return an EcsHook."""
-        return EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+    aws_hook_class = EcsHook
 
     @cached_property
     def client(self) -> boto3.client:
@@ -101,7 +93,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "cluster_name",
         "create_cluster_kwargs",
         "wait_for_completion",
@@ -589,7 +581,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             return None
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
@@ -605,6 +599,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             )
             if len(one_log["events"]) > 0:
                 return one_log["events"][0]["message"]
+        return None
 
     def _after_execution(self):
         self._check_success_task()

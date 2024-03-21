@@ -23,7 +23,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
@@ -88,7 +89,7 @@ def create_dag_run(dag):
     return _create_dag_run
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_run(create_dag_run, session):
     return create_dag_run(execution_date=DEFAULT_DATE, session=session)
 

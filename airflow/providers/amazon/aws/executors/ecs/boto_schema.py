@@ -36,6 +36,8 @@ class BotoContainerSchema(Schema):
     exit_code = fields.Integer(data_key="exitCode")
     last_status = fields.String(data_key="lastStatus")
     name = fields.String(required=True)
+    reason = fields.String()
+    container_arn = fields.String(data_key="containerArn")
 
     class Meta:
         """Options object for a Schema. See Schema.Meta for more details and valid values."""
@@ -59,7 +61,7 @@ class BotoTaskSchema(Schema):
 
     @post_load
     def make_task(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of EcsExecutorTask instead of a dictionary."""
+        """Overwrite marshmallow load() to return an EcsExecutorTask instance instead of a dictionary."""
         # Imported here to avoid circular import.
         from airflow.providers.amazon.aws.executors.ecs.utils import EcsExecutorTask
 

@@ -19,6 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
+from deprecated import deprecated
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -85,7 +86,7 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         if slack_conn_id := kwargs.pop("slack_conn_id", None):
@@ -162,11 +163,12 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         self.log.debug("Finished sending SQL data to Slack")
 
     @property
+    @deprecated(
+        reason=(
+            "`SqlToSlackWebhookOperator.slack_conn_id` property deprecated and will be removed in a future. "
+            "Please use `slack_webhook_conn_id` instead."
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def slack_conn_id(self):
-        warnings.warn(
-            f"`{type(self).__name__}.slack_conn_id` property deprecated and will be removed in a future. "
-            "Please use `slack_webhook_conn_id` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         return self.slack_webhook_conn_id

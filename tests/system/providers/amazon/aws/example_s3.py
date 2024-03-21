@@ -71,6 +71,8 @@ with DAG(
     key = f"{env_id}-key"
     key_2 = f"{env_id}-key2"
 
+    key_regex_pattern = ".*-key"
+
     # [START howto_sensor_s3_key_function_definition]
     def check_fn(files: list) -> bool:
         """
@@ -191,7 +193,7 @@ with DAG(
     )
     # [END howto_sensor_s3_key_multiple_keys_deferrable]
 
-    # [START howto_sensor_s3_key_function]
+    # [START howto_sensor_s3_key_function_deferrable]
     # Check if a file exists and match a certain pattern defined in check_fn
     sensor_key_with_function_deferrable = S3KeySensor(
         task_id="sensor_key_with_function_deferrable",
@@ -200,7 +202,18 @@ with DAG(
         check_fn=check_fn,
         deferrable=True,
     )
-    # [END howto_sensor_s3_key_function]
+    # [END howto_sensor_s3_key_function_deferrable]
+
+    # [START howto_sensor_s3_key_regex_deferrable]
+    # Check if a file exists and match a certain regular expression pattern
+    sensor_key_with_regex_deferrable = S3KeySensor(
+        task_id="sensor_key_with_regex_deferrable",
+        bucket_name=bucket_name,
+        bucket_key=key_regex_pattern,
+        use_regex=True,
+        deferrable=True,
+    )
+    # [END howto_sensor_s3_key_regex_deferrable]
 
     # [START howto_sensor_s3_key_function]
     # Check if a file exists and match a certain pattern defined in check_fn
@@ -211,6 +224,13 @@ with DAG(
         check_fn=check_fn,
     )
     # [END howto_sensor_s3_key_function]
+
+    # [START howto_sensor_s3_key_regex]
+    # Check if a file exists and match a certain regular expression pattern
+    sensor_key_with_regex = S3KeySensor(
+        task_id="sensor_key_with_regex", bucket_name=bucket_name, bucket_key=key_regex_pattern, use_regex=True
+    )
+    # [END howto_sensor_s3_key_regex]
 
     # [START howto_operator_s3_copy_object]
     copy_object = S3CopyObjectOperator(
@@ -286,8 +306,13 @@ with DAG(
         create_object_2,
         list_prefixes,
         list_keys,
-        [sensor_one_key, sensor_two_keys, sensor_key_with_function],
-        [sensor_one_key_deferrable, sensor_two_keys_deferrable, sensor_key_with_function_deferrable],
+        [sensor_one_key, sensor_two_keys, sensor_key_with_function, sensor_key_with_regex],
+        [
+            sensor_one_key_deferrable,
+            sensor_two_keys_deferrable,
+            sensor_key_with_function_deferrable,
+            sensor_key_with_regex_deferrable,
+        ],
         copy_object,
         file_transform,
         branching,

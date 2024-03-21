@@ -18,6 +18,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Main executable module."""
+
 from __future__ import annotations
 
 import os

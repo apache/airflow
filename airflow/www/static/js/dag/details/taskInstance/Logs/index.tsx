@@ -22,13 +22,15 @@ import {
   Text,
   Box,
   Flex,
-  Divider,
   Button,
   Checkbox,
   Icon,
   Spinner,
+  Select,
+  IconButton,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
+import { BiCollapse, BiExpand } from "react-icons/bi";
 
 import { getMetaValue } from "src/utils";
 import useTaskLog from "src/api/useTaskLog";
@@ -36,7 +38,6 @@ import LinkButton from "src/components/LinkButton";
 import { useTimezone } from "src/context/timezone";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import MultiSelect from "src/components/MultiSelect";
-
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 import LogLink from "./LogLink";
@@ -95,6 +96,8 @@ interface Props {
   executionDate: DagRun["executionDate"];
   tryNumber: TaskInstance["tryNumber"];
   state?: TaskInstance["state"];
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
 const Logs = ({
@@ -105,6 +108,8 @@ const Logs = ({
   executionDate,
   tryNumber,
   state,
+  isFullScreen,
+  toggleFullScreen,
 }: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedTryNumber, setSelectedTryNumber] = useState<
@@ -117,6 +122,7 @@ const Logs = ({
   const [fileSourceFilters, setFileSourceFilters] = useState<
     Array<FileSourceOption>
   >([]);
+  const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
@@ -148,10 +154,14 @@ const Logs = ({
         data,
         timezone,
         logLevelFilters.map((option) => option.value),
-        fileSourceFilters.map((option) => option.value)
+        fileSourceFilters.map((option) => option.value),
+        unfoldedLogGroups
       ),
-    [data, fileSourceFilters, logLevelFilters, timezone]
+    [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
   );
+
+  const logAttemptDropdownLimit = 10;
+  const showDropdown = internalIndexes.length > logAttemptDropdownLimit;
 
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
@@ -175,27 +185,64 @@ const Logs = ({
 
   return (
     <>
+      {externalLogName && externalIndexes.length > 0 && (
+        <Box my={1}>
+          <Text>View Logs in {externalLogName} (by attempts):</Text>
+          <Flex flexWrap="wrap">
+            {externalIndexes.map((index) => (
+              <LogLink
+                key={index}
+                dagId={dagId}
+                taskId={taskId}
+                executionDate={executionDate}
+                tryNumber={index}
+              />
+            ))}
+          </Flex>
+        </Box>
+      )}
       {tryNumber !== undefined && (
         <>
           <Box>
-            <Text as="span"> (by attempts)</Text>
-            <Flex my={1} justifyContent="space-between">
-              <Flex flexWrap="wrap">
-                {internalIndexes.map((index) => (
-                  <Button
-                    key={index}
-                    variant={taskTryNumber === index ? "solid" : "ghost"}
-                    colorScheme="blue"
-                    onClick={() => setSelectedTryNumber(index)}
-                    data-testid={`log-attempt-select-button-${index}`}
-                  >
-                    {index}
-                  </Button>
-                ))}
-              </Flex>
-            </Flex>
+            {!showDropdown && (
+              <Box>
+                <Text as="span"> (by attempts)</Text>
+                <Flex my={1} justifyContent="space-between">
+                  <Flex flexWrap="wrap">
+                    {internalIndexes.map((index) => (
+                      <Button
+                        key={index}
+                        variant={taskTryNumber === index ? "solid" : "ghost"}
+                        colorScheme="blue"
+                        onClick={() => setSelectedTryNumber(index)}
+                        data-testid={`log-attempt-select-button-${index}`}
+                      >
+                        {index}
+                      </Button>
+                    ))}
+                  </Flex>
+                </Flex>
+              </Box>
+            )}
             <Flex my={1} justifyContent="space-between" flexWrap="wrap">
               <Flex alignItems="center" flexGrow={1} mr={10}>
+                {showDropdown && (
+                  <Box width="100%" mr={2}>
+                    <Select
+                      size="sm"
+                      placeholder="Select log attempt"
+                      onChange={(e) => {
+                        setSelectedTryNumber(Number(e.target.value));
+                      }}
+                    >
+                      {internalIndexes.map((index) => (
+                        <option key={index} value={index}>
+                          {index}
+                        </option>
+                      ))}
+                    </Select>
+                  </Box>
+                )}
                 <Box width="100%" mr={2}>
                   <MultiSelect
                     size="sm"
@@ -252,6 +299,19 @@ const Logs = ({
                 <LinkButton href={`${logUrl}&${params.toString()}`}>
                   See More
                 </LinkButton>
+                <IconButton
+                  variant="ghost"
+                  aria-label="Toggle full screen"
+                  title="Toggle full screen"
+                  onClick={toggleFullScreen}
+                  icon={
+                    isFullScreen ? (
+                      <BiCollapse height="24px" />
+                    ) : (
+                      <BiExpand height="24px" />
+                    )
+                  }
+                />
               </Flex>
             </Flex>
           </Box>
@@ -275,28 +335,11 @@ const Logs = ({
                 parsedLogs={parsedLogs}
                 wrap={wrap}
                 tryNumber={taskTryNumber}
+                unfoldedGroups={unfoldedLogGroups}
+                setUnfoldedLogGroup={setUnfoldedLogGroup}
               />
             )
           )}
-        </>
-      )}
-      {externalLogName && externalIndexes.length > 0 && (
-        <>
-          <Box>
-            <Text>View Logs in {externalLogName} (by attempts):</Text>
-            <Flex flexWrap="wrap">
-              {externalIndexes.map((index) => (
-                <LogLink
-                  key={index}
-                  dagId={dagId}
-                  taskId={taskId}
-                  executionDate={executionDate}
-                  tryNumber={index}
-                />
-              ))}
-            </Flex>
-          </Box>
-          <Divider my={2} />
         </>
       )}
     </>

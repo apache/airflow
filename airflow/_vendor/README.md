@@ -30,7 +30,7 @@ Way to vendor a library or update a version:
 3. Replace them with new files (only replace relevant python packages:move LICENSE )
    * move license files to [licenses](../../licenses) folder
    * remove README and any other supporting files (they can be found in PyPI)
-   * make sure to add requirements from setup.py to airflow's setup.py with appropriate comment stating
+   * make sure to add requirements to airflow's ``pyproject.toml`` with appropriate comment stating
      why the requirements are added and when they should be removed
 4. If you replace previous version, re-apply historical fixes from the "package" folder by
    cherry-picking them.

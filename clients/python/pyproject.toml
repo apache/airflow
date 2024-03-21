@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "apache-airflow-client"
+dynamic = ["version"]
+description = "Apache Airflow API (Stable)"
+readme = "README.md"
+license-files.globs = ["LICENSE", "NOTICE"]
+requires-python = "~=3.8"
+authors = [
+    { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
+]
+keywords = [
+    "Apache Airflow API (Stable)",
+    "OpenAPI",
+    "OpenAPI-Generator",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: Apache Airflow",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: System :: Monitoring",
+]
+
+dependencies = [
+    "python-dateutil",
+    "urllib3 >= 1.25.3",
+]
+
+[project.urls]
+"Bug Tracker" = "https://github.com/apache/airflow-client-python/issues"
+Changelog = "https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md"
+Documentation = "https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html"
+Download = "https://archive.apache.org/dist/airflow/clients/python/"
+Homepage = "https://airflow.apache.org/"
+"Source Code" = "https://github.com/apache/airflow/clients/python"
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest-cov>=2.8.1",
+    "urllib3 >= 1.25.3",
+]
+
+[tool.hatch.envs.test.scripts]
+run-coverage = "pytest test"
+run = "run-coverage --no-cov"
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]
+
+[tool.hatch.version]
+path = "./version.txt"
+pattern = "^(?P<version>.+)$"
+
+[tool.hatch.build.targets.sdist]
+artifacts = [
+    "/airflow_client",
+    "/docs",
+    "/test",
+    "v1.yaml",
+]
+include = [
+    "version.txt",
+    "INSTALL",
+    "README.md",
+]
+
+[tool.hatch.build.targets.wheel]
+artifacts = [
+    "/airflow_client",
+    "/docs",
+    "/test",
+    "v1.yaml",
+]
+include = [
+    "/airflow_client",
+]
+
+[tool.pytest.ini_options]
+# make sure that pytest.ini is not read from pyproject.toml in paraent directories
+addopts = "--color=yes --cov-config=pyproject.toml --cov=airflow_client"
+norecursedirs = [
+]
+log_level = "INFO"
+filterwarnings = [
+]
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "test",
+]

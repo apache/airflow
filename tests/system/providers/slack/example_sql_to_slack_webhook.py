@@ -18,6 +18,7 @@
 """
 Example DAG using SqlToSlackOperator.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,7 +30,7 @@ from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWeb
 SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
 SQL_CONN_ID = "presto_default"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_sql_to_slack"
+DAG_ID = "example_sql_to_slack_webhook"
 
 with models.DAG(
     dag_id=DAG_ID,

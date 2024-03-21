@@ -20,7 +20,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from airflow.api_connexion.exceptions import BadRequest
-from airflow.auth.managers.fab.api_endpoints import role_and_permission_endpoint, user_endpoint
+from airflow.providers.fab.auth_manager.api_endpoints import role_and_permission_endpoint, user_endpoint
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -37,7 +37,7 @@ def _require_fab(func: Callable) -> Callable:
     """
 
     def inner(*args, **kwargs):
-        from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
         auth_mgr = get_auth_manager()
         if not isinstance(auth_mgr, FabAuthManager):
@@ -79,12 +79,14 @@ def delete_role(**kwargs) -> APIResponse:
 @_require_fab
 def patch_role(**kwargs) -> APIResponse:
     """Update a role."""
+    kwargs.pop("body", None)
     return role_and_permission_endpoint.patch_role(**kwargs)
 
 
 @_require_fab
 def post_role(**kwargs) -> APIResponse:
     """Create a new role."""
+    kwargs.pop("body", None)
     return role_and_permission_endpoint.post_role(**kwargs)
 
 
@@ -111,12 +113,14 @@ def get_users(**kwargs) -> APIResponse:
 @_require_fab
 def post_user(**kwargs) -> APIResponse:
     """Create a new user."""
+    kwargs.pop("body", None)
     return user_endpoint.post_user(**kwargs)
 
 
 @_require_fab
 def patch_user(**kwargs) -> APIResponse:
     """Update a user."""
+    kwargs.pop("body", None)
     return user_endpoint.patch_user(**kwargs)
 
 

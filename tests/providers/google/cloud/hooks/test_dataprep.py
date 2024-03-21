@@ -42,6 +42,10 @@ URL_WRANGLED_DATASETS = URL_BASE + "/v4/wrangledDatasets"
 URL_OUTPUT_OBJECTS = URL_BASE + "/v4/outputObjects"
 URL_WRITE_SETTINGS = URL_BASE + "/v4/writeSettings"
 
+# needed to ignore MyPy badly detecting HTTPError as requiring response parameter
+# HTTPError will fall-back to None when parameter is not present.
+# mypy: disable-error-code="call-arg"
+
 
 class TestGoogleDataprepHook:
     def setup_method(self):

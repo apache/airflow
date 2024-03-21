@@ -34,6 +34,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-version",
                 "--python",
                 "--include-provider-dependencies",
+                "--package-filter",
                 "--force",
             ],
         },

@@ -19,6 +19,7 @@
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,11 +30,12 @@ from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSen
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
 
 # Ignore missing args provided by default_args
-# type: ignore[call-arg]
+# mypy: disable-error-code="call-arg"
 
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_cassandra_operator"
+
 # [START howto_operator_cassandra_sensors]
 with DAG(
     dag_id=DAG_ID,

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Custom logging formatter for Airflow."""
+
 from __future__ import annotations
 
 import logging
@@ -27,6 +28,9 @@ if TYPE_CHECKING:
     from jinja2 import Template
 
     from airflow.models.taskinstance import TaskInstance
+
+
+logger = logging.getLogger(__name__)
 
 
 class TaskHandlerWithCustomFormatter(logging.StreamHandler):
@@ -58,5 +62,5 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
             return render_template_to_string(self.prefix_jinja_template, jinja_context)
-        logging.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
+        logger.warning("'task_log_prefix_template' is in invalid format, ignoring the variable value")
         return ""

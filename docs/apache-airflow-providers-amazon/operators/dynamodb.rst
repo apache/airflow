@@ -30,6 +30,10 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
 
 Sensors
 -------
@@ -42,12 +46,27 @@ Wait on Amazon DynamoDB item attribute value match
 Use the :class:`~airflow.providers.amazon.aws.sensors.dynamodb.DynamoDBValueSensor`
 to wait for the presence of a matching DynamoDB item's attribute/value pair.
 
+Wait for a Single Attribute Value Match:
+----------------------------------------
+
+This example shows how to use ``DynamoDBValueSensor`` to wait for a specific attribute/value pair in a DynamoDB item.
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb.py
     :language: python
     :start-after: [START howto_sensor_dynamodb_value]
     :dedent: 4
     :end-before: [END howto_sensor_dynamodb_value]
 
+Wait for Any Value from a List of Attribute Values:
+---------------------------------------------------
+
+In this example, the sensor waits for the DynamoDB item to have an attribute that matches any value from a provided list.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb.py
+    :language: python
+    :start-after: [START howto_sensor_dynamodb_any_value]
+    :dedent: 4
+    :end-before: [END howto_sensor_dynamodb_any_value]
 
 Reference
 ---------

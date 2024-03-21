@@ -19,9 +19,18 @@
 package-name: apache-airflow-providers-yandex
 name: Yandex
 description: |
-    Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
-suspended: false
+    This package is for Yandex, including:
+
+        - `Yandex.Cloud <https://cloud.yandex.com/>`__
+state: ready
+source-date-epoch: 1707636562
+# note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.9.0
+  - 3.8.0
+  - 3.7.1
+  - 3.7.0
+  - 3.6.0
   - 3.5.0
   - 3.4.0
   - 3.3.0
@@ -38,8 +47,12 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.5.0
+  - apache-airflow>=2.6.0
   - yandexcloud>=0.228.0
+  - yandex-query-client>=0.1.2
+  - python-dateutil>=2.8.0
+  # Requests 3 if it will be released, will be heavily breaking.
+  - requests>=2.27.0,<3
 
 integrations:
   - integration-name: Yandex.Cloud
@@ -54,10 +67,21 @@ integrations:
     logo: /integration-logos/yandex/Yandex-Cloud.png
     tags: [service]
 
+  - integration-name: Yandex.Cloud YQ
+    external-doc-url: https://cloud.yandex.com/en/services/query
+    how-to-guide:
+      - /docs/apache-airflow-providers-yandex/operators.rst
+    logo: /integration-logos/yandex/Yandex-Cloud.png
+    tags: [service]
+
 operators:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.operators.yandexcloud_dataproc
+
+  - integration-name: Yandex.Cloud YQ
+    python-modules:
+      - airflow.providers.yandex.operators.yq
 
 hooks:
   - integration-name: Yandex.Cloud
@@ -66,10 +90,19 @@ hooks:
   - integration-name: Yandex.Cloud Dataproc
     python-modules:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
+  - integration-name: Yandex.Cloud YQ
+    python-modules:
+      - airflow.providers.yandex.hooks.yq
 
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud
+
+secrets-backends:
+  - airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend
+
+extra-links:
+  - airflow.providers.yandex.links.yq.YQLink
 
 config:
   yandex:

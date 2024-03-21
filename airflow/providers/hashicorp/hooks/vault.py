@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for HashiCorp Vault."""
+
 from __future__ import annotations
 
 import json
@@ -290,7 +291,7 @@ class VaultHook(BaseHook):
 
     def get_conn(self) -> hvac.Client:
         """
-        Retrieves connection to Vault.
+        Retrieve connection to Vault.
 
         :return: connection used.
         """
@@ -313,7 +314,7 @@ class VaultHook(BaseHook):
 
     def get_secret_metadata(self, secret_path: str) -> dict | None:
         """
-        Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
+        Read secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
         :return: secret metadata. This is a Dict containing metadata for the secret.
@@ -327,7 +328,7 @@ class VaultHook(BaseHook):
         self, secret_path: str, secret_version: int | None = None
     ) -> dict | None:
         """
-        Reads secret including metadata. It is only valid for KV version 2.
+        Read secret including metadata. It is only valid for KV version 2.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
@@ -345,7 +346,7 @@ class VaultHook(BaseHook):
         self, secret_path: str, secret: dict, method: str | None = None, cas: int | None = None
     ) -> Response:
         """
-        Creates or updates secret.
+        Create or updates secret.
 
         :param secret_path: Path to read from
         :param secret: Secret to create or update for the path specified
@@ -368,7 +369,7 @@ class VaultHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -403,9 +404,9 @@ class VaultHook(BaseHook):
             "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["extra"],
             "relabeling": {},

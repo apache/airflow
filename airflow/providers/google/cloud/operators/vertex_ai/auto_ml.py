@@ -22,12 +22,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -91,7 +93,7 @@ class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.hook: AutoMLHook | None = None
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_auto_ml_job()
 
@@ -133,9 +135,14 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         quantiles: list[float] | None = None,
         validation_options: str | None = None,
         budget_milli_node_hours: int = 1000,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.target_column = target_column
         self.time_column = time_column
@@ -252,9 +259,14 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         test_filter_split: str | None = None,
         budget_milli_node_hours: int | None = None,
         disable_early_stopping: bool = False,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.multi_label = multi_label
@@ -345,9 +357,14 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         export_evaluated_data_items: bool = False,
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.target_column = target_column
         self.optimization_prediction_type = optimization_prediction_type
@@ -529,9 +546,14 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         model_type: str = "CLOUD",
         training_filter_split: str | None = None,
         test_filter_split: str | None = None,
+        region: str,
+        impersonation_chain: str | Sequence[str] | None = None,
+        parent_model: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(
+            region=region, impersonation_chain=impersonation_chain, parent_model=parent_model, **kwargs
+        )
         self.dataset_id = dataset_id
         self.prediction_type = prediction_type
         self.model_type = model_type
@@ -587,7 +609,7 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     AutoMLTabularTrainingJob, AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
 
-    template_fields = ("training_pipeline", "region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -603,7 +625,7 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.training_pipeline = training_pipeline_id
+        self.training_pipeline_id = training_pipeline_id
         self.region = region
         self.project_id = project_id
         self.retry = retry
@@ -611,6 +633,16 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+
+    @property
+    @deprecated(
+        reason="`training_pipeline` is deprecated and will be removed in the future. "
+        "Please use `training_pipeline_id` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def training_pipeline(self):
+        """Alias for ``training_pipeline_id``, used for compatibility (deprecated)."""
+        return self.training_pipeline_id
 
     def execute(self, context: Context):
         hook = AutoMLHook(

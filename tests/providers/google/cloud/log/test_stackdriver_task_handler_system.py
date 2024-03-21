@@ -52,7 +52,6 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
         importlib.reload(airflow_local_settings)
         settings.configure_logging()
         clear_db_runs()
-        super().tearDown()
 
     @provide_session
     def test_should_support_key_auth(self, session):

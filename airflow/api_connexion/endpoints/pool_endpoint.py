@@ -31,6 +31,7 @@ from airflow.api_connexion.parameters import apply_sorting, check_limit, format_
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 
 
 @security.requires_access_pool("DELETE")
+@action_logging
 @provide_session
 def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a pool."""
@@ -82,6 +84,7 @@ def get_pools(
 
 
 @security.requires_access_pool("PUT")
+@action_logging
 @provide_session
 def patch_pool(
     *,
@@ -111,8 +114,11 @@ def patch_pool(
         update_mask = [i.strip() for i in update_mask]
         _patch_body = {}
         try:
+            # MyPy infers a List[Optional[str]]  type here but it should be a List[str]
+            # there is no way field is None here (UpdateMask is a List[str])
+            # so if pool_schema.declared_fields[field].attribute is None file is returned
             update_mask = [
-                pool_schema.declared_fields[field].attribute
+                pool_schema.declared_fields[field].attribute  # type: ignore[misc]
                 if pool_schema.declared_fields[field].attribute
                 else field
                 for field in update_mask
@@ -135,6 +141,7 @@ def patch_pool(
 
 
 @security.requires_access_pool("POST")
+@action_logging
 @provide_session
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool."""

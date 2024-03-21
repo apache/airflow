@@ -21,11 +21,11 @@ import logging
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
-from unittest import mock
 from unittest.mock import patch
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
@@ -95,7 +95,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
     dag.test()
-    assert caplog.text.count("task_2 ran successfully") == 2
+    assert caplog.text.count("[DAG TEST] end task task_id=task_2") == 2
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
         in caplog.text
@@ -405,7 +405,12 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
-def test_mapped_render_template_fields_validating_operator(dag_maker, session):
+def test_mapped_render_template_fields_validating_operator(dag_maker, session, tmp_path):
+    file_template_dir = tmp_path / "path" / "to"
+    file_template_dir.mkdir(parents=True, exist_ok=True)
+    file_template = file_template_dir / "file.ext"
+    file_template.write_text("loaded data")
+
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):
@@ -427,7 +432,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
         def execute(self, context):
             pass
 
-        with dag_maker(session=session):
+        with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
             task1 = BaseOperator(task_id="op1")
             output1 = task1.output
             mapped = MyOperator.partial(
@@ -455,10 +460,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
         mapped_ti.map_index = 0
 
         assert isinstance(mapped_ti.task, MappedOperator)
-        with patch("builtins.open", mock.mock_open(read_data=b"loaded data")), patch(
-            "os.path.isfile", return_value=True
-        ), patch("os.path.getmtime", return_value=0):
-            mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
         assert isinstance(mapped_ti.task, MyOperator)
 
         assert mapped_ti.task.partial_template == "a", "Should be templated!"
@@ -468,7 +470,12 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
         assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
 
 
-def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
+def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, tmp_path):
+    file_template_dir = tmp_path / "path" / "to"
+    file_template_dir.mkdir(parents=True, exist_ok=True)
+    file_template = file_template_dir / "file.ext"
+    file_template.write_text("loaded data")
+
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):
@@ -490,7 +497,7 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
             def execute(self, context):
                 pass
 
-        with dag_maker(session=session):
+        with dag_maker(session=session, template_searchpath=tmp_path.__fspath__()):
             mapped = MyOperator.partial(
                 task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
             ).expand_kwargs(
@@ -502,10 +509,7 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
         mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session, map_index=0)
 
         assert isinstance(mapped_ti.task, MappedOperator)
-        with patch("builtins.open", mock.mock_open(read_data=b"loaded data")), patch(
-            "os.path.isfile", return_value=True
-        ), patch("os.path.getmtime", return_value=0):
-            mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
         assert isinstance(mapped_ti.task, MyOperator)
 
         assert mapped_ti.task.partial_template == "a", "Should be templated!"
@@ -604,6 +608,77 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     )
 
     assert indices == expected
+
+
+def _create_mapped_with_name_template_classic(*, task_id, map_names, template):
+    class HasMapName(BaseOperator):
+        def __init__(self, *, map_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.map_name = map_name
+
+        def execute(self, context):
+            context["map_name"] = self.map_name
+
+    return HasMapName.partial(task_id=task_id, map_index_template=template).expand(
+        map_name=map_names,
+    )
+
+
+def _create_mapped_with_name_template_taskflow(*, task_id, map_names, template):
+    from airflow.operators.python import get_current_context
+
+    @task(task_id=task_id, map_index_template=template)
+    def task1(map_name):
+        context = get_current_context()
+        context["map_name"] = map_name
+
+    return task1.expand(map_name=map_names)
+
+
+@pytest.mark.parametrize(
+    "template, expected_rendered_names",
+    [
+        pytest.param(None, [None, None], id="unset"),
+        pytest.param("", ["", ""], id="constant"),
+        pytest.param("{{ ti.task_id }}-{{ ti.map_index }}", ["task1-0", "task1-1"], id="builtin"),
+        pytest.param("{{ ti.task_id }}-{{ map_name }}", ["task1-a", "task1-b"], id="custom"),
+    ],
+)
+@pytest.mark.parametrize(
+    "create_mapped_task",
+    [
+        pytest.param(_create_mapped_with_name_template_classic, id="classic"),
+        pytest.param(_create_mapped_with_name_template_taskflow, id="taskflow"),
+    ],
+)
+def test_expand_mapped_task_instance_with_named_index(
+    dag_maker,
+    session,
+    create_mapped_task,
+    template,
+    expected_rendered_names,
+) -> None:
+    """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+        create_mapped_task(task_id="task1", map_names=["a", "b"], template=template)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    for ti in tis:
+        ti.run()
+    session.flush()
+
+    indices = session.scalars(
+        select(TaskInstance.rendered_map_index)
+        .where(
+            TaskInstance.dag_id == "test-dag",
+            TaskInstance.task_id == "task1",
+            TaskInstance.run_id == dr.run_id,
+        )
+        .order_by(TaskInstance.map_index)
+    ).all()
+
+    assert indices == expected_rendered_names
 
 
 @pytest.mark.parametrize(
@@ -1305,8 +1380,8 @@ class TestMappedSetupTeardown:
         states = self.get_states(dr)
         expected = {
             "file_transforms.my_setup": {0: "success", 1: "failed", 2: "skipped"},
-            "file_transforms.my_work": {2: "upstream_failed", 1: "upstream_failed", 0: "upstream_failed"},
-            "file_transforms.my_teardown": {2: "success", 1: "success", 0: "success"},
+            "file_transforms.my_work": {0: "success", 1: "upstream_failed", 2: "skipped"},
+            "file_transforms.my_teardown": {0: "success", 1: "upstream_failed", 2: "skipped"},
         }
 
         assert states == expected
@@ -1566,5 +1641,62 @@ class TestMappedSetupTeardown:
             "tg_2.my_setup": "skipped",
             "tg_2.my_teardown": "skipped",
             "tg_2.my_work": "skipped",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group_with_generator(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def make_list():
+                return [1, 2, 3]
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n): ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=make_list())
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
+            "make_list": "success",
+        }
+        assert states == expected
+
+    def test_skip_one_mapped_task_from_task_group(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def double(n):
+                if n == 2:
+                    raise AirflowSkipException()
+                return n * 2
+
+            @task
+            def last(n): ...
+
+            @task_group
+            def group(n: int) -> None:
+                last(double(n))
+
+            group.expand(n=[1, 2, 3])
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "group.double": {0: "success", 1: "skipped", 2: "success"},
+            "group.last": {0: "success", 1: "skipped", 2: "success"},
         }
         assert states == expected

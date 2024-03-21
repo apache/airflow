@@ -16,12 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 import pdpyras
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -47,9 +48,9 @@ class PagerdutyEventsHook(BaseHook):
     conn_type = "pagerduty_events"
     hook_name = "Pagerduty Events"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {
@@ -76,6 +77,13 @@ class PagerdutyEventsHook(BaseHook):
                 "Cannot get token: No valid integration key nor pagerduty_events_conn_id supplied."
             )
 
+    @deprecated(
+        reason=(
+            "This method will be deprecated. Please use the "
+            "`PagerdutyEventsHook.send_event` to interact with the Events API"
+        ),
+        category=AirflowProviderDeprecationWarning,
+    )
     def create_event(
         self,
         summary: str,
@@ -118,13 +126,6 @@ class PagerdutyEventsHook(BaseHook):
             link's text.
         :return: PagerDuty Events API v2 response.
         """
-        warnings.warn(
-            "This method will be deprecated. Please use the "
-            "`PagerdutyEventsHook.send_event` to interact with the Events API",
-            AirflowProviderDeprecationWarning,
-            stacklevel=1,
-        )
-
         data = PagerdutyEventsHook.prepare_event_data(
             summary=summary,
             severity=severity,

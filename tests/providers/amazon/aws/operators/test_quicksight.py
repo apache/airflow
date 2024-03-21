@@ -38,17 +38,41 @@ MOCK_RESPONSE = {
 
 class TestQuickSightCreateIngestionOperator:
     def setup_method(self):
-        self.quicksight = QuickSightCreateIngestionOperator(
-            task_id="test_quicksight_operator",
-            data_set_id=DATA_SET_ID,
-            ingestion_id=INGESTION_ID,
-        )
+        self.default_op_kwargs = {
+            "task_id": "quicksight_create",
+            "aws_conn_id": None,
+            "data_set_id": DATA_SET_ID,
+            "ingestion_id": INGESTION_ID,
+        }
 
-    @mock.patch.object(QuickSightHook, "get_conn")
-    @mock.patch.object(QuickSightHook, "create_ingestion")
-    def test_execute(self, mock_create_ingestion, mock_client):
-        mock_create_ingestion.return_value = MOCK_RESPONSE
-        self.quicksight.execute(None)
+    def test_init(self):
+        self.default_op_kwargs.pop("aws_conn_id", None)
+
+        op = QuickSightCreateIngestionOperator(
+            **self.default_op_kwargs,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="cn-north-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.client_type == "quicksight"
+        assert op.hook.resource_type is None
+        assert op.hook.aws_conn_id == "fake-conn-id"
+        assert op.hook._region_name == "cn-north-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+        op = QuickSightCreateIngestionOperator(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+    @mock.patch.object(QuickSightHook, "create_ingestion", return_value=MOCK_RESPONSE)
+    def test_execute(self, mock_create_ingestion):
+        QuickSightCreateIngestionOperator(**self.default_op_kwargs).execute({})
         mock_create_ingestion.assert_called_once_with(
             data_set_id=DATA_SET_ID,
             ingestion_id=INGESTION_ID,

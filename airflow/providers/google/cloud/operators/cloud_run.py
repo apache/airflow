@@ -264,7 +264,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param deferrable: Run operator in the deferrable mode
     """
 
-    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name", "overrides")
 
     def __init__(
         self,
@@ -302,7 +302,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
-            job = hook.get_job(job_name=result.job, region=self.region)
+            job = hook.get_job(job_name=result.job, region=self.region, project_id=self.project_id)
             return Job.to_dict(job)
         else:
             self.defer(
@@ -321,10 +321,10 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict):
         status = event["status"]
 
-        if status == RunJobStatus.TIMEOUT:
+        if status == RunJobStatus.TIMEOUT.value:
             raise AirflowException("Operation timed out")
 
-        if status == RunJobStatus.FAIL:
+        if status == RunJobStatus.FAIL.value:
             error_code = event["operation_error_code"]
             error_message = event["operation_error_message"]
             raise AirflowException(
@@ -333,7 +333,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
 
         hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
 
-        job = hook.get_job(job_name=event["job_name"], region=self.region)
+        job = hook.get_job(job_name=event["job_name"], region=self.region, project_id=self.project_id)
         return Job.to_dict(job)
 
     def _fail_if_execution_failed(self, execution: Execution):

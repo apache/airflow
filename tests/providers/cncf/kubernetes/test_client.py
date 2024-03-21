@@ -34,14 +34,14 @@ class TestClient:
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     def test_load_cluster_config(self, config):
         get_kube_client(in_cluster=True)
-        assert config.load_incluster_config.called
-        assert config.load_kube_config.not_called
+        config.load_incluster_config.assert_called()
+        config.load_kube_config.assert_not_called()
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     def test_load_file_config(self, config):
         get_kube_client(in_cluster=False)
-        assert config.load_incluster_config.not_called
-        assert config.load_kube_config.called
+        config.load_incluster_config.assert_not_called()
+        config.load_kube_config.assert_called()
 
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")

@@ -104,7 +104,7 @@ Operators or tasks also have configurations that improves efficiency and schedul
   per task.
 - ``pool``: See :ref:`concepts:pool`.
 - ``priority_weight``: See :ref:`concepts:priority-weight`.
-- ``queue``: See :ref:`executor:CeleryExecutor:queue` for CeleryExecutor deployments only.
+- ``queue``: See :ref:`apache-airflow-providers-celery:celery_executor:queue` for CeleryExecutor deployments only.
 
 
 How to reduce DAG scheduling latency / task delay?
@@ -118,6 +118,8 @@ How do I trigger tasks based on another task's failure?
 -------------------------------------------------------
 
 You can achieve this with :ref:`concepts:trigger-rules`.
+
+.. _faq:how-to-control-dag-file-parsing-timeout:
 
 How to control DAG file parsing timeout for different DAG files?
 ----------------------------------------------------------------
@@ -146,6 +148,11 @@ When the return value is less than or equal to 0, it means no timeout during the
         if "no-timeout" in dag_file_path:
             return 0
         return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
+
+
+See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to
+configure local settings.
+
 
 
 When there are a lot (>1000) of DAG files, how to speed up parsing of new files?
@@ -211,13 +218,17 @@ What's the deal with ``start_date``?
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
 relevant in many ways. When creating a new DAG, you probably want to set
 a global ``start_date`` for your tasks. This can be done by declaring your
-``start_date`` directly in the ``DAG()`` object. The first
-DagRun to be created will be based on the ``min(start_date)`` for all your
-tasks. From that point on, the scheduler creates new DagRuns based on
-your ``schedule`` and the corresponding task instances run as your
-dependencies are met. When introducing new tasks to your DAG, you need to
-pay special attention to ``start_date``, and may want to reactivate
-inactive DagRuns to get the new task onboarded properly.
+``start_date`` directly in the ``DAG()`` object. A DAG's first
+DagRun will be created based on the first complete ``data_interval``
+after ``start_date``. For example, for a DAG with
+``start_date=``datetime(2024, 1, 1)`` and ``schedule="0 0 3 * *"``, the
+first DAG run will be triggered at midnight on 2024-02-03 with
+``data_interval_start=datetime(2024, 1, 3)`` and
+``data_interval_end=datetime(2024, 2, 3)``. From that point on, the scheduler
+creates new DagRuns based on your ``schedule`` and the corresponding task
+instances run as your dependencies are met. When introducing new tasks to
+your DAG, you need to pay special attention to ``start_date``, and may want
+to reactivate inactive DagRuns to get the new task onboarded properly.
 
 We recommend against using dynamic values as ``start_date``, especially
 ``datetime.now()`` as it can be quite confusing. The task is triggered

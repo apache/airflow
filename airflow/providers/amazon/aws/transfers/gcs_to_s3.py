@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Storage to S3 operator."""
+
 from __future__ import annotations
 
 import os
@@ -105,7 +106,7 @@ class GCSToS3Operator(BaseOperator):
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        dest_aws_conn_id: str = "aws_default",
+        dest_aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         replace: bool = False,
@@ -118,7 +119,6 @@ class GCSToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
         if bucket:
             warnings.warn(
                 "The ``bucket`` parameter is deprecated and will be removed in a future version. "
@@ -126,11 +126,10 @@ class GCSToS3Operator(BaseOperator):
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            self.gcs_bucket = bucket
-        if gcs_bucket:
-            self.gcs_bucket = gcs_bucket
+        self.gcs_bucket = gcs_bucket or bucket
         if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
+
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
@@ -219,7 +218,7 @@ class GCSToS3Operator(BaseOperator):
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
-                    object_name=file, bucket_name=self.gcs_bucket, user_project=self.gcp_user_project
+                    object_name=file, bucket_name=str(self.gcs_bucket), user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)

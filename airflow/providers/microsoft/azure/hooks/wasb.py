@@ -23,6 +23,7 @@ Airflow connection of type `wasb` exists. Authorization can be done by supplying
 login (=Storage account name) and password (=KEY), or login and SAS token in the extra
 field (see connection `wasb_default` for an example).
 """
+
 from __future__ import annotations
 
 import logging
@@ -61,7 +62,7 @@ AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredentia
 
 class WasbHook(BaseHook):
     """
-    Interacts with Azure Blob Storage through the ``wasb://`` protocol.
+    Interact with Azure Blob Storage through the ``wasb://`` protocol.
 
     These parameters have to be passed in Airflow Data Base: account_name and account_key.
 
@@ -81,10 +82,10 @@ class WasbHook(BaseHook):
     conn_type = "wasb"
     hook_name = "Azure Blob Storage"
 
-    @staticmethod
+    @classmethod
     @add_managed_identity_connection_widgets
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -102,9 +103,9 @@ class WasbHook(BaseHook):
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -228,7 +229,7 @@ class WasbHook(BaseHook):
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
-        Instantiates a container client.
+        Instantiate a container client.
 
         :param container_name: The name of the container
         :return: ContainerClient
@@ -237,7 +238,7 @@ class WasbHook(BaseHook):
 
     def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
-        Instantiates a blob client.
+        Instantiate a blob client.
 
         :param container_name: The name of the blob container
         :param blob_name: The name of the blob. This needs not be existing
@@ -412,7 +413,7 @@ class WasbHook(BaseHook):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Creates a new blob from a data source with automatic chunking.
+        Create a new blob from a data source with automatic chunking.
 
         :param container_name: The name of the container to upload data
         :param blob_name: The name of the blob to upload. This need not exist in the container
@@ -434,7 +435,7 @@ class WasbHook(BaseHook):
         self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
-        Downloads a blob to the StorageStreamDownloader.
+        Download a blob to the StorageStreamDownloader.
 
         :param container_name: The name of the container containing the blob
         :param blob_name: The name of the blob to download
@@ -487,14 +488,14 @@ class WasbHook(BaseHook):
             self._get_container_client(container_name).delete_container()
             self.log.info("Deleted container: %s", container_name)
         except ResourceNotFoundError:
-            self.log.info("Unable to delete container %s (not found)", container_name)
-        except:
-            self.log.info("Error deleting container: %s", container_name)
+            self.log.warning("Unable to delete container %s (not found)", container_name)
+        except Exception:
+            self.log.error("Error deleting container: %s", container_name)
             raise
 
     def delete_blobs(self, container_name: str, *blobs, **kwargs) -> None:
         """
-        Marks the specified blobs or snapshots for deletion.
+        Mark the specified blobs or snapshots for deletion.
 
         :param container_name: The name of the container containing the blobs
         :param blobs: The blobs to delete. This can be a single blob, or multiple values

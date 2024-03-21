@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """A collection of closely related tasks on the same DAG that should be grouped together visually."""
+
 from __future__ import annotations
 
 import copy
@@ -371,6 +372,16 @@ class TaskGroup(DAGNode):
         tasks = list(self)
         ids = {x.task_id for x in tasks}
 
+        def has_non_teardown_downstream(task, exclude: str):
+            for down_task in task.downstream_list:
+                if down_task.task_id == exclude:
+                    continue
+                elif down_task.task_id not in ids:
+                    continue
+                elif not down_task.is_teardown:
+                    return True
+            return False
+
         def recurse_for_first_non_teardown(task):
             for upstream_task in task.upstream_list:
                 if upstream_task.task_id not in ids:
@@ -381,7 +392,8 @@ class TaskGroup(DAGNode):
                 elif task.is_teardown and upstream_task.is_setup:
                     # don't go through the teardown-to-setup path
                     continue
-                else:
+                # return unless upstream task already has non-teardown downstream in group
+                elif not has_non_teardown_downstream(upstream_task, exclude=task.task_id):
                     yield upstream_task
 
         for task in tasks:

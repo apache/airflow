@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from moto import mock_glue
+from moto import mock_aws
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
@@ -30,21 +30,21 @@ from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCata
 class TestGlueCatalogPartitionSensor:
     task_id = "test_glue_catalog_partition_sensor"
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
     def test_poke(self, mock_check_for_partition):
         mock_check_for_partition.return_value = True
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl")
         assert op.poke({})
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
     def test_poke_false(self, mock_check_for_partition):
         mock_check_for_partition.return_value = False
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl")
         assert not op.poke({})
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
     def test_poke_default_args(self, mock_check_for_partition):
         table_name = "test_glue_catalog_partition_sensor_tbl"
@@ -55,7 +55,7 @@ class TestGlueCatalogPartitionSensor:
         assert op.hook.aws_conn_id == "aws_default"
         mock_check_for_partition.assert_called_once_with("default", table_name, "ds='{{ ds }}'")
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
     def test_poke_nondefault_args(self, mock_check_for_partition):
         table_name = "my_table"
@@ -86,7 +86,7 @@ class TestGlueCatalogPartitionSensor:
         assert op.timeout == timeout
         mock_check_for_partition.assert_called_once_with(database_name, table_name, expression)
 
-    @mock_glue
+    @mock_aws
     @mock.patch.object(GlueCatalogHook, "check_for_partition")
     def test_dot_notation(self, mock_check_for_partition):
         db_table = "my_db.my_tbl"

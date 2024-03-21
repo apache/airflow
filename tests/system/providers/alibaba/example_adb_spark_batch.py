@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
 import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.alibaba.cloud.operators.analyticdb_spark import AnalyticDBSparkBatchOperator
+
+# Ignore missing args provided by default_args
+# mypy: disable-error-code="call-arg"
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "adb_spark_batch_dag"

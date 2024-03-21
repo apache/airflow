@@ -25,7 +25,60 @@
 Changelog
 ---------
 
-1.0.0
------
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add object storage backend for xcom (#37058)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for openlineage to AFS and common.io (#36410)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
+   * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
+   * ``Prepare 2nd wave of providers in December (#36373)``
+   * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
+   * ``Add documentation for 3rd wave of providers in Deember (#36464)``
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor ObjectStorage into a Path (#35612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use reproducible builds for provider packages (#35693)``
+   * ``Fix and reapply templates for provider documentation (#35686)``
+
+1.0.1 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix changelog of common-io (#35241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improvements to airflow.io (#35478)``
+
+1.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
 
 Initial version of the provider.

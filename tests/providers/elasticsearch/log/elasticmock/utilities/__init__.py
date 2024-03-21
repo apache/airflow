@@ -213,12 +213,12 @@ def _escape(value):
 class MissingIndexException(NotFoundError):
     """Exception representing a missing index."""
 
-    def __init__(self, msg, body):
+    def __init__(self, msg, query):
         self.msg = msg
-        self.body = body
+        self.query = query
 
     def __str__(self):
-        return f"IndexMissingException[[{self.msg}] missing] with body {self.body}"
+        return f"IndexMissingException[[{self.msg}] missing] with query {self.query}"
 
 
 class SearchFailedException(NotFoundError):

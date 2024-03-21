@@ -35,6 +35,7 @@ class ArgNotSet:
                 return False
             return True
 
+
         is_arg_passed()  # False.
         is_arg_passed(None)  # True.
     """

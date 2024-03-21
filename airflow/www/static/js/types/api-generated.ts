@@ -231,6 +231,68 @@ export interface paths {
       };
     };
   };
+  "/dags/{dag_id}/datasets/queuedEvent/{uri}": {
+    /**
+     * Get a queued Dataset event for a DAG.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_dag_dataset_queued_event"];
+    /**
+     * Delete a queued Dataset event for a DAG.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dag_dataset_queued_event"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+    };
+  };
+  "/dags/{dag_id}/datasets/queuedEvent": {
+    /**
+     * Get queued Dataset events for a DAG.
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_dag_dataset_queued_events"];
+    /**
+     * Delete queued Dataset events for a DAG.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dag_dataset_queued_events"];
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+    };
+  };
+  "/datasets/queuedEvent/{uri}": {
+    /**
+     * Get queued Dataset events for a Dataset
+     *
+     * *New in version 2.9.0*
+     */
+    get: operations["get_dataset_queued_events"];
+    /**
+     * Delete queued Dataset events for a Dataset.
+     *
+     * *New in version 2.9.0*
+     */
+    delete: operations["delete_dataset_queued_events"];
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+    };
+  };
   "/eventLogs": {
     /** List log entries from event log. */
     get: operations["get_event_logs"];
@@ -622,31 +684,8 @@ export interface paths {
   "/datasets/events": {
     /** Get dataset events */
     get: operations["get_dataset_events"];
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-        /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
-         *
-         * *New in version 2.1.0*
-         */
-        order_by?: components["parameters"]["OrderBy"];
-        /** The Dataset ID that updated the dataset. */
-        dataset_id?: components["parameters"]["FilterDatasetID"];
-        /** The DAG ID that updated the dataset. */
-        source_dag_id?: components["parameters"]["FilterSourceDAGID"];
-        /** The task ID that updated the dataset. */
-        source_task_id?: components["parameters"]["FilterSourceTaskID"];
-        /** The DAG run ID that updated the dataset. */
-        source_run_id?: components["parameters"]["FilterSourceRunID"];
-        /** The map index that updated the dataset. */
-        source_map_index?: components["parameters"]["FilterSourceMapIndex"];
-      };
-    };
+    /** Create dataset event */
+    post: operations["create_dataset_event"];
   };
   "/config": {
     get: operations["get_config"];
@@ -676,13 +715,13 @@ export interface paths {
     /**
      * Get a list of roles.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_roles"];
     /**
      * Create a new role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_role"];
   };
@@ -690,19 +729,19 @@ export interface paths {
     /**
      * Get a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_role"];
     /**
      * Delete a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_role"];
     /**
      * Update a role.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_role"];
     parameters: {
@@ -716,7 +755,7 @@ export interface paths {
     /**
      * Get a list of permissions.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_permissions"];
   };
@@ -724,13 +763,13 @@ export interface paths {
     /**
      * Get a list of users.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_users"];
     /**
      * Create a new user with unique username and email.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     post: operations["post_user"];
   };
@@ -738,19 +777,19 @@ export interface paths {
     /**
      * Get a user with a specific username.
      *
-     * *New in version 2.1.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     get: operations["get_user"];
     /**
      * Delete a user with a specific username.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     delete: operations["delete_user"];
     /**
      * Update fields for a user.
      *
-     * *New in version 2.2.0*
+     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
      */
     patch: operations["patch_user"];
     parameters: {
@@ -1077,9 +1116,15 @@ export interface components {
       start_date?: string | null;
       /** Format: date-time */
       end_date?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The beginning of the interval the DAG run covers.
+       */
       data_interval_start?: string | null;
-      /** Format: date-time */
+      /**
+       * Format: date-time
+       * @description The end of the interval the DAG run covers.
+       */
       data_interval_end?: string | null;
       /** Format: date-time */
       last_scheduling_decision?: string | null;
@@ -1153,8 +1198,10 @@ export interface components {
       when?: string;
       /** @description The DAG ID */
       dag_id?: string | null;
-      /** @description The DAG ID */
+      /** @description The Task ID */
       task_id?: string | null;
+      /** @description The DAG Run ID */
+      run_id?: string | null;
       /** @description A key describing the type of event. */
       event?: string;
       /**
@@ -1370,10 +1417,17 @@ export interface components {
       priority_weight?: number | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
+      /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
       sla_miss?: components["schemas"]["SLAMiss"];
+      /**
+       * @description Rendered name of an expanded task instance, if the task is mapped.
+       *
+       * *New in version 2.9.0*
+       */
+      rendered_map_index?: string | null;
       /**
        * @description JSON object describing rendered fields.
        *
@@ -1470,10 +1524,10 @@ export interface components {
      * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
-      timezone?: components["schemas"]["Timezone"];
-      catchup?: boolean;
-      orientation?: string;
-      concurrency?: number;
+      timezone?: components["schemas"]["Timezone"] | null;
+      catchup?: boolean | null;
+      orientation?: string | null;
+      concurrency?: number | null;
       /**
        * Format: date-time
        * @description The DAG's start date.
@@ -1481,9 +1535,11 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"];
+      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      /** @description Nested dataset any/all conditions */
+      dataset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
-      default_view?: string;
+      default_view?: string | null;
       /**
        * @description User-specified DAG params.
        *
@@ -1750,6 +1806,31 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
+    CreateDatasetEvent: {
+      /** @description The URI of the dataset */
+      dataset_uri: string;
+      /** @description The dataset event extra */
+      extra?: { [key: string]: unknown } | null;
+    };
+    QueuedEvent: {
+      /** @description The datata uri. */
+      uri?: string;
+      /** @description The DAG ID. */
+      dag_id?: string;
+      /**
+       * Format: date-time
+       * @description The creation time of QueuedEvent
+       */
+      created_at?: string;
+    };
+    /**
+     * @description A collection of Dataset Dag Run Queues.
+     *
+     * *New in version 2.9.0*
+     */
+    QueuedEventCollection: {
+      datasets?: components["schemas"]["QueuedEvent"][];
+    } & components["schemas"]["CollectionInfo"];
     BasicDAGRun: {
       /** @description Run ID. */
       run_id?: string;
@@ -2461,6 +2542,8 @@ export interface components {
     FilterDAGID: string;
     /** @description Returns objects matched by the Task ID. */
     FilterTaskID: string;
+    /** @description Returns objects matched by the Run ID. */
+    FilterRunID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2472,6 +2555,8 @@ export interface components {
      * A comma-separated list of fully qualified names of fields.
      */
     UpdateMask: string[];
+    /** @description List of field for return. */
+    ReturnFields: string[];
   };
   requestBodies: {};
   headers: {};
@@ -2659,6 +2744,8 @@ export interface operations {
          * *New in version 2.6.0*
          */
         paused?: components["parameters"]["Paused"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
         /** If set, only return DAGs with dag_ids matching this pattern. */
         dag_id_pattern?: string;
       };
@@ -2732,6 +2819,10 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -2997,6 +3088,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3062,6 +3155,10 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
         /** The DAG run ID. */
         dag_run_id: components["parameters"]["DAGRunID"];
+      };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
       };
     };
     responses: {
@@ -3218,6 +3315,169 @@ export interface operations {
       };
     };
   };
+  /**
+   * Get a queued Dataset event for a DAG.
+   *
+   * *New in version 2.9.0*
+   */
+  get_dag_dataset_queued_event: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QueuedEvent"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete a queued Dataset event for a DAG.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dag_dataset_queued_event: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get queued Dataset events for a DAG.
+   *
+   * *New in version 2.9.0*
+   */
+  get_dag_dataset_queued_events: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QueuedEventCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete queued Dataset events for a DAG.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dag_dataset_queued_events: {
+    parameters: {
+      path: {
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Get queued Dataset events for a Dataset
+   *
+   * *New in version 2.9.0*
+   */
+  get_dataset_queued_events: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["QueuedEventCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  /**
+   * Delete queued Dataset events for a Dataset.
+   *
+   * *New in version 2.9.0*
+   */
+  delete_dataset_queued_events: {
+    parameters: {
+      path: {
+        /** The encoded Dataset URI */
+        uri: components["parameters"]["DatasetURI"];
+      };
+      query: {
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+      };
+    };
+    responses: {
+      /** Success. */
+      204: never;
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
   /** List log entries from event log. */
   get_event_logs: {
     parameters: {
@@ -3237,6 +3497,8 @@ export interface operations {
         dag_id?: components["parameters"]["FilterDAGID"];
         /** Returns objects matched by the Task ID. */
         task_id?: components["parameters"]["FilterTaskID"];
+        /** Returns objects matched by the Run ID. */
+        run_id?: components["parameters"]["FilterRunID"];
         /** The name of event log. */
         event?: components["parameters"]["Event"];
         /** The owner's name of event log. */
@@ -3245,6 +3507,16 @@ export interface operations {
         before?: components["parameters"]["Before"];
         /** Timestamp to select event logs occurring after. */
         after?: components["parameters"]["After"];
+        /**
+         * One or more event names separated by commas. If set, only return event logs with events matching this pattern.
+         * *New in version 2.9.0*
+         */
+        included_events?: string;
+        /**
+         * One or more event names separated by commas. If set, only return event logs with events that do not match this pattern.
+         * *New in version 2.9.0*
+         */
+        excluded_events?: string;
       };
     };
     responses: {
@@ -4098,6 +4370,10 @@ export interface operations {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
       };
+      query: {
+        /** List of field for return. */
+        fields?: components["parameters"]["ReturnFields"];
+      };
     };
     responses: {
       /** Success. */
@@ -4235,6 +4511,12 @@ export interface operations {
         order_by?: components["parameters"]["OrderBy"];
         /** If set, only return datasets with uris matching this pattern. */
         uri_pattern?: string;
+        /**
+         * One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+         *
+         * *New in version 2.9.0*
+         */
+        dag_ids?: string;
       };
     };
     responses: {
@@ -4305,6 +4587,26 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  /** Create dataset event */
+  create_dataset_event: {
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DatasetEvent"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDatasetEvent"];
+      };
     };
   };
   get_config: {
@@ -4400,7 +4702,7 @@ export interface operations {
   /**
    * Get a list of roles.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_roles: {
     parameters: {
@@ -4432,7 +4734,7 @@ export interface operations {
   /**
    * Create a new role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_role: {
     responses: {
@@ -4455,7 +4757,7 @@ export interface operations {
   /**
    * Get a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_role: {
     parameters: {
@@ -4479,7 +4781,7 @@ export interface operations {
   /**
    * Delete a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_role: {
     parameters: {
@@ -4500,7 +4802,7 @@ export interface operations {
   /**
    * Update a role.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_role: {
     parameters: {
@@ -4537,7 +4839,7 @@ export interface operations {
   /**
    * Get a list of permissions.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_permissions: {
     parameters: {
@@ -4562,7 +4864,7 @@ export interface operations {
   /**
    * Get a list of users.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_users: {
     parameters: {
@@ -4594,7 +4896,7 @@ export interface operations {
   /**
    * Create a new user with unique username and email.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   post_user: {
     responses: {
@@ -4618,7 +4920,7 @@ export interface operations {
   /**
    * Get a user with a specific username.
    *
-   * *New in version 2.1.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   get_user: {
     parameters: {
@@ -4646,7 +4948,7 @@ export interface operations {
   /**
    * Delete a user with a specific username.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   delete_user: {
     parameters: {
@@ -4671,7 +4973,7 @@ export interface operations {
   /**
    * Update fields for a user.
    *
-   * *New in version 2.2.0*
+   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
    */
   patch_user: {
     parameters: {
@@ -4876,6 +5178,15 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
+export type CreateDatasetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["CreateDatasetEvent"]
+>;
+export type QueuedEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["QueuedEvent"]
+>;
+export type QueuedEventCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["QueuedEventCollection"]
+>;
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]
 >;
@@ -4988,7 +5299,8 @@ export type PatchDagsVariables = CamelCasedPropertiesDeep<
     operations["patch_dags"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagVariables = CamelCasedPropertiesDeep<
-  operations["get_dag"]["parameters"]["path"]
+  operations["get_dag"]["parameters"]["path"] &
+    operations["get_dag"]["parameters"]["query"]
 >;
 export type DeleteDagVariables = CamelCasedPropertiesDeep<
   operations["delete_dag"]["parameters"]["path"]
@@ -5026,7 +5338,8 @@ export type GetDagRunsBatchVariables = CamelCasedPropertiesDeep<
   operations["get_dag_runs_batch"]["requestBody"]["content"]["application/json"]
 >;
 export type GetDagRunVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_run"]["parameters"]["path"]
+  operations["get_dag_run"]["parameters"]["path"] &
+    operations["get_dag_run"]["parameters"]["query"]
 >;
 export type DeleteDagRunVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_run"]["parameters"]["path"]
@@ -5045,6 +5358,30 @@ export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<
 export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
+>;
+export type GetDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queued_event"]["parameters"]["path"] &
+    operations["get_dag_dataset_queued_event"]["parameters"]["query"]
+>;
+export type DeleteDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queued_event"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queued_event"]["parameters"]["query"]
+>;
+export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_dataset_queued_events"]["parameters"]["path"] &
+    operations["get_dag_dataset_queued_events"]["parameters"]["query"]
+>;
+export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dag_dataset_queued_events"]["parameters"]["path"] &
+    operations["delete_dag_dataset_queued_events"]["parameters"]["query"]
+>;
+export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_dataset_queued_events"]["parameters"]["path"] &
+    operations["get_dataset_queued_events"]["parameters"]["query"]
+>;
+export type DeleteDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+  operations["delete_dataset_queued_events"]["parameters"]["path"] &
+    operations["delete_dataset_queued_events"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]
@@ -5133,7 +5470,8 @@ export type GetLogVariables = CamelCasedPropertiesDeep<
     operations["get_log"]["parameters"]["query"]
 >;
 export type GetDagDetailsVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_details"]["parameters"]["path"]
+  operations["get_dag_details"]["parameters"]["path"] &
+    operations["get_dag_details"]["parameters"]["query"]
 >;
 export type GetTasksVariables = CamelCasedPropertiesDeep<
   operations["get_tasks"]["parameters"]["path"] &
@@ -5156,6 +5494,9 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
+  operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]

@@ -222,6 +222,14 @@ To check multiple files:
     :start-after: [START howto_sensor_s3_key_multiple_keys]
     :end-before: [END howto_sensor_s3_key_multiple_keys]
 
+To check a file with regular expression:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_regex]
+    :end-before: [END howto_sensor_s3_key_regex]
+
 To check with an additional custom check you can define a function which receives a list of matched S3 object
 attributes and returns a boolean:
 
@@ -267,6 +275,14 @@ To check multiple files:
     :dedent: 4
     :start-after: [START howto_sensor_s3_key_multiple_keys_deferrable]
     :end-before: [END howto_sensor_s3_key_multiple_keys_deferrable]
+
+To check a file with regular expression:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_regex_deferrable]
+    :end-before: [END howto_sensor_s3_key_regex_deferrable]
 
 .. _howto/sensor:S3KeysUnchangedSensor:
 

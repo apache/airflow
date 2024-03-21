@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class _ShortCircuitDecoratedOperator(_PythonDecoratedOperator, ShortCircuitOperator):
     """Wraps a Python callable and captures args/kwargs when called for execution."""
 
+    template_fields = ShortCircuitOperator.template_fields
     custom_operator_name: str = "@task.short_circuit"
 
 

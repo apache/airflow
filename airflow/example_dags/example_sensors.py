@@ -98,20 +98,26 @@ with DAG(
     t6 = FileSensor(task_id="wait_for_file", filepath="/tmp/temporary_file_for_testing")
     # [END example_file_sensor]
 
-    t7 = BashOperator(
+    # [START example_file_sensor_async]
+    t7 = FileSensor(
+        task_id="wait_for_file_async", filepath="/tmp/temporary_file_for_testing", deferrable=True
+    )
+    # [END example_file_sensor_async]
+
+    t8 = BashOperator(
         task_id="create_file_after_3_seconds", bash_command="sleep 3; touch /tmp/temporary_file_for_testing"
     )
 
     # [START example_python_sensors]
-    t8 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
+    t9 = PythonSensor(task_id="success_sensor_python", python_callable=success_callable)
 
-    t9 = PythonSensor(
+    t10 = PythonSensor(
         task_id="failure_timeout_sensor_python", timeout=3, soft_fail=True, python_callable=failure_callable
     )
     # [END example_python_sensors]
 
     # [START example_day_of_week_sensor]
-    t10 = DayOfWeekSensor(
+    t11 = DayOfWeekSensor(
         task_id="week_day_sensor_failing_on_timeout", timeout=3, soft_fail=True, week_day=WeekDay.MONDAY
     )
     # [END example_day_of_week_sensor]
@@ -120,7 +126,7 @@ with DAG(
 
     tx.trigger_rule = TriggerRule.NONE_FAILED
     [t0, t0a, t1, t1a, t2, t2a, t3, t4] >> tx
-    t5 >> t6 >> tx
-    t7 >> tx
-    [t8, t9] >> tx
-    t10 >> tx
+    t5 >> t6 >> t7 >> tx
+    t8 >> tx
+    [t9, t10] >> tx
+    t11 >> tx

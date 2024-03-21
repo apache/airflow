@@ -21,9 +21,11 @@ import copy
 import logging
 import os
 import re
+from collections import namedtuple
 from datetime import datetime, timedelta
 from io import BytesIO
 from unittest import mock
+from unittest.mock import MagicMock
 
 import dateutil
 import pytest
@@ -65,7 +67,7 @@ def testdata_string(testdata_bytes):
 def testdata_file(request, tmp_path_factory, testdata_bytes):
     fn = tmp_path_factory.mktemp(request.node.name) / "testfile_data"
     fn.write_bytes(testdata_bytes)
-    yield str(fn)
+    return str(fn)
 
 
 class TestGCSHookHelperFunctions:
@@ -799,14 +801,26 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, result",
+        "prefix, blob_names, returned_prefixes, call_args, result",
         (
             (
                 "prefix",
+                ["prefix"],
+                None,
                 [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+                ["prefix"],
+            ),
+            (
+                "prefix",
+                ["prefix"],
+                {"prefix,"},
+                [mock.call(delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None)],
+                ["prefix,"],
             ),
             (
                 ["prefix", "prefix_2"],
+                ["prefix", "prefix2"],
+                None,
                 [
                     mock.call(
                         delimiter=",", prefix="prefix", versions=None, max_results=None, page_token=None
@@ -815,19 +829,38 @@ class TestGCSHook:
                         delimiter=",", prefix="prefix_2", versions=None, max_results=None, page_token=None
                     ),
                 ],
+                ["prefix", "prefix2"],
             ),
         ),
     )
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_list__delimiter(self, mock_service, prefix, result):
-        mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+    def test_list__delimiter(self, mock_service, prefix, blob_names, returned_prefixes, call_args, result):
+        Blob = namedtuple("Blob", ["name"])
+
+        class BlobsIterator:
+            def __init__(self):
+                self._item_iter = (Blob(name=name) for name in blob_names)
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                try:
+                    return next(self._item_iter)
+                except StopIteration:
+                    self.prefixes = returned_prefixes
+                    self.next_page_token = None
+                    raise
+
+        mock_service.return_value.bucket.return_value.list_blobs.return_value = BlobsIterator()
         with pytest.deprecated_call():
-            self.gcs_hook.list(
+            blobs = self.gcs_hook.list(
                 bucket_name="test_bucket",
                 prefix=prefix,
                 delimiter=",",
             )
-        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == call_args
+        assert blobs == result
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     @mock.patch("airflow.providers.google.cloud.hooks.gcs.functools")
@@ -1049,7 +1082,6 @@ class TestSyncGcsHook:
     def test_should_do_nothing_when_buckets_is_empty(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = []
         destination_bucket = self._create_bucket(name="DEST_BUCKET")
@@ -1072,7 +1104,6 @@ class TestSyncGcsHook:
     def test_should_append_slash_to_object_if_missing(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = []
         destination_bucket = self._create_bucket(name="DEST_BUCKET")
@@ -1092,7 +1123,6 @@ class TestSyncGcsHook:
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("FILE_A", "C1"),
@@ -1103,31 +1133,30 @@ class TestSyncGcsHook:
         mock_get_conn.return_value.bucket.side_effect = [source_bucket, destination_bucket]
         self.gcs_hook.sync(source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET")
         mock_delete.assert_not_called()
-        mock_rewrite.assert_not_called()
-        mock_copy.assert_has_calls(
+        mock_rewrite.assert_has_calls(
             [
                 mock.call(
-                    destination_bucket="DEST_BUCKET",
-                    destination_object="FILE_A",
                     source_bucket="SOURCE_BUCKET",
                     source_object="FILE_A",
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_A",
                 ),
                 mock.call(
-                    destination_bucket="DEST_BUCKET",
-                    destination_object="FILE_B",
                     source_bucket="SOURCE_BUCKET",
                     source_object="FILE_B",
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_B",
                 ),
             ],
             any_order=True,
         )
+        mock_copy.assert_not_called()
 
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_non_recursive(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("FILE_A", "C1"),
@@ -1145,7 +1174,6 @@ class TestSyncGcsHook:
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_to_subdirectory(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("FILE_A", "C1"),
@@ -1158,8 +1186,7 @@ class TestSyncGcsHook:
             source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET", destination_object="DEST_OBJ/"
         )
         mock_delete.assert_not_called()
-        mock_rewrite.assert_not_called()
-        mock_copy.assert_has_calls(
+        mock_rewrite.assert_has_calls(
             [
                 mock.call(
                     source_bucket="SOURCE_BUCKET",
@@ -1176,13 +1203,13 @@ class TestSyncGcsHook:
             ],
             any_order=True,
         )
+        mock_copy.assert_not_called()
 
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_copy_files_from_subdirectory(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("SRC_OBJ/FILE_A", "C1"),
@@ -1195,8 +1222,7 @@ class TestSyncGcsHook:
             source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET", source_object="SRC_OBJ/"
         )
         mock_delete.assert_not_called()
-        mock_rewrite.assert_not_called()
-        mock_copy.assert_has_calls(
+        mock_rewrite.assert_has_calls(
             [
                 mock.call(
                     source_bucket="SOURCE_BUCKET",
@@ -1213,13 +1239,13 @@ class TestSyncGcsHook:
             ],
             any_order=True,
         )
+        mock_copy.assert_not_called()
 
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("FILE_A", "C1"),
@@ -1258,10 +1284,50 @@ class TestSyncGcsHook:
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_should_overwrite_cmek_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
+        source_bucket = self._create_bucket(name="SOURCE_BUCKET")
+        source_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C1", kms_key_name="KMS_KEY_1", generation=1),
+            self._create_blob("FILE_B", "C1"),
+        ]
+        destination_bucket = self._create_bucket(name="DEST_BUCKET")
+        destination_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C2", kms_key_name="KMS_KEY_2", generation=2),
+            self._create_blob("FILE_B", "C2"),
+        ]
+        mock_get_conn.return_value.bucket.side_effect = [source_bucket, destination_bucket]
+        self.gcs_hook.sync(
+            source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET", allow_overwrite=True
+        )
+        mock_delete.assert_not_called()
+        source_bucket.get_blob.assert_called_once_with("FILE_A", generation=1)
+        destination_bucket.get_blob.assert_called_once_with("FILE_A", generation=2)
+        mock_rewrite.assert_has_calls(
+            [
+                mock.call(
+                    source_bucket="SOURCE_BUCKET",
+                    source_object="FILE_B",
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_B",
+                ),
+                mock.call(
+                    source_bucket="SOURCE_BUCKET",
+                    source_object=source_bucket.get_blob.return_value.name,
+                    destination_bucket="DEST_BUCKET",
+                    destination_object=source_bucket.get_blob.return_value.name.__getitem__.return_value,
+                ),
+            ],
+            any_order=True,
+        )
+        mock_copy.assert_not_called()
+
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_overwrite_files_to_subdirectory(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("FILE_A", "C1"),
@@ -1306,7 +1372,6 @@ class TestSyncGcsHook:
     def test_should_overwrite_files_from_subdirectory(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("SRC_OBJ/FILE_A", "C1"),
@@ -1349,7 +1414,6 @@ class TestSyncGcsHook:
     @mock.patch(GCS_STRING.format("GCSHook.delete"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_should_delete_extra_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = []
         destination_bucket = self._create_bucket(name="DEST_BUCKET")
@@ -1375,7 +1439,6 @@ class TestSyncGcsHook:
     def test_should_not_delete_extra_files_when_delete_extra_files_is_disabled(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = []
         destination_bucket = self._create_bucket(name="DEST_BUCKET")
@@ -1398,7 +1461,6 @@ class TestSyncGcsHook:
     def test_should_not_overwrite_when_overwrite_is_disabled(
         self, mock_get_conn, mock_delete, mock_rewrite, mock_copy
     ):
-        # mock_get_conn.return_value =
         source_bucket = self._create_bucket(name="SOURCE_BUCKET")
         source_bucket.list_blobs.return_value = [
             self._create_blob("SRC_OBJ/FILE_A", "C1", source_bucket),
@@ -1420,11 +1482,20 @@ class TestSyncGcsHook:
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    def _create_blob(self, name: str, crc32: str, bucket=None):
+    def _create_blob(
+        self,
+        name: str,
+        crc32: str,
+        bucket: MagicMock | None = None,
+        kms_key_name: str | None = None,
+        generation: int = 0,
+    ):
         blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
         blob.crc32 = crc32
         blob.bucket = bucket
+        blob.kms_key_name = kms_key_name
+        blob.generation = generation
         return blob
 
     def _create_bucket(self, name: str):

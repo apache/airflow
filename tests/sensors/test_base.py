@@ -36,7 +36,6 @@ from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
-    DASK_EXECUTOR,
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
@@ -872,14 +871,13 @@ class TestBaseSensor:
     @pytest.mark.parametrize(
         "executor_cls_mode",
         [
-            (CELERY_EXECUTOR, CeleryExecutor, "poke"),
-            (CELERY_KUBERNETES_EXECUTOR, CeleryKubernetesExecutor, "poke"),
-            (DEBUG_EXECUTOR, DebugExecutor, "reschedule"),
-            (KUBERNETES_EXECUTOR, KubernetesExecutor, "poke"),
-            (LOCAL_EXECUTOR, LocalExecutor, "poke"),
-            (LOCAL_KUBERNETES_EXECUTOR, LocalKubernetesExecutor, "poke"),
-            (SEQUENTIAL_EXECUTOR, SequentialExecutor, "poke"),
-            (DASK_EXECUTOR, DebugExecutor, "poke"),
+            (CeleryExecutor, "poke"),
+            (CeleryKubernetesExecutor, "poke"),
+            (DebugExecutor, "reschedule"),
+            (KubernetesExecutor, "poke"),
+            (LocalExecutor, "poke"),
+            (LocalKubernetesExecutor, "poke"),
+            (SequentialExecutor, "poke"),
         ],
         ids=[
             CELERY_EXECUTOR,
@@ -889,14 +887,13 @@ class TestBaseSensor:
             LOCAL_EXECUTOR,
             LOCAL_KUBERNETES_EXECUTOR,
             SEQUENTIAL_EXECUTOR,
-            DASK_EXECUTOR,
         ],
     )
     def test_prepare_for_execution(self, executor_cls_mode):
         """
         Should change mode of the task to reschedule if using DEBUG_EXECUTOR
         """
-        executor_name, executor_cls, mode = executor_cls_mode
+        executor_cls, mode = executor_cls_mode
         sensor = DummySensor(
             task_id=SENSOR_OP,
             return_value=None,
@@ -905,11 +902,10 @@ class TestBaseSensor:
             exponential_backoff=True,
             max_wait=timedelta(seconds=30),
         )
-        with patch("airflow.configuration.conf.get") as get, patch(
-            "airflow.executors.executor_loader.ExecutorLoader.load_executor"
+        with patch(
+            "airflow.executors.executor_loader.ExecutorLoader.import_default_executor_cls"
         ) as load_executor:
-            get.return_value = executor_name
-            load_executor.return_value = executor_cls
+            load_executor.return_value = (executor_cls, None)
             task = sensor.prepare_for_execution()
             assert task.mode == mode
 

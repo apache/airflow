@@ -43,17 +43,19 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"
-DAG_SCRIPT = (
-    "from datetime import datetime\n\n"
-    "from airflow.models import DAG\n"
-    "from airflow.operators.empty import EmptyOperator\n\n"
-    "dag = DAG(\n"
-    f"dag_id='{TRIGGERED_DAG_ID}', \n"
-    "default_args={'start_date': datetime(2019, 1, 1)}, \n"
-    "schedule=None,\n"
-    ")\n"
-    'task = EmptyOperator(task_id="test", dag=dag)'
+DAG_SCRIPT = f"""\
+from datetime import datetime
+from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+
+dag = DAG(
+    dag_id='{TRIGGERED_DAG_ID}',
+    default_args={{'start_date': datetime(2019, 1, 1)}},
+    schedule_interval=None
 )
+
+task = EmptyOperator(task_id='test', dag=dag)
+"""
 
 
 class TestDagRunOperator:
@@ -491,12 +493,11 @@ class TestDagRunOperator:
             poll_interval=20,
             states=["success", "failed"],
         )
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(AirflowException, match="which is not in"):
             task.execute_complete(
                 context={},
                 event=trigger.serialize(),
             )
-            assert "which is not in" in str(exception)
 
     def test_trigger_dagrun_with_wait_for_completion_true_defer_true_failure_2(self):
         """Test TriggerDagRunOperator  wait_for_completion dag run in failed state."""
@@ -526,7 +527,5 @@ class TestDagRunOperator:
             states=["success", "failed"],
         )
 
-        with pytest.raises(AirflowException) as exception:
+        with pytest.raises(AirflowException, match="failed with failed state"):
             task.execute_complete(context={}, event=trigger.serialize())
-
-            assert "failed with failed state" in str(exception)

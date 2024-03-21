@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields."""
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
-from airflow.models.base import Base, StringID
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
@@ -46,10 +47,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
 
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
 
 
-class RenderedTaskInstanceFields(Base):
+class RenderedTaskInstanceFields(TaskInstanceDependencies):
     """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
@@ -68,7 +69,6 @@ class RenderedTaskInstanceFields(Base):
             "run_id",
             "map_index",
             name="rendered_task_instance_fields_pkey",
-            mssql_clustered=True,
         ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
@@ -109,6 +109,10 @@ class RenderedTaskInstanceFields(Base):
         self.ti = ti
         if render_templates:
             ti.render_templates()
+
+        if TYPE_CHECKING:
+            assert ti.task
+
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
             # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
@@ -139,7 +143,9 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
+    def get_templated_fields(
+        cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
+    ) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 

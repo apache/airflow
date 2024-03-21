@@ -61,7 +61,6 @@ cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``
     remote_logging = True
 
     [elasticsearch_configs]
-    use_ssl=True
     verify_certs=True
     ca_certs=/path/to/CA_certs
 

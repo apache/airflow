@@ -21,7 +21,7 @@ from unittest import mock
 
 import botocore.exceptions
 import pytest
-from moto import mock_ssm
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 
@@ -43,7 +43,7 @@ class TestSsmHook:
         ],
     )
     def setup_tests(self, request):
-        with mock_ssm():
+        with mock_aws():
             self.hook = SsmHook(region_name=REGION)
             self.param_type = request.param
             self.hook.conn.put_parameter(

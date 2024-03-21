@@ -774,6 +774,24 @@ class TestScheduler:
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
+    def test_scheduler_template_storage_class_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                        "enabled": True,
+                    }
+                },
+                "logs": {"persistence": {"enabled": False}},
+                "executor": "LocalExecutor",
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""
@@ -883,3 +901,20 @@ class TestSchedulerServiceAccount:
             show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestSchedulerCreation:
+    """Tests scheduler deployment creation."""
+
+    def test_can_be_disabled(self):
+        """
+        Scheduler should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using scheduler and having it deployed on another host.
+        """
+        docs = render_chart(
+            values={"scheduler": {"enabled": False}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert 0 == len(docs)

@@ -31,6 +31,7 @@ ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
     # This list should only be reduced not extended with new parameters,
     # unless there is an exceptional reason.
     "AthenaHook": {"sleep_time", "log_query"},
+    "AthenaSQLHook": {"athena_conn_id"},
     "BatchClientHook": {"status_retries", "max_retries"},
     "BatchWaitersHook": {"waiter_config"},
     "DataSyncHook": {"wait_interval_seconds"},
@@ -71,7 +72,7 @@ def get_aws_hooks_modules():
     elif not hooks_dir.is_dir():
         raise NotADirectoryError(hooks_dir.__fspath__())
 
-    for module in hooks_dir.glob("*.py"):
+    for module in sorted(hooks_dir.glob("*.py")):
         name = module.stem
         if name.startswith("_"):
             continue
@@ -98,7 +99,7 @@ def get_aws_hooks_from_module(hook_module: str) -> list[tuple[type[AwsGenericHoo
 
 def validate_hook(hook: type[AwsGenericHook], hook_name: str, hook_module: str) -> tuple[bool, str | None]:
     hook_extra_parameters = set()
-    for k, v in inspect.signature(hook).parameters.items():
+    for k, v in inspect.signature(hook.__init__).parameters.items():
         if v.kind == inspect.Parameter.VAR_POSITIONAL:
             k = "*args"
         elif v.kind == inspect.Parameter.VAR_KEYWORD:
@@ -187,11 +188,11 @@ def test_expected_thin_hooks(hook_module: str):
     if not hooks:
         pytest.skip(reason=f"Module {hook_module!r} doesn't contain subclasses of `AwsGenericHook`.")
 
-    errors = []
-    for hook, hook_name in hooks:
-        is_valid, msg = validate_hook(hook, hook_name, hook_module)
-        if not is_valid:
-            errors.append(msg)
+    errors = [
+        message
+        for valid, message in (validate_hook(hook, hook_name, hook_module) for hook, hook_name in hooks)
+        if not valid and message
+    ]
 
     if errors:
         errors_msg = "\n * ".join(errors)

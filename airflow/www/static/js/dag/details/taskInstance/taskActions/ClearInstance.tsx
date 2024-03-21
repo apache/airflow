@@ -102,6 +102,7 @@ const ClearModal = ({
       recursive,
       failed,
       mapIndexes,
+      enabled: isOpen,
     });
 
   const { mutateAsync: clearTask, isLoading } = useClearTask({

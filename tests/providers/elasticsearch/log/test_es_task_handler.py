@@ -76,7 +76,7 @@ class TestElasticsearchTaskHandler:
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
-    @pytest.fixture()
+    @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
         create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
         yield get_ti(
@@ -646,8 +646,7 @@ class TestElasticsearchTaskHandler:
 
 
 def test_safe_attrgetter():
-    class A:
-        ...
+    class A: ...
 
     a = A()
     a.b = "b"
@@ -671,14 +670,11 @@ def test_retrieve_config_keys():
     """
     with conf_vars(
         {
-            ("elasticsearch_configs", "use_ssl"): "True",
             ("elasticsearch_configs", "http_compress"): "False",
             ("elasticsearch_configs", "timeout"): "10",
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()
-        # use_ssl is removed from config
-        assert "use_ssl" not in args_from_config
         # verify_certs comes from default config value
         assert "verify_certs" in args_from_config
         # timeout comes from config provided value
@@ -698,8 +694,6 @@ def test_retrieve_retry_on_timeout():
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()
-        # use_ssl is removed from config
-        assert "retry_timeout" not in args_from_config
         # verify_certs comes from default config value
         assert "retry_on_timeout" in args_from_config
 

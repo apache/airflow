@@ -20,6 +20,7 @@ import os
 import unittest.mock
 from datetime import datetime
 
+import pendulum
 import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
@@ -33,11 +34,12 @@ from airflow.utils.state import TaskInstanceState
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.www import _check_last_log
 
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture()
+@pytest.fixture
 def current_file_token(url_safe_serializer) -> str:
     return url_safe_serializer.dumps(__file__)
 
@@ -46,6 +48,7 @@ DAG_ID = "test_dag"
 TASK_ID = "op1"
 DAG2_ID = "test_dag2"
 DAG3_ID = "test_dag3"
+UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
 @pytest.fixture(scope="module")
@@ -132,6 +135,34 @@ class TestDagEndpoint:
             session.add(dag_model)
 
     @provide_session
+    def _create_dag_model_for_details_endpoint(self, dag_id, session=None):
+        dag_model = DagModel(
+            dag_id=dag_id,
+            fileloc="/tmp/dag.py",
+            schedule_interval="2 2 * * *",
+            is_active=True,
+            is_paused=False,
+        )
+        session.add(dag_model)
+
+    @provide_session
+    def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
+        dag_model = DagModel(
+            dag_id=dag_id,
+            fileloc="/tmp/dag.py",
+            schedule_interval="2 2 * * *",
+            is_active=True,
+            is_paused=False,
+            dataset_expression={
+                "any": [
+                    "s3://dag1/output_1.txt",
+                    {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                ]
+            },
+        )
+        session.add(dag_model)
+
+    @provide_session
     def _create_deactivated_dag(self, session=None):
         dag_model = DagModel(
             dag_id="TEST_DAG_DELETED_1",
@@ -165,6 +196,7 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -206,6 +238,7 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -249,9 +282,44 @@ class TestGetDag(TestDagEndpoint):
         )
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            ["dag_id"],  # only one
+            ["fileloc", "file_token", "owners"],  # auto_field and fields.Method
+            ["schedule_interval", "tags"],  # fields.List
+        ],
+    )
+    def test_should_return_specified_fields(self, fields):
+        self._create_dag_models(1)
+        response = self.client.get(
+            f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        res_json = response.json
+        assert len(res_json.keys()) == len(fields)
+        for field in fields:
+            assert field in res_json
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            [],  # empty test
+            ["#caw&c"],  # field which not exists
+            ["dag_id", "#caw&c"],  # field which not exists
+        ],
+    )
+    def test_should_respond_400_with_not_exists_fields(self, fields):
+        self._create_dag_models(1)
+        response = self.client.get(
+            f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
+
 
 class TestGetDagDetails(TestDagEndpoint):
-    def test_should_respond_200(self, current_file_token):
+    def test_should_respond_200(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -260,46 +328,123 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag",
             "dag_run_timeout": None,
-            "default_view": "grid",
+            "dataset_expression": None,
+            "default_view": None,
             "description": None,
             "doc_md": "details",
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
-                    "value": 1,
                     "description": None,
                     "schema": {},
+                    "value": 1,
                 }
             },
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
-            "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": [{"name": "example"}],
-            "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
             "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "last_parsed": last_parsed,
             "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
-    def test_should_response_200_with_doc_md_none(self, current_file_token):
+    def test_should_respond_200_with_dataset_expression(self, url_safe_serializer):
+        self._create_dag_model_for_details_endpoint_with_dataset_expression(self.dag_id)
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        last_parsed = response.json["last_parsed"]
+        expected = {
+            "catchup": True,
+            "concurrency": 16,
+            "dag_id": "test_dag",
+            "dag_run_timeout": None,
+            "dataset_expression": {
+                "any": [
+                    "s3://dag1/output_1.txt",
+                    {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
+                ]
+            },
+            "default_view": None,
+            "description": None,
+            "doc_md": "details",
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
+            "file_token": current_file_token,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
+            "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
+            "orientation": "LR",
+            "owners": [],
+            "params": {
+                "foo": {
+                    "__class": "airflow.models.param.Param",
+                    "description": None,
+                    "schema": {},
+                    "value": 1,
+                }
+            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
+        }
+        assert response.json == expected
+
+    def test_should_response_200_with_doc_md_none(self, url_safe_serializer):
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
         response = self.client.get(
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -308,39 +453,51 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag2",
             "dag_run_timeout": None,
-            "default_view": "grid",
+            "dataset_expression": None,
+            "default_view": None,
             "description": None,
             "doc_md": None,
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {},
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
-            "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "last_parsed": last_parsed,
-            "render_template_as_native_obj": False,
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
-    def test_should_response_200_for_null_start_date(self, current_file_token):
+    def test_should_response_200_for_null_start_date(self, url_safe_serializer):
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        self._create_dag_model_for_details_endpoint(self.dag3_id)
         response = self.client.get(
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -349,39 +506,51 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag3",
             "dag_run_timeout": None,
-            "default_view": "grid",
+            "dataset_expression": None,
+            "default_view": None,
             "description": None,
             "doc_md": None,
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/tmp/dag.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {},
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
             "start_date": None,
             "tags": [],
-            "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "last_parsed": last_parsed,
-            "render_template_as_native_obj": False,
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
         }
         assert response.json == expected
 
-    def test_should_respond_200_serialized(self, current_file_token):
+    def test_should_respond_200_serialized(self, url_safe_serializer):
+        current_file_token = url_safe_serializer.dumps("/tmp/dag.py")
+        self._create_dag_model_for_details_endpoint(self.dag_id)
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 
@@ -393,41 +562,51 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag",
             "dag_run_timeout": None,
-            "default_view": "grid",
+            "dataset_expression": None,
+            "default_view": None,
             "description": None,
             "doc_md": "details",
-            "fileloc": __file__,
+            "end_date": None,
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "fileloc": "/tmp/dag.py",
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
-                    "value": 1,
                     "description": None,
                     "schema": {},
+                    "value": 1,
                 }
             },
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
-            "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": [{"name": "example"}],
-            "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
             "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
             "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -435,7 +614,6 @@ class TestGetDagDetails(TestDagEndpoint):
 
         assert response.status_code == 200
         expected.update({"last_parsed": response.json["last_parsed"]})
-
         assert response.json == expected
 
         patcher.stop()
@@ -447,36 +625,51 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag",
             "dag_run_timeout": None,
-            "default_view": "grid",
+            "dataset_expression": None,
+            "default_view": None,
             "description": None,
             "doc_md": "details",
-            "fileloc": __file__,
+            "end_date": None,
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "fileloc": "/tmp/dag.py",
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
-            "owners": ["airflow"],
+            "owners": [],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
-                    "value": 1,
                     "description": None,
                     "schema": {},
+                    "value": 1,
                 }
             },
-            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0},
-            "start_date": "2020-06-15T00:00:00+00:00",
-            "tags": [{"name": "example"}],
-            "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
             "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
             "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "scheduler_lock": None,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
+            "timezone": UTC_JSON_REPR,
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected
@@ -497,6 +690,35 @@ class TestGetDagDetails(TestDagEndpoint):
             "title": "DAG not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         }
+
+    @pytest.mark.parametrize(
+        "fields",
+        [
+            ["dag_id"],  # only one
+            ["doc_md", "file_token", "owners"],  # fields.String and fields.Method
+            ["schedule_interval", "tags"],  # fields.List
+        ],
+    )
+    def test_should_return_specified_fields(self, fields):
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        res_json = response.json
+        assert len(res_json.keys()) == len(fields)
+        for field in fields:
+            assert field in res_json
+
+    def test_should_respond_400_with_not_exists_fields(self):
+        fields = ["#caw&c"]
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
+        response = self.client.get(
+            f"/api/v1/dags/{self.dag2_id}/details?fields={','.join(fields)}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400, f"Current code: {response.status_code}"
 
 
 class TestGetDags(TestDagEndpoint):
@@ -535,6 +757,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -566,6 +789,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -609,6 +833,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -653,6 +878,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -684,6 +910,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -853,6 +1080,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -896,6 +1124,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -939,6 +1168,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -970,6 +1200,7 @@ class TestGetDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -985,16 +1216,41 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
+    def test_should_return_specified_fields(self):
+        self._create_dag_models(2)
+        self._create_deactivated_dag()
+
+        fields = ["dag_id", "file_token", "owners"]
+        response = self.client.get(
+            f"api/v1/dags?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+
+        res_json = response.json
+        for dag in res_json["dags"]:
+            assert len(dag.keys()) == len(fields)
+            for field in fields:
+                assert field in dag
+
+    def test_should_respond_400_with_not_exists_fields(self):
+        self._create_dag_models(1)
+        self._create_deactivated_dag()
+        fields = ["#caw&c"]
+        response = self.client.get(
+            f"api/v1/dags?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        assert response.status_code == 400, f"Current code: {response.status_code}"
+
 
 class TestPatchDag(TestDagEndpoint):
-    def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer):
+    def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
+        payload = {"is_paused": False}
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
-            json={
-                "is_paused": False,
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -1018,6 +1274,7 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -1030,8 +1287,11 @@ class TestPatchDag(TestDagEndpoint):
             "pickle_id": None,
         }
         assert response.json == expected_response
+        _check_last_log(
+            session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
+        )
 
-    def test_should_respond_200_on_patch_with_granular_dag_access(self):
+    def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
         self._create_dag_models(1)
         response = self.client.patch(
             "/api/v1/dags/TEST_DAG_1",
@@ -1041,6 +1301,7 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
 
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
@@ -1149,6 +1410,7 @@ class TestPatchDag(TestDagEndpoint):
             "next_dagrun_data_interval_start": None,
             "next_dagrun_data_interval_end": None,
             "max_active_runs": 16,
+            "max_consecutive_failed_dag_runs": 0,
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
@@ -1247,6 +1509,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1278,6 +1541,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1292,6 +1556,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     def test_should_respond_200_on_patch_is_paused_using_update_mask(self, session, url_safe_serializer):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
@@ -1333,6 +1598,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1364,6 +1630,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1378,6 +1645,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     def test_wrong_value_as_update_mask_rasise(self, session):
         self._create_dag_models(2)
@@ -1425,7 +1693,7 @@ class TestPatchDags(TestDagEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
-    def test_only_active_true_returns_active_dags(self, url_safe_serializer):
+    def test_only_active_true_returns_active_dags(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
@@ -1459,6 +1727,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1473,8 +1742,9 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 1,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
-    def test_only_active_false_returns_all_dags(self, url_safe_serializer):
+    def test_only_active_false_returns_all_dags(self, url_safe_serializer, session):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
@@ -1510,6 +1780,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1541,6 +1812,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1555,6 +1827,7 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_dags", execution_date=None)
 
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
@@ -1755,6 +2028,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1786,6 +2060,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1838,6 +2113,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1869,6 +2145,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1923,6 +2200,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1954,6 +2232,7 @@ class TestPatchDags(TestDagEndpoint):
                     "next_dagrun_data_interval_start": None,
                     "next_dagrun_data_interval_end": None,
                     "max_active_runs": 16,
+                    "max_consecutive_failed_dag_runs": 0,
                     "next_dagrun_create_after": None,
                     "last_expired": None,
                     "max_active_tasks": 16,
@@ -1982,7 +2261,7 @@ class TestPatchDags(TestDagEndpoint):
 
 
 class TestDeleteDagEndpoint(TestDagEndpoint):
-    def test_that_dag_can_be_deleted(self):
+    def test_that_dag_can_be_deleted(self, session):
         self._create_dag_models(1)
 
         response = self.client.delete(
@@ -1990,6 +2269,7 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 204
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.delete_dag", execution_date=None)
 
     def test_raise_when_dag_is_not_found(self):
         response = self.client.delete(

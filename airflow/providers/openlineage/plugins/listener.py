@@ -21,15 +21,18 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from openlineage.client.serde import Serde
+
 from airflow.listeners import hookimpl
 from airflow.providers.openlineage.extractors import ExtractorManager
-from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
     print_warning,
 )
+from airflow.stats import Stats
 from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
@@ -56,16 +59,20 @@ class OpenLineageListener:
         task_instance: TaskInstance,
         session: Session,  # This will always be QUEUED
     ):
-        if not hasattr(task_instance, "task"):
+        if not getattr(task_instance, "task", None) is not None:
             self.log.warning(
-                f"No task set for TI object task_id: {task_instance.task_id} - "
-                f"dag_id: {task_instance.dag_id} - run_id {task_instance.run_id}"
+                "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
+                task_instance.task_id,
+                task_instance.dag_id,
+                task_instance.run_id,
             )
             return
 
         self.log.debug("OpenLineage listener got notification about task instance start")
         dagrun = task_instance.dag_run
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         dag = task.dag
 
         @print_warning(self.log)
@@ -77,10 +84,16 @@ class OpenLineageListener:
             parent_run_id = self.adapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
 
             task_uuid = self.adapter.build_task_instance_run_id(
-                task.task_id, task_instance.execution_date, task_instance.try_number
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
             )
+            event_type = RunState.RUNNING.value.lower()
+            operator_name = task.task_type.lower()
 
-            task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
+            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+                task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
 
             start_date = task_instance.start_date if task_instance.start_date else datetime.now()
             data_interval_start = (
@@ -88,7 +101,7 @@ class OpenLineageListener:
             )
             data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
 
-            self.adapter.start_task(
+            redacted_event = self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
                 job_description=dag.description,
@@ -101,10 +114,13 @@ class OpenLineageListener:
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
-                    **task_metadata.run_facets,
                     **get_custom_facets(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
+            )
+            Stats.gauge(
+                f"ol.event.size.{event_type}.{operator_name}",
+                len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
         on_running()
@@ -115,24 +131,41 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
-
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
-        )
+        if TYPE_CHECKING:
+            assert task
+        dag = task.dag
 
         @print_warning(self.log)
         def on_success():
-            task_metadata = self.extractor_manager.extract_metadata(
-                dagrun, task, complete=True, task_instance=task_instance
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number - 1,
             )
+            event_type = RunState.COMPLETE.value.lower()
+            operator_name = task.task_type.lower()
+
+            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun, task, complete=True, task_instance=task_instance
+                )
 
             end_date = task_instance.end_date if task_instance.end_date else datetime.now()
 
-            self.adapter.complete_task(
+            redacted_event = self.adapter.complete_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+            )
+            Stats.gauge(
+                f"ol.event.size.{event_type}.{operator_name}",
+                len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
         on_success()
@@ -143,24 +176,41 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
-
-        task_uuid = OpenLineageAdapter.build_task_instance_run_id(
-            task.task_id, task_instance.execution_date, task_instance.try_number - 1
-        )
+        if TYPE_CHECKING:
+            assert task
+        dag = task.dag
 
         @print_warning(self.log)
         def on_failure():
-            task_metadata = self.extractor_manager.extract_metadata(
-                dagrun, task, complete=True, task_instance=task_instance
+            parent_run_id = OpenLineageAdapter.build_dag_run_id(dag.dag_id, dagrun.run_id)
+
+            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+                dag_id=dag.dag_id,
+                task_id=task.task_id,
+                execution_date=task_instance.execution_date,
+                try_number=task_instance.try_number,
             )
+            event_type = RunState.FAIL.value.lower()
+            operator_name = task.task_type.lower()
+
+            with Stats.timer(f"ol.extract.{event_type}.{operator_name}"):
+                task_metadata = self.extractor_manager.extract_metadata(
+                    dagrun, task, complete=True, task_instance=task_instance
+                )
 
             end_date = task_instance.end_date if task_instance.end_date else datetime.now()
 
-            self.adapter.fail_task(
+            redacted_event = self.adapter.fail_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
+                parent_job_name=dag.dag_id,
+                parent_run_id=parent_run_id,
                 end_time=end_date.isoformat(),
                 task=task_metadata,
+            )
+            Stats.gauge(
+                f"ol.event.size.{event_type}.{operator_name}",
+                len(Serde.to_json(redacted_event).encode("utf-8")),
             )
 
         on_failure()

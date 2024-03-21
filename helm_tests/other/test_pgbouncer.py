@@ -487,7 +487,7 @@ class TestPgbouncerConfig:
         }
         ini = self._get_pgbouncer_ini(values)
 
-        assert "auth_type = md5" in ini
+        assert "auth_type = scram-sha-256" in ini
         assert "auth_file = /etc/pgbouncer/users.txt" in ini
 
     def test_auth_type_file_overrides(self):

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Datastore hook."""
+
 from __future__ import annotations
 
 import time
@@ -57,7 +58,7 @@ class DatastoreHook(GoogleBaseHook):
 
     def get_conn(self) -> Resource:
         """
-        Establishes a connection to the Google API.
+        Establish a connection to the Google API.
 
         :return: a Google Cloud Datastore service object.
         """
@@ -200,7 +201,7 @@ class DatastoreHook(GoogleBaseHook):
 
     def get_operation(self, name: str) -> dict:
         """
-        Gets the latest state of a long-running operation.
+        Get the latest state of a long-running operation.
 
         .. seealso::
             https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/get
@@ -216,7 +217,7 @@ class DatastoreHook(GoogleBaseHook):
 
     def delete_operation(self, name: str) -> dict:
         """
-        Deletes the long-running operation.
+        Delete the long-running operation.
 
         .. seealso::
             https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/delete

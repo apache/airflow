@@ -22,7 +22,7 @@ runs:
   using: "composite"
   steps:
     - name: "Upload artifact for warnings"
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: test-warnings-${{env.JOB_ID}}
         path: ./files/warnings-*.txt
@@ -40,6 +40,3 @@ runs:
         name: coverage-${{env.JOB_ID}}
         flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}
         directory: "./files/coverage-reposts/"
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership

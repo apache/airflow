@@ -16,16 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Taskfail tracks the failed run durations of each task instance."""
+
 from __future__ import annotations
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class TaskFail(Base):
+class TaskFail(TaskInstanceDependencies):
     """TaskFail tracks the failed run durations of each task instance."""
 
     __tablename__ = "task_fail"

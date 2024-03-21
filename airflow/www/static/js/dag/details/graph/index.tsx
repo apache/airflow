@@ -26,13 +26,18 @@ import ReactFlow, {
   MiniMap,
   useReactFlow,
   Panel,
+  useOnViewportChange,
+  Viewport,
+  ControlButton,
 } from "reactflow";
+import { BiCollapse, BiExpand } from "react-icons/bi";
 
-import { useGraphData, useGridData } from "src/api";
+import { useDatasets, useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
-import { useOffsetTop } from "src/utils";
+import { getMetaValue, useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
+import type { DepNode, WebserverEdge } from "src/types";
 
 import Node from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
@@ -44,25 +49,87 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
-const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const dagId = getMetaValue("dag_id");
+
+const Graph = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  isFullScreen,
+  toggleFullScreen,
+}: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
   const [hasRendered, setHasRendered] = useState(false);
+  const [isZoomedOut, setIsZoomedOut] = useState(false);
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
+  const { data: datasetsCollection } = useDatasets({
+    dagIds: [dagId],
+  });
+
+  const rawNodes =
+    data?.nodes && datasetsCollection?.datasets?.length
+      ? {
+          ...data.nodes,
+          children: [
+            ...(data.nodes.children || []),
+            ...(datasetsCollection?.datasets || []).map(
+              (dataset) =>
+                ({
+                  id: dataset?.id?.toString() || "",
+                  value: {
+                    class: "dataset",
+                    label: dataset.uri,
+                  },
+                } as DepNode)
+            ),
+          ],
+        }
+      : data?.nodes;
+
+  const datasetEdges: WebserverEdge[] = [];
+
+  datasetsCollection?.datasets?.forEach((dataset) => {
+    const producingTask = dataset?.producingTasks?.find(
+      (t) => t.dagId === dagId
+    );
+    const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
+    if (dataset.id) {
+      if (producingTask?.taskId) {
+        datasetEdges.push({
+          sourceId: producingTask.taskId,
+          targetId: dataset.id.toString(),
+        });
+      }
+      if (consumingDag && data?.nodes?.children?.length) {
+        datasetEdges.push({
+          sourceId: dataset.id.toString(),
+          // Point upstream datasets to the first task
+          targetId: data.nodes?.children[0].id,
+          isSourceDataset: true,
+        });
+      }
+    }
+  });
+
   const { data: graphData } = useGraphLayout({
-    edges: data?.edges,
-    nodes: data?.nodes,
+    edges: [...(data?.edges || []), ...datasetEdges],
+    nodes: rawNodes,
     openGroupIds,
     arrange,
   });
+
   const { selected } = useSelection();
+
   const {
     data: { dagRuns, groups },
   } = useGridData();
@@ -70,6 +137,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
+
+  useOnViewportChange({
+    onEnd: (viewport: Viewport) => {
+      if (viewport.zoom < 0.5 && !isZoomedOut) setIsZoomedOut(true);
+      if (viewport.zoom >= 0.5 && isZoomedOut) setIsZoomedOut(false);
+    },
+  });
 
   const { nodes, edges: nodeEdges } = useMemo(
     () =>
@@ -81,6 +155,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         latestDagRunId,
         groups,
         hoveredTaskState,
+        isZoomedOut,
       }),
     [
       graphData?.children,
@@ -90,6 +165,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       latestDagRunId,
       groups,
       hoveredTaskState,
+      isZoomedOut,
     ]
   );
 
@@ -97,6 +173,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   useEffect(() => {
     if (hasRendered) {
       const zoom = getZoom();
+      if (zoom < 0.5) setIsZoomedOut(true);
       fitView({
         duration: 750,
         nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
@@ -116,6 +193,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     edges: flatEdges,
     nodes,
     selectedTaskId: selected.taskId,
+    isZoomedOut,
   });
 
   return (
@@ -157,7 +235,15 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             </Box>
           </Panel>
           <Background />
-          <Controls showInteractive={false} />
+          <Controls showInteractive={false}>
+            <ControlButton
+              onClick={toggleFullScreen}
+              aria-label="Toggle full screen"
+              title="Toggle full screen"
+            >
+              {isFullScreen ? <BiCollapse /> : <BiExpand />}
+            </ControlButton>
+          </Controls>
           <MiniMap
             nodeStrokeWidth={15}
             nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}
@@ -171,17 +257,9 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   );
 };
 
-const GraphWrapper = ({
-  openGroupIds,
-  onToggleGroups,
-  hoveredTaskState,
-}: Props) => (
+const GraphWrapper = (props: Props) => (
   <ReactFlowProvider>
-    <Graph
-      openGroupIds={openGroupIds}
-      onToggleGroups={onToggleGroups}
-      hoveredTaskState={hoveredTaskState}
-    />
+    <Graph {...props} />
   </ReactFlowProvider>
 );
 

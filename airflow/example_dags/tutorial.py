@@ -20,6 +20,7 @@
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+
 from __future__ import annotations
 
 # [START tutorial]
@@ -60,6 +61,7 @@ with DAG(
         # 'on_success_callback': some_other_function, # or list of functions
         # 'on_retry_callback': another_function, # or list of functions
         # 'sla_miss_callback': yet_another_function, # or list of functions
+        # 'on_skipped_callback': another_function, #or list of functions
         # 'trigger_rule': 'all_success'
     },
     # [END default_args]

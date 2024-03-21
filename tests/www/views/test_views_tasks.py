@@ -179,21 +179,6 @@ def client_ti_without_dag_edit(app):
             id="rendered-templates",
         ),
         pytest.param(
-            "dag_details?dag_id=example_bash_operator",
-            ["DAG Details"],
-            id="dag-details-url-param",
-        ),
-        pytest.param(
-            "dag_details?dag_id=example_subdag_operator.section-1",
-            ["DAG Details"],
-            id="dag-details-subdag-url-param",
-        ),
-        pytest.param(
-            "dags/example_subdag_operator.section-1/details",
-            ["DAG Details"],
-            id="dag-details-subdag",
-        ),
-        pytest.param(
             "object/graph_data?dag_id=example_bash_operator",
             ["runme_1"],
             id="graph-data",
@@ -450,22 +435,6 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     check_content_in_response("Access is Denied", resp)
 
 
-def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
-    app.dag_bag.get_dag("test_graph_view").create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-
-    url = "/dags/test_graph_view/details"
-    resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_graph_view/details"}
-    href = f"/dags/test_graph_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
-    check_content_in_response(href, resp)
-
-
 def test_last_dagruns(admin_client):
     resp = admin_client.post("last_dagruns", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
@@ -615,7 +584,7 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
         return True
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_id_example_bash_operator():
     dag_id = "example_bash_operator"
     test_dag_id = "non_existent_dag"
@@ -630,16 +599,14 @@ def new_id_example_bash_operator():
 
 
 def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
-    # Test for JIRA AIRFLOW-3233 (PR 4069):
-    # The delete-dag URL should be generated correctly for DAGs
-    # that exist on the scheduler (DB) but not the webserver DagBag
+    # The delete-dag URL should be generated correctly
     test_dag_id = new_id_example_bash_operator
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response(f"/delete?dag_id={test_dag_id}", resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_dag_to_delete():
     dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
     session = settings.Session()
@@ -647,7 +614,7 @@ def new_dag_to_delete():
     return dag
 
 
-@pytest.fixture()
+@pytest.fixture
 def per_dag_perm_user_client(app, new_dag_to_delete):
     sm = app.appbuilder.sm
     perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
@@ -677,7 +644,7 @@ def per_dag_perm_user_client(app, new_dag_to_delete):
     delete_roles(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def one_dag_perm_user_client(app):
     username = "test_user_one_dag_perm"
     dag_id = "example_bash_operator"
@@ -797,6 +764,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
     Example usage::
 
         from airflow.www.views import TaskInstanceModelView
+
         ti = session.Query(TaskInstance).filter(...).one()
         pk = _get_appbuilder_pk_string(TaskInstanceModelView, ti)
         client.post("...", data={"action": "...", "rowid": pk})
@@ -832,7 +800,7 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
+    check_content_in_response("Access is Denied", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
@@ -862,7 +830,9 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
         data={"action": "clear", "rowid": rowid},
         follow_redirects=True,
     )
-    assert resp.status_code == (200 if should_succeed else 404)
+    assert resp.status_code == 200
+    if not should_succeed and client_fixture != "anonymous_client":
+        check_content_in_response("Access is Denied", resp)
 
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
@@ -940,13 +910,12 @@ def test_task_instance_clear_failure(admin_client):
 @pytest.mark.parametrize(
     "action, expected_state",
     [
-        ("set_running", State.RUNNING),
         ("set_failed", State.FAILED),
         ("set_success", State.SUCCESS),
         ("set_retry", State.UP_FOR_RETRY),
         ("set_skipped", State.SKIPPED),
     ],
-    ids=["running", "failed", "success", "retry", "skipped"],
+    ids=["failed", "success", "retry", "skipped"],
 )
 def test_task_instance_set_state(session, admin_client, action, expected_state):
     task_id = "runme_0"
@@ -969,7 +938,6 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
 @pytest.mark.parametrize(
     "action",
     [
-        "set_running",
         "set_failed",
         "set_success",
         "set_retry",
@@ -1137,6 +1105,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1169,6 +1138,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1201,6 +1171,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1233,6 +1204,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1265,6 +1237,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1297,6 +1270,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,
@@ -1329,6 +1303,7 @@ def test_task_instances(admin_client):
             "queue": "default",
             "queued_by_job_id": None,
             "queued_dttm": None,
+            "rendered_map_index": None,
             "run_id": "TEST_DAGRUN",
             "start_date": None,
             "state": None,

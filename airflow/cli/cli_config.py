@@ -382,11 +382,19 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
+
 ARG_TREAT_DAG_AS_REGEX = Arg(
     ("--treat-dag-as-regex",),
+    help=("Deprecated -- use `--treat-dag-id-as-regex` instead"),
+    action="store_true",
+)
+
+ARG_TREAT_DAG_ID_AS_REGEX = Arg(
+    ("--treat-dag-id-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
     action="store_true",
 )
+
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -771,7 +779,7 @@ ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
 )
 ARG_INTERNAL_API_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default="0.0.0.0",
+    default="0.0.0.0",  # nosec
     help="Set the hostname on which to run the web server",
 )
 ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
@@ -986,6 +994,13 @@ ARG_CLEAR_ONLY = Arg(
     help="If passed, serialized DAGs will be cleared but not reserialized.",
 )
 
+ARG_DAG_LIST_COLUMNS = Arg(
+    ("--columns",),
+    type=string_list_type,
+    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
+    default=("dag_id", "fileloc", "owners", "is_paused"),
+)
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -1032,7 +1047,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
     ),
     ActionCommand(
         name="list-import-errors",
@@ -1091,15 +1106,25 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="pause",
-        help="Pause a DAG",
+        help="Pause DAG(s)",
+        description=(
+            "Pause one or more DAGs. This command allows to halt the execution of specified DAGs, "
+            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs by "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="unpause",
-        help="Resume a paused DAG",
+        help="Resume paused DAG(s)",
+        description=(
+            "Resume one or more DAGs. This command allows to restore the execution of specified "
+            "DAGs, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="trigger",
@@ -1215,6 +1240,7 @@ DAGS_COMMANDS = (
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
             ARG_TREAT_DAG_AS_REGEX,
+            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1778,6 +1804,12 @@ PROVIDERS_COMMANDS = (
         help="Checks that provider configuration is lazy loaded",
         func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
         args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="auth-managers",
+        help="Get information about auth managers provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.auth_managers_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 

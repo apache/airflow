@@ -17,15 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import urllib.parse
-
 import pytest
 
 from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs, clear_db_variables
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
 
@@ -93,44 +90,17 @@ def clean_db():
     clear_db_variables()
 
 
-@action_has_dag_edit_access
-def some_view_action_which_requires_dag_edit_access(*args) -> bool:
-    return True
-
-
-def test_action_logging_get(session, admin_client):
-    url = (
-        f"dags/example_bash_operator/grid?"
-        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
-    )
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response("success", resp)
+def test_action_logging_robots(session, admin_client):
+    url = "/robots.txt"
+    admin_client.get(url, follow_redirects=True)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(
         session,
-        dag_id="example_bash_operator",
-        event="grid",
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-    )
-
-
-def test_action_logging_get_legacy_view(session, admin_client):
-    url = (
-        f"tree?dag_id=example_bash_operator&"
-        f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
-    )
-    resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response("success", resp)
-
-    # In mysql backend, this commit() is needed to write down the logs
-    session.commit()
-    _check_last_log(
-        session,
-        dag_id="example_bash_operator",
-        event="legacy_tree",
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        event="robots",
+        dag_id=None,
+        execution_date=None,
     )
 
 
@@ -154,6 +124,13 @@ def test_action_logging_post(session, admin_client):
         dag_id="example_bash_operator",
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
+        expected_extra={
+            "upstream": "false",
+            "downstream": "false",
+            "future": "false",
+            "past": "false",
+            "only_failed": "false",
+        },
     )
 
 
@@ -185,8 +162,3 @@ def test_calendar(admin_client, dagruns):
     datestr = bash_dagrun.execution_date.date().isoformat()
     expected = rf"{{\"date\":\"{datestr}\",\"state\":\"running\",\"count\":1}}"
     check_content_in_response(expected, resp)
-
-
-def test_action_has_dag_edit_access_exception():
-    with pytest.raises(ValueError):
-        some_view_action_which_requires_dag_edit_access(None, "some_incorrect_value")

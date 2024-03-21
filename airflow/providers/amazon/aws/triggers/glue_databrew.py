@@ -36,7 +36,7 @@ class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
         self,
         job_name: str,
         run_id: str,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         delay: int = 10,
         max_attempts: int = 60,
         **kwargs,

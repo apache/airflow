@@ -16,16 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+
 from __future__ import annotations
 
 import copy
 import re
 import uuid
-import warnings
 from contextlib import ExitStack
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -167,6 +169,11 @@ class DataflowConfiguration:
         self.service_account = service_account
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     """
     Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
@@ -353,13 +360,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{self.__class__.__name__}` operator is deprecated, "
-            f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
 
         dataflow_default_options = dataflow_default_options or {}
@@ -677,6 +677,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options = self.dataflow_default_options
         options.update(self.options)
 
+        if not self.location:
+            self.location = DEFAULT_DATAFLOW_LOCATION
+
         self.job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
@@ -704,7 +707,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
+                location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
@@ -714,7 +717,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
@@ -782,10 +785,10 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         pipeline code, step two will not start until the process stops. When this process stops,
         steps two will run, but it will only execute one iteration as the job will be in a terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finished=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finished=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -904,7 +907,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Job name was changed to %s", job_name)
 
     def execute_complete(self, context: Context, event: dict):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
@@ -1029,6 +1032,11 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
             )
 
 
+# TODO: Remove one day
+@deprecated(
+    reason="Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
     Launching Cloud Dataflow jobs written in python.
@@ -1151,13 +1159,6 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         wait_until_finished: bool | None = None,
         **kwargs,
     ) -> None:
-        # TODO: Remove one day
-        warnings.warn(
-            f"The `{self.__class__.__name__}` operator is deprecated, "
-            "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         super().__init__(**kwargs)
 
         self.py_file = py_file
@@ -1285,6 +1286,12 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         instead of draining. See: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :param stop_timeout: wait time in seconds for successful job canceling/draining
     """
+
+    template_fields = [
+        "job_id",
+        "project_id",
+        "impersonation_chain",
+    ]
 
     def __init__(
         self,

@@ -39,18 +39,14 @@ class DayOfWeekSensor(BaseSensorOperator):
     **Example** (with single day): ::
 
         weekend_check = DayOfWeekSensor(
-            task_id='weekend_check',
-            week_day='Saturday',
-            use_task_logical_date=True,
-            dag=dag)
+            task_id="weekend_check", week_day="Saturday", use_task_logical_date=True, dag=dag
+        )
 
     **Example** (with multiple day using set): ::
 
         weekend_check = DayOfWeekSensor(
-            task_id='weekend_check',
-            week_day={'Saturday', 'Sunday'},
-            use_task_logical_date=True,
-            dag=dag)
+            task_id="weekend_check", week_day={"Saturday", "Sunday"}, use_task_logical_date=True, dag=dag
+        )
 
     **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
 
@@ -58,10 +54,11 @@ class DayOfWeekSensor(BaseSensorOperator):
         from airflow.utils.weekday import WeekDay
 
         weekend_check = DayOfWeekSensor(
-            task_id='weekend_check',
+            task_id="weekend_check",
             week_day={WeekDay.SATURDAY, WeekDay.SUNDAY},
             use_task_logical_date=True,
-            dag=dag)
+            dag=dag,
+        )
 
     :param week_day: Day of the week to check (full name). Optionally, a set
         of days can also be provided using a set.

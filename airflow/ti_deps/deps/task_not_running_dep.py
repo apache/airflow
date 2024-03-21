@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Contains the TaskNotRunningDep."""
+
 from __future__ import annotations
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -30,9 +31,11 @@ class TaskNotRunningDep(BaseTIDep):
     IGNORABLE = False
 
     def __eq__(self, other):
+        """Check if two task instance dependencies are of the same type."""
         return type(self) == type(other)
 
     def __hash__(self):
+        """Compute the hash value based on the type of the task instance dependency."""
         return hash(type(self))
 
     @provide_session

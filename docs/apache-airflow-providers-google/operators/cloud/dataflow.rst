@@ -65,9 +65,9 @@ Starting Non-templated pipeline
 
 To create a new pipeline using the source file (JAR in Java or Python file) use
 the create job operators. The source file can be located on GCS or on the local filesystem.
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
 or
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`
 
 .. _howto/operator:DataflowCreateJavaJobOperator:
 
@@ -75,7 +75,7 @@ Java SDK pipelines
 """"""""""""""""""
 
 For Java pipeline the ``jar`` argument must be specified for
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
 as it contains the pipeline to be executed on Dataflow. The JAR can be available on GCS that Airflow
 has the ability to download or available on the local filesystem (provide the absolute path to it).
 
@@ -86,6 +86,14 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :dedent: 4
     :start-after: [START howto_operator_start_java_job_jar_on_gcs]
     :end-before: [END howto_operator_start_java_job_jar_on_gcs]
+
+Here is an example of creating and running a pipeline in Java with jar stored on GCS in deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_java.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_java_job_jar_on_gcs_deferrable]
+    :end-before: [END howto_operator_start_java_job_jar_on_gcs_deferrable]
 
 Here is an example of creating and running a pipeline in Java with jar stored on local file system:
 
@@ -101,7 +109,7 @@ Python SDK pipelines
 """"""""""""""""""""
 
 The ``py_file`` argument must be specified for
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`
 as it contains the pipeline to be executed on Dataflow. The Python file can be available on GCS that Airflow
 has the ability to download or available on the local filesystem (provide the absolute path to it).
 
@@ -129,8 +137,8 @@ Dataflow has multiple options of executing pipelines. It can be done in the foll
 batch asynchronously (fire and forget), batch blocking (wait until completion), or streaming (run indefinitely).
 In Airflow it is best practice to use asynchronous batch pipelines or streams and use sensors to listen for expected job state.
 
-By default :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator`,
-:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`,
+By default :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`,
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`,
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` and
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartFlexTemplateOperator`
 have argument ``wait_until_finished`` set to ``None`` which cause different behaviour depends on the type of pipeline:
@@ -174,6 +182,12 @@ Streaming execution
 
 To execute a streaming Dataflow job, ensure the streaming option is set (for Python) or read from an unbounded data
 source, such as Pub/Sub, in your pipeline (for Java).
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_streaming_python.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_streaming_python_job]
+    :end-before: [END howto_operator_start_streaming_python_job]
 
 Setting argument ``drain_pipeline`` to ``True`` allows to stop streaming job by draining it
 instead of canceling during killing task instance.

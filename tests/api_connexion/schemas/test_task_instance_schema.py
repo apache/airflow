@@ -93,6 +93,7 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -146,6 +147,7 @@ class TestTaskInstanceSchema:
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -224,6 +226,22 @@ class TestSetTaskInstanceStateFormSchema:
     }
 
     def test_success(self):
+        result = set_task_instance_state_form.load(self.current_input)
+        expected_result = {
+            "dry_run": True,
+            "execution_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "include_downstream": True,
+            "include_future": True,
+            "include_past": True,
+            "include_upstream": True,
+            "new_state": "failed",
+            "task_id": "print_the_context",
+        }
+        assert expected_result == result
+
+    def test_dry_run_is_optional(self):
+        data = self.current_input.copy()
+        data.pop("dry_run")
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,

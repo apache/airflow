@@ -1,0 +1,72 @@
+{
+    "DISCOUNTS": {
+      "TableMetadata": {
+        "Name": "DISCOUNTS",
+        "CreateTime": 1593559968.0,
+        "LastAccessTime": 0.0,
+        "TableType": "EXTERNAL_TABLE",
+        "Columns": [
+          {
+            "Name": "ID",
+            "Type": "int",
+            "Comment": "from deserializer"
+          },
+          {
+            "Name": "AMOUNT_OFF",
+            "Type": "int",
+            "Comment": "from deserializer"
+          },
+          {
+            "Name": "CUSTOMER_EMAIL",
+            "Type": "varchar",
+            "Comment": "from deserializer"
+          },
+          {
+            "Name": "STARTS_ON",
+            "Type": "timestamp",
+            "Comment": "from deserializer"
+          },
+          {
+            "Name": "ENDS_ON",
+            "Type": "timestamp",
+            "Comment": "from deserializer"
+          }
+        ],
+        "PartitionKeys": [],
+        "Parameters": {
+          "EXTERNAL": "TRUE",
+          "inputformat": "com.esri.json.hadoop.EnclosedJsonInputFormat",
+          "location": "s3://bucket/discount/data/path/",
+          "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+          "serde.param.serialization.format": "1",
+          "serde.serialization.lib": "com.esri.hadoop.hive.serde.JsonSerde",
+          "transient_lastDdlTime": "1593559968"
+        }
+      }
+    },
+    "TEST_TABLE": {
+      "TableMetadata": {
+        "Name": "TEST_TABLE",
+        "CreateTime": 1593559968.0,
+        "LastAccessTime": 0.0,
+        "TableType": "EXTERNAL_TABLE",
+        "Columns": [
+          {
+            "Name": "column",
+            "Type": "string",
+            "Comment": "from deserializer"
+          }
+        ],
+        "PartitionKeys": [],
+        "Parameters": {
+          "EXTERNAL": "TRUE",
+          "inputformat": "com.esri.json.hadoop.EnclosedJsonInputFormat",
+          "location": "s3://bucket/data/test_table/data/path",
+          "outputformat": "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+          "serde.param.serialization.format": "1",
+          "serde.serialization.lib": "com.esri.hadoop.hive.serde.JsonSerde",
+          "transient_lastDdlTime": "1593559968"
+        }
+      }
+    }
+  }
