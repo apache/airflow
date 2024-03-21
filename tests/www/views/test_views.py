@@ -522,6 +522,5 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
 def test_invalid_dates(app, admin_client, url, content):
     """Test invalid date format doesn't crash page."""
     resp = admin_client.get(url, follow_redirects=True)
-
     assert resp.status_code == 400
-    assert re.search(content, resp.get_data().decode())
+    assert re.search(content, resp.text)
