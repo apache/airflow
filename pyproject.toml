@@ -647,7 +647,7 @@ atlassian-jira = [ # source: airflow/providers/atlassian/jira/provider.yaml
   "beautifulsoup4",
 ]
 celery = [ # source: airflow/providers/celery/provider.yaml
-  "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+  "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
   "flower>=1.0.0",
   "google-re2>=1.0",
 ]
@@ -906,7 +906,7 @@ qdrant = [ # source: airflow/providers/qdrant/provider.yaml
   "qdrant_client>=1.7.0",
 ]
 redis = [ # source: airflow/providers/redis/provider.yaml
-  "redis>=4.5.2,<5.0.0,!=4.5.5",
+  "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
   "pandas>=1.2.5,<2.2",
