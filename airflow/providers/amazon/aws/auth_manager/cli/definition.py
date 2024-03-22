@@ -69,7 +69,7 @@ AWS_AUTH_MANAGER_COMMANDS = (
     ),
     ActionCommand(
         name="update-avp-schema",
-        help="Update Amazon Verified permissions policy store schema to the latest version in 'airflow/providers/amazon/aws/auth_manager/cli/schema.json'",
+        help="Update Amazon Verified permissions policy store schema to the latest version in 'airflow/providers/amazon/aws/auth_manager/avp/schema.json'",
         func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.update_schema"),
         args=(ARG_POLICY_STORE_ID, ARG_DRY_RUN, ARG_VERBOSE),
     ),

@@ -380,7 +380,8 @@ class TestFileTaskLogHandler:
             assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
         else:
             fth._read_from_logs_server.assert_not_called()
-            assert actual[0] and actual[1]
+            assert actual[0]
+            assert actual[1]
 
     @pytest.mark.parametrize(
         "pod_override, namespace_to_call",
