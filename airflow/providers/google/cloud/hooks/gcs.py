@@ -1015,20 +1015,20 @@ class GCSHook(GoogleBaseHook):
         Get the metadata of an object in Google Cloud Storage.
 
         :param bucket_name: Name of the Google Cloud Storage bucket where the object is.
-        :param object_name: The name of the object that posseses the desired metadata
+        :param object_name: The name of the object containing the desired metadata
         :return: The metadata associated with the object
         """
-        self.log.info(f"Retrieving the metadata dict of object ({object_name}) in bucket ({bucket_name})")
+        self.log.info("Retrieving the metadata dict of object (%s) in bucket (%s)", object_name, bucket_name)
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
-            raise ValueError(f"Object ({object_name}) not found in bucket ({bucket_name})")
+            raise ValueError("Object (%s) not found in bucket (%s)", object_name, bucket_name)
         blob_metadata = blob.metadata
         if blob_metadata:
-            self.log.info(f"Retrieved metadata of {object_name} with {len(blob_metadata)} fields")
+            self.log.info("Retrieved metadata of object (%s) with %s fields", object_name, len(blob_metadata))
         else:
-            self.log.info(f"Metadata of {object_name} is empty or it does not exist")
+            self.log.info("Metadata of object (%s) is empty or it does not exist", object_name)
         return blob_metadata
 
     @GoogleBaseHook.fallback_to_default_project_id
