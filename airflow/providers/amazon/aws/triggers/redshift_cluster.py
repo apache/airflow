@@ -311,6 +311,7 @@ class RedshiftClusterTrigger(BaseTrigger):
                     "status"
                 ] == "error":
                     yield TriggerEvent(res)
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
