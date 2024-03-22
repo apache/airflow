@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowRescheduleException
+from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import PythonOperator, task
 from airflow.utils import timezone
@@ -66,12 +66,7 @@ class TestExecutorSafeguard:
     )
     @pytest.mark.db_test
     def test_executor_when_python_operator_raises_exception_called_from_dag(
-        self,
-        session,
-        dag_maker,
-        state,
-        exception,
-        retries
+        self, session, dag_maker, state, exception, retries
     ):
         with dag_maker():
 
