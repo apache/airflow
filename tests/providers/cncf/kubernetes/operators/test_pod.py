@@ -359,7 +359,8 @@ class TestKubernetesPodOperator:
         )
         context = create_context(k)
         label_selector = k._build_find_pod_label_selector(context)
-        assert "foo=bar" in label_selector and "hello=airflow" in label_selector
+        assert "foo=bar" in label_selector
+        assert "hello=airflow" in label_selector
 
     @patch(HOOK_CLASS, new=MagicMock)
     def test_find_pod_labels(self):

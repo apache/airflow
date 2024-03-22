@@ -120,6 +120,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                             "job_name": self.job_name,
                         }
                     )
+                return
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")
 

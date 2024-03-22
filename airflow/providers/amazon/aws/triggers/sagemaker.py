@@ -245,8 +245,8 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
         job_already_completed = status not in self.hook.non_terminal_states
         state = LogState.COMPLETE if job_already_completed else LogState.TAILING
         last_describe_job_call = time.time()
-        while True:
-            try:
+        try:
+            while True:
                 (
                     state,
                     last_description,
@@ -267,6 +267,7 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
                     reason = last_description.get("FailureReason", "(No reason provided)")
                     error_message = f"SageMaker job failed because {reason}"
                     yield TriggerEvent({"status": "error", "message": error_message})
+                    return
                 else:
                     billable_seconds = SageMakerHook.count_billable_seconds(
                         training_start_time=last_description["TrainingStartTime"],
@@ -275,5 +276,6 @@ class SageMakerTrainingPrintLogTrigger(BaseTrigger):
                     )
                     self.log.info("Billable seconds: %d", billable_seconds)
                     yield TriggerEvent({"status": "success", "message": last_description})
-            except Exception as e:
-                yield TriggerEvent({"status": "error", "message": str(e)})
+                    return
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})

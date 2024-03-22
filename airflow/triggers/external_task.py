@@ -121,6 +121,7 @@ class WorkflowTrigger(BaseTrigger):
                 )
                 if skipped_count > 0:
                     yield TriggerEvent({"status": "skipped"})
+                    return
             allowed_count = _get_count(
                 self.execution_dates,
                 self.external_task_ids,
@@ -289,6 +290,7 @@ class DagStateTrigger(BaseTrigger):
             num_dags = await self.count_dags()  # type: ignore[call-arg]
             if num_dags == len(self.execution_dates):
                 yield TriggerEvent(self.serialize())
+                return
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async

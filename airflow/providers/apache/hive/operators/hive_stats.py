@@ -21,11 +21,12 @@ import json
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.presto.hooks.presto import PrestoHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -78,17 +79,18 @@ class HiveStatsCollectionOperator(BaseOperator):
         mysql_conn_id: str = "airflow_db",
         ds: str = "{{ ds }}",
         dttm: str = "{{ logical_date.isoformat() }}",
+        col_blacklist: list[str] | None | ArgNotSet = NOTSET,
         **kwargs: Any,
     ) -> None:
-        if "col_blacklist" in kwargs:
+        if col_blacklist is not NOTSET:
             warnings.warn(
                 f"col_blacklist kwarg passed to {self.__class__.__name__} "
                 f"(task_id: {kwargs.get('task_id')}) is deprecated, "
                 f"please rename it to excluded_columns instead",
-                category=FutureWarning,
+                category=AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            excluded_columns = kwargs.pop("col_blacklist")
+            excluded_columns = col_blacklist  # type: ignore[assignment]
         super().__init__(**kwargs)
         self.table = table
         self.partition = partition

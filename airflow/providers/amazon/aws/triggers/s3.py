@@ -98,8 +98,9 @@ class S3KeyTrigger(BaseTrigger):
                             )
                             await asyncio.sleep(self.poke_interval)
                             yield TriggerEvent({"status": "running", "files": s3_objects})
-
-                        yield TriggerEvent({"status": "success"})
+                        else:
+                            yield TriggerEvent({"status": "success"})
+                        return
 
                     self.log.info("Sleeping for %s seconds", self.poke_interval)
                     await asyncio.sleep(self.poke_interval)
@@ -204,6 +205,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                     )
                     if result.get("status") in ("success", "error"):
                         yield TriggerEvent(result)
+                        return
                     elif result.get("status") == "pending":
                         self.previous_objects = result.get("previous_objects", set())
                         self.last_activity_time = result.get("last_activity_time")

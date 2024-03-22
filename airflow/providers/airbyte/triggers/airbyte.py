@@ -80,6 +80,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                             "job_id": self.job_id,
                         }
                     )
+                    return
                 await asyncio.sleep(self.poll_interval)
             job_run_status = await hook.get_job_status(self.job_id)
             if job_run_status == hook.SUCCEEDED:

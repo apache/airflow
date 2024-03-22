@@ -27,6 +27,7 @@ from typing_extensions import Literal
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
@@ -226,9 +227,10 @@ class SlackAPIFileOperator(SlackAPIOperator):
         content: str | None = None,
         title: str | None = None,
         method_version: Literal["v1", "v2"] = "v1",
+        channel: str | Sequence[str] | None | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if channel := kwargs.pop("channel", None):
+        if channel is not NOTSET:
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
@@ -237,7 +239,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             )
             if channels:
                 raise ValueError(f"Cannot set both arguments: channel={channel!r} and channels={channels!r}.")
-            channels = channel
+            channels = channel  # type: ignore[assignment]
 
         super().__init__(method="files.upload", **kwargs)
         self.channels = channels

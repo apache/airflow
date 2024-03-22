@@ -49,7 +49,7 @@ This example is a basic demonstration of OpenLineage setup.
    .. code-block:: ini
 
       [openlineage]
-      transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+      transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
 
    or with ``AIRFLOW__OPENLINEAGE__TRANSPORT`` environment variable
 
@@ -87,7 +87,7 @@ The ``transport`` option in Airflow configuration is used for that purpose.
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
 
 ``AIRFLOW__OPENLINEAGE__TRANSPORT`` environment variable is an equivalent.
 
@@ -101,7 +101,7 @@ If you want to look at OpenLineage events without sending them anywhere, you can
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "console"}'
+    transport = {"type": "console"}
 
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
@@ -180,8 +180,8 @@ If not set, it's using ``default`` namespace. Provide the name of the namespace 
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
-    namespace = 'my-team-airflow-instance`
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    namespace = 'my-team-airflow-instance'
 
 ``AIRFLOW__OPENLINEAGE__NAMESPACE`` environment variable is an equivalent.
 
@@ -198,7 +198,7 @@ You can disable sending OpenLineage events without uninstalling OpenLineage prov
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disabled = true
 
 ``AIRFLOW__OPENLINEAGE__DISABLED`` environment variable is an equivalent.
@@ -217,7 +217,7 @@ To prevent that, set ``disable_source_code`` option to ``true`` in Airflow confi
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disable_source_code = true
 
 ``AIRFLOW__OPENLINEAGE__DISABLE_SOURCE_CODE`` environment variable is an equivalent.
@@ -236,7 +236,7 @@ full import paths of Airflow Operators to disable as ``disabled_for_operators`` 
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disabled_for_operators = 'airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
 ``AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`` environment variable is an equivalent.
@@ -254,7 +254,7 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     extractors = full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
 
 ``AIRFLOW__OPENLINEAGE__EXTRACTORS`` environment variable is an equivalent.

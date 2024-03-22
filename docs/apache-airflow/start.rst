@@ -62,7 +62,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
       # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
       # See above for supported versions.
-      PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+      PYTHON_VERSION="$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
       # For example this would install |version| with python 3.8: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt

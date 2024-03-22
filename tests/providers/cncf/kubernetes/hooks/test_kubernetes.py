@@ -469,14 +469,20 @@ class TestKubernetesHook:
             ([mock.MagicMock(type="Complete", status=True)], False),
             ([mock.MagicMock(type="Complete", status=False)], False),
             ([mock.MagicMock(type="Failed", status=False)], False),
-            ([mock.MagicMock(type="Failed", status=True)], True),
+            ([mock.MagicMock(type="Failed", status=True, reason="test reason 1")], "test reason 1"),
             (
-                [mock.MagicMock(type="Complete", status=False), mock.MagicMock(type="Failed", status=True)],
-                True,
+                [
+                    mock.MagicMock(type="Complete", status=False),
+                    mock.MagicMock(type="Failed", status=True, reason="test reason 2"),
+                ],
+                "test reason 2",
             ),
             (
-                [mock.MagicMock(type="Complete", status=True), mock.MagicMock(type="Failed", status=True)],
-                True,
+                [
+                    mock.MagicMock(type="Complete", status=True),
+                    mock.MagicMock(type="Failed", status=True, reason="test reason 3"),
+                ],
+                "test reason 3",
             ),
         ],
     )
@@ -584,6 +590,8 @@ class TestAsyncKubernetesHook:
     INCLUSTER_CONFIG_LOADER = "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
     KUBE_LOADER_CONFIG = "kubernetes_asyncio.config.kube_config.KubeConfigLoader"
     KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
+    KUBE_BATCH_API = "kubernetes_asyncio.client.api.batch_v1_api.BatchV1Api.{}"
+    KUBE_ASYNC_HOOK = HOOK_MODULE + ".AsyncKubernetesHook.{}"
 
     @staticmethod
     def mock_await_result(return_value):
@@ -765,3 +773,55 @@ class TestAsyncKubernetesHook:
             timestamps=True,
         )
         assert "Container logs from 2023-01-11 Some string logs..." in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
+    async def test_get_job_status(self, lib_method, kube_config_loader):
+        lib_method.return_value = self.mock_await_result(None)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+        await hook.get_job_status(
+            name=JOB_NAME,
+            namespace=NAMESPACE,
+        )
+
+        lib_method.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep")
+    @mock.patch(KUBE_ASYNC_HOOK.format("is_job_complete"))
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_job_status"))
+    async def test_wait_until_job_complete(
+        self, mock_get_job_status, mock_is_job_complete, mock_sleep, kube_config_loader
+    ):
+        mock_job_0, mock_job_1 = mock.MagicMock(), mock.MagicMock()
+        mock_get_job_status.side_effect = mock.AsyncMock(side_effect=[mock_job_0, mock_job_1])
+        mock_is_job_complete.side_effect = [False, True]
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        job_actual = await hook.wait_until_job_complete(
+            name=JOB_NAME,
+            namespace=NAMESPACE,
+            poll_interval=10,
+        )
+
+        mock_get_job_status.assert_has_awaits(
+            [
+                mock.call(name=JOB_NAME, namespace=NAMESPACE),
+                mock.call(name=JOB_NAME, namespace=NAMESPACE),
+            ]
+        )
+        mock_is_job_complete.assert_has_calls([mock.call(job=mock_job_0), mock.call(job=mock_job_1)])
+        mock_sleep.assert_awaited_once_with(10)
+        assert job_actual == mock_job_1

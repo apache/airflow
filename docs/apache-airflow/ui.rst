@@ -31,7 +31,7 @@ List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
 running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
 
-In order to filter DAGs (e.g by team), you can add tags in each DAG.
+In order to filter DAGs (e.g. by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
 For example:
 
@@ -43,6 +43,20 @@ For example:
 ------------
 
 .. image:: img/dags.png
+
+------------
+
+
+.. _ui:cluster-activity-view:
+
+Cluster Activity View
+.....................
+
+Native Airflow dashboard page into the UI to collect several useful metrics for monitoring your Airflow cluster.
+
+------------
+
+.. image:: img/cluster_activity.png
 
 ------------
 
@@ -118,7 +132,7 @@ dependencies and their current status for a specific run.
 Calendar View
 .............
 
-The calendar view gives you an overview of your entire DAG's history over months, or even years.
+The calendar view gives you an overview of your entire DAG's history over months or even years.
 Letting you quickly see trends of the overall success/failure rate of runs over time.
 
 ------------
@@ -131,7 +145,7 @@ Variable View
 .............
 
 The variable view allows you to list, create, edit or delete the key-value pair
-of a variable used during jobs. Value of a variable will be hidden if the key contains
+of a variable used during jobs. The value of a variable will be hidden if the key contains
 any words in ('password', 'secret', 'passwd', 'authorization', 'api_key', 'apikey', 'access_token')
 by default, but can be configured to show in cleartext. See :ref:`security:mask-sensitive-values`.
 
@@ -176,7 +190,7 @@ Landing Times
 .............
 
 The landing time for a task instance is the delta between the dag run's data interval end
-(typically this means, when the dag "should" run) and the task instance completion time.
+(typically this means when the dag "should" run) and the task instance completion time.
 
 ------------
 
