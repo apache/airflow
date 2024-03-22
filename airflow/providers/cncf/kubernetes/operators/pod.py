@@ -299,6 +299,7 @@ class KubernetesPodOperator(BaseOperator):
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
+        do_xcom_push_on_failure: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
         priority_class_name: str | None = None,
@@ -322,6 +323,7 @@ class KubernetesPodOperator(BaseOperator):
         super().__init__(**kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
+        self.do_xcom_push_on_failure = do_xcom_push_on_failure
         self.image = image
         self.namespace = namespace
         self.cmds = cmds or []
@@ -624,7 +626,7 @@ class KubernetesPodOperator(BaseOperator):
                     mode=ExecutionMode.SYNC,
                 )
 
-            if self.do_xcom_push:
+            if self.do_xcom_push or self.do_xcom_push_on_failure:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
@@ -632,6 +634,7 @@ class KubernetesPodOperator(BaseOperator):
                 self.pod, istio_enabled, self.base_container_name
             )
         finally:
+            self.xcom_on_failure(context, self.remote_pod, result)
             pod_to_clean = self.pod or self.pod_request_obj
             self.cleanup(
                 pod=pod_to_clean,
@@ -685,6 +688,15 @@ class KubernetesPodOperator(BaseOperator):
             method_name="trigger_reentry",
         )
 
+    @staticmethod
+    def _is_pod_succeeded(pod: k8s.V1Pod) -> bool:
+        return (pod.status.phase if hasattr(pod, "status") else None) == PodPhase.SUCCEEDED
+
+    def xcom_on_failure(self, context: Context, pod: k8s.V1Pod, xcom_result: Any):
+        if not self._is_pod_succeeded(pod):
+            if self.do_xcom_push_on_failure:
+                self.xcom_push(context, "failure_result", xcom_result)
+
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Point of re-entry from trigger.
@@ -716,7 +728,9 @@ class KubernetesPodOperator(BaseOperator):
                     self.write_logs(self.pod)
 
                 if self.do_xcom_push:
-                    _ = self.extract_xcom(pod=self.pod)
+                    xcom_sidecar_output = self.extract_xcom(pod=self.pod)
+                    if self.do_xcom_push_on_failure:
+                        self.xcom_on_failure(context, self.pod, xcom_sidecar_output)
 
                 message = event.get("stack_trace", event["message"])
                 raise AirflowException(message)
@@ -808,13 +822,12 @@ class KubernetesPodOperator(BaseOperator):
             return
 
         istio_enabled = self.is_istio_enabled(remote_pod)
-        pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
         # if the pod fails or success, but we don't want to delete it
-        if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
+        if not self._is_pod_succeeded(remote_pod) or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        failed = (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+        failed = (not self._is_pod_succeeded(remote_pod) and not istio_enabled) or (
             istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
         )
 
