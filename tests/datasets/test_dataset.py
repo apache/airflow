@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from collections import defaultdict
+from typing import Callable
 
 import pytest
 from sqlalchemy.sql import select
@@ -409,3 +410,34 @@ test_cases = [
 def test_evaluate_datasets_expression(expression, expected):
     expr = expression()
     assert datasets_equal(expr, expected)
+
+
+@pytest.mark.parametrize(
+    "expression, error",
+    [
+        pytest.param(
+            lambda: dataset1 & 1,  # type: ignore[operator]
+            "unsupported operand type(s) for &: 'Dataset' and 'int'",
+            id="&",
+        ),
+        pytest.param(
+            lambda: dataset1 | 1,  # type: ignore[operator]
+            "unsupported operand type(s) for |: 'Dataset' and 'int'",
+            id="|",
+        ),
+        pytest.param(
+            lambda: DatasetAll(1, dataset1),  # type: ignore[arg-type]
+            "expect dataset expressions in condition",
+            id="DatasetAll",
+        ),
+        pytest.param(
+            lambda: DatasetAny(1, dataset1),  # type: ignore[arg-type]
+            "expect dataset expressions in condition",
+            id="DatasetAny",
+        ),
+    ],
+)
+def test_datasets_expression_error(expression: Callable[[], None], error: str) -> None:
+    with pytest.raises(TypeError) as info:
+        expression()
+    assert str(info.value) == error
