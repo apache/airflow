@@ -66,9 +66,9 @@ class TestCeleryQueueSensor:
         mock_inspect_result.reserved.return_value = {}
         mock_inspect_result.scheduled.return_value = {}
         mock_inspect_result.active.return_value = {}
+        test_sensor = self.sensor(celery_queue="test_queue", task_id="test-task", soft_fail=soft_fail)
 
         with pytest.raises(expected_exception):
-            test_sensor = self.sensor(celery_queue="test_queue", task_id="test-task", soft_fail=soft_fail)
             test_sensor.poke(None)
 
     @patch("celery.app.control.Inspect")

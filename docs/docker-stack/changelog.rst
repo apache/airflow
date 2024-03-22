@@ -61,6 +61,10 @@ Airflow 2.9
   * Constraints used to install the image are available in "${HOME}/constraints.txt" now - you can use them
     to install additional packages in the image without having to find out which constraints you should use.
 
+  * The image adds ``libev`` library to the image as it is required by cassandra driver for Python 3.12, also
+    ``libev`` will be used in other Python versions as a more robust and faster way for cassandra driver
+    to handle events.
+
 Airflow 2.8
 ~~~~~~~~~~~
 * 2.8.3

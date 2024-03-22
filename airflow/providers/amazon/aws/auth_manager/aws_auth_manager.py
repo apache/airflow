@@ -88,6 +88,7 @@ class AwsAuthManager(BaseAuthManager):
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__(appbuilder)
         enable = conf.getboolean(CONF_SECTION_NAME, CONF_ENABLE_KEY)
+        self._check_avp_schema_version()
         if not enable:
             raise NotImplementedError(
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
@@ -429,6 +430,15 @@ class AwsAuthManager(BaseAuthManager):
             "entity_type": AvpEntities.MENU,
             "entity_id": resource_name,
         }
+
+    def _check_avp_schema_version(self):
+        if not self.avp_facade.is_policy_store_schema_up_to_date():
+            self.log.warning(
+                "The Amazon Verified Permissions policy store schema is different from the latest version "
+                "(https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/auth_manager/avp/schema.json). "
+                "Please update it to its latest version. "
+                "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
+            )
 
 
 def get_parser() -> argparse.ArgumentParser:

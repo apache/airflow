@@ -57,7 +57,6 @@
   <meta name="grid_data_url" content="{{ url_for('Airflow.grid_data') }}">
   <meta name="graph_data_url" content="{{ url_for('Airflow.graph_data') }}">
   <meta name="calendar_data_url" content="{{ url_for('Airflow.calendar_data') }}">
-  <meta name="task_fails_url" content="{{ url_for('Airflow.task_fails') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
@@ -123,12 +122,16 @@
           {% endif %}
           <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
             <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
+                   data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
                    type="checkbox"{{ " checked" if not dag_is_paused else "" }}
                    {{ " disabled" if not can_edit_dag else "" }}>
             <span class="switch" aria-hidden="true"></span>
           </label>
           <span class="text-muted">DAG:</span> {{ dag.dag_id }}
           <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
+          {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
+           <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
+            {% endif %}
         {% endif %}
         {% if root %}
           <span class="text-muted">ROOT:</span> {{ root }}
@@ -261,7 +264,8 @@
           {% else %}
             <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}"
           {% endif %}
-              onclick="return triggerDag(this, '{{ dag.dag_id }}')" title="Trigger&nbsp;DAG"
+          onclick="return {{ 'triggerDag' if not appbuilder.require_confirmation_dag_change else 'confirmTriggerDag' }}(this, '{{ dag.dag_id }}')"
+          title="Trigger&nbsp;DAG"
               aria-label="Trigger DAG"
               class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
               <span class="material-icons" aria-hidden="true">play_arrow</span>
@@ -301,5 +305,13 @@
       postAsForm(link.href, {});
       return false;
     }
+
+    function confirmTriggerDag(link, dagId) {
+      if (confirm(`Are you sure you want to trigger '${dagId}' now?`)) {
+        postAsForm(link.href, {});
+      }
+      return false;
+    }
+
   </script>
 {% endblock %}

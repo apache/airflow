@@ -110,7 +110,7 @@ class ConcurrencyMap:
     @classmethod
     def from_concurrency_map(cls, mapping: dict[tuple[str, str, str], int]) -> ConcurrencyMap:
         instance = cls(Counter(), Counter(), Counter(mapping))
-        for (d, r, t), c in mapping.items():
+        for (d, _, t), c in mapping.items():
             instance.dag_active_tasks_map[d] += c
             instance.task_concurrency_map[(d, t)] += c
         return instance
@@ -1270,7 +1270,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         DagScheduleDatasetReference,
                         DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
                     )
-                    .join(DatasetEvent.source_dag_run)
                     .where(*dataset_event_filters)
                 ).all()
 

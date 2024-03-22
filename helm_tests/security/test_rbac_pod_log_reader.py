@@ -64,3 +64,74 @@ class TestPodReader:
         )
         actual = jmespath.search("metadata.name", docs[0]) if docs else None
         assert actual == expected
+
+    @pytest.mark.parametrize(
+        "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",
+        [
+            (
+                True,
+                "namespace",
+                "namespace-release-name-pod-log-reader-role",
+                "namespace-release-name-pod-log-reader-rolebinding",
+            ),
+            (
+                True,
+                "other-ns",
+                "other-ns-release-name-pod-log-reader-role",
+                "other-ns-release-name-pod-log-reader-rolebinding",
+            ),
+            (
+                False,
+                "namespace",
+                "release-name-pod-log-reader-role",
+                "release-name-pod-log-reader-rolebinding",
+            ),
+        ],
+    )
+    def test_pod_log_reader_rolebinding_multi_namespace(
+        self, multiNamespaceMode, namespace, expectedRole, expectedRoleBinding
+    ):
+        docs = render_chart(
+            namespace=namespace,
+            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            show_only=["templates/rbac/pod-log-reader-rolebinding.yaml"],
+        )
+
+        actualRoleBinding = jmespath.search("metadata.name", docs[0])
+        assert actualRoleBinding == expectedRoleBinding
+
+        actualRoleRef = jmespath.search("roleRef.name", docs[0])
+        assert actualRoleRef == expectedRole
+
+        actualKind = jmespath.search("kind", docs[0])
+        actualRoleRefKind = jmespath.search("roleRef.kind", docs[0])
+        if multiNamespaceMode:
+            assert actualKind == "ClusterRoleBinding"
+            assert actualRoleRefKind == "ClusterRole"
+        else:
+            assert actualKind == "RoleBinding"
+            assert actualRoleRefKind == "Role"
+
+    @pytest.mark.parametrize(
+        "multiNamespaceMode, namespace, expectedRole",
+        [
+            (True, "namespace", "namespace-release-name-pod-log-reader-role"),
+            (True, "other-ns", "other-ns-release-name-pod-log-reader-role"),
+            (False, "namespace", "release-name-pod-log-reader-role"),
+        ],
+    )
+    def test_pod_log_reader_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
+        docs = render_chart(
+            namespace=namespace,
+            values={"webserver": {"allowPodLogReading": True}, "multiNamespaceMode": multiNamespaceMode},
+            show_only=["templates/rbac/pod-log-reader-role.yaml"],
+        )
+
+        actualRole = jmespath.search("metadata.name", docs[0])
+        assert actualRole == expectedRole
+
+        actualKind = jmespath.search("kind", docs[0])
+        if multiNamespaceMode:
+            assert actualKind == "ClusterRole"
+        else:
+            assert actualKind == "Role"
