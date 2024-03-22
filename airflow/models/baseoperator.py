@@ -1935,9 +1935,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            ╭�"�op2�"�╮ ╭�"�op4�"�╮
-        op1�"��"�     �"��"��"��"�op5�"��"��"�op7
-            ╰-op3�"�╯ ╰-op6�"�╯
+            ╭─op2─╮ ╭─op4─╮
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
 
     Then you can accomplish like so::
 
