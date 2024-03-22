@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-21T21:23:39.072697
+# This constraints file was automatically generated on 2024-03-22T11:54:21.187467
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -451,7 +451,7 @@ pytest-asyncio==0.23.6
 pytest-cov==4.1.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
-pytest-mock==3.13.0
+pytest-mock==3.14.0
 pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.5.0
@@ -473,7 +473,7 @@ pyzmq==25.1.2
 qdrant-client==1.8.0
 reactivex==4.0.4
 readme_renderer==43.0
-redis==4.6.0
+redis==5.0.3
 redshift-connector==2.1.0
 referencing==0.31.1
 regex==2023.12.25
@@ -610,7 +610,7 @@ wrapt==1.16.0
 xmlsec==1.3.13
 xmltodict==0.13.0
 yamllint==1.35.1
-yandex-query-client==0.1.2
+yandex-query-client==0.1.3
 yandexcloud==0.267.0
 yarl==1.9.4
 zeep==4.2.1
