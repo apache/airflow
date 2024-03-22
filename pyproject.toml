@@ -249,7 +249,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.22",
+    "uv>=0.1.24",
 ]
 virtualenv = [
     "virtualenv",
