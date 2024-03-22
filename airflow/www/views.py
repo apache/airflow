@@ -3677,7 +3677,7 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
-            latest_run = dag_model.get_last_dagrun()
+            latest_run = dag_model.get_last_dagrun(session=session)
 
             events = [
                 dict(info)
