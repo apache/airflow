@@ -17,15 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowRescheduleException
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
 from airflow.operators.python import PythonOperator, task
-from airflow.utils.state import DagRunState
+from airflow.utils import timezone
+from airflow.utils.state import DagRunState, State
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -50,6 +53,57 @@ class TestExecutorSafeguard:
 
         dag_run = dag.test()
         assert dag_run.state == DagRunState.SUCCESS
+
+    @pytest.mark.parametrize(
+        "state, exception, retries",
+        [
+            (State.FAILED, AirflowException, 0),
+            (State.SKIPPED, AirflowSkipException, 0),
+            (State.SUCCESS, None, 0),
+            (State.UP_FOR_RESCHEDULE, AirflowRescheduleException(timezone.utcnow()), 0),
+            (State.UP_FOR_RETRY, AirflowException, 1),
+        ],
+    )
+    @pytest.mark.db_test
+    def test_executor_when_python_operator_raises_exception_called_from_dag(
+        self,
+        session,
+        dag_maker,
+        state,
+        exception,
+        retries
+    ):
+        with dag_maker():
+
+            def _raise_if_exception():
+                if exception:
+                    raise exception
+
+            task = PythonOperator(
+                task_id="hello_operator",
+                python_callable=_raise_if_exception,
+                retries=retries,
+                retry_delay=datetime.timedelta(seconds=2),
+            )
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.next_method = "execute"
+        ti.next_kwargs = {}
+        session.merge(ti)
+        session.commit()
+
+        ti.task = task
+        if state in [State.FAILED, State.UP_FOR_RETRY]:
+            with pytest.raises(exception):
+                ti.run()
+        else:
+            ti.run()
+        ti.refresh_from_db()
+
+        assert ti.next_method is None
+        assert ti.next_kwargs is None
+        assert ti.state == state
 
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_decorated_task(self, dag_maker):
