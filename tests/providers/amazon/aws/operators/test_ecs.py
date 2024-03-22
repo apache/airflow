@@ -858,6 +858,8 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
 
 
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
+    warn_message = "'wait_for_completion' and waiter related params have no effect"
+
     def test_execute_immediate_delete(self):
         """Test if task definition deleted during initial request."""
         op = EcsDeregisterTaskDefinitionOperator(
@@ -872,11 +874,50 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
         assert result == "foo-bar"
 
     def test_deprecation(self):
-        with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
             EcsDeregisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "wait_for_completion, waiter_delay, waiter_max_attempts",
+        [
+            pytest.param(True, 10, 42, id="all-params"),
+            pytest.param(False, None, None, id="wait-for-completion-only"),
+            pytest.param(None, 10, None, id="waiter-delay-only"),
+            pytest.param(None, None, 42, id="waiter-max-attempts-delay-only"),
+        ],
+    )
+    def test_partial_deprecation_waiters_params(
+        self, wait_for_completion, waiter_delay, waiter_max_attempts, dag_maker, session
+    ):
+        op_kwargs = {}
+        if wait_for_completion is not None:
+            op_kwargs["wait_for_completion"] = wait_for_completion
+        if waiter_delay is not None:
+            op_kwargs["waiter_delay"] = waiter_delay
+        if waiter_max_attempts is not None:
+            op_kwargs["waiter_max_attempts"] = waiter_max_attempts
+
+        with dag_maker(dag_id="test_partial_deprecation_waiters_params_dereg_ecs", session=session):
+            EcsDeregisterTaskDefinitionOperator.partial(
+                task_id="fake-task-id",
+                **op_kwargs,
+            ).expand(task_definition=["foo", "bar"])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
+                    ti.render_templates()
+                assert not hasattr(ti.task, "wait_for_completion")
+                assert not hasattr(ti.task, "waiter_delay")
+                assert not hasattr(ti.task, "waiter_max_attempts")
 
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
+    warn_message = "'wait_for_completion' and waiter related params have no effect"
+
     def test_execute_immediate_create(self):
         """Test if task definition created during initial request."""
         mock_ti = mock.MagicMock(name="MockedTaskInstance")
@@ -908,7 +949,45 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
         assert result == "foo-bar"
 
     def test_deprecation(self):
-        with pytest.warns(AirflowProviderDeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
             EcsRegisterTaskDefinitionOperator(
                 task_id="id", wait_for_completion=True, **TASK_DEFINITION_CONFIG
             )
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "wait_for_completion, waiter_delay, waiter_max_attempts",
+        [
+            pytest.param(True, 10, 42, id="all-params"),
+            pytest.param(False, None, None, id="wait-for-completion-only"),
+            pytest.param(None, 10, None, id="waiter-delay-only"),
+            pytest.param(None, None, 42, id="waiter-max-attempts-delay-only"),
+        ],
+    )
+    def test_partial_deprecation_waiters_params(
+        self, wait_for_completion, waiter_delay, waiter_max_attempts, dag_maker, session
+    ):
+        op_kwargs = {}
+        if wait_for_completion is not None:
+            op_kwargs["wait_for_completion"] = wait_for_completion
+        if waiter_delay is not None:
+            op_kwargs["waiter_delay"] = waiter_delay
+        if waiter_max_attempts is not None:
+            op_kwargs["waiter_max_attempts"] = waiter_max_attempts
+
+        with dag_maker(dag_id="test_partial_deprecation_waiters_params_reg_ecs", session=session):
+            EcsRegisterTaskDefinitionOperator.partial(
+                task_id="fake-task-id",
+                family="family_name",
+                **op_kwargs,
+            ).expand(container_definitions=[{}, {}])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
+                    ti.render_templates()
+                assert not hasattr(ti.task, "wait_for_completion")
+                assert not hasattr(ti.task, "waiter_delay")
+                assert not hasattr(ti.task, "waiter_max_attempts")

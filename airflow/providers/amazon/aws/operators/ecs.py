@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import boto3
@@ -257,19 +258,18 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         self,
         *,
         task_definition: str,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.task_definition = task_definition
@@ -311,19 +311,18 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.family = family

@@ -91,7 +91,8 @@ class TestSqsSensor:
         assert mocked_xcom_push.call_count == 1
         call_args, call_kwargs = mocked_xcom_push.call_args.args, mocked_xcom_push.call_args.kwargs
         assert not call_args
-        assert "key" in call_kwargs and call_kwargs["key"] == "messages"
+        assert "key" in call_kwargs
+        assert call_kwargs["key"] == "messages"
         assert "value" in call_kwargs
         xcom_value = call_kwargs["value"]
         assert xcom_value[0]["Body"] == "hello"
@@ -403,7 +404,8 @@ class TestSqsSensor:
         assert mocked_xcom_push.call_count == 1
         call_args, call_kwargs = mocked_xcom_push.call_args.args, mocked_xcom_push.call_args.kwargs
         assert not call_args
-        assert "key" in call_kwargs and call_kwargs["key"] == "messages"
+        assert "key" in call_kwargs
+        assert call_kwargs["key"] == "messages"
         assert "value" in call_kwargs
         xcom_value = call_kwargs["value"]
         assert len(xcom_value) == 3

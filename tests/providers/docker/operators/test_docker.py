@@ -805,3 +805,20 @@ class TestDockerOperator:
                     skip_exit_code=skip_exit_code,
                     skip_on_exit_code=skip_on_exit_code,
                 )
+
+    def test_respect_docker_host_env(self, monkeypatch):
+        monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
+        operator = DockerOperator(task_id="test", image="test")
+        assert operator.docker_url == "tcp://docker-host-from-env:2375"
+
+    def test_docker_host_env_empty(self, monkeypatch):
+        monkeypatch.setenv("DOCKER_HOST", "")
+        operator = DockerOperator(task_id="test", image="test")
+        # The docker CLI ignores the empty string and defaults to unix://var/run/docker.sock
+        # We want to ensure the same behavior.
+        assert operator.docker_url == "unix://var/run/docker.sock"
+
+    def test_docker_host_env_unset(self, monkeypatch):
+        monkeypatch.delenv("DOCKER_HOST", raising=False)
+        operator = DockerOperator(task_id="test", image="test")
+        assert operator.docker_url == "unix://var/run/docker.sock"

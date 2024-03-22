@@ -159,6 +159,7 @@ dependencies:
   - PyOpenSSL
   - sqlalchemy-bigquery>=1.2.1
   - sqlalchemy-spanner>=1.6.2
+  - python-slugify>=5.0
 
 additional-extras:
   - name: apache.beam
