@@ -918,10 +918,8 @@ class TestDagRun:
                 sched_delay_stat_call_with_tags = call(
                     "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
                 )
-                assert (
-                    sched_delay_stat_call in stats_mock.mock_calls
-                    and sched_delay_stat_call_with_tags in stats_mock.mock_calls
-                )
+                assert sched_delay_stat_call in stats_mock.mock_calls
+                assert sched_delay_stat_call_with_tags in stats_mock.mock_calls
             else:
                 # Assert that we never passed the metric
                 sched_delay_stat_call = call(
