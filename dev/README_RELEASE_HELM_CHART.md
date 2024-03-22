@@ -202,7 +202,7 @@ breeze release-management prepare-helm-chart-tarball --version ${VERSION} --vers
 - Generate the binary Helm Chart release:
 
 ```shell
-breeze release-management prepare-helm-chart-packagte --sig jedcunningham@apache.org
+breeze release-management prepare-helm-chart-package --sign-email jedcunningham@apache.org
 ```
 
 Warning: you need the `helm gpg` plugin to sign the chart (instructions to install it above)
