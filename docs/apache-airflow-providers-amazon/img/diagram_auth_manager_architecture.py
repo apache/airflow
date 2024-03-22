@@ -52,7 +52,7 @@ def generate_auth_manager_diagram():
         identity_center = Custom("AWS IAM Identity Center", IDENTITY_CENTER_LOGO.as_posix())
         avp = Custom("Amazon Verified Permissions", AVP_LOGO.as_posix())
 
-        user >> Edge(label="Access to the console/CLI") >> webserver
+        user >> Edge(label="Access to the UI/Rest API") >> webserver
         webserver >> auth_manager
         auth_manager >> Edge(label="Authentication") >> identity_center
         auth_manager >> Edge(label="Authorization") >> avp

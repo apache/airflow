@@ -21,13 +21,13 @@ Configure AWS IAM Identity Center
 
 In order to use the AWS auth manager, you first need to configure `AWS IAM Identity Center <https://aws.amazon.com/iam/identity-center/>`_.
 AWS IAM Identity Center is used by the AWS auth manager for authentication purposes (login and logout).
-The Airflow environment administrator then uses Identity Center to manage users and groups.
+Following configuration, the Airflow environment administrator can manage users and groups with Identity Center service.
 
 Create resources
 ================
 
 The AWS auth manager needs two resources in AWS IAM Identity Center: an instance and an application.
-You can create them either through the vended CLI command or manually.
+You can create them either through the provided CLI command or manually.
 
 Create resources with CLI
 -------------------------
@@ -38,9 +38,9 @@ Create resources with CLI
   :ref:`manual configuration <identity_center_manual_configuration>`.
 
 .. note::
-  In order to create all resources needed by the AWS auth manager, you can use the CLI command vended as part of the AWS auth manager.
-  In order to use it, you first need to set the AWS auth manager as auth manager in Airflow config.
-  See :doc:`how to set AWS auth manager as auth manager </auth-manager/setup/config>`.
+  To create all necessary resources for the AWS Auth Manager, you can utilize the CLI command provided as part of the
+  AWS auth manager. Before executing the command, ensure the AWS auth manager is configured as the auth manager
+  for the Airflow instance. See :doc:`/auth-manager/setup/config`.
 
 To create the resources, please run the following command:
 
@@ -48,16 +48,16 @@ To create the resources, please run the following command:
 
   airflow aws-auth-manager init-identity-center
 
-The CLI command should exit successfully with the message. ::
+The CLI command should exit successfully with the message: ::
 
   AWS IAM Identity Center resources created successfully.
 
 If the CLI command exited with an error, please look carefully at the CLI command output to understand which resource(s)
-have been successfully created and which have not. The resource(s) which have not been successfully created need to be
+have or have not been created successfully. The resource(s) which have not been successfully created need to be
 :ref:`created manually <identity_center_manual_configuration>`.
 
 If the error message below is raised, please create the AWS IAM Identity Center application through the console
-following :ref:`these instructions <identity_center_manual_configuration_application>`. ::
+following :ref:`these instructions <identity_center_manual_configuration_application>`: ::
 
    Creation of SAML applications is only supported in AWS console today. Please create the application through the console.
 
@@ -128,7 +128,7 @@ Once the application is created, you need to configure the attribute mappings.
      * **Maps to this string value or user attribute in IAM Identity Center**: ``${user:groups}``
      * **Format**: ``basic``
 
-5. Once both attributes **id** and **groups** defined, choose **Save changes**.
+5. Once both attributes **id** and **groups** are defined, choose **Save changes**.
 
 Configure Airflow
 =================
