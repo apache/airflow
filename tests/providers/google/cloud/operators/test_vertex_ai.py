@@ -130,6 +130,7 @@ TEST_DATASET = {
     "metadata": "test-image-dataset",
 }
 TEST_DATASET_ID = "test-dataset-id"
+TEST_PARENT_MODEL = "test-parent-model"
 TEST_EXPORT_CONFIG = {
     "annotationsFilter": "test-filter",
     "gcs_destination": {"output_uri_prefix": "airflow-system-tests-data"},
@@ -190,8 +191,9 @@ TEST_TEMPLATE_PATH = "test_template_path"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_container_training_job.return_value = (
             None,
             "training_id",
@@ -217,8 +219,11 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_container_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -227,7 +232,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             container_uri=CONTAINER_URI,
             model_serving_container_image_uri=CONTAINER_URI,
             command=COMMAND_2,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=DISPLAY_NAME_2,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -238,7 +243,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             model_serving_container_predict_route=None,
             model_serving_container_health_route=None,
             model_serving_container_command=None,
@@ -276,8 +281,9 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
 
 
 class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_python_package_training_job.return_value = (
             None,
             "training_id",
@@ -304,8 +310,11 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_hook.return_value.create_custom_python_package_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
@@ -315,7 +324,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             model_serving_container_image_uri=CONTAINER_URI,
             python_package_gcs_uri=PYTHON_PACKAGE_GCS_URI,
             python_module_name=PYTHON_MODULE_NAME,
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=DISPLAY_NAME_2,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -326,7 +335,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             test_fraction_split=TEST_FRACTION_SPLIT,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
@@ -364,8 +373,9 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
 
 
 class TestVertexAICreateCustomTrainingJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
-    def test_execute(self, mock_hook):
+    def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_custom_training_job.return_value = (
             None,
             "training_id",
@@ -385,9 +395,12 @@ class TestVertexAICreateCustomTrainingJobOperator:
             replica_count=1,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            dataset_id=TEST_DATASET_ID,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_dataset.assert_called_once_with(name=TEST_DATASET_ID)
         mock_hook.return_value.create_custom_training_job.assert_called_once_with(
             staging_bucket=STAGING_BUCKET,
             display_name=DISPLAY_NAME,
@@ -396,7 +409,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             model_serving_container_image_uri=CONTAINER_URI,
             script_path=PYTHON_PACKAGE,
             requirements=[],
-            dataset=None,
+            dataset=mock_dataset.return_value,
             model_display_name=None,
             replica_count=REPLICA_COUNT,
             machine_type=MACHINE_TYPE,
@@ -405,7 +418,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             training_fraction_split=None,
             validation_fraction_split=None,
             test_fraction_split=None,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             model_serving_container_predict_route=None,
@@ -751,6 +764,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -768,7 +782,7 @@ class TestVertexAICreateAutoMLForecastingTrainingJobOperator:
             forecast_horizon=TEST_TRAINING_FORECAST_HORIZON,
             data_granularity_unit=TEST_TRAINING_DATA_GRANULARITY_UNIT,
             data_granularity_count=TEST_TRAINING_DATA_GRANULARITY_COUNT,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             optimization_objective=None,
             column_specs=None,
             column_transformations=None,
@@ -814,6 +828,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -824,7 +839,7 @@ class TestVertexAICreateAutoMLImageTrainingJobOperator:
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
             prediction_type="classification",
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             multi_label=False,
             model_type="CLOUD",
             base_model=None,
@@ -869,6 +884,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -880,7 +896,7 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             target_column=None,
             optimization_prediction_type=None,
             optimization_objective=None,
@@ -928,6 +944,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -937,7 +954,7 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             prediction_type=None,
             multi_label=False,
             sentiment_max=10,
@@ -975,6 +992,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
             sync=True,
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
+            parent_model=TEST_PARENT_MODEL,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -984,7 +1002,7 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
             region=GCP_LOCATION,
             display_name=DISPLAY_NAME,
             dataset=mock_dataset.return_value,
-            parent_model=None,
+            parent_model=TEST_PARENT_MODEL,
             prediction_type="classification",
             model_type="CLOUD",
             labels=None,
