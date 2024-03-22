@@ -168,6 +168,33 @@ class TestRenderedTaskInstanceFields:
         # Fetching them will return None
         assert RTIF.get_templated_fields(ti=ti2) is None
 
+    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)
+    def test_secrets_are_masked_when_large_string(self, redact, dag_maker):
+        """
+        Test that secrets are masked when the templated field is a large string
+        """
+        Variable.set(
+            key="test_key",
+            value="Some very long secret with private information that asserts private is not in the rendered field"
+            * 5000,
+        )
+        with dag_maker("test_serialized_rendered_fields"):
+            task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
+        dr = dag_maker.create_dagrun()
+        redact.side_effect = [
+            "val 1",  # bash_command
+            "val 2",
+            "val 3",
+        ]
+        ti = dr.task_instances[0]
+        ti.task = task
+        rtif = RTIF(ti=ti)
+
+        assert ti.dag_id == rtif.dag_id
+        assert ti.task_id == rtif.task_id
+        assert ti.run_id == rtif.run_id
+        assert "val 1" == rtif.rendered_fields.get("bash_command")
+
     @pytest.mark.parametrize(
         "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
         [
