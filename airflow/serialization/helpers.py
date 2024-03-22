@@ -22,9 +22,10 @@ from typing import Any
 
 from airflow.configuration import conf
 from airflow.settings import json
+from airflow.utils.log.secrets_masker import redact
 
 
-def serialize_template_field(template_field: Any) -> str | dict | list | int | float:
+def serialize_template_field(template_field: Any, name) -> str | dict | list | int | float:
     """Return a serializable representation of the templated field.
 
     If ``templated_field`` contains a class or instance that requires recursive
@@ -42,9 +43,10 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
     max_length = conf.getint("core", "max_templated_field_length")
 
     if template_field and len(str(template_field)) > max_length:
+        rendered = redact(str(template_field), name)
         return (
             "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{str(template_field)[:max_length-79]}... "
+            f"{rendered[:max_length-79]!r}... "
         )
     if not is_jsonable(template_field):
         return str(template_field)
