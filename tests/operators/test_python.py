@@ -748,14 +748,14 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
     def test_fail(self):
         def f():
-            raise Exception
+            raise RuntimeError
 
         with pytest.raises(CalledProcessError):
             self.run_as_task(f)
 
     def test_fail_with_message(self):
         def f():
-            raise Exception("Custom error message")
+            raise RuntimeError("Custom error message")
 
         with pytest.raises(AirflowException, match="Custom error message"):
             self.run_as_task(f)
@@ -765,7 +765,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, string_args=[1, 2, 1])
 
@@ -774,7 +774,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
@@ -940,7 +940,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 import funcsigs  # noqa: F401
             except ImportError:
                 return True
-            raise Exception
+            raise RuntimeError
 
         self.run_as_task(f, system_site_packages=False, requirements=["dill"])
 
@@ -955,7 +955,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import funcsigs
 
             if funcsigs.__version__ != "0.4":
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, requirements=["funcsigs==0.4"])
 
@@ -971,7 +971,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import funcsigs
 
             if funcsigs.__version__ != "0.4":
-                raise Exception
+                raise RuntimeError
 
         self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
@@ -1038,7 +1038,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 {}.iteritems()
             except AttributeError:
                 return
-            raise Exception
+            raise RuntimeError
 
         self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
@@ -1274,7 +1274,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             if a == 0 and b == 1 and c and not d:
                 return True
             else:
-                raise Exception
+                raise RuntimeError
 
         with pytest.raises(AirflowException, match="but got 'bool'"):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})

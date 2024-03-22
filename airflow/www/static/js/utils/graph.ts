@@ -74,6 +74,7 @@ const formatEdge = (e: WebserverEdge, font: string, node?: DepNode) => ({
   targets: [e.targetId],
   isSetupTeardown: e.isSetupTeardown,
   parentNode: node?.id,
+  isSourceDataset: e.isSourceDataset,
   labels: e.label
     ? [
         {

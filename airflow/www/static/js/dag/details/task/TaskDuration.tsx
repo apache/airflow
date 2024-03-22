@@ -62,7 +62,7 @@ const TaskDuration = () => {
     if (!instance) return {};
     // @ts-ignore
     const runDuration = moment.duration(
-      instance.startDate && instance.endDate
+      instance.startDate
         ? getDuration(instance.startDate, instance?.endDate)
         : 0
     );
@@ -165,6 +165,10 @@ const TaskDuration = () => {
           opacity: 0.6,
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
       {
         type: "bar",
@@ -174,6 +178,10 @@ const TaskDuration = () => {
           color: (params) => stateColors[params.data.state],
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
     ],
     // @ts-ignore

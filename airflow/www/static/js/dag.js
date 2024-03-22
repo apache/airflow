@@ -116,6 +116,16 @@ $("#pause_resume").on("change", function onChange() {
   const $input = $(this);
   const id = $input.data("dag-id");
   const isPaused = $input.is(":checked");
+  const requireConfirmation = $input.data("require-confirmation");
+  if (requireConfirmation) {
+    const confirmation = window.confirm(
+      `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`
+    );
+    if (!confirmation) {
+      $input.prop("checked", !isPaused);
+      return;
+    }
+  }
   const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(
     id
   )}`;

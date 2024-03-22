@@ -86,7 +86,8 @@ def auth_manager():
             ("aws_auth_manager", "enable"): "True",
         }
     ):
-        return AwsAuthManager(None)
+        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
+            return AwsAuthManager(None)
 
 
 @pytest.fixture
@@ -102,7 +103,8 @@ def auth_manager_with_appbuilder():
             ("aws_auth_manager", "enable"): "True",
         }
     ):
-        return AwsAuthManager(appbuilder)
+        with patch.object(AwsAuthManager, "_check_avp_schema_version"):
+            return AwsAuthManager(appbuilder)
 
 
 @pytest.fixture
@@ -128,8 +130,11 @@ def client_admin():
             "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
         ) as mock_parser, patch(
             "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
-        ) as mock_init_saml_auth:
+        ) as mock_init_saml_auth, patch(
+            "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
+        ) as mock_is_policy_store_schema_up_to_date:
             mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
+            mock_is_policy_store_schema_up_to_date.return_value = True
 
             auth = Mock()
             auth.is_authenticated.return_value = True

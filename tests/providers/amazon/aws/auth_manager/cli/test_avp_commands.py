@@ -65,7 +65,6 @@ class TestAvpCommands:
 
         mock_boto3.get_paginator.return_value = paginator
         mock_boto3.create_policy_store.return_value = {"policyStoreId": policy_store_id}
-        mock_boto3.get_policy_store.return_value = {"description": policy_store_description}
 
         with conf_vars({("database", "check_migrations"): "False"}):
             params = [
@@ -82,16 +81,14 @@ class TestAvpCommands:
 
         if dry_run:
             mock_boto3.create_policy_store.assert_not_called()
-            mock_boto3.update_policy_store.assert_not_called()
             mock_boto3.put_schema.assert_not_called()
         else:
             mock_boto3.create_policy_store.assert_called_once_with(
                 validationSettings={
-                    "mode": "OFF",
+                    "mode": "STRICT",
                 },
                 description=policy_store_description,
             )
-            assert mock_boto3.update_policy_store.call_count == 2
             mock_boto3.put_schema.assert_called_once_with(
                 policyStoreId=policy_store_id,
                 definition={
@@ -164,10 +161,8 @@ class TestAvpCommands:
             update_schema(self.arg_parser.parse_args(params))
 
         if dry_run:
-            mock_boto3.update_policy_store.assert_not_called()
             mock_boto3.put_schema.assert_not_called()
         else:
-            assert mock_boto3.update_policy_store.call_count == 2
             mock_boto3.put_schema.assert_called_once_with(
                 policyStoreId=policy_store_id,
                 definition={

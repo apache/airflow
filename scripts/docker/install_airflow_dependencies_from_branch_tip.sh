@@ -67,6 +67,26 @@ function install_airflow_dependencies_from_branch_tip() {
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
     set -x
+    # If you want to make sure dependency is removed from cache in your PR when you removed it from
+    # pyproject.toml - please add your dependency here as a list of strings
+    # for example:
+    # DEPENDENCIES_TO_REMOVE=("package_a" "package_b")
+    # Once your PR is merged, you should make a follow-up PR to remove it from this list
+    # and increase the AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci to make sure your cache is rebuilt.
+    local DEPENDENCIES_TO_REMOVE
+    # IMPORTANT!! Make sure to increase AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci when you remove a dependency from that list
+    DEPENDENCIES_TO_REMOVE=()
+    if [[ "${DEPENDENCIES_TO_REMOVE[*]}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Uninstalling just removed dependencies (temporary until cache refreshes)${COLOR_RESET}"
+        echo "${COLOR_BLUE}Dependencies to uninstall: ${DEPENDENCIES_TO_REMOVE[*]}${COLOR_RESET}"
+        echo
+        set +x
+        ${PACKAGING_TOOL_CMD} uninstall "${DEPENDENCIES_TO_REMOVE[@]}" || true
+        set -x
+        # make sure that the dependency is not needed by something else
+        pip check
+    fi
 }
 
 common::get_colors

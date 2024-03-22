@@ -165,10 +165,8 @@ class TestSchedulerCommand:
     @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     @mock.patch("airflow.cli.commands.scheduler_command.run_job", side_effect=Exception("run_job failed"))
-    @mock.patch("airflow.cli.commands.scheduler_command.log")
     def test_run_job_exception_handling(
         self,
-        mock_log,
         mock_run_job,
         mock_process,
         mock_scheduler_job,
@@ -183,7 +181,6 @@ class TestSchedulerCommand:
             job=mock_scheduler_job().job,
             execute_callable=mock_scheduler_job()._execute,
         )
-        mock_log.exception.assert_called_once_with("Exception when running scheduler job")
         mock_process.assert_called_once_with(target=serve_logs)
         mock_process().terminate.assert_called_once_with()
 

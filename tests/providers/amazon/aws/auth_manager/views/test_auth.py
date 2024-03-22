@@ -60,7 +60,10 @@ def aws_app():
     ):
         with patch(
             "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
-        ) as mock_parser:
+        ) as mock_parser, patch(
+            "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
+        ) as mock_is_policy_store_schema_up_to_date:
+            mock_is_policy_store_schema_up_to_date.return_value = True
             mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
             return application.create_app(testing=True)
 
@@ -100,7 +103,10 @@ class TestAwsAuthManagerAuthenticationViews:
                 "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
             ) as mock_parser, patch(
                 "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
-            ) as mock_init_saml_auth:
+            ) as mock_init_saml_auth, patch(
+                "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
+            ) as mock_is_policy_store_schema_up_to_date:
+                mock_is_policy_store_schema_up_to_date.return_value = True
                 mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
 
                 auth = Mock()
@@ -136,7 +142,10 @@ class TestAwsAuthManagerAuthenticationViews:
                 "airflow.providers.amazon.aws.auth_manager.views.auth.OneLogin_Saml2_IdPMetadataParser"
             ) as mock_parser, patch(
                 "airflow.providers.amazon.aws.auth_manager.views.auth.AwsAuthManagerAuthenticationViews._init_saml_auth"
-            ) as mock_init_saml_auth:
+            ) as mock_init_saml_auth, patch(
+                "airflow.providers.amazon.aws.auth_manager.avp.facade.AwsAuthManagerAmazonVerifiedPermissionsFacade.is_policy_store_schema_up_to_date"
+            ) as mock_is_policy_store_schema_up_to_date:
+                mock_is_policy_store_schema_up_to_date.return_value = True
                 mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
 
                 auth = Mock()

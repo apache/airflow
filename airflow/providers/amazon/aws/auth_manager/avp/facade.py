@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Sequence, TypedDict
 
 from airflow.configuration import conf
@@ -221,6 +223,19 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
             batch_is_authorized_results,
         )
         raise AirflowException("Could not find the authorization result.")
+
+    def is_policy_store_schema_up_to_date(self) -> bool:
+        """Return whether the policy store schema equals the latest version of the schema."""
+        resp = self.avp_client.get_schema(
+            policyStoreId=self.avp_policy_store_id,
+        )
+        policy_store_schema = json.loads(resp["schema"])
+
+        schema_path = Path(__file__).parents[0] / "schema.json"
+        with open(schema_path) as schema_file:
+            latest_schema = json.load(schema_file)
+
+        return policy_store_schema == latest_schema
 
     @staticmethod
     def _get_user_group_entities(user: AwsAuthManagerUser) -> list[dict]:
