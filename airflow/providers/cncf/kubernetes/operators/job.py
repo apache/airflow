@@ -28,6 +28,7 @@ from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
@@ -37,6 +38,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
+from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.utils import yaml
 from airflow.utils.context import Context
 
@@ -74,6 +76,8 @@ class KubernetesJobOperator(KubernetesPodOperator):
         Failed). Default is False.
     :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
         Used if the parameter `wait_until_job_complete` set True.
+    :param deferrable: Run operator in the deferrable mode. Note that the parameter
+        `wait_until_job_complete` must be set True.
     """
 
     template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
@@ -93,6 +97,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ttl_seconds_after_finished: int | None = None,
         wait_until_job_complete: bool = False,
         job_poll_interval: float = 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -110,6 +115,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
         self.wait_until_job_complete = wait_until_job_complete
         self.job_poll_interval = job_poll_interval
+        self.deferrable = deferrable
 
     @cached_property
     def _incluster_namespace(self):
@@ -139,6 +145,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return job_request_obj
 
     def execute(self, context: Context):
+        if self.deferrable and not self.wait_until_job_complete:
+            self.log.warning(
+                "Deferrable mode is available only with parameter `wait_until_job_complete=True`. "
+                "Please, set it up."
+            )
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(  # must set `self.job` for `on_kill`
             job_request_obj=self.job_request_obj
@@ -148,17 +159,43 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
+        if self.wait_until_job_complete and self.deferrable:
+            self.execute_deferrable()
+            return
+
         if self.wait_until_job_complete:
             self.job = self.hook.wait_until_job_complete(
                 job_name=self.job.metadata.name,
                 namespace=self.job.metadata.namespace,
                 job_poll_interval=self.job_poll_interval,
             )
-        ti.xcom_push(
-            key="job", value=self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job)
+
+        ti.xcom_push(key="job", value=self.job.to_dict())
+        if self.wait_until_job_complete:
+            if error_message := self.hook.is_job_failed(job=self.job):
+                raise AirflowException(
+                    f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
+                )
+
+    def execute_deferrable(self):
+        self.defer(
+            trigger=KubernetesJobTrigger(
+                job_name=self.job.metadata.name,  # type: ignore[union-attr]
+                job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
+                kubernetes_conn_id=self.kubernetes_conn_id,
+                cluster_context=self.cluster_context,
+                config_file=self.config_file,
+                in_cluster=self.in_cluster,
+                poll_interval=self.job_poll_interval,
+            ),
+            method_name="execute_complete",
         )
-        if self.hook.is_job_failed(job=self.job):
-            raise AirflowException(f"Kubernetes job '{self.job.metadata.name}' is failed")
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        ti = context["ti"]
+        ti.xcom_push(key="job", value=event["job"])
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
@@ -188,6 +225,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             kwargs = {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
+                "job": self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job),
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
