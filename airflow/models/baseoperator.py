@@ -217,7 +217,7 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "weight_rule": DEFAULT_WEIGHT_RULE,
     "inlets": [],
     "outlets": [],
-    "allow_mixin": False,
+    "allow_nested_operators": True,
 }
 
 
@@ -268,7 +268,7 @@ def partial(
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
-    allow_mixin: bool = False,
+    allow_nested_operators: bool = True,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -335,7 +335,7 @@ def partial(
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
         "logger_name": logger_name,
-        "allow_mixin": allow_mixin,
+        "allow_nested_operators": allow_nested_operators,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -391,7 +391,7 @@ class ExecutorSafeguard:
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
-                if not self.allow_mixin:
+                if not self.allow_nested_operators:
                     raise AirflowException(message)
                 self.log.warning(message)
             return func(self, *args, **kwargs)
@@ -709,10 +709,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         If set to `None` (default), the logger name will fall back to
         `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
         *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
-    :param allow_mixin: if True, when an operator is executed within another one a warning message will be
-        logged. If False, which is the default value, then an exception will be raised if an operator is
-        badly used (e.g. mixed within another one). In future releases of Airflow this parameter will be
-        removed and an exception will always be thrown when operators are badly mixed within each other.
+    :param allow_nested_operators: if True, when an operator is executed within another one a warning message
+        will be logged. If False, then an exception will be raised if the operator is badly used (e.g. nested
+        within another one). In future releases of Airflow this parameter will be removed and an exception
+        will always be thrown when operators are nested within each other (default is True).
 
         **Example**: example of a bad operator mixin usage::
 
@@ -779,7 +779,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_skipped_callback",
         "do_xcom_push",
         "multiple_outputs",
-        "allow_mixin",
+        "allow_nested_operators",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -860,7 +860,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
         logger_name: str | None = None,
-        allow_mixin: bool = False,
+        allow_nested_operators: bool = True,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -1010,7 +1010,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self._log_config_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
-        self.allow_mixin: bool = allow_mixin
+        self.allow_nested_operators: bool = allow_nested_operators
 
         # Lineage
         self.inlets: list = []

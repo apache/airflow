@@ -101,12 +101,14 @@ class TestExecutorSafeguard:
         assert ti.state == state
 
     @pytest.mark.db_test
-    def test_executor_when_classic_operator_called_from_decorated_task(self, dag_maker):
+    def test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false(
+        self, dag_maker
+    ):
         with dag_maker() as dag:
 
             @task(task_id="task_id", dag=dag)
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator")
+                operator = HelloWorldOperator(task_id="hello_operator", allow_nested_operators=False)
                 return operator.execute(context=context)
 
             say_hello()
@@ -116,7 +118,7 @@ class TestExecutorSafeguard:
 
     @pytest.mark.db_test
     @patch.object(HelloWorldOperator, "log")
-    def test_executor_when_classic_operator_called_from_decorated_task_with_allow_mixin(
+    def test_executor_when_classic_operator_called_from_decorated_task_without_allow_nested_operators(
         self,
         mock_log,
         dag_maker,
@@ -125,7 +127,7 @@ class TestExecutorSafeguard:
 
             @task(task_id="task_id", dag=dag)
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
+                operator = HelloWorldOperator(task_id="hello_operator")
                 return operator.execute(context=context)
 
             say_hello()
@@ -137,14 +139,14 @@ class TestExecutorSafeguard:
         )
 
     @pytest.mark.db_test
-    def test_executor_when_classic_operator_called_from_python_operator(
+    def test_executor_when_classic_operator_called_from_python_operator_with_allow_nested_operators_false(
         self,
         dag_maker,
     ):
         with dag_maker() as dag:
 
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator")
+                operator = HelloWorldOperator(task_id="hello_operator", allow_nested_operators=False)
                 return operator.execute(context=context)
 
             PythonOperator(
@@ -158,7 +160,7 @@ class TestExecutorSafeguard:
 
     @pytest.mark.db_test
     @patch.object(HelloWorldOperator, "log")
-    def test_executor_when_classic_operator_called_from_python_operator_with_allow_mixin(
+    def test_executor_when_classic_operator_called_from_python_operator_without_allow_nested_operators(
         self,
         mock_log,
         dag_maker,
@@ -166,7 +168,7 @@ class TestExecutorSafeguard:
         with dag_maker() as dag:
 
             def say_hello(**context):
-                operator = HelloWorldOperator(task_id="hello_operator", allow_mixin=True)
+                operator = HelloWorldOperator(task_id="hello_operator")
                 return operator.execute(context=context)
 
             PythonOperator(

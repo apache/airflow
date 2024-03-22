@@ -290,7 +290,7 @@
         "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" },
         "map_index_template": { "type": "string" },
-        "allow_mixin": { "type": "boolean" }
+        "allow_nested_operators": { "type": "boolean" }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
