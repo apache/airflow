@@ -497,6 +497,52 @@ class TestKubernetesHook:
 
         assert actual_result == expected_result
 
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_failed_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_failed = hook.is_job_failed(mock_job)
+
+        assert not job_failed
+
+    @pytest.mark.parametrize(
+        "condition_type, status, expected_result",
+        [
+            ("Complete", False, False),
+            ("Complete", True, True),
+            ("Failed", False, False),
+            ("Failed", True, False),
+            ("Suspended", False, False),
+            ("Suspended", True, False),
+            ("Unknown", False, False),
+            ("Unknown", True, False),
+        ],
+    )
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful(self, mock_merger, mock_loader, condition_type, status, expected_result):
+        mock_job = mock.MagicMock()
+        mock_job.status.conditions = [mock.MagicMock(type=condition_type, status=status)]
+
+        hook = KubernetesHook()
+        actual_result = hook.is_job_successful(mock_job)
+
+        assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_successful_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_successful = hook.is_job_successful(mock_job)
+
+        assert not job_successful
+
     @pytest.mark.parametrize(
         "condition_type, status, expected_result",
         [
@@ -520,6 +566,17 @@ class TestKubernetesHook:
         actual_result = hook.is_job_complete(mock_job)
 
         assert actual_result == expected_result
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    def test_is_job_complete_no_status(self, mock_merger, mock_loader):
+        mock_job = mock.MagicMock()
+        mock_job.status = None
+
+        hook = KubernetesHook()
+        job_complete = hook.is_job_complete(mock_job)
+
+        assert not job_complete
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
