@@ -90,11 +90,11 @@ class DatabricksExecutionTrigger(BaseTrigger):
                         }
                     )
                     return
-                else:
-                    self.log.info(
-                        "run-id %s in run state %s. sleeping for %s seconds",
-                        self.run_id,
-                        run_state,
-                        self.polling_period_seconds,
-                    )
-                    await asyncio.sleep(self.polling_period_seconds)
+
+                self.log.info(
+                    "run-id %s in run state %s. sleeping for %s seconds",
+                    self.run_id,
+                    run_state,
+                    self.polling_period_seconds,
+                )
+                await asyncio.sleep(self.polling_period_seconds)
