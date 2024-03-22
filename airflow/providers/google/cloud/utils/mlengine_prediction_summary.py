@@ -30,7 +30,7 @@ It accepts the following arguments:
 - ``--metric_fn_encoded``:
   An encoded function that calculates and returns a tuple of metric(s)
   for a given instance (as a dictionary). It should be encoded
-  via ``base64.b64encode(dill.dumps(fn, recurse=True))``.
+  via ``base64.b64encode(cloudpickle.dumps(fn, recurse=True))``.
 - ``--metric_keys``:
   A comma-separated key(s) of the aggregated metric(s) in the summary
   output. The order and the size of the keys must match to the output
@@ -57,7 +57,7 @@ Usage example:
             squared_err = (classes-label)**2
             return (log_loss, squared_err)
         return metric_fn
-    metric_fn_encoded = base64.b64encode(dill.dumps(get_metric_fn(), recurse=True))
+    metric_fn_encoded = base64.b64encode(cloudpickle.dumps(get_metric_fn(), recurse=True))
     DataflowCreatePythonJobOperator(
         task_id="summary-prediction",
         py_options=["-m"],
@@ -116,7 +116,7 @@ import logging
 import os
 
 import apache_beam as beam
-import dill
+import cloudpickle
 from apache_beam.coders.coders import Coder
 
 
@@ -170,7 +170,7 @@ def run(argv=None):
         help=(
             "An encoded function that calculates and returns a tuple of "
             "metric(s) for a given instance (as a dictionary). It should be "
-            "encoded via base64.b64encode(dill.dumps(fn, recurse=True))."
+            "encoded via base64.b64encode(cloudpickle.dumps(fn))."
         ),
     )
     parser.add_argument(
@@ -186,7 +186,7 @@ def run(argv=None):
     )
     known_args, pipeline_args = parser.parse_known_args(argv)
 
-    metric_fn = dill.loads(base64.b64decode(known_args.metric_fn_encoded))
+    metric_fn = cloudpickle.loads(base64.b64decode(known_args.metric_fn_encoded))
     if not callable(metric_fn):
         raise ValueError("--metric_fn_encoded must be an encoded callable.")
     metric_keys = known_args.metric_keys.split(",")

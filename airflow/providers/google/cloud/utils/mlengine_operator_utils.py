@@ -25,7 +25,7 @@ import re
 from typing import TYPE_CHECKING, Callable, Iterable, TypeVar
 from urllib.parse import urlsplit
 
-import dill
+import cloudpickle
 
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
@@ -234,7 +234,7 @@ def create_evaluate_ops(
         dag=dag,
     )
 
-    metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True)).decode()
+    metric_fn_encoded = base64.b64encode(cloudpickle.dumps(metric_fn)).decode()
     evaluate_summary = BeamRunPythonPipelineOperator(
         task_id=(task_prefix + "-summary"),
         runner=BeamRunnerType.DataflowRunner,

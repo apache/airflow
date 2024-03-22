@@ -204,13 +204,13 @@ class TestDockerDecorator:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
 
-    @pytest.mark.parametrize("use_dill", [True, False])
-    def test_deepcopy_with_python_operator(self, dag_maker, use_dill):
+    @pytest.mark.parametrize("use_cloudpickle", [True, False])
+    def test_deepcopy_with_python_operator(self, dag_maker, use_cloudpickle):
         import copy
 
         from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
 
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=use_dill)
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_cloudpickle=use_cloudpickle)
         def f():
             import logging
 
@@ -244,7 +244,7 @@ class TestDockerDecorator:
         assert isinstance(clone_of_docker_operator, _DockerDecoratedOperator)
         assert some_task.command == clone_of_docker_operator.command
         assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
-        assert some_task.use_dill == clone_of_docker_operator.use_dill
+        assert some_task.use_cloudpickle == clone_of_docker_operator.use_cloudpickle
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
 
     def test_respect_docker_host_env(self, monkeypatch, dag_maker):

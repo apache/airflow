@@ -38,7 +38,7 @@ else:
         """
 
         @task.virtualenv(
-            use_dill=True,
+            use_cloudpickle=True,
             system_site_packages=False,
             requirements=["funcsigs"],
         )
