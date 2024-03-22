@@ -208,11 +208,38 @@ class DecoratedOperator(BaseOperator):
         # since values for those will be provided when the task is run. Since
         # we're not actually running the function, None is good enough here.
         signature = inspect.signature(python_callable)
+
+        # Don't allow context argument defaults other than None to avoid ambiguities.
+        faulty_parameters = [
+            param.name
+            for param in signature.parameters.values()
+            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+        ]
+        if faulty_parameters:
+            message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
+            raise ValueError(message)
+
         parameters = [
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
-        signature = signature.replace(parameters=parameters)
+        try:
+            signature = signature.replace(parameters=parameters)
+        except ValueError as err:
+            message = textwrap.dedent(
+                f"""
+                The function signature broke while assigning defaults to context key parameters.
+
+                The decorator is replacing the signature
+                > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+
+                with
+                > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+
+                which isn't valid: {err}
+                """
+            )
+            raise ValueError(message) from err
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can

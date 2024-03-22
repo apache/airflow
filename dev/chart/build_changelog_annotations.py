@@ -98,7 +98,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
             in_first_release = True
         # Make sure we get past "significant features" before we actually start keeping track
         elif not past_significant_changes:
-            if line == "New Features":
+            if line in TYPE_MAPPING:
                 section = line
                 past_significant_changes = True
         elif not line.startswith("- "):

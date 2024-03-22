@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from unittest import mock
 
@@ -26,12 +27,25 @@ from airflow.models import Connection
 from airflow.providers.yandex.hooks.yq import YQHook
 
 OAUTH_TOKEN = "my_oauth_token"
+IAM_TOKEN = "my_iam_token"
 SERVICE_ACCOUNT_AUTH_KEY_JSON = """{"id":"my_id", "service_account_id":"my_sa1", "private_key":"my_pk"}"""
 
 
 class DummySDK:
     def __init__(self) -> None:
         self.client = None
+
+
+class DummyTokenRequester:
+    def get_token(self) -> str:
+        return IAM_TOKEN
+
+    def get_token_request(self) -> str:
+        return "my_dummy_request"
+
+
+class DummyCreateTokenResponse:
+    iam_token = "zzz"
 
 
 class TestYandexCloudYqHook:
@@ -68,18 +82,33 @@ class TestYandexCloudYqHook:
             m.assert_called_once_with("query1")
 
     @responses.activate()
-    @mock.patch("yandexcloud.SDK")
-    @mock.patch("jwt.encode")
-    def test_select_results(self, mock_jwt, mock_sdk):
+    @mock.patch("yandexcloud._auth_fabric.get_auth_token_requester", return_value=DummyTokenRequester())
+    def test_metadata_token_usage(self, mock_get_auth_token_requester):
         responses.post(
-            "https://iam.api.cloud.yandex.net/iam/v1/tokens",
-            json={"iamToken": "super_token"},
+            "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries",
+            match=[
+                matchers.header_matcher(
+                    {"Content-Type": "application/json", "Authorization": f"Bearer {IAM_TOKEN}"}
+                ),
+                matchers.query_param_matcher({"project": "my_folder_id"}),
+            ],
+            json={"id": "query1"},
             status=200,
         )
 
-        mock_jwt.return_value = "zzzz"
-        mock_sdk.return_value = DummySDK()
+        self.connection = Connection(extra={})
+        self._init_hook()
+        query_id = self.hook.create_query(query_text="select 777", name="my query")
+        assert query_id == "query1"
 
+    @mock.patch(
+        "yandex.cloud.iam.v1.iam_token_service_pb2_grpc.IamTokenServiceStub.Create",
+        create=True,
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("yandexcloud._auth_fabric.__validate_service_account_key")
+    @mock.patch("yandexcloud._auth_fabric.get_auth_token_requester", return_value=DummyTokenRequester())
+    def test_select_results(self, mock_get_auth_token_requester, mock_validate, mock_create_token):
         with mock.patch.multiple(
             "yandex_query_client.YQHttpClient",
             create_query=mock.DEFAULT,
@@ -90,6 +119,12 @@ class TestYandexCloudYqHook:
             stop_query=mock.DEFAULT,
         ) as mocks:
             self._init_hook()
+            mock_validate.assert_called()
+            mock_create_token.assert_called()
+            mock_get_auth_token_requester.assert_called_once_with(
+                service_account_key=json.loads(SERVICE_ACCOUNT_AUTH_KEY_JSON)
+            )
+
             mocks["create_query"].return_value = "query1"
             mocks["wait_query_to_succeed"].return_value = 2
             mocks["get_query_all_result_sets"].return_value = {"x": 765}

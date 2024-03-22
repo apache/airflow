@@ -20,11 +20,11 @@ Object Storage XCom Backend
 
 The default XCom backend is the :class:`~airflow.models.xcom.BaseXCom` class, which stores XComs in the Airflow database. This is fine for small values, but can be problematic for large values, or for large numbers of XComs.
 
-To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.providers.common.io.xcom.backend.XComObjectStoreBackend``. You will also need to set ``xcom_objectstore_path`` to the desired location. The connection
-id is obtained from the user part of the url the you will provide, e.g. ``xcom_objectstore_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstore_threshold`` is required
+To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.providers.common.io.xcom.backend.XComObjectStoreBackend``. You will also need to set ``xcom_objectstorage_path`` to the desired location. The connection
+id is obtained from the user part of the url the you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
 to be something larger than -1. Any object smaller than the threshold in bytes will be stored in the database and anything larger will be be
 put in object storage. This will allow a hybrid setup. If an xcom is stored on object storage a reference will be
-saved in the database. Finally, you can set ``xcom_objectstore_compression`` to fsspec supported compression methods like ``zip`` or ``snappy`` to
+saved in the database. Finally, you can set ``xcom_objectstorage_compression`` to fsspec supported compression methods like ``zip`` or ``snappy`` to
 compress the data before storing it in object storage.
 
 So for example the following configuration will store anything above 1MB in S3 and will compress it using gzip::
@@ -33,9 +33,9 @@ So for example the following configuration will store anything above 1MB in S3 a
       xcom_backend = airflow.providers.common.io.xcom.backend.XComObjectStoreBackend
 
       [common.io]
-      xcom_objectstore_path = s3://conn_id@mybucket/key
-      xcom_objectstore_threshold = 1048576
-      xcom_objectstore_compression = gzip
+      xcom_objectstorage_path = s3://conn_id@mybucket/key
+      xcom_objectstorage_threshold = 1048576
+      xcom_objectstorage_compression = gzip
 
 .. note::
 
