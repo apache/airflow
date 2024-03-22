@@ -28,6 +28,7 @@ from airflow.providers.slack.operators.slack import (
     SlackAPIOperator,
     SlackAPIPostOperator,
 )
+from airflow.utils.task_instance_session import set_current_task_instance_session
 
 SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
 DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
@@ -308,3 +309,55 @@ class TestSlackAPIFileOperator:
                 channel="#random",
                 channels="#general",
             )
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "channel",
+        [
+            pytest.param("#contributors", id="single-channel"),
+            pytest.param(["#random", "#general"], id="multiple-channels"),
+        ],
+    )
+    def test_partial_deprecated_channel(self, channel, dag_maker, session):
+        with dag_maker(dag_id="test_partial_deprecated_channel", session=session):
+            SlackAPIFileOperator.partial(
+                task_id="fake-task-id",
+                slack_conn_id="fake-conn-id",
+                channel=channel,
+            ).expand(filename=["/dev/zero", "/dev/urandom"])
+
+        dr = dag_maker.create_dagrun()
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"Argument `channel` is deprecated.*use `channels` instead"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                    ti.render_templates()
+                assert ti.task.channels == channel
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        "channel, channels",
+        [
+            pytest.param("#contributors", "#user-troubleshooting", id="ambiguous-channel-params"),
+            pytest.param(["#random", "#general"], ["#random", "#general"], id="non-ambiguous-channel-params"),
+        ],
+    )
+    def test_partial_both_channel_parameters(self, channel, channels, dag_maker, session):
+        with dag_maker("test_partial_both_channel_parameters", session=session):
+            SlackAPIFileOperator.partial(
+                task_id="fake-task-id",
+                slack_conn_id="fake-conn-id",
+                channel=channel,
+                channels=channels,
+            ).expand(filename=["/dev/zero", "/dev/urandom"])
+
+        dr = dag_maker.create_dagrun(session=session)
+        tis = dr.get_task_instances(session=session)
+        with set_current_task_instance_session(session=session):
+            warning_match = r"Argument `channel` is deprecated.*use `channels` instead"
+            for ti in tis:
+                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                    ValueError, match="Cannot set both arguments"
+                ):
+                    ti.render_templates()
