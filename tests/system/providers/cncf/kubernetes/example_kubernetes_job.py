@@ -57,7 +57,7 @@ with DAG(
     update_job = KubernetesPatchJobOperator(
         task_id="update-job-task",
         namespace="default",
-        name=JOB_NAME,
+        name=k8s_job.output["job_name"],
         body={"spec": {"suspend": False}},
     )
     # [END howto_operator_update_job]
@@ -77,14 +77,17 @@ with DAG(
     # [START howto_operator_delete_k8s_job]
     delete_job_task = KubernetesDeleteJobOperator(
         task_id="delete_job_task",
-        name=JOB_NAME,
+        name=k8s_job.output["job_name"],
         namespace=JOB_NAMESPACE,
+        wait_until_job_complete=True,
+        on_status="Complete",
+        job_poll_interval=1.0,
     )
     # [END howto_operator_delete_k8s_job]
 
     delete_job_task_def = KubernetesDeleteJobOperator(
         task_id="delete_job_task_def",
-        name=JOB_NAME + "-def",
+        name=k8s_job_def.output["job_name"],
         namespace=JOB_NAMESPACE,
     )
 
