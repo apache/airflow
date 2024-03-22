@@ -472,7 +472,7 @@ and we need to fix it (so checking the differences would be helpful also to find
 Before proceeding next you want to go to the SVN directory
 
 ```shell
-cd ${SVN_REPO_ROOT}/helm-chart/${VERSION}${VERSION_SUFFIX}
+cd ${SVN_REPO_ROOT}/dev/airflow/helm-chart/${VERSION}${VERSION_SUFFIX}
 ```
 
 ## Licence check
