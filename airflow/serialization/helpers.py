@@ -39,19 +39,14 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
         else:
             return True
 
-    max_size = conf.getint("core", "max_templated_field_size")
+    max_length = conf.getint("core", "max_templated_field_length")
+
+    if template_field and len(str(template_field)) > max_length:
+        return (
+            f"{str(template_field)[:max_length-79]}... truncated. "
+            "You can change this behaviour in [core]max_templated_field_length"
+        )
     if not is_jsonable(template_field):
-        serialized = str(template_field)
-        if len(serialized) > max_size:
-            return (
-                "Value removed due to size. "
-                "You can change this behaviour in [core]max_templated_field_size"
-            )
-        return serialized
+        return str(template_field)
     else:
-        if template_field and len(str(template_field)) > max_size:
-            return (
-                "Value removed due to size. "
-                "You can change this behaviour in [core]max_templated_field_size"
-            )
         return template_field

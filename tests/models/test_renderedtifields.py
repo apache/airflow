@@ -27,6 +27,7 @@ from unittest import mock
 import pytest
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
@@ -64,10 +65,13 @@ class ClassWithCustomAttributes:
 
 class LargeStrObject:
     def __init__(self):
-        self.a = "a" * 2560
+        self.a = "a" * 5000
 
     def __str__(self):
         return self.a
+
+
+max_length = conf.getint("core", "max_templated_field_length")
 
 
 class TestRenderedTaskInstanceFields:
@@ -120,12 +124,12 @@ class TestRenderedTaskInstanceFields:
                 "'template_fields': ['nested1']})",
             ),
             (
-                "a" * 2560,
-                "Value removed due to size. You can change this behaviour in [core]max_templated_field_size",
+                "a" * 5000,
+                f"{('a'*5000)[:max_length-79]}... truncated. You can change this behaviour in [core]max_templated_field_length",
             ),
             (
                 LargeStrObject(),
-                "Value removed due to size. You can change this behaviour in [core]max_templated_field_size",
+                f"{str(LargeStrObject())[:max_length-79]}... truncated. You can change this behaviour in [core]max_templated_field_length",
             ),
         ],
     )
