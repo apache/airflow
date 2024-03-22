@@ -48,8 +48,6 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "oracle": "3.1.0",
     "postgres": "5.1.0",
     "presto": "3.1.0",
-    "qubole": "3.1.0",
-    "slack": "5.1.0",
     "snowflake": "3.1.0",
     "sqlite": "3.1.0",
     "trino": "3.1.0",
