@@ -47,6 +47,20 @@ For example:
 ------------
 
 
+.. _ui:cluster-activity-view:
+
+Cluster Activity View
+.............
+
+Native Airflow dashboard page into the UI to collect several useful metrics for monitoring your Airflow cluster.
+
+------------
+
+.. image:: img/cluster_activity.png
+
+------------
+
+
 .. _ui:datasets-view:
 
 Datasets View
