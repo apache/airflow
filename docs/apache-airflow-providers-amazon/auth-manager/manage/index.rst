@@ -15,33 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-================
-AWS auth manager
-================
-
-Before reading this, you should be familiar with the concept of auth manager.
-See :doc:`apache-airflow:core-concepts/auth-manager`.
-
-The AWS auth manager is an auth manager powered by AWS. It uses two services:
-
-* `AWS IAM Identity Center <https://aws.amazon.com/iam/identity-center/>`_ for authentication purposes
-* `Amazon Verified Permissions <https://aws.amazon.com/verified-permissions/>`_ for authorization purposes
-
-.. image:: ../img/diagram_auth_manager_architecture.png
-
-
-**Getting started**
-
-.. toctree::
-    :maxdepth: 2
-
-    setup/config
-    setup/identity-center
-    setup/amazon-verified-permissions
-
-**Manage the environment**
-
-.. toctree::
-    :maxdepth: 2
-
-    manage/index
+================================================
+Manage Airflow environment with AWS auth manager
+================================================
