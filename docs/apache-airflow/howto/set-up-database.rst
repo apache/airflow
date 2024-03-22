@@ -318,13 +318,6 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
     Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
     See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
 
-.. warning::
-  In Airflow 2.9.0 we have changed xcom table column value type from blob to longblob. This will allow you to store relatively big data in Xcom but process can take a significant amount of time if you have a lot of large data stored in Xcom.
-  In that case, you might want to run ``airflow db clean xcom``.
-
-  To migrate to an older version (before revision: b4078ac230a1), ensure that you don't have Xcom values larger than 65,535 bytes. Otherwise, you'll need to clean those rows or run ``airflow db clean xcom`` to clean the Xcom table.
-
-
 MsSQL Database
 --------------
 
