@@ -127,8 +127,9 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
 
                 params = {**request.values, **request.view_args}
                 
-                dag_id = params.get("dag_id") or session.scalar(select(DagRun.dag_id)
-                                                                .where(DagRun.id == params.get("pk")))
+                dag_id = params.get("dag_id") or (session.scalar(select(DagRun.dag_id)
+                                                                .where(DagRun.id == params.get("pk"))) if event_name == "dagrun.delete" else None)
+
                 if params and "is_paused" in params:
                     extra_fields["is_paused"] = params["is_paused"] == "false"
 
