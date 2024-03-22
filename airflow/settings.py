@@ -274,7 +274,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 DEFAULT_ENGINE_ARGS = {
     "postgresql": {
         "executemany_mode": "values_plus_batch",
-        "executemany_values_page_size": 10000,
+        "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
         "executemany_batch_page_size": 2000,
     },
 }
