@@ -57,10 +57,22 @@ with DAG(
     update_job = KubernetesPatchJobOperator(
         task_id="update-job-task",
         namespace="default",
-        name="test-pi",
+        name=JOB_NAME,
         body={"spec": {"suspend": False}},
     )
     # [END howto_operator_update_job]
+
+    # [START howto_operator_k8s_job_deferrable]
+    k8s_job_def = KubernetesJobOperator(
+        task_id="job-task-def",
+        namespace="default",
+        image="perl:5.34.0",
+        cmds=["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"],
+        name=JOB_NAME + "-def",
+        wait_until_job_complete=True,
+        deferrable=True,
+    )
+    # [END howto_operator_k8s_job_deferrable]
 
     # [START howto_operator_delete_k8s_job]
     delete_job_task = KubernetesDeleteJobOperator(
@@ -70,7 +82,14 @@ with DAG(
     )
     # [END howto_operator_delete_k8s_job]
 
+    delete_job_task_def = KubernetesDeleteJobOperator(
+        task_id="delete_job_task_def",
+        name=JOB_NAME + "-def",
+        namespace=JOB_NAMESPACE,
+    )
+
     k8s_job >> update_job >> delete_job_task
+    k8s_job_def >> delete_job_task_def
 
     from tests.system.utils.watcher import watcher
 
