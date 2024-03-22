@@ -43,8 +43,8 @@ def serialize_template_field(template_field: Any) -> str | dict | list | int | f
 
     if template_field and len(str(template_field)) > max_length:
         return (
-            f"{str(template_field)[:max_length-79]}... truncated. "
-            "You can change this behaviour in [core]max_templated_field_length"
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            f"{str(template_field)[:max_length-79]}... "
         )
     if not is_jsonable(template_field):
         return str(template_field)

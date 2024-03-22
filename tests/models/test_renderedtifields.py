@@ -125,11 +125,11 @@ class TestRenderedTaskInstanceFields:
             ),
             (
                 "a" * 5000,
-                f"{('a'*5000)[:max_length-79]}... truncated. You can change this behaviour in [core]max_templated_field_length",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {('a'*5000)[:max_length-79]}... ",
             ),
             (
                 LargeStrObject(),
-                f"{str(LargeStrObject())[:max_length-79]}... truncated. You can change this behaviour in [core]max_templated_field_length",
+                f"Truncated. You can change this behaviour in [core]max_templated_field_length. {str(LargeStrObject())[:max_length-79]}... ",
             ),
         ],
     )
