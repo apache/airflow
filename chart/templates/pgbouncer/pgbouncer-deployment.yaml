@@ -154,6 +154,7 @@ spec:
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
+        {{- if .Values.pgbouncer.metricsExporterSidecar.enabled }}
         - name: metrics-exporter
           resources: {{- toYaml .Values.pgbouncer.metricsExporterSidecar.resources | nindent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
@@ -191,6 +192,7 @@ spec:
           {{- if $containerLifecycleHooksMetricsExporter }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
           {{- end }}
+        {{- end }}
         {{- if .Values.pgbouncer.extraContainers }}
           {{- toYaml .Values.pgbouncer.extraContainers | nindent 8 }}
         {{- end }}
