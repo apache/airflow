@@ -211,7 +211,6 @@ class GKEOperationTrigger(BaseTrigger):
                     self.log.info("Operation is still running.")
                     self.log.info("Sleeping for %ss...", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-
                 else:
                     yield TriggerEvent(
                         {

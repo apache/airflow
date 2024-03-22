@@ -218,7 +218,8 @@ def test_description_retrieval(session, admin_client):
     admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
 
     row = session.query(Variable.key, Variable.description).first()
-    assert row.key == "test_key" and row.description == "test_description"
+    assert row.key == "test_key"
+    assert row.description == "test_description"
 
 
 @pytest.fixture

@@ -108,7 +108,6 @@ class HttpTrigger(BaseTrigger):
             )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            # yield TriggerEvent({"status": "error", "message": str(traceback.format_exc())})
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
@@ -187,6 +186,7 @@ class HttpSensorTrigger(BaseTrigger):
                     extra_options=self.extra_options,
                 )
                 yield TriggerEvent(True)
+                return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
                     await asyncio.sleep(self.poke_interval)

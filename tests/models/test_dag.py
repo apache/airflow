@@ -2328,7 +2328,8 @@ my_postgres_conn:
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2015, 1, 1)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info is None
@@ -2443,11 +2444,13 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 1, 5)
 
     @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
@@ -2463,17 +2466,21 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 1)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 1)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 2)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
@@ -2524,7 +2531,8 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
 
         dag = DAG(
             dag_id="test_scheduler_auto_align_2",
@@ -2534,7 +2542,8 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
     def test_next_dagrun_after_not_for_subdags(self):
         """
@@ -2584,7 +2593,8 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2024, 2, 29)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2024, 2, 29)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)

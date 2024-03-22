@@ -80,6 +80,7 @@ class CloudSQLExportTrigger(BaseTrigger):
                             }
                         )
                         return
+
                     yield TriggerEvent(
                         {
                             "operation_name": operation["name"],

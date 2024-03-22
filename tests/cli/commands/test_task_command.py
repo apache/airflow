@@ -1025,9 +1025,11 @@ class TestLoggerMutationHelper:
         assert tgt.handlers == [sentinel.handler]
         assert tgt.propagate is False
         assert tgt.level == -1
-        assert src.propagate is True and obj.propagate is False
+        assert src.propagate is True
+        assert obj.propagate is False
         assert src.level == obj.level
-        assert src.handlers == [] and obj.handlers == tgt.handlers
+        assert src.handlers == []
+        assert obj.handlers == tgt.handlers
 
     def test_reset(self):
         src = logging.getLogger("test_move_reset")
