@@ -2425,6 +2425,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
+        result = None
 
         self.job_id = job_id
         self.hostname = get_hostname()
