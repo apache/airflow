@@ -16,16 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from datetime import timedelta
 from typing import Any
 
-import jwt
-import requests
-from urllib3.util.retry import Retry
+import yandexcloud
+import yandexcloud._auth_fabric as auth_fabric
+from yandex.cloud.iam.v1.iam_token_service_pb2_grpc import IamTokenServiceStub
 from yandex_query_client import YQHttpClient, YQHttpClientConfig
 
-from airflow.exceptions import AirflowException
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 from airflow.providers.yandex.utils.user_agent import provider_user_agent
 
@@ -98,35 +96,17 @@ class YQHook(YandexCloudBaseHook):
         return self.client.compose_query_web_link(query_id)
 
     def _get_iam_token(self) -> str:
-        if "token" in self.credentials:
-            return self.credentials["token"]
-        if "service_account_key" in self.credentials:
-            return YQHook._resolve_service_account_key(self.credentials["service_account_key"])
-        raise AirflowException(f"Unknown credentials type, available keys {self.credentials.keys()}")
+        iam_token = self.credentials.get("token")
+        if iam_token is not None:
+            return iam_token
 
-    @staticmethod
-    def _resolve_service_account_key(sa_info: dict) -> str:
-        with YQHook._create_session() as session:
-            api = "https://iam.api.cloud.yandex.net/iam/v1/tokens"
-            now = int(time.time())
-            payload = {"aud": api, "iss": sa_info["service_account_id"], "iat": now, "exp": now + 360}
+        service_account_key = self.credentials.get("service_account_key")
+        # if service_account_key is None metadata server will be used
+        token_requester = auth_fabric.get_auth_token_requester(service_account_key=service_account_key)
 
-            encoded_token = jwt.encode(
-                payload, sa_info["private_key"], algorithm="PS256", headers={"kid": sa_info["id"]}
-            )
+        if service_account_key is None:
+            return token_requester.get_token()
 
-            data = {"jwt": encoded_token}
-            iam_response = session.post(api, json=data)
-            iam_response.raise_for_status()
-
-            return iam_response.json()["iamToken"]
-
-    @staticmethod
-    def _create_session() -> requests.Session:
-        session = requests.Session()
-        session.verify = False
-        retry = Retry(backoff_factor=0.3, total=10)
-        session.mount("http://", requests.adapters.HTTPAdapter(max_retries=retry))
-        session.mount("https://", requests.adapters.HTTPAdapter(max_retries=retry))
-
-        return session
+        sdk = yandexcloud.SDK()
+        client = sdk.client(IamTokenServiceStub)
+        return client.Create(token_requester.get_token_request()).iam_token
