@@ -177,7 +177,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         if: inputs.do-build == 'true'
-      - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
+      - name: "Regenerate dependencies in case they were modified manually so that we can build an image"
         shell: bash
         run: |
           pip install rich>=12.4.4 pyyaml
