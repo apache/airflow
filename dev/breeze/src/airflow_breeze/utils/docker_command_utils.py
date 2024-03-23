@@ -658,6 +658,7 @@ def autodetect_docker_context():
 def get_and_use_docker_context(context: str):
     if context == "autodetect":
         context = autodetect_docker_context()
+    run_command(["docker", "context", "create", context], check=False)
     output = run_command(["docker", "context", "use", context], check=False)
     if output.returncode != 0:
         get_console().print(

@@ -121,7 +121,6 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     env:
       UPGRADE_TO_NEWER_DEPENDENCIES: false
-      PLATFORM: "linux/amd64"
       PYTHON_MAJOR_MINOR_VERSION: ${{ inputs.default-python-version }}
       PYTHON_VERSION: ${{ inputs.default-python-version }}
       IMAGE_TAG: ${{ inputs.image-tag }}
@@ -142,7 +141,7 @@ jobs:
       - name: "Login to ghcr.io"
         run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
       - name: "Check that image builds quickly"
-        run: breeze shell --max-time 120
+        run: breeze shell --max-time 120 --platform "linux/amd64"
 
   # This is only a check if ARM images are successfully building when committer runs PR from
   # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
@@ -156,11 +155,11 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      platform: "arm64"
       push-image: "false"
       runs-on: ${{ inputs.runs-on }}
       image-tag: ${{ inputs.image-tag }}
       python-versions: ${{ inputs.python-versions }}
+      platform: "linux/arm64"
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
       use-uv: "true"
