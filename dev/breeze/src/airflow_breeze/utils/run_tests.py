@@ -19,9 +19,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-import tempfile
 from itertools import chain
-from pathlib import Path
 from subprocess import DEVNULL
 
 from airflow_breeze.global_constants import PIP_VERSION
@@ -29,7 +27,7 @@ from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
+from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
@@ -61,12 +59,9 @@ def verify_an_image(
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    with tempfile.TemporaryDirectory(prefix="docker_compose_tests_") as tmp_dir_name:
-        python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=PIP_VERSION)
-        pip_command = create_pip_command(python_path)
-        run_command([*pip_command, "install", "-r", DOCKER_TESTS_REQUIREMENTS.as_posix(), "-q"], check=True)
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
         command_result = run_command(
-            [python_path, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
             output=output,
             check=False,
@@ -89,12 +84,9 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    with tempfile.TemporaryDirectory(prefix="docker_compose_tests_") as tmp_dir_name:
-        python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=PIP_VERSION)
-        pip_command = create_pip_command(python_path)
-        run_command([*pip_command, "install", "-r", DOCKER_TESTS_REQUIREMENTS.as_posix(), "-q"], check=True)
+    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
         command_result = run_command(
-            [python_path, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
+            [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
             check=False,
         )
