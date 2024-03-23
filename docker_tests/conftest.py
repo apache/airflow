@@ -14,24 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from python_on_whales import DockerException
+import os
 
-from docker_tests.docker_utils import display_dependency_conflict_message, run_bash_in_docker
+import pytest
 
-
-def test_pip_dependencies_conflict(default_docker_image):
-    try:
-        run_bash_in_docker("pip check", image=default_docker_image)
-    except DockerException:
-        display_dependency_conflict_message()
-        raise
+from docker_tests.constants import DEFAULT_DOCKER_IMAGE
 
 
-def test_providers_present():
-    try:
-        run_bash_in_docker("airflow providers list")
-    except DockerException:
-        display_dependency_conflict_message()
-        raise
+@pytest.fixture
+def default_docker_image() -> str:
+    return os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
