@@ -241,7 +241,7 @@ To make this extra information easy to consume, the information from on or multi
 per default and provided as :ref:`DAG run configuration <dagrun:parameters>` to the receiving DAG. This means such data can
 directly be used by consuming :ref:`DAGs as parameter <concepts:params>`.
 
-As during the merge of extra information some information might be over-ridden you eithe rneed to use unique keys or use the
+As during the merge of extra information some information might be over-ridden you either need to use unique keys or use the
 ``triggering_dataset_events`` as described below.
 
 Fetching information from a Triggering Dataset Event
