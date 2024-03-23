@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import os
@@ -25,6 +26,7 @@ import shutil
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from unittest.mock import MagicMock
 from urllib.parse import quote
 
 import elasticsearch
@@ -32,10 +34,12 @@ import pendulum
 import pytest
 
 from airflow.configuration import conf
+from airflow.models import TaskInstance
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,
     ElasticsearchTaskHandler,
+    _get_index_patterns,
     get_es_kwargs_from_config,
     getattr_nested,
 )
@@ -642,6 +646,35 @@ class TestElasticsearchTaskHandler:
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
+
+    def test_index_patterns_callable(self):
+        ti = MagicMock(spec=TaskInstance)
+
+        def mock_callable(ti):
+            return "mocked_index_patterns"
+
+        importlib.import_module = MagicMock()
+        importlib.import_module.return_value = MagicMock(**{"mock_callable": mock_callable})
+
+        result = _get_index_patterns("module_path.mock_callable", ti)
+
+        assert result == "mocked_index_patterns"
+
+    def test_index_patterns_none(self):
+        ti = MagicMock(spec=TaskInstance)
+
+        result = _get_index_patterns(None, ti)
+
+        assert result is None
+
+    def test_index_patterns_exception(self):
+        ti = MagicMock(spec=TaskInstance)
+
+        importlib.import_module = MagicMock(side_effect=Exception("Mocked exception"))
+
+        result = _get_index_patterns("invalid_module_path.invalid_callable", ti)
+
+        assert result is None
 
 
 def test_safe_attrgetter():
