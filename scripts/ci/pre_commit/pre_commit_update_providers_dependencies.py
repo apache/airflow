@@ -264,7 +264,7 @@ def generate_dependencies(
     generate_parsed_extras(ParsedDependencyTypes.CORE_EXTRAS)
     generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
     result_content.append("    # Provider extras")
-    for dependency, dependency_info in dependencies.items():
+    for dependency in dependencies:
         result_content.append(f'    "apache-airflow[{normalize_extra(dependency)}]",')
     result_content.append("]")
     result_content.append("devel-all = [")
@@ -275,7 +275,7 @@ def generate_dependencies(
     result_content.append('    "apache-airflow[saml]",')
     generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
     result_content.append("    # Include all provider deps")
-    for dependency, dependency_info in dependencies.items():
+    for dependency in dependencies:
         result_content.append(f'    "apache-airflow[{normalize_extra(dependency)}]",')
     result_content.append("]")
 

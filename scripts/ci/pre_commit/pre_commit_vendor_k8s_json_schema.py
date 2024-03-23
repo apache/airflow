@@ -63,7 +63,7 @@ defs = get_remote_schema(K8S_DEFINITIONS)
 refs = set(find_refs(schema["properties"]))
 
 # now we look for refs in refs
-for step in range(15):
+for _ in range(15):
     starting_refs = refs
     for ref in refs:
         ref_id = ref.split("/")[-1]

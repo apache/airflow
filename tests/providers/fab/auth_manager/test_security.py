@@ -997,7 +997,7 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             session.add_all([dag1, dag2, dag3])
             session.commit()
             security_manager.bulk_sync_roles(mock_roles)
-            for dag in [dag1, dag2, dag3]:
+            for _ in [dag1, dag2, dag3]:
                 security_manager._sync_dag_view_permissions(
                     parent_dag_name, access_control={role_name: READ_WRITE}
                 )

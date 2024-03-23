@@ -320,7 +320,7 @@ def update_sbom_information(
             _generate_index(destination_dir, None, airflow_v)
     elif package_filter == "apache-airflow-providers":
         for (
-            node_name,
+            _,
             provider_id,
             provider_version,
             provider_version_documentation_directory,

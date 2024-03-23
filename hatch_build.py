@@ -170,7 +170,7 @@ class CustomBuildHook(BuildHookInterface[BuilderConfig]):
         """
         if version == "standard":
             all_possible_non_airflow_dependencies = []
-            for extra, deps in self.metadata.core.optional_dependencies.items():
+            for deps in self.metadata.core.optional_dependencies.values():
                 for dep in deps:
                     if not dep.startswith("apache-airflow"):
                         all_possible_non_airflow_dependencies.append(dep)
