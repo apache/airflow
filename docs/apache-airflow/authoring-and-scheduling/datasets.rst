@@ -128,6 +128,15 @@ This extra information does not affect a dataset's identity. This means a DAG wi
             ...,
         )
 
+In cases the published extra information should be dynamic, you can also set the ``extra_from_return`` to True. In this case the return value of your executing task will be used as extra information to be published:
+
+.. exampleinclude:: /../../airflow/example_dags/example_datasets.py
+    :language: python
+    :start-after: [START dataset_def_extra_return]
+    :end-before: [END dataset_def_extra_return]
+
+The extra information is expected to be a dictionary, if the task is not returning a dictionary, then the value is pushed into a dictionary with the task id as key.
+
 .. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
 
 How to use datasets in your DAGs
@@ -223,6 +232,17 @@ If one dataset is updated multiple times before all consumed datasets have been 
       example_dataset_3                                     -- e7       -- e9        -- e11               -- end_ds3
 
     }
+
+Dataset Event Extra pushed as DAG Run Config
+--------------------------------------------
+
+Tasks producing events via ``outlets`` parameter can define extra information in form of a static dictionary.
+To make this extra information easy to consume, the information from on or multiple events is merged to a common dictionary
+per default and provided as :ref:`DAG run configuration <dagrun:parameters>` to the receiving DAG. This means such data can
+directly be used by consuming :ref:`DAGs as parameter <concepts:params>`.
+
+As during the merge of extra information some information might be over-ridden you eithe rneed to use unique keys or use the
+``triggering_dataset_events`` as described below.
 
 Fetching information from a Triggering Dataset Event
 ----------------------------------------------------
