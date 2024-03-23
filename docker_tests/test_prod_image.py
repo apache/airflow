@@ -49,36 +49,36 @@ REGULAR_IMAGE_PROVIDERS = [
 
 
 class TestCommands:
-    def test_without_command(self):
+    def test_without_command(self, default_docker_image):
         """Checking the image without a command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
-            run_cmd_in_docker()
+            run_cmd_in_docker(image=default_docker_image)
         assert 2 == ctx.value.return_code
 
-    def test_airflow_command(self):
+    def test_airflow_command(self, default_docker_image):
         """Checking 'airflow' command. It should return non-zero exit code."""
         with pytest.raises(DockerException) as ctx:
-            run_airflow_cmd_in_docker()
+            run_airflow_cmd_in_docker(image=default_docker_image)
         assert 2 == ctx.value.return_code
 
-    def test_airflow_version(self):
+    def test_airflow_version(self, default_docker_image):
         """Checking 'airflow version' command. It should return zero exit code."""
-        output = run_airflow_cmd_in_docker(["version"])
+        output = run_airflow_cmd_in_docker(["version"], image=default_docker_image)
         assert "2." in output
 
-    def test_python_version(self):
+    def test_python_version(self, default_docker_image):
         """Checking 'python --version' command. It should return zero exit code."""
-        output = run_cmd_in_docker(cmd=["python", "--version"])
+        output = run_cmd_in_docker(cmd=["python", "--version"], image=default_docker_image)
         assert "Python 3." in output
 
-    def test_bash_version(self):
+    def test_bash_version(self, default_docker_image):
         """Checking 'bash --version' command  It should return zero exit code."""
-        output = run_cmd_in_docker(cmd=["bash", "--version"])
+        output = run_cmd_in_docker(cmd=["bash", "--version"], image=default_docker_image)
         assert "GNU bash," in output
 
 
 class TestPythonPackages:
-    def test_required_providers_are_installed(self):
+    def test_required_providers_are_installed(self, default_docker_image):
         if os.environ.get("TEST_SLIM_IMAGE"):
             packages_to_install = set(SLIM_IMAGE_PROVIDERS)
             package_file = AIRFLOW_PRE_INSTALLED_PROVIDERS_FILE_PATH
@@ -86,7 +86,7 @@ class TestPythonPackages:
             packages_to_install = set(REGULAR_IMAGE_PROVIDERS)
             package_file = PROD_IMAGE_PROVIDERS_FILE_PATH
         assert len(packages_to_install) != 0
-        output = run_bash_in_docker("airflow providers list --output json")
+        output = run_bash_in_docker("airflow providers list --output json", image=default_docker_image)
         providers = json.loads(output)
         packages_installed = set(d["package_name"] for d in providers)
         assert len(packages_installed) != 0
@@ -95,9 +95,9 @@ class TestPythonPackages:
             packages_to_install == packages_installed
         ), f"List of expected installed packages and image content mismatch. Check {package_file} file."
 
-    def test_pip_dependencies_conflict(self):
+    def test_pip_dependencies_conflict(self, default_docker_image):
         try:
-            run_bash_in_docker("pip check")
+            run_bash_in_docker("pip check", image=default_docker_image)
         except DockerException:
             display_dependency_conflict_message()
             raise
@@ -168,22 +168,28 @@ class TestPythonPackages:
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
-    def test_check_dependencies_imports(self, package_name, import_names):
-        run_python_in_docker(f"import {','.join(import_names)}")
+    def test_check_dependencies_imports(self, package_name, import_names, default_docker_image):
+        run_python_in_docker(f"import {','.join(import_names)}", image=default_docker_image)
 
 
 class TestExecuteAsRoot:
-    def test_execute_airflow_as_root(self):
-        run_cmd_in_docker(cmd=["airflow", "info"], user=0)
+    def test_execute_airflow_as_root(self, default_docker_image):
+        run_cmd_in_docker(
+            cmd=["airflow", "info"],
+            user=0,
+            envs={"PYTHONDONTWRITEBYTECODE": "true"},
+            image=default_docker_image,
+        )
 
-    def test_run_custom_python_packages_as_root(self, tmp_path):
+    def test_run_custom_python_packages_as_root(self, tmp_path, default_docker_image):
         (tmp_path / "__init__.py").write_text("")
         (tmp_path / "awesome.py").write_text('print("Awesome")')
 
         output = run_cmd_in_docker(
-            envs={"PYTHONPATH": "/custom/mount"},
+            envs={"PYTHONPATH": "/custom/mount", "PYTHONDONTWRITEBYTECODE": "true"},
             volumes=[(tmp_path.as_posix(), "/custom/mount")],
             user=0,
             cmd=["python", "-c", "import awesome"],
+            image=default_docker_image,
         )
         assert output.strip() == "Awesome"

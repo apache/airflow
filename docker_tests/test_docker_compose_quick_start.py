@@ -30,7 +30,7 @@ from python_on_whales.exceptions import DockerException
 
 # isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
-from docker_tests.constants import DOCKER_IMAGE, SOURCE_ROOT
+from docker_tests.constants import SOURCE_ROOT
 
 # isort:on (needed to workaround isort bug)
 
@@ -65,10 +65,10 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
             break
 
 
-def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
+def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory, monkeypatch):
     """Simple test which reproduce setup docker-compose environment and trigger example dag."""
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
-    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", DOCKER_IMAGE)
+    monkeypatch.setenv("AIRFLOW_IMAGE_NAME", default_docker_image)
 
     compose_file_path = (
         SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"

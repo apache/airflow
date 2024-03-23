@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from time import monotonic, sleep
 
 from python_on_whales import docker
@@ -26,17 +27,16 @@ from docker_tests.constants import DEFAULT_DOCKER_IMAGE
 
 def run_cmd_in_docker(
     cmd: list[str] | None = None,
-    docker_image: str = DEFAULT_DOCKER_IMAGE,
+    image: str | None = None,
     entrypoint: str | None = None,
     envs: dict[str, str] | None = None,
     remove: bool = True,
     **kwargs,
 ):
-    kwargs.pop("image", None)
     cmd = cmd or []
     envs = envs or {}
     return docker.run(
-        image=docker_image,
+        image=image or os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE,
         entrypoint=entrypoint,
         command=cmd,
         remove=remove,
