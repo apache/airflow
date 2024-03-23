@@ -28,6 +28,7 @@ import pytest
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.decorators import task as task_decorator
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
@@ -189,6 +190,28 @@ class TestRenderedTaskInstanceFields:
         assert ti.task_id == rtif.task_id
         assert ti.run_id == rtif.run_id
         assert "***" in rtif.rendered_fields.get("bash_command")
+
+    @mock.patch("airflow.models.BaseOperator.render_template")
+    def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
+        import pandas
+
+        render_mock.return_value = pandas.DataFrame({"a": [1, 2, 3]})
+        with dag_maker("test_serialized_rendered_fields"):
+
+            @task_decorator
+            def generate_pd():
+                return pandas.DataFrame({"a": [1, 2, 3]})
+
+            @task_decorator
+            def consume_pd(data):
+                return data
+
+            consume_pd(generate_pd())
+
+        dr = dag_maker.create_dagrun()
+        ti, ti2 = dr.task_instances
+        rtif = RTIF(ti=ti2)
+        rtif.write()
 
     @pytest.mark.parametrize(
         "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
