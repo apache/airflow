@@ -1,0 +1,9 @@
+Dataset triggers now provide extra as DAG Run conf.
+
+With data aware scheduling you can automate triggers between DAGs. passing context information was so far possible via
+the name of the Dataset or by passing ``extra`` information to a downstream DAG. Retrieving the ``extra`` context
+was only possible via the ``triggering_dataset_events`` context object and iterating over the details. With the new
+version of Airflow the ``extra`` is merged into a dictionary and passed to the DAG directly as DAG Run conf so that
+DAG params can directly be used.
+
+See :ref:`Dataset Event Extra pushed as DAG Run Config <datasets:event-extra>` for more information.

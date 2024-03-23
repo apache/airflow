@@ -233,8 +233,12 @@ If one dataset is updated multiple times before all consumed datasets have been 
 
     }
 
+.. _datasets:event-extra:
+
 Dataset Event Extra pushed as DAG Run Config
 --------------------------------------------
+
+.. versionadded:: 2.10.0
 
 Tasks producing events via ``outlets`` parameter can define extra information in form of a static dictionary.
 To make this extra information easy to consume, the information from on or multiple events is merged to a common dictionary
