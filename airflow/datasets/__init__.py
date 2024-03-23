@@ -114,6 +114,9 @@ class Dataset(os.PathLike, BaseDatasetEventInput):
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
     extra: dict[str, Any] | None = None
+    """Static extra dictionary to be passed with event."""
+    extra_from_return: bool = False
+    """Use task return value as extra value."""
 
     __version__: ClassVar[int] = 1
 

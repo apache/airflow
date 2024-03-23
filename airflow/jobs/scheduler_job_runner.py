@@ -1264,7 +1264,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
 
-                dataset_events = session.scalars(
+                dataset_events: Collection[DatasetEvent] = session.scalars(
                     select(DatasetEvent)
                     .join(
                         DagScheduleDatasetReference,
@@ -1283,11 +1283,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
                 run_conf = {}
-                for item in dataset_events:
-                    event: DatasetEvent = item
-                    extra: dict | None = event.extra
-                    if extra:
-                        run_conf.update(extra)
+                for event in dataset_events:
+                    if event.extra:
+                        run_conf.update(event.extra)
 
                 dag_run = dag.create_dagrun(
                     run_id=run_id,

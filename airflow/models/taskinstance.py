@@ -2561,10 +2561,16 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
+                if obj.extra:
+                    extra = obj.extra
+                elif obj.extra_from_return:
+                    extra = result if isinstance(result, dict) else {str(self.task_id): result}
+                else:
+                    extra = None
                 dataset_manager.register_dataset_change(
                     task_instance=self,
                     dataset=obj,
-                    extra=obj.extra or result if isinstance(result, dict) else {self.task_id: result},
+                    extra=extra,
                     session=session,
                 )
 

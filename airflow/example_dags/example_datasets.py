@@ -66,7 +66,7 @@ from airflow.timetables.trigger import CronTriggerTimetable
 # [START dataset_def]
 dag1_dataset = Dataset("s3://dag1/output_1.txt", extra={"hi": "bye"})
 # [END dataset_def]
-dag2_dataset = Dataset("s3://dag2/output_1.txt")
+dag2_dataset = Dataset("s3://dag2/output_1.txt", extra_from_return=True)
 dag3_dataset = Dataset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
 with DAG(
