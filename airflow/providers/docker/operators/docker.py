@@ -450,15 +450,16 @@ class DockerOperator(BaseOperator):
             if self.container_log_formatter is not None:
                 self._change_log_formatters(self.container_log_formatter)
 
-            self.cli.start(self.container["Id"])
+            try:
+                self.cli.start(self.container["Id"])
 
-            log_lines = []
-            for log_chunk in logstream:
-                log_chunk = stringify(log_chunk).strip()
-                log_lines.append(log_chunk)
-                self.log.info("%s", log_chunk)
-
-            self._restore_log_formatters()
+                log_lines = []
+                for log_chunk in logstream:
+                    log_chunk = stringify(log_chunk).strip()
+                    log_lines.append(log_chunk)
+                    self.log.info("%s", log_chunk)
+            finally:
+                self._restore_log_formatters()
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
