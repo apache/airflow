@@ -55,8 +55,8 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
+from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 
