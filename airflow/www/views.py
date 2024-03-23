@@ -116,6 +116,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
@@ -2146,7 +2147,7 @@ class Airflow(AirflowBaseView):
             flash(f"{ve}", "error")
             form = DateTimeForm(data={"execution_date": execution_date})
             # Take over "bad" submitted fields for new form display
-            for k, v in form_fields.items():
+            for k in form_fields:
                 if k in run_conf:
                     form_fields[k]["value"] = run_conf[k]
             return self.render_template(
@@ -2940,6 +2941,110 @@ class Airflow(AirflowBaseView):
             dag_model=dag_model,
         )
 
+    @expose("/object/calendar_data")
+    @auth.has_access_dag("GET", DagAccessEntity.RUN)
+    @gzipped
+    @provide_session
+    def calendar_data(self, session: Session = NEW_SESSION):
+        """Get DAG runs as calendar."""
+        dag_id = request.args.get("dag_id")
+        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
+        if not dag:
+            return {"error": f"can't find dag {dag_id}"}, 404
+
+        dag_states = session.execute(
+            select(
+                func.date(DagRun.execution_date).label("date"),
+                DagRun.state,
+                func.max(DagRun.data_interval_start).label("data_interval_start"),
+                func.max(DagRun.data_interval_end).label("data_interval_end"),
+                func.count("*").label("count"),
+            )
+            .where(DagRun.dag_id == dag.dag_id)
+            .group_by(func.date(DagRun.execution_date), DagRun.state)
+            .order_by(func.date(DagRun.execution_date).asc())
+        ).all()
+
+        data_dag_states = [
+            {
+                # DATE() in SQLite and MySQL behave differently:
+                # SQLite returns a string, MySQL returns a date.
+                "date": dr.date if isinstance(dr.date, str) else dr.date.isoformat(),
+                "state": dr.state,
+                "count": dr.count,
+            }
+            for dr in dag_states
+        ]
+
+        # Upper limit of how many planned runs we should iterate through
+        max_planned_runs = 2000
+        total_planned = 0
+
+        # Interpret the schedule and show planned dag runs in calendar
+        if (
+            dag_states
+            and dag_states[-1].data_interval_start
+            and dag_states[-1].data_interval_end
+            and not isinstance(dag.timetable, ContinuousTimetable)
+        ):
+            last_automated_data_interval = DataInterval(
+                timezone.coerce_datetime(dag_states[-1].data_interval_start),
+                timezone.coerce_datetime(dag_states[-1].data_interval_end),
+            )
+
+            year = last_automated_data_interval.end.year
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            dates: dict[datetime.date, int] = collections.Counter()
+
+            if isinstance(dag.timetable, CronMixin):
+                # Optimized calendar generation for timetables based on a cron expression.
+                dates_iter: Iterator[datetime.datetime | None] = croniter(
+                    dag.timetable._expression,
+                    start_time=last_automated_data_interval.end,
+                    ret_type=datetime.datetime,
+                )
+                for dt in dates_iter:
+                    if dt is None:
+                        break
+                    if dt.year != year:
+                        break
+                    if dag.end_date and dt > dag.end_date:
+                        break
+                    dates[dt.date()] += 1
+            else:
+                prev_logical_date = DateTime.min
+                while True:
+                    curr_info = dag.timetable.next_dagrun_info(
+                        last_automated_data_interval=last_automated_data_interval,
+                        restriction=restriction,
+                    )
+                    if curr_info is None:
+                        break  # Reached the end.
+                    if curr_info.logical_date <= prev_logical_date:
+                        break  # We're not progressing. Maybe a malformed timetable? Give up.
+                    if curr_info.logical_date.year != year:
+                        break  # Crossed the year boundary.
+                    last_automated_data_interval = curr_info.data_interval
+                    dates[curr_info.logical_date.date()] += 1
+                    prev_logical_date = curr_info.logical_date
+                    total_planned += 1
+                    if total_planned > max_planned_runs:
+                        break
+
+            data_dag_states.extend(
+                {"date": date.isoformat(), "state": "planned", "count": count}
+                for (date, count) in dates.items()
+            )
+
+        data = {
+            "dag_states": data_dag_states,
+        }
+
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
     @expose("/graph")
     def legacy_graph(self):
         """Redirect from url param."""
@@ -3570,7 +3675,9 @@ class Airflow(AirflowBaseView):
             return {"error": f"can't find dag {dag_id}"}, 404
 
         with create_session() as session:
-            data = [
+            dag_model = DagModel.get_dagmodel(dag_id, session=session)
+
+            events = [
                 dict(info)
                 for info in session.execute(
                     select(
@@ -3599,6 +3706,7 @@ class Airflow(AirflowBaseView):
                     .order_by(DatasetModel.uri)
                 )
             ]
+            data = {"dataset_expression": dag_model.dataset_expression, "events": events}
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},
@@ -4471,7 +4579,7 @@ class ConnectionModelView(AirflowModelView):
                 )
                 del form.extra
         del extra_json
-        for key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
+        for key, field_name, _ in self._iter_extra_field_names_and_sensitivity():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
@@ -4896,7 +5004,7 @@ class VariableModelView(AirflowModelView):
             if action_on_existing == "fail" and existing_keys:
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                logger.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logger.error("Failed. The variables with these keys: %s already exists.", failed_repr)
                 self.update_redirect()
                 return redirect(self.get_redirect())
             skipped = set()

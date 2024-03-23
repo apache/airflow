@@ -177,7 +177,7 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
         data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
         follow_redirects=True,
     )
-    assert "Failed. The variables with these keys: 'str_key'  already exists." in caplog.text
+    assert "Failed. The variables with these keys: 'str_key' already exists." in caplog.text
 
 
 def test_import_variables_anon(session, app):
@@ -218,7 +218,8 @@ def test_description_retrieval(session, admin_client):
     admin_client.post("/variable/add", data=VARIABLE, follow_redirects=True)
 
     row = session.query(Variable.key, Variable.description).first()
-    assert row.key == "test_key" and row.description == "test_description"
+    assert row.key == "test_key"
+    assert row.description == "test_description"
 
 
 @pytest.fixture

@@ -116,6 +116,17 @@ core:
       type: string
       example: ~
       default: "16"
+    max_consecutive_failed_dag_runs_per_dag:
+      description: |
+        (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+        This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
+        which is defaulted as ``max_consecutive_failed_dag_runs_per_dag``.
+        If not specified, then the value is considered as 0,
+        meaning that the dags are never paused out by default.
+      version_added: 2.9.0
+      type: string
+      example: ~
+      default: "0"
     mp_start_method:
       description: |
         The name of the method used in order to start Python processes via the multiprocessing module.
@@ -1764,7 +1775,7 @@ webserver:
     analytics_tool:
       description: |
         Send anonymous user activity to your analytics tool
-        choose from google_analytics, segment, or metarouter
+        choose from google_analytics, segment, metarouter, or matomo
       version_added: ~
       type: string
       example: ~
@@ -1775,6 +1786,13 @@ webserver:
       version_added: 1.10.5
       type: string
       example: ~
+      default: ~
+    analytics_url:
+      description: |
+        Your instances url, only applicable to Matomo.
+      version_added: 2.9.0
+      type: string
+      example: https://your.matomo.instance.com/
       default: ~
     show_recent_stats_for_completed_runs:
       description: |
@@ -1925,6 +1943,15 @@ webserver:
       type: float
       example: ~
       default: "1.0"
+    require_confirmation_dag_change:
+      description: |
+        Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
+        to a DAG that may be running on sensitive environments like production.
+        When set to True, confirmation dialog will be shown when a user tries to Pause/Unpause, Trigger a DAG
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "False"
 email:
   description: |
     Configuration email backend and whether to

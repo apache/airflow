@@ -59,16 +59,20 @@ class OpenLineageListener:
         task_instance: TaskInstance,
         session: Session,  # This will always be QUEUED
     ):
-        if not hasattr(task_instance, "task"):
+        if not getattr(task_instance, "task", None) is not None:
             self.log.warning(
-                f"No task set for TI object task_id: {task_instance.task_id} - "
-                f"dag_id: {task_instance.dag_id} - run_id {task_instance.run_id}"
+                "No task set for TI object task_id: %s - dag_id: %s - run_id %s",
+                task_instance.task_id,
+                task_instance.dag_id,
+                task_instance.run_id,
             )
             return
 
         self.log.debug("OpenLineage listener got notification about task instance start")
         dagrun = task_instance.dag_run
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         dag = task.dag
 
         @print_warning(self.log)
@@ -127,6 +131,8 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         dag = task.dag
 
         @print_warning(self.log)
@@ -170,6 +176,8 @@ class OpenLineageListener:
 
         dagrun = task_instance.dag_run
         task = task_instance.task
+        if TYPE_CHECKING:
+            assert task
         dag = task.dag
 
         @print_warning(self.log)

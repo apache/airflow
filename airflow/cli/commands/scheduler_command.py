@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Scheduler command."""
+
 from __future__ import annotations
 
 import logging
 from argparse import Namespace
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from multiprocessing import Process
 
 from airflow import settings
@@ -44,18 +45,8 @@ def _run_scheduler_job(args) -> None:
     ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor)
     InternalApiConfig.force_database_direct_access()
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
-    with ExitStack() as stack:
-        stack.enter_context(_serve_logs(args.skip_serve_logs))
-        stack.enter_context(_serve_health_check(enable_health_check))
-
-        try:
-            run_job(job=job_runner.job, execute_callable=job_runner._execute)
-        except Exception:
-            log.exception("Exception when running scheduler job")
-            raise
-        finally:
-            # Ensure that the contexts are closed
-            stack.close()
+    with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
+        run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
 
 @cli_utils.action_cli
@@ -83,9 +74,11 @@ def _serve_logs(skip_serve_logs: bool = False):
         if skip_serve_logs is False:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
-    yield
-    if sub_proc:
-        sub_proc.terminate()
+    try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()
 
 
 @contextmanager
@@ -95,6 +88,8 @@ def _serve_health_check(enable_health_check: bool = False):
     if enable_health_check:
         sub_proc = Process(target=serve_health_check)
         sub_proc.start()
-    yield
-    if sub_proc:
-        sub_proc.terminate()
+    try:
+        yield
+    finally:
+        if sub_proc:
+            sub_proc.terminate()

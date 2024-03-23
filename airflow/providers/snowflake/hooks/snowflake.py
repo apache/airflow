@@ -256,6 +256,15 @@ class SnowflakeHook(DbApiHook):
             conn_config["private_key"] = pkb
             conn_config.pop("password", None)
 
+        refresh_token = self._get_field(extra_dict, "refresh_token") or ""
+        if refresh_token:
+            conn_config["refresh_token"] = refresh_token
+            conn_config["authenticator"] = "oauth"
+            conn_config["client_id"] = conn.login
+            conn_config["client_secret"] = conn.password
+            conn_config.pop("login", None)
+            conn_config.pop("password", None)
+
         return conn_config
 
     def get_uri(self) -> str:
@@ -312,8 +321,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -325,8 +333,7 @@ class SnowflakeHook(DbApiHook):
         split_statements: bool = ...,
         return_last: bool = ...,
         return_dictionaries: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,

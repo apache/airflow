@@ -23,10 +23,9 @@
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
     "GitPython==3.1.42",
-    "editables==0.5",
     "gitdb==4.0.11",
-    "hatchling==1.21.1",
-    "packaging==23.2",
+    "hatchling==1.22.3",
+    "packaging==24.0",
     "pathspec==0.12.1",
     "pluggy==1.4.0",
     "smmap==5.0.1",
@@ -42,7 +41,7 @@ dynamic = ["version"]
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8"
+requires-python = "~=3.8,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -64,6 +63,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Topic :: System :: Monitoring",
 ]
+# When you remove a dependency from the list, you should also make sure to add the dependency to be removed
+# in the scripts/docker/install_airflow_dependencies_from_branch_tip.sh script DEPENDENCIES_TO_REMOVE
+# in order to make sure the dependency is not installed in the CI image build process from the main
+# of Airflow branch. After your PR is merged, you should remove it from the list there.
 dependencies = [
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
@@ -72,7 +75,9 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref",
     "attrs>=22.1.0",
-    "blinker",
+    # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
+    # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
+    "blinker>=1.6.2",
     # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
     # Update CustomTTYColoredFormatter to remove
     "colorlog>=4.0.2, <5.0",
@@ -85,8 +90,8 @@ dependencies = [
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
     "connexion[flask]>=2.10.0,<3.0",
     "cron-descriptor>=1.2.24",
-    "croniter>=0.3.17",
-    "cryptography>=0.9.3",
+    "croniter>=2.0.2",
+    "cryptography>=39.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
     "flask-caching>=1.5.0",
@@ -103,7 +108,9 @@ dependencies = [
     "gunicorn>=20.1.0",
     "httpx",
     "importlib_metadata>=1.7;python_version<\"3.9\"",
-    "importlib_resources>=5.2;python_version<\"3.9\"",
+    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
+    # see https://github.com/python/importlib_resources/issues/299
+    "importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<\"3.9\"",
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -137,7 +144,7 @@ dependencies = [
     # See https://sqlalche.me/e/b8d9 for details of deprecated features
     # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.28,<2.0",
+    "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
     "tabulate>=0.7.5",
     "tenacity>=6.2.0,!=8.2.0",
@@ -148,14 +155,7 @@ dependencies = [
     # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    # In 0.1. *It was not very well defined for extension, so the way how we use it for 0.1.*
-    # so we used a lot of private methods and attributes that were not defined in the interface
-    # an they are broken with version 0.2.0 which is much better suited for extension and supports
-    # Python 3.12. We should limit it, unti we migrate to 0.2.0
-    # See: https://github.com/fsspec/universal_pathlib/pull/173#issuecomment-1937090528
-    # This is prerequistite to make Airflow compatible with Python 3.12
-    # Tracked in https://github.com/apache/airflow/pull/36755
-    "universal-pathlib>=0.1.4,<0.2.0",
+    "universal-pathlib>=0.2.2",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
@@ -248,6 +248,9 @@ sentry = [
 statsd = [
     "statsd>=3.3.0",
 ]
+uv = [
+    "uv>=0.1.24",
+]
 virtualenv = [
     "virtualenv",
 ]
@@ -301,7 +304,9 @@ devel-devscripts = [
     "twine>=4.0.2",
 ]
 devel-duckdb = [
-    "duckdb>=0.9.0",
+    # Python 3.12 support was added in 0.10.0
+    "duckdb>=0.10.0; python_version >= '3.12'",
+    "duckdb>=0.9.0; python_version < '3.12'",
 ]
 # Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
 # manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
@@ -311,7 +316,7 @@ devel-mypy = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.8.0",
+    "mypy==1.9.0",
     "types-Deprecated",
     "types-Markdown",
     "types-PyMySQL",
@@ -338,14 +343,16 @@ devel-sentry = [
 devel-static-checks = [
     "black>=23.12.0",
     "pre-commit>=3.5.0",
-    "ruff==0.2.1",
+    "ruff==0.3.3",
     "yamllint>=1.33.0",
 ]
 devel-tests = [
+    "aiofiles>=23.2.0",
     "aioresponses>=0.7.6",
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
-    "coverage>=7.2",
+    # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
+    "coverage>=7.4.0",
     "pytest-asyncio>=0.23.3",
     "pytest-cov>=4.1.0",
     "pytest-icdiff>=0.9",
@@ -359,6 +366,7 @@ devel-tests = [
     "pytest>=7.4.4,<8.0",
     "requests_mock>=1.11.0",
     "time-machine>=2.13.0",
+    "wheel>=0.42.0",
 ]
 # END OF devel extras
 # START OF doc extras
@@ -577,7 +585,7 @@ apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
   "pyarrow>=14.0.1;python_version != \"3.12\"",
 ]
 apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0",
+  "cassandra-driver>=3.29.1",
 ]
 apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
   "apache-airflow[common_sql]",
@@ -639,7 +647,7 @@ atlassian-jira = [ # source: airflow/providers/atlassian/jira/provider.yaml
   "beautifulsoup4",
 ]
 celery = [ # source: airflow/providers/celery/provider.yaml
-  "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+  "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
   "flower>=1.0.0",
   "google-re2>=1.0",
 ]
@@ -655,7 +663,7 @@ cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
   "kubernetes_asyncio>=28.1.0,<=29.0.0",
 ]
 cohere = [ # source: airflow/providers/cohere/provider.yaml
-  "cohere>=4.37",
+  "cohere>=4.37,<5",
 ]
 common-io = [] # source: airflow/providers/common/io/provider.yaml
 common-sql = [ # source: airflow/providers/common/sql/provider.yaml
@@ -698,7 +706,7 @@ exasol = [ # source: airflow/providers/exasol/provider.yaml
   "pyexasol>=0.5.1",
 ]
 fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.11",
+  "flask-appbuilder==4.4.1",
   "flask-login>=0.6.2",
   "flask>=2.2,<2.3",
   "google-re2>=1.0",
@@ -718,13 +726,13 @@ google = [ # source: airflow/providers/google/provider.yaml
   "gcloud-aio-bigquery>=6.1.2",
   "gcloud-aio-storage>=9.0.0",
   "gcsfs>=2023.10.0",
-  "google-ads>=22.1.0",
+  "google-ads>=23.1.0",
   "google-analytics-admin",
   "google-api-core>=2.11.0,!=2.16.0",
   "google-api-python-client>=1.6.0",
   "google-auth-httplib2>=0.0.1",
   "google-auth>=1.0.0",
-  "google-cloud-aiplatform>=1.22.1",
+  "google-cloud-aiplatform>=1.42.1",
   "google-cloud-automl>=2.12.0",
   "google-cloud-batch>=0.13.0",
   "google-cloud-bigquery-datatransfer>=3.13.0",
@@ -767,6 +775,7 @@ google = [ # source: airflow/providers/google/provider.yaml
   "pandas-gbq",
   "pandas>=1.2.5,<2.2",
   "proto-plus>=1.19.6",
+  "python-slugify>=5.0",
   "sqlalchemy-bigquery>=1.2.1",
   "sqlalchemy-spanner>=1.6.2",
 ]
@@ -800,7 +809,7 @@ microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "adal>=1.2.7",
   "adlfs>=2023.10.0",
   "azure-batch>=8.0.0",
-  "azure-cosmos>=4.0.0",
+  "azure-cosmos>=4.0.0,<4.6.0",
   "azure-datalake-store>=0.0.45",
   "azure-identity>=1.3.1",
   "azure-keyvault-secrets>=4.1.0",
@@ -812,7 +821,7 @@ microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "azure-mgmt-datalake-store>=0.5.0",
   "azure-mgmt-resource>=2.2.0",
   "azure-mgmt-storage>=16.0.0",
-  "azure-servicebus>=7.6.1",
+  "azure-servicebus>=7.12.1",
   "azure-storage-blob>=12.14.0",
   "azure-storage-file-datalake>=12.9.1",
   "azure-storage-file-share",
@@ -897,7 +906,7 @@ qdrant = [ # source: airflow/providers/qdrant/provider.yaml
   "qdrant_client>=1.7.0",
 ]
 redis = [ # source: airflow/providers/redis/provider.yaml
-  "redis>=4.5.2,<5.0.0,!=4.5.5",
+  "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
   "pandas>=1.2.5,<2.2",
@@ -966,10 +975,11 @@ weaviate = [ # source: airflow/providers/weaviate/provider.yaml
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
+  "yandex-query-client>=0.1.2",
   "yandexcloud>=0.228.0",
 ]
 zendesk = [ # source: airflow/providers/zendesk/provider.yaml
-  "zenpy>=2.0.24",
+  "zenpy>=2.0.40",
 ]
 all = [
     # core extras
@@ -992,6 +1002,7 @@ all = [
     "apache-airflow[saml]",
     "apache-airflow[sentry]",
     "apache-airflow[statsd]",
+    "apache-airflow[uv]",
     "apache-airflow[virtualenv]",
     # Apache no provider extras
     "apache-airflow[apache-atlas]",
@@ -1236,6 +1247,13 @@ platforms = ["linux", "macos"]
 description = "Environment with Python 3.11. No devel installed"
 features = []
 
+[tool.hatch.envs.airflow-312]
+python = "3.12"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.12. No devel installed"
+features = []
+
+
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -1280,7 +1298,7 @@ artifacts = [
 ## black settings ##
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
@@ -1306,6 +1324,7 @@ extend-select = [
     # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
     "TCH", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
@@ -1333,9 +1352,10 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
+    "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
 ]
 ignore = [
-    "G004", # Logging statement uses f-string (not fixed yet)
     "D203",
     "D212",
     "D213",
@@ -1347,11 +1367,7 @@ ignore = [
     "PT005", # Fixture returns a value, remove leading underscore
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
-    "PT008", # Use return_value= instead of patching with lambda
     "PT011", # pytest.raises() is too broad, set the match parameter
-    "PT012", # [controversial rule] pytest.raises() block should contain a single simple statement.
-    "PT015", # assertion always fails, replace with pytest.fail()
-    "PT018", # assertion should be broken down into multiple parts
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
 ]
 unfixable = [
@@ -1383,19 +1399,20 @@ combine-as-imports = true
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
-"scripts/*" = ["D"]
+"scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules
 "docs/*" = ["D"]
 "provider_packages/*" = ["D"]
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
-# In addition ignore top level imports, e.g. pandas, numpy in tests
+# In addition, ignore top level imports, e.g. pandas, numpy (TID253) and use of assert (S101) in tests
 "dev/perf/*" = ["TID253"]
-"dev/breeze/tests/*" = ["TID253"]
-"tests/*" = ["D", "TID253"]
-"docker_tests/*" = ["D", "TID253"]
-"kubernetes_tests/*" = ["D", "TID253"]
-"helm_tests/*" = ["D", "TID253"]
+"dev/check_files.py" = ["S101"]
+"dev/breeze/tests/*" = ["TID253", "S101"]
+"tests/*" = ["D", "TID253", "S101"]
+"docker_tests/*" = ["D", "TID253", "S101"]
+"kubernetes_tests/*" = ["D", "TID253", "S101", "PT012"]
+"helm_tests/*" = ["D", "TID253", "S101"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -1409,6 +1426,7 @@ combine-as-imports = true
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
+"tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 
 # All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
 "airflow/callbacks/callback_requests.py" = ["D105"]
@@ -1462,23 +1480,83 @@ combine-as-imports = true
 "airflow/utils/trigger_rule.py" = ["D105"]
 "airflow/utils/types.py" = ["D105"]
 "airflow/utils/weight_rule.py" = ["D105"]
-"airflow/providers/apache/hive/hooks/hive.py" = ["D105"]
 "airflow/providers/cncf/kubernetes/secret.py" = ["D105"]
 "airflow/providers/cncf/kubernetes/utils/delete_from.py" = ["D105"]
 "airflow/providers/databricks/hooks/databricks.py" = ["D105"]
 "airflow/providers/databricks/hooks/databricks_base.py" = ["D105"]
 "airflow/providers/databricks/operators/databricks_repos.py" = ["D105"]
-"airflow/providers/elasticsearch/log/es_response.py" = ["D105"]
 "airflow/providers/fab/auth_manager/models/__init__.py" = ["D105"]
 "airflow/providers/ftp/hooks/ftp.py" = ["D105"]
 "airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
 "airflow/providers/imap/hooks/imap.py" = ["D105"]
 "airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D105"]
 "airflow/providers/samba/hooks/samba.py" = ["D105"]
 "airflow/providers/smtp/hooks/smtp.py" = ["D105"]
-"airflow/providers/ssh/hooks/ssh.py" = ["D105"]
 "airflow/providers/tableau/hooks/tableau.py" = ["D105"]
+
+# All the test modules which do not follow PT012 yet
+"tests/providers/amazon/aws/hooks/test_base_aws.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_datasync.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_eks.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_redshift_data.py" = ["PT012"]
+"tests/providers/amazon/aws/hooks/test_s3.py" = ["PT012"]
+"tests/providers/amazon/aws/operators/test_emr_serverless.py" = ["PT012"]
+"tests/providers/amazon/aws/operators/test_redshift_data.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_glacier.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_glue.py" = ["PT012"]
+"tests/providers/amazon/aws/sensors/test_lambda_function.py" = ["PT012"]
+"tests/providers/amazon/aws/system/utils/test_helpers.py" = ["PT012"]
+"tests/providers/amazon/aws/transfers/test_redshift_to_s3.py" = ["PT012"]
+"tests/providers/amazon/aws/triggers/test_ecs.py" = ["PT012"]
+"tests/providers/amazon/aws/waiters/test_neptune.py" = ["PT012"]
+"tests/providers/apache/hive/hooks/test_hive.py" = ["PT012"]
+"tests/providers/apache/hive/sensors/test_named_hive_partition.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/executors/test_kubernetes_executor.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/hooks/test_kubernetes.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/operators/test_pod.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/utils/test_k8s_resource_iterator.py" = ["PT012"]
+"tests/providers/cncf/kubernetes/utils/test_pod_manager.py" = ["PT012"]
+"tests/providers/common/sql/operators/test_sql.py" = ["PT012"]
+"tests/providers/databricks/hooks/test_databricks.py" = ["PT012"]
+"tests/providers/databricks/operators/test_databricks.py" = ["PT012"]
+"tests/providers/databricks/operators/test_databricks_repos.py" = ["PT012"]
+"tests/providers/databricks/sensors/test_databricks_partition.py" = ["PT012"]
+"tests/providers/datadog/sensors/test_datadog.py" = ["PT012"]
+"tests/providers/dbt/cloud/operators/test_dbt.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_bigquery.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_cloud_storage_transfer_service.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_dataflow.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_dataprep.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_kubernetes_engine.py" = ["PT012"]
+"tests/providers/google/cloud/hooks/test_pubsub.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_bigtable.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_cloud_sql.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_cloud_storage_transfer_service.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_compute.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_datafusion.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_dataproc.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_functions.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_kubernetes_engine.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_mlengine.py" = ["PT012"]
+"tests/providers/google/cloud/operators/test_spanner.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_datafusion.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_dataproc.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_gcs.py" = ["PT012"]
+"tests/providers/google/cloud/sensors/test_pubsub.py" = ["PT012"]
+"tests/providers/google/cloud/transfers/test_gcs_to_bigquery.py" = ["PT012"]
+"tests/providers/google/cloud/utils/test_credentials_provider.py" = ["PT012"]
+"tests/providers/google/common/hooks/test_base_google.py" = ["PT012"]
+"tests/providers/jenkins/sensors/test_jenkins.py" = ["PT012"]
+"tests/providers/microsoft/azure/hooks/test_data_factory.py" = ["PT012"]
+"tests/providers/microsoft/azure/hooks/test_wasb.py" = ["PT012"]
+"tests/providers/microsoft/psrp/hooks/test_psrp.py" = ["PT012"]
+"tests/providers/oracle/hooks/test_oracle.py" = ["PT012"]
+"tests/providers/sftp/hooks/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/operators/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/sensors/test_sftp.py" = ["PT012"]
+"tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
+"tests/providers/ssh/hooks/test_ssh.py" = ["PT012"]
+"tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

@@ -160,7 +160,6 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": None,
                             }
                         )
-                        return
                     else:
                         # Extract only first record from the query results
                         first_record = records.pop(0)
@@ -171,7 +170,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": first_record,
                             }
                         )
-                        return
+                    return
                 elif job_status["status"] == "error":
                     yield TriggerEvent({"status": "error", "message": job_status["message"]})
                     return
@@ -681,7 +680,9 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                 await asyncio.sleep(self.poll_interval)
 
             else:
-                job_id = await hook.create_job_for_partition_get(self.dataset_id, project_id=self.project_id)
+                job_id = await hook.create_job_for_partition_get(
+                    self.dataset_id, table_id=self.table_id, project_id=self.project_id
+                )
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
 

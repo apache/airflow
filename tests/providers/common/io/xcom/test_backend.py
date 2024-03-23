@@ -94,14 +94,14 @@ class TestXcomObjectStoreBackend:
         except DuplicateSectionError:
             pass
         conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
-        conf.set("common.io", "xcom_objectstore_path", self.path)
-        conf.set("common.io", "xcom_objectstore_threshold", "50")
+        conf.set("common.io", "xcom_objectstorage_path", self.path)
+        conf.set("common.io", "xcom_objectstorage_threshold", "50")
         settings.configure_vars()
 
     def teardown_method(self):
         conf.remove_option("core", "xcom_backend")
-        conf.remove_option("common.io", "xcom_objectstore_path")
-        conf.remove_option("common.io", "xcom_objectstore_threshold")
+        conf.remove_option("common.io", "xcom_objectstorage_path")
+        conf.remove_option("common.io", "xcom_objectstorage_threshold")
         settings.configure_vars()
         p = ObjectStoragePath(self.path)
         if p.exists():
@@ -181,7 +181,7 @@ class TestXcomObjectStoreBackend:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert self.path in qry.first().value
+        assert str(p) == qry.first().value
 
     @pytest.mark.db_test
     def test_clear(self, task_instance, session):
@@ -223,7 +223,7 @@ class TestXcomObjectStoreBackend:
         assert p.exists() is False
 
     @pytest.mark.db_test
-    @conf_vars({("common.io", "xcom_objectstore_compression"): "gzip"})
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
     def test_compression(self, task_instance, session):
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom

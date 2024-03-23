@@ -43,6 +43,7 @@ import {
   MdSyncAlt,
   MdHourglassBottom,
   MdPlagiarism,
+  MdEvent,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -66,6 +67,7 @@ import XcomCollection from "./taskInstance/Xcom";
 import TaskDetails from "./task";
 import AuditLog from "./AuditLog";
 import RunDuration from "./dag/RunDuration";
+import Calendar from "./dag/Calendar";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -75,6 +77,8 @@ interface Props {
   hoveredTaskState?: string | null;
   gridScrollRef: React.RefObject<HTMLDivElement>;
   ganttScrollRef: React.RefObject<HTMLDivElement>;
+  isFullScreen?: boolean;
+  toggleFullScreen?: () => void;
 }
 
 const tabToIndex = (tab?: string) => {
@@ -92,6 +96,7 @@ const tabToIndex = (tab?: string) => {
     case "run_duration":
       return 5;
     case "xcom":
+    case "calendar":
       return 6;
     case "details":
     default:
@@ -129,6 +134,7 @@ const indexToTab = (
       if (!runId && !taskId) return "run_duration";
       return undefined;
     case 6:
+      if (!runId && !taskId) return "calendar";
       if (isTaskInstance) return "xcom";
       return undefined;
     default:
@@ -144,6 +150,8 @@ const Details = ({
   hoveredTaskState,
   gridScrollRef,
   ganttScrollRef,
+  isFullScreen,
+  toggleFullScreen,
 }: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
@@ -323,6 +331,14 @@ const Details = ({
               </Text>
             </Tab>
           )}
+          {isDag && (
+            <Tab>
+              <MdEvent size={16} />
+              <Text as="strong" ml={1}>
+                Calendar
+              </Text>
+            </Tab>
+          )}
           {isTaskInstance && (
             <Tab>
               <MdReorder size={16} />
@@ -395,6 +411,8 @@ const Details = ({
               openGroupIds={openGroupIds}
               onToggleGroups={onToggleGroups}
               hoveredTaskState={hoveredTaskState}
+              isFullScreen={isFullScreen}
+              toggleFullScreen={toggleFullScreen}
             />
           </TabPanel>
           <TabPanel p={0} height="100%">
@@ -418,6 +436,11 @@ const Details = ({
               <RunDuration />
             </TabPanel>
           )}
+          {isDag && (
+            <TabPanel height="100%" width="100%">
+              <Calendar />
+            </TabPanel>
+          )}
           {isTaskInstance && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
@@ -439,6 +462,8 @@ const Details = ({
                     ? undefined
                     : instance.state
                 }
+                isFullScreen={isFullScreen}
+                toggleFullScreen={toggleFullScreen}
               />
             </TabPanel>
           )}

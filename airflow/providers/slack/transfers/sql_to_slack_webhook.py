@@ -25,6 +25,7 @@ from tabulate import tabulate
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -87,9 +88,10 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         slack_message: str,
         results_df_name: str = "results_df",
         parameters: list | tuple | Mapping[str, Any] | None = None,
+        slack_conn_id: str | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
-        if slack_conn_id := kwargs.pop("slack_conn_id", None):
+        if slack_conn_id is not NOTSET:
             warnings.warn(
                 "Parameter `slack_conn_id` is deprecated because this attribute initially intend to use with "
                 "Slack API however this operator provided integration with Slack Incoming Webhook. "
@@ -102,7 +104,7 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
                     "Conflicting Connection ids provided, "
                     f"slack_webhook_conn_id={slack_webhook_conn_id!r}, slack_conn_id={slack_conn_id!r}."
                 )
-            slack_webhook_conn_id = slack_conn_id
+            slack_webhook_conn_id = slack_conn_id  # type: ignore[assignment]
         if not slack_webhook_conn_id:
             raise ValueError("Got an empty `slack_webhook_conn_id` value.")
         super().__init__(

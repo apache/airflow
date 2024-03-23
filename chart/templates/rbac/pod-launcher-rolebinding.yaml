@@ -32,13 +32,18 @@ kind: RoleBinding
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- else }}
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-rolebinding
+  {{- end }}
   labels:
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
+    {{- if .Values.multiNamespaceMode }}
+    namespace: "{{ .Release.Namespace }}"
+    {{- end }}
     {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -46,10 +51,11 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   {{- if .Values.multiNamespaceMode }}
   kind: ClusterRole
+  name: {{ .Release.Namespace }}-{{ include "airflow.fullname" . }}-pod-launcher-role
   {{- else }}
   kind: Role
-  {{- end }}
   name: {{ include "airflow.fullname" . }}-pod-launcher-role
+  {{- end }}
 subjects:
   {{- if has .Values.executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount

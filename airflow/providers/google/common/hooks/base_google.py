@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud API base hook."""
+
 from __future__ import annotations
 
 import datetime

@@ -41,12 +41,12 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _UpstreamPriorityWeightStrategy
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
-from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
@@ -86,8 +86,7 @@ class DummyClass(metaclass=BaseOperatorMeta):
     def __init__(self, test_param, params=None, default_args=None):
         self.test_param = test_param
 
-    def set_xcomargs_dependencies(self):
-        ...
+    def set_xcomargs_dependencies(self): ...
 
 
 class DummySubClass(DummyClass):
@@ -200,7 +199,7 @@ class TestBaseOperator:
         # An operator with non default trigger rule and a fail stop dag should not be allowed
         with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
-                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
+                task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.ALWAYS
             )
 
     @pytest.mark.db_test
@@ -311,43 +310,38 @@ class TestBaseOperator:
         assert result == expected_output
 
     def test_mapped_dag_slas_disabled_classic(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        class MyOp(BaseOperator):
+            def __init__(self, x, **kwargs):
+                self.x = x
+                super().__init__(**kwargs)
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            def execute(self, context):
+                print(self.x)
 
-                task1 = get_values()
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                class MyOp(BaseOperator):
-                    def __init__(self, x, **kwargs):
-                        self.x = x
-                        super().__init__(**kwargs)
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                    def execute(self, context):
-                        print(self.x)
-
+            task1 = get_values()
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 MyOp.partial(task_id="hi").expand(x=task1)
 
     def test_mapped_dag_slas_disabled_taskflow(self):
-        with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-            with DAG(
-                "test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
-            ) as dag:
+        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
 
-                @dag.task
-                def get_values():
-                    return [0, 1, 2]
+            @dag.task
+            def get_values():
+                return [0, 1, 2]
 
-                task1 = get_values()
+            task1 = get_values()
 
-                @dag.task
-                def print_val(x):
-                    print(x)
+            @dag.task
+            def print_val(x):
+                print(x)
 
+            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
                 print_val.expand(x=task1)
 
     @pytest.mark.db_test
@@ -750,8 +744,8 @@ class TestBaseOperator:
         assert op1 in op2.upstream_list
 
     def test_set_xcomargs_dependencies_error_when_outside_dag(self):
+        op1 = BaseOperator(task_id="op1")
         with pytest.raises(AirflowException):
-            op1 = BaseOperator(task_id="op1")
             MockOperator(task_id="op2", arg1=op1.output)
 
     def test_invalid_trigger_rule(self):
@@ -775,11 +769,11 @@ class TestBaseOperator:
 
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
-        assert WeightRule.DOWNSTREAM == op.weight_rule
+        assert _DownstreamPriorityWeightStrategy() == op.weight_rule
 
     def test_weight_rule_override(self):
         op = BaseOperator(task_id="test_task", weight_rule="upstream")
-        assert WeightRule.UPSTREAM == op.weight_rule
+        assert _UpstreamPriorityWeightStrategy() == op.weight_rule
 
     # ensure the default logging config is used for this test, no matter what ran before
     @pytest.mark.usefixtures("reset_logging_config")

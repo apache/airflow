@@ -101,11 +101,11 @@ class TestAzureDataLakeHook:
         assert hook._conn is None
         assert hook.conn_id == "adl_test_key_without_tenant"
         assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
-        assert mock_azure_identity_credential_adapter.called_with(  # noqa: PGH005 (fixme: expected call not found)
-            None,
-            None,
-        )
-        assert not mock_datalake_store_lib.auth.called
+        mock_azure_identity_credential_adapter.assert_called()
+        args = mock_azure_identity_credential_adapter.call_args
+        assert args.kwargs["managed_identity_client_id"] is None
+        assert args.kwargs["workload_identity_tenant_id"] is None
+        mock_datalake_store_lib.auth.assert_not_called()
 
     @pytest.mark.usefixtures("connection")
     @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)

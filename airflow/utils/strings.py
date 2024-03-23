@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Common utility functions with strings."""
+
 from __future__ import annotations
 
 import random

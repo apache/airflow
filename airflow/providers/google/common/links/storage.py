@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a link for GCS Storage assets."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

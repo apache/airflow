@@ -62,9 +62,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
 
     // @ts-ignore
     const runDuration = moment.duration(
-      dagRun.startDate && dagRun.endDate
-        ? getDuration(dagRun.startDate, dagRun?.endDate)
-        : 0
+      dagRun.startDate ? getDuration(dagRun.startDate, dagRun?.endDate) : 0
     );
 
     // @ts-ignore
@@ -178,6 +176,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
                 opacity: 0.6,
               },
               stack: "x",
+              markLine: {
+                silent: true,
+                data: [{ type: "median" }],
+              },
             } as SeriesOption,
           ]
         : []),
@@ -189,6 +191,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           opacity: 0.6,
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
       {
         type: "bar",
@@ -199,6 +205,10 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
           color: (params) => stateColors[params.data.state],
         },
         stack: "x",
+        markLine: {
+          silent: true,
+          data: [{ type: "median" }],
+        },
       },
     ],
     // @ts-ignore

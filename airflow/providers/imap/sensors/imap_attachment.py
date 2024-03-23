@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to poke for attachments on a mail server."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

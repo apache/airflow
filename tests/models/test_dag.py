@@ -90,10 +90,17 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
+from tests.plugins.priority_weight_strategy import (
+    FactorPriorityWeightStrategy,
+    NotRegisteredPriorityWeightStrategy,
+    StaticTestPriorityWeightStrategy,
+    TestPriorityWeightStrategyPlugin,
+)
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.mapping import expand_mapped_task
+from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 pytestmark = pytest.mark.db_test
@@ -432,6 +439,35 @@ class TestDag:
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
             with pytest.raises(AirflowException):
                 EmptyOperator(task_id="should_fail", weight_rule="no rule")
+
+    @pytest.mark.parametrize(
+        "cls, expected",
+        [
+            (StaticTestPriorityWeightStrategy, 99),
+            (FactorPriorityWeightStrategy, 3),
+        ],
+    )
+    def test_dag_task_custom_weight_strategy(self, cls, expected):
+        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
+            "dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
+        ) as dag:
+            task = EmptyOperator(
+                task_id="empty_task",
+                weight_rule=cls(),
+            )
+        dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task.task_id)
+        assert ti.priority_weight == expected
+
+    def test_dag_task_not_registered_weight_strategy(self):
+        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
+            "dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
+        ):
+            with pytest.raises(AirflowException, match="Unknown priority strategy"):
+                EmptyOperator(
+                    task_id="empty_task",
+                    weight_rule=NotRegisteredPriorityWeightStrategy(),
+                )
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"
@@ -1351,6 +1387,52 @@ class TestDag:
         assert orm_dag.is_paused
         session.close()
 
+    @mock.patch.dict(
+        os.environ,
+        {
+            "AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG": "4",
+        },
+    )
+    def test_existing_dag_is_paused_config(self):
+        # config should be set properly
+        assert conf.getint("core", "max_consecutive_failed_dag_runs_per_dag") == 4
+        # checking the default value is coming from config
+        dag = DAG("test_dag")
+        assert dag.max_consecutive_failed_dag_runs == 4
+        # but we can override the value using params
+        dag = DAG("test_dag2", max_consecutive_failed_dag_runs=2)
+        assert dag.max_consecutive_failed_dag_runs == 2
+
+    def test_existing_dag_is_paused_after_limit(self):
+        def add_failed_dag_run(id, execution_date):
+            dr = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id="run_id_" + id,
+                execution_date=execution_date,
+                state=State.FAILED,
+            )
+            ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
+            ti_op1.set_state(state=TaskInstanceState.FAILED, session=session)
+            dr.update_state(session=session)
+
+        dag_id = "dag_paused_after_limit"
+        dag = DAG(dag_id, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        dag.sync_to_db(session=session)
+        assert not dag.get_is_paused()
+
+        # dag should be paused after 2 failed dag_runs
+        add_failed_dag_run(
+            "1",
+            TEST_DATE,
+        )
+        add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
+        assert dag.get_is_paused()
+        dag.clear()
+        self._clean_up(dag_id)
+
     def test_existing_dag_default_view(self):
         with create_session() as session:
             session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
@@ -1451,21 +1533,19 @@ class TestDag:
 
     def test_duplicate_task_ids_not_allowed_with_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
-        with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
-                op1 = EmptyOperator(task_id="t1")
-                op2 = BashOperator(task_id="t1", bash_command="sleep 1")
-                op1 >> op2
+        with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+            op1 = EmptyOperator(task_id="t1")
+            with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
+                BashOperator(task_id="t1", bash_command="sleep 1")
 
         assert dag.task_dict == {op1.task_id: op1}
 
     def test_duplicate_task_ids_not_allowed_without_dag_context_manager(self):
         """Verify tasks with Duplicate task_id raises error"""
+        dag = DAG("test_dag", start_date=DEFAULT_DATE)
+        op1 = EmptyOperator(task_id="t1", dag=dag)
         with pytest.raises(DuplicateTaskIdFound, match="Task id 't1' has already been added to the DAG"):
-            dag = DAG("test_dag", start_date=DEFAULT_DATE)
-            op1 = EmptyOperator(task_id="t1", dag=dag)
-            op2 = EmptyOperator(task_id="t1", dag=dag)
-            op1 >> op2
+            EmptyOperator(task_id="t1", dag=dag)
 
         assert dag.task_dict == {op1.task_id: op1}
 
@@ -2248,7 +2328,8 @@ my_postgres_conn:
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2015, 1, 1)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2015, 1, 1)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info is None
@@ -2363,11 +2444,13 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 1, 5)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 1, 5)
 
     @time_machine.travel(timezone.datetime(2020, 5, 4))
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
@@ -2383,17 +2466,21 @@ my_postgres_conn:
         )
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 1)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 1)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 2)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
         next_info = dag.next_dagrun_info(next_info.data_interval)
-        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
@@ -2444,7 +2531,8 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
 
         dag = DAG(
             dag_id="test_scheduler_auto_align_2",
@@ -2454,7 +2542,8 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
 
         next_info = dag.next_dagrun_info(None)
-        assert next_info and next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
     def test_next_dagrun_after_not_for_subdags(self):
         """
@@ -2497,6 +2586,20 @@ my_postgres_conn:
 
         next_subdag_info = subdag.next_dagrun_info(None)
         assert next_subdag_info is None, "SubDags should never have DagRuns created by the scheduler"
+
+    def test_next_dagrun_info_on_29_feb(self):
+        dag = DAG(
+            "test_scheduler_dagrun_29_feb", start_date=timezone.datetime(2024, 1, 1), schedule="0 0 29 2 *"
+        )
+
+        next_info = dag.next_dagrun_info(None)
+        assert next_info
+        assert next_info.logical_date == timezone.datetime(2024, 2, 29)
+
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info.logical_date == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
+        assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
 
     def test_replace_outdated_access_control_actions(self):
         outdated_permissions = {
@@ -2878,6 +2981,43 @@ class TestDagModel:
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
+    def test_dataset_expression(self, session):
+        dataset_expr = {
+            "__type": "dataset_any",
+            "__var": [
+                {"__type": "dataset", "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag1/output_1.txt"}},
+                {
+                    "__type": "dataset_all",
+                    "__var": [
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag2/output_1.txt"},
+                        },
+                        {
+                            "__type": "dataset",
+                            "__var": {"extra": {"hi": "bye"}, "uri": "s3://dag3/output_3.txt"},
+                        },
+                    ],
+                },
+            ],
+        }
+        dag_id = "test_dag_dataset_expression"
+        orm_dag = DagModel(
+            dag_id=dag_id,
+            dataset_expression=dataset_expr,
+            is_active=True,
+            is_paused=False,
+            next_dagrun=timezone.utcnow(),
+            next_dagrun_create_after=timezone.utcnow() + timedelta(days=1),
+        )
+        session.add(orm_dag)
+        session.commit()
+        retrieved_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
+        assert retrieved_dag.dataset_expression == dataset_expr
+
+        session.rollback()
+        session.close()
+
 
 class TestQueries:
     def setup_method(self) -> None:
@@ -2918,8 +3058,7 @@ class TestDagDecorator:
 
     def test_fileloc(self):
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -2930,8 +3069,7 @@ class TestDagDecorator:
         """Test that checks you can set dag_id from decorator."""
 
         @dag_decorator("test", default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -2941,8 +3079,7 @@ class TestDagDecorator:
         """Test that @dag uses function name as default dag id."""
 
         @dag_decorator(default_args=self.DEFAULT_ARGS)
-        def noop_pipeline():
-            ...
+        def noop_pipeline(): ...
 
         dag = noop_pipeline()
         assert isinstance(dag, DAG)
@@ -2998,8 +3135,7 @@ class TestDagDecorator:
         @dag_decorator(
             "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
         )
-        def markdown_docs():
-            ...
+        def markdown_docs(): ...
 
         dag = markdown_docs()
         assert isinstance(dag, DAG)
@@ -3095,8 +3231,7 @@ class TestDagDecorator:
     def test_warning_location(self):
         # NOTE: This only works as long as there is some warning we can emit from `DAG()`
         @dag_decorator(schedule_interval=None)
-        def mydag():
-            ...
+        def mydag(): ...
 
         with pytest.warns(RemovedInAirflow3Warning) as warnings:
             line = sys._getframe().f_lineno + 1
@@ -3974,16 +4109,13 @@ class TestTaskClearingSetupTeardownBehavior:
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
 
             @setup
-            def my_setup():
-                ...
+            def my_setup(): ...
 
             @task_decorator
-            def my_work():
-                ...
+            def my_work(): ...
 
             @teardown
-            def my_teardown():
-                ...
+            def my_teardown(): ...
 
             s1 = my_setup()
             w1 = my_work()

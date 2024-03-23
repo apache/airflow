@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing secrets from Yandex Cloud Lockbox."""
+
 from __future__ import annotations
 
 from functools import cached_property
@@ -128,10 +129,8 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         self.yc_connection_id = None
         if not any([yc_oauth_token, yc_sa_key_json, yc_sa_key_json_path]):
             self.yc_connection_id = yc_connection_id or default_conn_name
-        else:
-            assert (
-                yc_connection_id is None
-            ), "yc_connection_id should not be used if other credentials are specified"
+        elif yc_connection_id is not None:
+            raise ValueError("`yc_connection_id` should not be used if other credentials are specified")
 
         self.folder_id = folder_id
         self.connections_prefix = connections_prefix.rstrip(sep) if connections_prefix is not None else None

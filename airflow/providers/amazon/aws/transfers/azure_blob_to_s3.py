@@ -120,8 +120,10 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            f"Getting list of the files in Container: {self.container_name}; "
-            f"Prefix: {self.prefix}; Delimiter: {self.delimiter};"
+            "Getting list of the files in Container: %r; Prefix: %r; Delimiter: %r.",
+            self.container_name,
+            self.prefix,
+            self.delimiter,
         )
 
         files = wasb_hook.get_blobs_list_recursive(

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task Instance APIs. This module is deprecated. Please use :mod:`airflow.api.common.mark_tasks` instead."""
+
 from __future__ import annotations
 
 import warnings

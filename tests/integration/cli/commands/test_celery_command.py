@@ -24,6 +24,7 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
+from airflow.executors import executor_loader
 from tests.test_utils.config import conf_vars
 
 
@@ -35,6 +36,7 @@ class TestWorkerServeLogs:
         with conf_vars({("core", "executor"): "CeleryExecutor"}):
             # The cli_parser module is loaded during test collection. Reload it here with the
             # executor overridden so that we get the expected commands loaded.
+            reload(executor_loader)
             reload(cli_parser)
             cls.parser = cli_parser.get_parser()
 

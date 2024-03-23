@@ -55,23 +55,43 @@ function install_airflow_dependencies_from_branch_tip() {
     set +x
     common::install_packaging_tools
     set -x
+    echo "${COLOR_BLUE}Uninstalling providers. Dependencies remain${COLOR_RESET}"
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
+    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
     echo
     set +x
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
     set -x
+    # If you want to make sure dependency is removed from cache in your PR when you removed it from
+    # pyproject.toml - please add your dependency here as a list of strings
+    # for example:
+    # DEPENDENCIES_TO_REMOVE=("package_a" "package_b")
+    # Once your PR is merged, you should make a follow-up PR to remove it from this list
+    # and increase the AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci to make sure your cache is rebuilt.
+    local DEPENDENCIES_TO_REMOVE
+    # IMPORTANT!! Make sure to increase AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci when you remove a dependency from that list
+    DEPENDENCIES_TO_REMOVE=()
+    if [[ "${DEPENDENCIES_TO_REMOVE[*]}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Uninstalling just removed dependencies (temporary until cache refreshes)${COLOR_RESET}"
+        echo "${COLOR_BLUE}Dependencies to uninstall: ${DEPENDENCIES_TO_REMOVE[*]}${COLOR_RESET}"
+        echo
+        set +x
+        ${PACKAGING_TOOL_CMD} uninstall "${DEPENDENCIES_TO_REMOVE[@]}" || true
+        set -x
+        # make sure that the dependency is not needed by something else
+        pip check
+    fi
 }
 
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 

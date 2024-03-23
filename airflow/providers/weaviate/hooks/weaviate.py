@@ -459,7 +459,7 @@ class WeaviateHook(BaseHook):
         client.batch.configure(**batch_config_params)
         with client.batch as batch:
             # Batch import all data
-            for index, data_obj in enumerate(converted_data):
+            for data_obj in converted_data:
                 for attempt in Retrying(
                     stop=stop_after_attempt(retry_attempts_per_object),
                     retry=(

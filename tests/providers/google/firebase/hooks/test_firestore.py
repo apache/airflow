@@ -17,6 +17,7 @@
 """
 Tests for Google Cloud Firestore
 """
+
 from __future__ import annotations
 
 from unittest import mock

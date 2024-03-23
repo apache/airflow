@@ -69,6 +69,7 @@ class DAGSchema(SQLAlchemySchema):
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)
     max_active_runs = auto_field(dump_only=True)
+    max_consecutive_failed_dag_runs = auto_field(dump_only=True)
     has_task_concurrency_limits = auto_field(dump_only=True)
     has_import_errors = auto_field(dump_only=True)
     next_dagrun = auto_field(dump_only=True)
@@ -99,6 +100,7 @@ class DAGDetailSchema(DAGSchema):
     orientation = fields.String()
     concurrency = fields.Method("get_concurrency")  # TODO: Remove in Airflow 3.0
     max_active_tasks = fields.Integer()
+    dataset_expression = fields.Dict(allow_none=True)
     start_date = fields.DateTime()
     dag_run_timeout = fields.Nested(TimeDeltaSchema, attribute="dagrun_timeout")
     doc_md = fields.String()

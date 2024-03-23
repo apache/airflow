@@ -271,6 +271,8 @@ require Breeze Docker image to be built locally.
 |                                                           | * Add license for all Markdown files                         |         |
 |                                                           | * Add license for all other files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| kubeconform                                               | Kubeconform check on our helm chart                          |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                           |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | lint-css                                                  | stylelint                                                    |         |
@@ -388,13 +390,13 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    pre-commit run mypy-core
+    pre-commit run mypy-airflow
 
 -   Run only mypy checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run mypy-core --all-files
+    pre-commit run mypy-airflow --all-files
 
 
 -   Run all checks on all files by using:
@@ -422,7 +424,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=mypy-core,ruff pre-commit run --all-files
+    SKIP=mypy-airflow,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -437,7 +439,7 @@ In case you have a problem with running particular ``pre-commit`` check you can 
 benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
 checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
 when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+``export SKIP=ruff,mypy-airflow,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
 do not want to set it manually every time you enter the terminal.
 
 In case you do not have breeze image configured locally, you can also disable all checks that require breeze
@@ -497,13 +499,13 @@ Run the ``mypy`` check for the currently staged changes (in ``airflow/`` excludi
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core
+     breeze static-checks --type mypy-airflow
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --all-files
+     breeze static-checks --type mypy-airflow --all-files
 
 Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
@@ -547,7 +549,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks --type mypy-core --only-my-changes
+     breeze static-checks --type mypy-airflow --only-my-changes
 
 More examples can be found in
 `Breeze documentation <../dev/breeze/doc/03_developer_tasks.rst#running-static-checks>`_

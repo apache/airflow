@@ -204,12 +204,12 @@ class TestFileSensor:
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         shutil.rmtree(temp_dir)
 
-    def test_subdirectory_empty(self):
-        temp_dir = tempfile.mkdtemp()
-        tempfile.mkdtemp(dir=temp_dir)
+    def test_subdirectory_empty(self, tmp_path):
+        (tmp_path / "subdir").mkdir()
+
         task = FileSensor(
             task_id="test",
-            filepath=temp_dir,
+            filepath=tmp_path.as_posix(),
             fs_conn_id="fs_default",
             dag=self.dag,
             timeout=0,
@@ -219,7 +219,6 @@ class TestFileSensor:
 
         with pytest.raises(AirflowSensorTimeout):
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            shutil.rmtree(temp_dir)
 
     def test_task_defer(self):
         task = FileSensor(

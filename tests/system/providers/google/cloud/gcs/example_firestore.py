@@ -22,6 +22,7 @@ This example creates collections in the default namespaces in Firestore, adds so
 and exports this database from Cloud Firestore to Cloud Storage.
 It then creates a table from the exported data in Bigquery and checks that the data is in it.
 """
+
 from __future__ import annotations
 
 import os

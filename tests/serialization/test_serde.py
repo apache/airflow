@@ -178,12 +178,12 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+        i = {CLASSNAME: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {CLASSNAME: "cannot"}
             serialize(i)
 
+        i = {SCHEMA_ID: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {SCHEMA_ID: "cannot"}
             serialize(i)
 
     def test_ser_namedtuple(self):
@@ -195,8 +195,8 @@ class TestSerDe:
         assert i == e
 
     def test_no_serializer(self):
+        i = Exception
         with pytest.raises(TypeError, match="^cannot serialize"):
-            i = Exception
             serialize(i)
 
     def test_ser_registered(self):
@@ -365,6 +365,11 @@ class TestSerDe:
             if name == "airflow.serialization.serializers.iceberg":
                 try:
                     import pyiceberg  # noqa: F401
+                except ImportError:
+                    continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
                 except ImportError:
                     continue
             mod = import_module(name)

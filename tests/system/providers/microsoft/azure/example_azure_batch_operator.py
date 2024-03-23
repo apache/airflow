@@ -22,6 +22,7 @@ This DAG relies on the following OS environment variables
 
 * POOL_ID - The Pool ID in Batch accounts.
 """
+
 from __future__ import annotations
 
 import os

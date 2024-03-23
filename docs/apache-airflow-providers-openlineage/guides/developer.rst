@@ -235,7 +235,7 @@ It can be done by using ``extractors`` option in Airflow configuration.
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000"}'
+    transport = {"type": "http", "url": "http://example.com:5000"}
     extractors = full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
 
 ``AIRFLOW__OPENLINEAGE__EXTRACTORS`` environment variable is an equivalent.
