@@ -77,6 +77,11 @@ def test_delegate_to_runtime_error():
 
 @pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
+    def test_credentials_path_derprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            credentials_path = self.hook.credentials_path
+            assert credentials_path == "bigquery_hook_credentials.json"
+
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.build")

@@ -82,6 +82,8 @@ For example:
 
    export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://'
 
+.. _howto/connection:gcp:configuring_the_connection:
+
 Configuring the Connection
 --------------------------
 
