@@ -190,8 +190,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-no-relative-imports                                 | No relative imports                                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled  |         |

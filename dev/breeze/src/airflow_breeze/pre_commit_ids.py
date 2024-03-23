@@ -60,7 +60,6 @@ PRE_COMMIT_LIST = [
     "check-newsfragments-are-valid",
     "check-no-airflow-deprecation-in-providers",
     "check-no-providers-in-core-examples",
-    "check-no-relative-imports",
     "check-only-new-session-with-provide-session",
     "check-persist-credentials-disabled-in-github-workflows",
     "check-pre-commit-information-consistent",

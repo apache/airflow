@@ -1330,6 +1330,7 @@ extend-select = [
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
+    "TID25", # flake8-tidy-imports rules
     # Per rule enables
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
@@ -1347,8 +1348,6 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TID251",  # Specific modules or module members that may not be imported or accessed
-    "TID253",  # Ban certain modules from being imported at module level
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "B006", # Checks for uses of mutable objects as function argument defaults.
@@ -1559,6 +1558,8 @@ combine-as-imports = true
 "tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
+# Disallow all relative imports.
+ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas"]

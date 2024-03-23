@@ -531,14 +531,6 @@ repos:
         entry: "^\\s*DeprecationWarning*"
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
-      - id: check-no-relative-imports
-        language: pygrep
-        name: No relative imports
-        description: Airflow style is to use absolute imports only (except docs building)
-        entry: "^\\s*from\\s+\\."
-        pass_filenames: true
-        files: \.py$
-        exclude: ^.*/.*_vendor/|^docs/|^tests/
       - id: check-urlparse-usage-in-code
         language: pygrep
         name: Don't use urlparse in code
