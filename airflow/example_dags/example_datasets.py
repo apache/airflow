@@ -58,6 +58,7 @@ import pendulum
 
 from airflow.datasets import Dataset
 from airflow.models.dag import DAG
+from airflow.models.param import Param
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.timetables.datasets import DatasetOrTimeSchedule
@@ -91,7 +92,7 @@ with DAG(
 ) as dag2:
 
     def some_python_callable():
-        return {"some_context": "dynamic data 123", "random_number": random.randint(1, 100)}
+        return {"sleep_seconds": random.randint(1, 10), "some_context": "dynamic data 123"}
 
     PythonOperator(python_callable=some_python_callable, outlets=[dag2_dataset], task_id="producing_task_2")
 
@@ -116,11 +117,12 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[dag1_dataset, dag2_dataset],
     tags=["consumes", "dataset-scheduled"],
+    params={"sleep_seconds": Param(5, "A random number to sleep. Set by dataset 2 event data.")},
 ) as dag4:
     BashOperator(
         outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
         task_id="consuming_2",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 
 with DAG(
@@ -136,7 +138,7 @@ with DAG(
     BashOperator(
         outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
         task_id="consuming_3",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 
 with DAG(
@@ -152,38 +154,41 @@ with DAG(
     BashOperator(
         task_id="unrelated_task",
         outlets=[Dataset("s3://unrelated_task/dataset_other_unknown.txt")],
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 
 with DAG(
     dag_id="consume_1_and_2_with_dataset_expressions",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=(dag1_dataset & dag2_dataset),
+    params={"sleep_seconds": Param(5, "A random number to sleep. Set by dataset 2 event data.")},
 ) as dag5:
     BashOperator(
         outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
         task_id="consume_1_and_2_with_dataset_expressions",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 with DAG(
     dag_id="consume_1_or_2_with_dataset_expressions",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=(dag1_dataset | dag2_dataset),
+    params={"sleep_seconds": Param(5, "A random number to sleep. Set by dataset 2 event data.")},
 ) as dag6:
     BashOperator(
         outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
         task_id="consume_1_or_2_with_dataset_expressions",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 with DAG(
     dag_id="consume_1_or_both_2_and_3_with_dataset_expressions",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=(dag1_dataset | (dag2_dataset & dag3_dataset)),
+    params={"sleep_seconds": Param(5, "A random number to sleep. Set by dataset 2 event data.")},
 ) as dag7:
     BashOperator(
         outlets=[Dataset("s3://consuming_2_task/dataset_other_unknown.txt")],
         task_id="consume_1_or_both_2_and_3_with_dataset_expressions",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
 with DAG(
     dag_id="conditional_dataset_and_time_based_timetable",
@@ -193,9 +198,10 @@ with DAG(
         timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
     ),
     tags=["dataset-time-based-timetable"],
+    params={"sleep_seconds": Param(5, "A random number to sleep. Set by dataset 2 event data.")},
 ) as dag8:
     BashOperator(
         outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],
         task_id="conditional_dataset_and_time_based_timetable",
-        bash_command="sleep 5",
+        bash_command="sleep {{ params.sleep_seconds }}",
     )
