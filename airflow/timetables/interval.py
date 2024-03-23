@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Union
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 
+from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -147,17 +148,26 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         that start now, not the one that ends now.
         """
         current_time = coerce_datetime(utcnow())
-        last_start = self._get_prev(current_time)
-        next_start = self._get_next(last_start)
-        if next_start == current_time:  # Current time is on interval boundary.
-            new_start = last_start
-        elif next_start > current_time:  # Current time is between boundaries.
-            new_start = self._get_prev(last_start)
+        if airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
+            # TODO remove if/else and make this the default behaviour in Airflow 3.0
+            start = self._get_prev(current_time)
+
+            if earliest is None:
+                return start
+            else:
+                return max(start, self._align_to_next(earliest))
         else:
-            raise AssertionError("next schedule shouldn't be earlier")
-        if earliest is None:
-            return new_start
-        return max(new_start, self._align_to_next(earliest))
+            last_start = self._get_prev(current_time)
+            next_start = self._get_next(last_start)
+            if next_start == current_time:  # Current time is on interval boundary.
+                new_start = last_start
+            elif next_start > current_time:  # Current time is between boundaries.
+                new_start = self._get_prev(last_start)
+            else:
+                raise AssertionError("next schedule shouldn't be earlier")
+            if earliest is None:
+                return new_start
+            return max(new_start, self._align_to_next(earliest))
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is
@@ -257,11 +267,13 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
 
         This is slightly different from the cron version at terminal values.
         """
-        round_current_time = self._round(coerce_datetime(utcnow()))
-        new_start = self._get_prev(round_current_time)
+        next_start = self._round(coerce_datetime(utcnow()))
+        if not airflow_conf.getboolean("scheduler", "catchup_false_no_dagrun_airflow_2_fix"):
+            # TODO Remove this if clause in Airflow 3.0.0. This sets back the result by one interval.
+            next_start = self._get_prev(next_start)
         if earliest is None:
-            return new_start
-        return max(new_start, earliest)
+            return next_start
+        return max(next_start, earliest)
 
     def infer_manual_data_interval(self, run_after: DateTime) -> DataInterval:
         return DataInterval(start=self._get_prev(run_after), end=run_after)
