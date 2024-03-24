@@ -70,7 +70,7 @@ class TestGoogleCloudStorageToSambaOperator:
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
         )
         samba_hook_mock.return_value.push_from_local.assert_called_with(
-            os.path.join(DESTINATION_SMB, target_object), mock.ANY, None
+            os.path.join(DESTINATION_SMB, target_object), mock.ANY, buffer_size=None
         )
         gcs_hook_mock.return_value.delete.assert_not_called()
 
@@ -114,7 +114,7 @@ class TestGoogleCloudStorageToSambaOperator:
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
         )
         samba_hook_mock.return_value.push_from_local.assert_called_with(
-            os.path.join(DESTINATION_SMB, target_object), mock.ANY, None
+            os.path.join(DESTINATION_SMB, target_object), mock.ANY, buffer_size=None
         )
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
@@ -201,7 +201,7 @@ class TestGoogleCloudStorageToSambaOperator:
         )
         samba_hook_mock.return_value.push_from_local.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY, None)
+                mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY, buffer_size=None)
                 for target_object in target_objects
             ]
         )
@@ -290,7 +290,7 @@ class TestGoogleCloudStorageToSambaOperator:
         )
         samba_hook_mock.return_value.push_from_local.assert_has_calls(
             [
-                mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY, None)
+                mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY, buffer_size=None)
                 for target_object in target_objects
             ]
         )
