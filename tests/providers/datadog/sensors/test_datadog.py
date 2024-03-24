@@ -126,16 +126,16 @@ class TestDatadogSensor:
         api1.return_value = zero_events
         api2.return_value = {"status": "error"}
 
+        sensor = DatadogSensor(
+            task_id="test_datadog",
+            datadog_conn_id="datadog_default",
+            from_seconds_ago=0,
+            up_to_seconds_from_now=0,
+            priority=None,
+            sources=None,
+            tags=None,
+            response_check=None,
+            soft_fail=soft_fail,
+        )
         with pytest.raises(expected_exception):
-            sensor = DatadogSensor(
-                task_id="test_datadog",
-                datadog_conn_id="datadog_default",
-                from_seconds_ago=0,
-                up_to_seconds_from_now=0,
-                priority=None,
-                sources=None,
-                tags=None,
-                response_check=None,
-                soft_fail=soft_fail,
-            )
             sensor.poke({})
