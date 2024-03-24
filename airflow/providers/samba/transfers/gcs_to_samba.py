@@ -95,7 +95,7 @@ class GCSToSambaOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param buffer_size: Optional specification of the size in bytes of the chunks sent to
         Samba. Larger buffer lengths may decrease the time to upload large files. The default
-        length is determined by shutil.copyfileobj, which is 64 KB.
+        length is determined by shutil, which is 64 KB.
     """
 
     template_fields: Sequence[str] = (
