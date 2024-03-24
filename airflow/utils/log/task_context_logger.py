@@ -65,7 +65,7 @@ class TaskContextLogger:
 
     @staticmethod
     def _get_task_handler() -> FileTaskHandler | None:
-        """Returns the task handler that supports task context logging."""
+        """Return the task handler that supports task context logging."""
         handlers = [
             handler
             for handler in logging.getLogger("airflow.task").handlers
@@ -143,7 +143,7 @@ class TaskContextLogger:
         :param msg: the message to relay to task context log
         :param ti: the task instance
         """
-        self._log(logging.WARN, msg, *args, ti=ti)
+        self._log(logging.WARNING, msg, *args, ti=ti)
 
     def warning(self, msg: str, *args, ti: TaskInstance):
         """

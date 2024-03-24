@@ -203,7 +203,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
@@ -233,7 +232,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
@@ -250,6 +248,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_user_perms]
 
@@ -276,11 +275,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 
     # [START security_admin_perms]
     ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
@@ -337,9 +340,46 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # Setup Flask-Jwt-Extended
         self.create_jwt_manager()
 
+    def _get_authentik_jwks(self, jwks_url) -> dict:
+        import requests
+
+        resp = requests.get(jwks_url)
+        if resp.status_code == 200:
+            return resp.json()
+        return {}
+
+    def _validate_jwt(self, id_token, jwks):
+        from authlib.jose import JsonWebKey, jwt as authlib_jwt
+
+        keyset = JsonWebKey.import_key_set(jwks)
+        claims = authlib_jwt.decode(id_token, keyset)
+        claims.validate()
+        log.info("JWT token is validated")
+        return claims
+
+    def _get_authentik_token_info(self, id_token):
+        me = jwt.decode(id_token, options={"verify_signature": False})
+
+        verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
+        if verify_signature:
+            # Validate the token using authentik certificate
+            jwks_uri = self.oauth_remotes["authentik"].server_metadata.get("jwks_uri")
+            if jwks_uri:
+                jwks = self._get_authentik_jwks(jwks_uri)
+                if jwks:
+                    return self._validate_jwt(id_token, jwks)
+            else:
+                log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
+        else:
+            # Return the token info without validating
+            log.warning("JWT token is not validated!")
+            return me
+
+        raise AirflowException("OAuth signature verify failed")
+
     def register_views(self):
         """Register FAB auth manager related views."""
-        if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
+        if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
 
         if self.auth_user_registration:
@@ -416,7 +456,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 category="Security",
             )
         self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
             self.appbuilder.add_view(
                 self.actionmodelview,
                 "Actions",
@@ -424,7 +464,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Actions"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
             self.appbuilder.add_view(
                 self.resourcemodelview,
                 "Resources",
@@ -432,7 +472,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Resources"),
                 category="Security",
             )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
+        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
                 "Permission Pairs",
@@ -510,34 +550,35 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)
-        # Set flask g.user to JWT user, we can't do it on before request
-        g.user = user
-        return user
+        if user.is_active:
+            # Set flask g.user to JWT user, we can't do it on before request
+            g.user = user
+            return user
 
     @property
     def auth_type(self):
         """Get the auth type."""
-        return self.appbuilder.app.config["AUTH_TYPE"]
+        return self.appbuilder.get_app.config["AUTH_TYPE"]
 
     @property
     def is_auth_limited(self) -> bool:
         """Is the auth rate limited."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMITED"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
 
     @property
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
-        return self.appbuilder.app.config["AUTH_RATE_LIMIT"]
+        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
 
     @property
     def auth_role_public(self):
-        """Gets the public role."""
-        return self.appbuilder.app.config["AUTH_ROLE_PUBLIC"]
+        """Get the public role."""
+        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
 
     @property
     def oauth_providers(self):
         """Oauth providers."""
-        return self.appbuilder.app.config["OAUTH_PROVIDERS"]
+        return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
     def auth_ldap_tls_cacertdir(self):
@@ -571,7 +612,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     @property
     def auth_ldap_server(self):
-        """Gets the LDAP server object."""
+        """Get the LDAP server object."""
         return self.appbuilder.get_app.config["AUTH_LDAP_SERVER"]
 
     @property
@@ -645,12 +686,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
+    def auth_remote_user_env_var(self) -> str:
+        return self.appbuilder.get_app.config["AUTH_REMOTE_USER_ENV_VAR"]
+
+    @property
     def api_login_allow_multiple_providers(self):
         return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
     @property
     def auth_username_ci(self):
-        """Gets the auth username for CI."""
+        """Get the auth username for CI."""
         return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
 
     @property
@@ -685,7 +730,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     @property
     def auth_role_admin(self):
-        """Gets the admin role."""
+        """Get the admin role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
     @property
@@ -697,8 +742,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.oauth_allow_list
 
     def create_builtin_roles(self):
-        """Returns FAB builtin roles."""
-        return self.appbuilder.app.config.get("FAB_ROLES", {})
+        """Return FAB builtin roles."""
+        return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
     @property
     def builtin_roles(self):
@@ -724,8 +769,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
@@ -787,6 +832,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
             app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
 
+        if self.auth_type == AUTH_REMOTE_USER:
+            app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
+
         # Rate limiting
         app.config.setdefault("AUTH_RATE_LIMITED", True)
         app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
@@ -801,7 +849,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if self.auth_type == AUTH_OID:
             from flask_openid import OpenID
 
+            log.warning(
+                "AUTH_OID is deprecated and will be removed in version 5. "
+                "Migrate to other authentication methods."
+            )
             self.oid = OpenID(app)
+
         if self.auth_type == AUTH_OAUTH:
             from authlib.integrations.flask_client import OAuth
 
@@ -859,7 +912,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 Base.metadata.create_all(engine)
                 log.info(const.LOGMSG_INF_SEC_ADD_DB)
 
-            roles_mapping = self.appbuilder.app.config.get("FAB_ROLES_MAPPING", {})
+            roles_mapping = self.appbuilder.get_app.config.get("FAB_ROLES_MAPPING", {})
             for pk, name in roles_mapping.items():
                 self.update_role(pk, name)
             for role_name in self._builtin_roles:
@@ -1246,8 +1299,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
-                Permission.action == None,  # noqa
-                Permission.resource == None,  # noqa
+                Permission.action == None,  # noqa: E711
+                Permission.resource == None,  # noqa: E711
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -1445,7 +1498,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password="",
         hashed_password="",
     ):
-        """Generic function to create user."""
+        """Create a user."""
         try:
             user = self.user_model()
             user.first_name = first_name
@@ -1468,8 +1521,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
 
     def load_user(self, user_id):
-        """Load user by ID."""
-        return self.get_user_by_id(int(user_id))
+        user = self.get_user_by_id(int(user_id))
+        if user.is_active:
+            return user
 
     def get_user_by_id(self, pk):
         return self.get_session.get(self.user_model, pk)
@@ -1504,7 +1558,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return None
 
     def find_user(self, username=None, email=None):
-        """Finds user by username or email."""
+        """Find user by username or email."""
         if username:
             try:
                 if self.auth_username_ci:
@@ -1549,7 +1603,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def del_register_user(self, register_user):
         """
-        Deletes registration object from database.
+        Delete registration object from database.
 
         :param register_user: RegisterUser object to delete
         """
@@ -1598,7 +1652,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_action(self, name: str) -> Action:
         """
-        Gets an existing action record.
+        Get an existing action record.
 
         :param name: name
         """
@@ -1606,7 +1660,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def create_action(self, name):
         """
-        Adds an action to the backend, model action.
+        Add an action to the backend, model action.
 
         :param name:
             name of the action: 'can_add','can_edit' etc...
@@ -1626,7 +1680,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def delete_action(self, name: str) -> bool:
         """
-        Deletes a permission action.
+        Delete a permission action.
 
         :param name: Name of action to delete (e.g. can_read).
         """
@@ -1659,7 +1713,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_resource(self, name: str) -> Resource:
         """
-        Returns a resource record by name, if it exists.
+        Return a resource record by name, if it exists.
 
         :param name: Name of resource
         """
@@ -1685,12 +1739,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return resource
 
     def get_all_resources(self) -> list[Resource]:
-        """Gets all existing resource records."""
+        """Get all existing resource records."""
         return self.get_session.query(self.resource_model).all()
 
     def delete_resource(self, name: str) -> bool:
         """
-        Deletes a Resource from the backend.
+        Delete a Resource from the backend.
 
         :param name:
             name of the resource
@@ -1728,7 +1782,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         resource_name: str,
     ) -> Permission | None:
         """
-        Gets a permission made with the given action->resource pair, if the permission already exists.
+        Get a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
         :param resource_name: Name of resource
@@ -1753,7 +1807,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def create_permission(self, action_name, resource_name) -> Permission | None:
         """
-        Adds a permission on a resource to the backend.
+        Add a permission on a resource to the backend.
 
         :param action_name:
             name of the action to add: 'can_add','can_edit' etc...
@@ -1781,7 +1835,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
-        Deletes the permission linking an action->resource pair.
+        Delete the permission linking an action->resource pair.
 
         Doesn't delete the underlying action or resource.
 
@@ -1844,6 +1898,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
+
+    def get_oid_identity_url(self, provider_name: str) -> str | None:
+        """Return the OIDC identity provider URL."""
+        for provider in self.openid_providers:
+            if provider.get("name") == provider_name:
+                return provider.get("url")
+        return None
 
     @staticmethod
     def get_user_roles(user=None):
@@ -2084,7 +2145,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         func: Callable[[AirflowSecurityManagerV2, str, dict[str, Any] | None], dict[str, Any]],
     ):
         """
-        Decorator function to be the OAuth user info getter for all the providers.
+        Get OAuth user info for all the providers.
 
         Receives provider and response return a dict with the information returned from the provider.
         The returned user info dict should have its keys with the same name as the User Model.
@@ -2169,10 +2230,21 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             data = me.json()
             log.debug("User info from Okta: %s", data)
             return {
-                "username": "okta_" + data.get("sub", ""),
+                "username": f"{provider}_{data['sub']}",
                 "first_name": data.get("given_name", ""),
                 "last_name": data.get("family_name", ""),
-                "email": data.get("email", ""),
+                "email": data["email"],
+                "role_keys": data.get("groups", []),
+            }
+        # for Auth0
+        if provider == "auth0":
+            data = self.appbuilder.sm.oauth_remotes[provider].userinfo()
+            log.debug("User info from Auth0: %s", data)
+            return {
+                "username": f"{provider}_{data['sub']}",
+                "first_name": data.get("given_name", ""),
+                "last_name": data.get("family_name", ""),
+                "email": data["email"],
                 "role_keys": data.get("groups", []),
             }
         # for Keycloak
@@ -2187,12 +2259,25 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
             }
+
+        # for Authentik
+        if provider == "authentik":
+            id_token = resp["id_token"]
+            me = self._get_authentik_token_info(id_token)
+            log.debug("User info from authentik: %s", me)
+            return {
+                "email": me["preferred_username"],
+                "first_name": me.get("given_name", ""),
+                "username": me["nickname"],
+                "role_keys": me.get("groups", []),
+            }
+
         else:
             return {}
 
     @staticmethod
     def oauth_token_getter():
-        """Authentication (OAuth) token getter function."""
+        """Get authentication (OAuth) token."""
         token = session.get("oauth")
         log.debug("Token Get: %s", token)
         return token
@@ -2202,7 +2287,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perms: Sequence[tuple[str, str]] | None = None,
         dag_id: str | None = None,
     ) -> bool:
-        """Checks that the logged in user has the specified permissions."""
+        """Check the logged-in user has the specified permissions."""
         if not perms:
             return True
 
@@ -2236,7 +2321,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_oauth_token_key_name(self, provider):
         """
-        Returns the token_key name for the oauth provider.
+        Return the token_key name for the oauth provider.
 
         If none is configured defaults to oauth_token
         this is configured using OAUTH_PROVIDERS and token_key key.
@@ -2257,7 +2342,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def auth_user_oauth(self, userinfo):
         """
-        Method for authenticating user with OAuth.
+        Authenticate user with OAuth.
 
         :userinfo: dict with user information
                    (keys are the same as User model columns)
@@ -2424,8 +2509,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param ldap: The ldap module reference
         :param con: The ldap connection
         """
-        # always check AUTH_LDAP_BIND_USER is set before calling this method
-        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
+        if not self.auth_ldap_bind_user:
+            # always check AUTH_LDAP_BIND_USER is set before calling this method
+            raise ValueError("AUTH_LDAP_BIND_USER must be set")
 
         try:
             log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
@@ -2444,8 +2530,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param username: username to match with AUTH_LDAP_UID_FIELD
         :return: ldap object array
         """
-        # always check AUTH_LDAP_SEARCH is set before calling this method
-        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
+        if not self.auth_ldap_search:
+            # always check AUTH_LDAP_SEARCH is set before calling this method
+            raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:
@@ -2590,7 +2677,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return result
 
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Checks permission on builtin role."""
+        """Check permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for _resource_name, _action_name in perms:
             if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
@@ -2629,7 +2716,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         Get permissions except those that are for specific DAGs.
 
-        Returns a dict with a key of (action_name, resource_name) and value of permission
+        Return a dict with a key of (action_name, resource_name) and value of permission
         with all permissions except those that are for specific DAGs.
         """
         return {
@@ -2671,7 +2758,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     @staticmethod
     def _cli_safe_flash(text: str, level: str) -> None:
-        """Shows a flash in a web context or prints a message if not."""
+        """Show a flash in a web context or prints a message if not."""
         if has_request_context():
             flash(Markup(text), level)
         else:

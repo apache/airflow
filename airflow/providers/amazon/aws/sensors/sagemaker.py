@@ -40,7 +40,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = "#ededed"
 
-    def __init__(self, *, aws_conn_id: str = "aws_default", resource_type: str = "job", **kwargs):
+    def __init__(self, *, aws_conn_id: str | None = "aws_default", resource_type: str = "job", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing

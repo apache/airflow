@@ -34,10 +34,11 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
 
 import dill
 
+from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -52,6 +53,7 @@ from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
+from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -102,6 +104,40 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
         stacklevel=2,
     )
     return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
+
+
+@cache
+def _parse_version_info(text: str) -> tuple[int, int, int, str, int]:
+    """Parse python version info from a text."""
+    parts = text.strip().split(".")
+    if len(parts) != 5:
+        msg = f"Invalid Python version info, expected 5 components separated by '.', but got {text!r}."
+        raise ValueError(msg)
+    try:
+        return int(parts[0]), int(parts[1]), int(parts[2]), parts[3], int(parts[4])
+    except ValueError:
+        msg = f"Unable to convert parts {parts} parsed from {text!r} to (int, int, int, str, int)."
+        raise ValueError(msg) from None
+
+
+class _PythonVersionInfo(NamedTuple):
+    """Provide the same interface as ``sys.version_info``."""
+
+    major: int
+    minor: int
+    micro: int
+    releaselevel: str
+    serial: int
+
+    @classmethod
+    def from_executable(cls, executable: str) -> _PythonVersionInfo:
+        """Parse python version info from an executable."""
+        cmd = [executable, "-c", 'import sys; print(".".join(map(str, sys.version_info)))']
+        try:
+            result = subprocess.check_output(cmd, text=True)
+        except Exception as e:
+            raise ValueError(f"Error while executing command {cmd}: {e}")
+        return cls(*_parse_version_info(result.strip()))
 
 
 class PythonOperator(BaseOperator):
@@ -311,6 +347,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
+        "map_index_template",
         "next_ds",
         "next_ds_nodash",
         "outlets",
@@ -437,15 +474,21 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
+
+            jinja_context = {
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            }
+
+            if inspect.getfile(self.python_callable) == self.dag.fileloc:
+                jinja_context["modified_dag_module_name"] = get_unique_dag_module_name(self.dag.fileloc)
+
             write_python_script(
-                jinja_context={
-                    "op_args": self.op_args,
-                    "op_kwargs": op_kwargs,
-                    "expect_airflow": self.expect_airflow,
-                    "pickling_library": self.pickling_library.__name__,
-                    "python_callable": self.python_callable.__name__,
-                    "python_callable_source": self.get_python_source(),
-                },
+                jinja_context=jinja_context,
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
@@ -633,7 +676,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         )
 
     def _calculate_cache_hash(self) -> tuple[str, str]:
-        """Helper to generate the hash of the cache folder to use.
+        """Generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
         - (sorted) list of requirements
@@ -659,7 +702,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         return requirements_hash[:8], hash_text
 
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
-        """Helper to ensure a valid virtual environment is set up and will create inplace."""
+        """Ensure a valid virtual environment is set up and will create inplace."""
         cache_hash, hash_data = self._calculate_cache_hash()
         venv_path = venv_cache_path / f"venv-{cache_hash}"
         self.log.info("Python virtual environment will be cached in %s", venv_path)
@@ -839,26 +882,15 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             raise ValueError(f"Python Path '{python_path}' must be a file")
         if not python_path.is_absolute():
             raise ValueError(f"Python Path '{python_path}' must be an absolute path.")
-        python_version_as_list_of_strings = self._get_python_version_from_environment()
-        if (
-            python_version_as_list_of_strings
-            and str(python_version_as_list_of_strings[0]) != str(sys.version_info.major)
-            and (self.op_args or self.op_kwargs)
-        ):
+        python_version = _PythonVersionInfo.from_executable(self.python)
+        if python_version.major != sys.version_info.major and (self.op_args or self.op_kwargs):
             raise AirflowException(
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for ExternalPythonOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. "
-                f"Virtual environment version: {python_version_as_list_of_strings}"
+                f"Virtual environment version: {python_version}"
             )
         return self._execute_python_callable_in_subprocess(python_path)
-
-    def _get_python_version_from_environment(self) -> list[str]:
-        try:
-            result = subprocess.check_output([self.python, "--version"], text=True)
-            return result.strip().split(" ")[-1].split(".")
-        except Exception as e:
-            raise ValueError(f"Error while executing {self.python}: {e}")
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
@@ -882,21 +914,44 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 )
             return False
 
+    @property
+    def _external_airflow_version_script(self):
+        """
+        Return python script which determines the version of the Apache Airflow.
+
+        Import airflow as a module might take a while as a result,
+        obtaining a version would take up to 1 second.
+        On the other hand, `importlib.metadata.version` will retrieve the package version pretty fast
+        something below 100ms; this includes new subprocess overhead.
+
+        Possible side effect: it might be a situation that backport package is not available
+        in Python 3.8 and below, which indicates that venv doesn't contain an `apache-airflow`
+        or something wrong with the environment.
+        """
+        return textwrap.dedent(
+            """
+            import sys
+            if sys.version_info >= (3, 9):
+                from importlib.metadata import version
+            else:
+                from importlib_metadata import version
+            print(version("apache-airflow"))
+            """
+        )
+
     def _get_airflow_version_from_target_env(self) -> str | None:
         from airflow import __version__ as airflow_version
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                [self.python, "-c", self._external_airflow_version_script],
                 text=True,
-                # Avoid Airflow logs polluting stdout.
-                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
                 raise AirflowConfigException(
-                    f"The version of Airflow installed for the {self.python}("
-                    f"{target_airflow_version}) is different than the runtime Airflow version: "
+                    f"The version of Airflow installed for the {self.python} "
+                    f"({target_airflow_version}) is different than the runtime Airflow version: "
                     f"{airflow_version}. Make sure your environment has the same Airflow version "
                     f"installed as the Airflow runtime."
                 )
@@ -905,9 +960,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             if self.expect_airflow:
                 self.log.warning("When checking for Airflow installed in virtual environment got %s", e)
                 self.log.warning(
-                    f"This means that Airflow is not properly installed by  "
-                    f"{self.python}. Airflow context keys will not be available. "
-                    f"Please Install Airflow {airflow_version} in your environment to access them."
+                    "This means that Airflow is not properly installed by %s. "
+                    "Airflow context keys will not be available. "
+                    "Please Install Airflow %s in your environment to access them.",
+                    self.python,
+                    airflow_version,
                 )
             return None
 

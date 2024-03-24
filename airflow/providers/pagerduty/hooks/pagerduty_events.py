@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -49,7 +50,7 @@ class PagerdutyEventsHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {

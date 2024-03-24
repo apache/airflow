@@ -16,9 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Telegram."""
+
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import telegram
 import tenacity
@@ -38,14 +40,15 @@ class TelegramHook(BaseHook):
     chat_id can also be provided in the connection using 'host' field in connection.
     Following is the details of a telegram_connection:
     name: 'telegram-connection-name'
-    conn_type: 'http'
-    password: 'TELEGRAM_TOKEN'
+    conn_type: 'telegram'
+    password: 'TELEGRAM_TOKEN' (optional)
     host: 'chat_id' (optional)
     Examples:
     .. code-block:: python
 
         # Create hook
         telegram_hook = TelegramHook(telegram_conn_id="telegram_default")
+        telegram_hook = TelegramHook()  # will use telegram_default
         # or telegram_hook = TelegramHook(telegram_conn_id='telegram_default', chat_id='-1xxx')
         # or telegram_hook = TelegramHook(token='xxx:xxx', chat_id='-1xxx')
 
@@ -58,9 +61,14 @@ class TelegramHook(BaseHook):
     :param chat_id: optional chat_id of the telegram chat/channel/group
     """
 
+    conn_name_attr = "telegram_conn_id"
+    default_conn_name = "telegram_default"
+    conn_type = "telegram"
+    hook_name = "Telegram"
+
     def __init__(
         self,
-        telegram_conn_id: str | None = None,
+        telegram_conn_id: str | None = default_conn_name,
         token: str | None = None,
         chat_id: str | None = None,
     ) -> None:
@@ -69,9 +77,17 @@ class TelegramHook(BaseHook):
         self.chat_id = self.__get_chat_id(chat_id, telegram_conn_id)
         self.connection = self.get_conn()
 
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "extra", "login", "port", "extra"],
+            "relabeling": {},
+        }
+
     def get_conn(self) -> telegram.Bot:
         """
-        Returns the telegram bot client.
+        Return the telegram bot client.
 
         :return: telegram bot client
         """
@@ -79,7 +95,7 @@ class TelegramHook(BaseHook):
 
     def __get_token(self, token: str | None, telegram_conn_id: str | None) -> str:
         """
-        Returns the telegram API token.
+        Return the telegram API token.
 
         :param token: telegram API token
         :param telegram_conn_id: telegram connection name
@@ -100,7 +116,7 @@ class TelegramHook(BaseHook):
 
     def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
-        Returns the telegram chat ID for a chat/channel/group.
+        Return the telegram chat ID for a chat/channel/group.
 
         :param chat_id: optional chat ID
         :param telegram_conn_id: telegram connection name
@@ -122,7 +138,7 @@ class TelegramHook(BaseHook):
     )
     def send_message(self, api_params: dict) -> None:
         """
-        Sends the message to a telegram channel or chat.
+        Send the message to a telegram channel or chat.
 
         :param api_params: params for telegram_instance.send_message. It can also be used to override chat_id
         """

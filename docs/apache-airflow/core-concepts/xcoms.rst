@@ -52,6 +52,8 @@ You can also use XComs in :ref:`templates <concepts:jinja-templating>`::
 
 XComs are a relative of :doc:`variables`, with the main difference being that XComs are per-task-instance and designed for communication within a DAG run, while Variables are global and designed for overall configuration and value sharing.
 
+If you want to push multiple XComs at once or rename the pushed XCom key, you can use set ``do_xcom_push`` and ``multiple_outputs`` arguments to ``True``, and then return a dictionary of values.
+
 .. note::
 
   If the first task run is not succeeded then on every retry task XComs will be cleared to make the task run idempotent.
@@ -77,7 +79,7 @@ So for example the following configuration will store anything above 1MB in S3 a
       [common.io]
       xcom_objectstorage_path = s3://conn_id@mybucket/key
       xcom_objectstorage_threshold = 1048576
-      xcom_objectstorage_compression = gzip
+      xcom_objectstoragee_compression = gzip
 
 
 .. note::

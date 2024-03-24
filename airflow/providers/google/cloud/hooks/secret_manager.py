@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Secrets Manager service."""
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -63,7 +64,7 @@ class SecretsManagerHook(GoogleBaseHook):
 
     def get_conn(self) -> _SecretManagerClient:
         """
-        Retrieves the connection to Secret Manager.
+        Retrieve the connection to Secret Manager.
 
         :return: Secret Manager client.
         """

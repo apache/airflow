@@ -162,7 +162,7 @@ def _handle_assigned_field(
     :param target: The target field.
     :param value: The value of the field.
     """
-    if not isinstance(value, ast.Name):
+    if not isinstance(value, ast.Name) or target.attr != value.id:
         invalid_assignments.append(target.attr)
     else:
         assigned_template_fields.append(target.attr)

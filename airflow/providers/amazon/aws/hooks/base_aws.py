@@ -22,6 +22,7 @@ This module contains Base AWS Hook.
     For more information on how to use this hook, take a look at the guide:
     :ref:`howto/connection:aws`
 """
+
 from __future__ import annotations
 
 import datetime
@@ -314,7 +315,7 @@ class BaseSessionFactory(LoggingMixin):
             idp_request_retry_kwargs = saml_config["idp_request_retry_kwargs"]
             self.log.info("idp_request_retry_kwargs= %s", idp_request_retry_kwargs)
             from requests.adapters import HTTPAdapter
-            from requests.packages.urllib3.util.retry import Retry
+            from urllib3.util.retry import Retry
 
             retry_strategy = Retry(**idp_request_retry_kwargs)
             adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -1022,7 +1023,7 @@ except ImportError:
 
 @deprecated(
     reason=(
-        "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory "
+        "`airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory` "
         "has been deprecated and will be removed in future"
     ),
     category=AirflowProviderDeprecationWarning,
@@ -1116,7 +1117,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
 
 @deprecated(
     reason=(
-        "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook "
+        "`airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook` "
         "has been deprecated and will be removed in future"
     ),
     category=AirflowProviderDeprecationWarning,

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Databricks operators."""
+
 from __future__ import annotations
 
 import time
@@ -257,7 +258,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksCreateJobsOperator``."""
+        """Create a new ``DatabricksCreateJobsOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -287,8 +288,8 @@ class DatabricksCreateJobsOperator(BaseOperator):
             self.json["git_source"] = git_source
         if access_control_list is not None:
             self.json["access_control_list"] = access_control_list
-
-        self.json = normalise_json_content(self.json)
+        if self.json:
+            self.json = normalise_json_content(self.json)
 
     @cached_property
     def _hook(self):
@@ -797,8 +798,8 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["spark_submit_params"] = spark_submit_params
         if idempotency_token is not None:
             self.json["idempotency_token"] = idempotency_token
-
-        self.json = normalise_json_content(self.json)
+        if self.json:
+            self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push

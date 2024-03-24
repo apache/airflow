@@ -25,6 +25,37 @@
 Changelog
 ---------
 
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Enhancement: Performance enhancement for insert_rows method DbApiHook with fast executemany + SAP Hana support (#37246)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
+
+Misc
+~~~~
+
+* ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
+* ``Add more-itertools as dependency of common-sql (#37359)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave of Providers February 2024 (#37326)``
+
 1.10.1
 ......
 
@@ -210,8 +241,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-1.5.0
-.....
+1.5.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
@@ -315,8 +348,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-1.3.0
-.....
+1.3.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Breaks Google 8.4.0 provider for SQLExecute``
 
 .. note::
   This release of provider is only available for Airflow 2.3+ as explained in the

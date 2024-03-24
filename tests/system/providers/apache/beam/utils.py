@@ -18,6 +18,7 @@
 """
 Example Utils for Apache Beam operator example DAG's
 """
+
 from __future__ import annotations
 
 import os

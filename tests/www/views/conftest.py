@@ -36,7 +36,7 @@ from tests.test_utils.www import client_with_login, client_without_login, client
 @pytest.fixture(autouse=True, scope="module")
 def session():
     settings.configure_orm()
-    yield settings.Session
+    return settings.Session
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -44,7 +44,7 @@ def examples_dag_bag(session):
     DagBag(include_examples=True).sync_to_db()
     dag_bag = DagBag(include_examples=True, read_dags_from_db=True)
     session.commit()
-    yield dag_bag
+    return dag_bag
 
 
 @pytest.fixture(scope="module")
@@ -110,27 +110,27 @@ def app(examples_dag_bag):
         delete_user(app, user_dict["username"])
 
 
-@pytest.fixture()
+@pytest.fixture
 def admin_client(app):
     return client_with_login(app, username="test_admin", password="test_admin")
 
 
-@pytest.fixture()
+@pytest.fixture
 def viewer_client(app):
     return client_with_login(app, username="test_viewer", password="test_viewer")
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_client(app):
     return client_with_login(app, username="test_user", password="test_user")
 
 
-@pytest.fixture()
+@pytest.fixture
 def anonymous_client(app):
     return client_without_login(app)
 
 
-@pytest.fixture()
+@pytest.fixture
 def anonymous_client_as_admin(app):
     return client_without_login_as_admin(app)
 

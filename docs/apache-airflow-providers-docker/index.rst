@@ -64,26 +64,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-docker
+apache-airflow-providers-docker package
 ------------------------------------------------------
 
 `Docker <https://www.docker.com/>`__
 
 
-Release: 3.10.0
+Release: 3.9.2
 
 Provider package
 ----------------
 
-This is a provider package for ``docker`` provider. All classes for this provider package
-are in ``airflow.providers.docker`` python package.
+This package is for the ``docker`` provider.
+All classes for this package are included in the ``airflow.providers.docker`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-docker``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-docker``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -94,6 +94,6 @@ The minimum Apache Airflow version supported by this provider package is ``2.6.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.6.0``
-``docker``          ``>=5.0.3``
+``docker``          ``>=6``
 ``python-dotenv``   ``>=0.21.0``
 ==================  ==================

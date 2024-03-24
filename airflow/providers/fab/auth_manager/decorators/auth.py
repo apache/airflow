@@ -67,7 +67,7 @@ def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -
 
 def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """
-    Factory for decorator that checks current user's permissions against required permissions.
+    Check current user's permissions against required permissions.
 
     This decorator is only kept for backward compatible reasons. The decorator
     ``airflow.www.auth.has_access``, which redirects to this decorator, is widely used in user plugins.
@@ -93,11 +93,14 @@ def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
 
             if len(unique_dag_ids) > 1:
                 log.warning(
-                    f"There are different dag_ids passed in the request: {unique_dag_ids}. Returning 403."
+                    "There are different dag_ids passed in the request: %s. Returning 403.", unique_dag_ids
                 )
                 log.warning(
-                    f"kwargs: {dag_id_kwargs}, args: {dag_id_args}, "
-                    f"form: {dag_id_form}, json: {dag_id_json}"
+                    "kwargs: %s, args: %s, form: %s, json: %s",
+                    dag_id_kwargs,
+                    dag_id_args,
+                    dag_id_form,
+                    dag_id_json,
                 )
                 return (
                     render_template(

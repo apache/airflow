@@ -174,7 +174,7 @@ class GKEOperationTrigger(BaseTrigger):
         self._hook: GKEAsyncHook | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes GKEOperationTrigger arguments and classpath."""
+        """Serialize GKEOperationTrigger arguments and classpath."""
         return (
             "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEOperationTrigger",
             {
@@ -188,7 +188,7 @@ class GKEOperationTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets operation status and yields corresponding event."""
+        """Get operation status and yields corresponding event."""
         hook = self._get_hook()
         try:
             while True:
@@ -211,7 +211,6 @@ class GKEOperationTrigger(BaseTrigger):
                     self.log.info("Operation is still running.")
                     self.log.info("Sleeping for %ss...", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-
                 else:
                     yield TriggerEvent(
                         {

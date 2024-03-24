@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
+
 from __future__ import annotations
 
 import os
@@ -96,7 +97,7 @@ class SSHHook(BaseHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom UI field behaviour for SSH connection."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -283,7 +284,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens an SSH connection to the remote host."""
+        """Establish an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -375,9 +376,11 @@ class SSHHook(BaseHook):
         category=AirflowProviderDeprecationWarning,
     )
     def __enter__(self) -> SSHHook:
+        """Return an instance of SSHHook when the `with` statement is used."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Clear ssh client after exiting the `with` statement block."""
         if self.client is not None:
             self.client.close()
             self.client = None

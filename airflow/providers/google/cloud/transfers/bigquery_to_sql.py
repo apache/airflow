@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for BigQuery to SQL operators."""
+
 from __future__ import annotations
 
 import abc
@@ -109,7 +110,7 @@ class BigQueryToSqlBaseOperator(BaseOperator):
         """Return a concrete SQL Hook (a PostgresHook for instance)."""
 
     def persist_links(self, context: Context) -> None:
-        """This function persists the connection to the SQL provider."""
+        """Persist the connection to the SQL provider."""
 
     def execute(self, context: Context) -> None:
         big_query_hook = BigQueryHook(

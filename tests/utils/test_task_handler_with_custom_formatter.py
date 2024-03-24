@@ -58,7 +58,7 @@ def custom_task_log_handler_config():
     logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
 
-@pytest.fixture()
+@pytest.fixture
 def task_instance():
     dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
     task = EmptyOperator(task_id=TASK_ID, dag=dag)

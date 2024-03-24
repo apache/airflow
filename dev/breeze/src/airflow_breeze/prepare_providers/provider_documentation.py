@@ -459,7 +459,7 @@ def _update_version_in_provider_yaml(
         v = v.bump_patch()
     provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
     original_text = provider_yaml_path.read_text()
-    new_text = re.sub(r"versions:", f"versions:\n  - {v}", original_text, 1)
+    new_text = re.sub(r"^versions:", f"versions:\n  - {v}", original_text, 1, re.MULTILINE)
     provider_yaml_path.write_text(new_text)
     get_console().print(f"[special]Bumped version to {v}\n")
     return with_breaking_changes, maybe_with_new_features

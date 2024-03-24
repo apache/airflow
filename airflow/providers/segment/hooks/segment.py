@@ -21,6 +21,7 @@ Connect to your Segment account, retrieve data from it or write to that file.
 NOTE:   this hook also relies on the Segment analytics package:
         https://github.com/segmentio/analytics-python
 """
+
 from __future__ import annotations
 
 import analytics
@@ -80,6 +81,6 @@ class SegmentHook(BaseHook):
         return analytics
 
     def on_error(self, error: str, items: str) -> None:
-        """Handles error callbacks when using Segment with segment_debug_mode set to True."""
+        """Handle error callbacks when using Segment with segment_debug_mode set to True."""
         self.log.error("Encountered Segment error: %s with items: %s", error, items)
         raise AirflowException(f"Segment error: {error}")

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS S3, using the boto3 library."""
+
 from __future__ import annotations
 
 import asyncio
@@ -30,16 +31,18 @@ import warnings
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
-from functools import wraps
+from functools import cached_property, wraps
 from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
+
     from airflow.utils.types import ArgNotSet
 
     with suppress(ImportError):
@@ -55,22 +58,17 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
-
-T = TypeVar("T", bound=Callable)
-
 logger = logging.getLogger(__name__)
 
 
-def provide_bucket_name(func: T) -> T:
+def provide_bucket_name(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> T:
+    def wrapper(*args, **kwargs) -> Callable:
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "bucket_name" not in bound_args.arguments:
@@ -90,10 +88,10 @@ def provide_bucket_name(func: T) -> T:
 
         return func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return wrapper
 
 
-def provide_bucket_name_async(func: T) -> T:
+def provide_bucket_name_async(func: Callable) -> Callable:
     """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     function_signature = signature(func)
 
@@ -110,15 +108,15 @@ def provide_bucket_name_async(func: T) -> T:
 
         return await func(*bound_args.args, **bound_args.kwargs)
 
-    return cast(T, wrapper)
+    return wrapper
 
 
-def unify_bucket_name_and_key(func: T) -> T:
+def unify_bucket_name_and_key(func: Callable) -> Callable:
     """Unify bucket name and key in case no bucket name and at least a key has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> T:
+    def wrapper(*args, **kwargs) -> Callable:
         bound_args = function_signature.bind(*args, **kwargs)
 
         if "wildcard_key" in bound_args.arguments:
@@ -141,7 +139,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     # if provide_bucket_name is applied first, and there's a bucket defined in conn
     # then if user supplies full key, bucket in key is not respected
     wrapper._unify_bucket_name_and_key_wrapped = True  # type: ignore[attr-defined]
-    return cast(T, wrapper)
+    return wrapper
 
 
 class S3Hook(AwsBaseHook):
@@ -187,6 +185,15 @@ class S3Hook(AwsBaseHook):
         self._extra_args = extra_args or {}
 
         super().__init__(*args, **kwargs)
+
+    @cached_property
+    def resource(self):
+        return self.get_session().resource(
+            self.service_name,
+            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=self.service_name),
+            config=self.config,
+            verify=self.verify,
+        )
 
     @property
     def extra_args(self):
@@ -307,13 +314,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
         """
-        s3_resource = self.get_session().resource(
-            "s3",
-            endpoint_url=self.conn_config.endpoint_url,
-            config=self.config,
-            verify=self.verify,
-        )
-        return s3_resource.Bucket(bucket_name)
+        return self.resource.Bucket(bucket_name)
 
     @provide_bucket_name
     def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
@@ -943,14 +944,7 @@ class S3Hook(AwsBaseHook):
                 if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
             }
 
-        s3_resource = self.get_session().resource(
-            "s3",
-            endpoint_url=self.conn_config.endpoint_url,
-            config=self.config,
-            verify=self.verify,
-        )
-        obj = s3_resource.Object(bucket_name, key)
-
+        obj = self.resource.Object(bucket_name, key)
         obj.load(**sanitize_extra_args())
         return obj
 
@@ -1369,6 +1363,10 @@ class S3Hook(AwsBaseHook):
         """
         Download a file from the S3 location to the local file system.
 
+        Note:
+            This function shadows the 'download_file' method of S3 API, but it is not the same.
+            If you want to use the original method from S3 API, please use 'S3Hook.get_conn().download_file()'
+
         .. seealso::
             - :external+boto3:py:meth:`S3.Object.download_fileobj`
 
@@ -1386,12 +1384,6 @@ class S3Hook(AwsBaseHook):
             Default: True.
         :return: the file name.
         """
-        self.log.info(
-            "This function shadows the 'download_file' method of S3 API, but it is not the same. If you "
-            "want to use the original method from S3 API, please call "
-            "'S3Hook.get_conn().download_file()'"
-        )
-
         self.log.info("Downloading source S3 file from Bucket %s with path %s", bucket_name, key)
 
         try:

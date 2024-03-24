@@ -197,7 +197,7 @@ class RedshiftHook(AwsBaseHook):
 
 @deprecated(
     reason=(
-        "airflow.providers.amazon.aws.hook.base_aws.RedshiftAsyncHook "
+        "`airflow.providers.amazon.aws.hook.base_aws.RedshiftAsyncHook` "
         "has been deprecated and will be removed in future"
     ),
     category=AirflowProviderDeprecationWarning,

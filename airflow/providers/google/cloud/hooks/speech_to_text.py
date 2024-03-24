@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Speech Hook."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -65,7 +66,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
 
     def get_conn(self) -> SpeechClient:
         """
-        Retrieves connection to Cloud Speech.
+        Retrieve connection to Cloud Speech.
 
         :return: Google Cloud Speech client object.
         """

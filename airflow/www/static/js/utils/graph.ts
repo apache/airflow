@@ -74,6 +74,7 @@ const formatEdge = (e: WebserverEdge, font: string, node?: DepNode) => ({
   targets: [e.targetId],
   isSetupTeardown: e.isSetupTeardown,
   parentNode: node?.id,
+  isSourceDataset: e.isSourceDataset,
   labels: e.label
     ? [
         {
@@ -132,7 +133,7 @@ const generateGraph = ({
         },
         label: value.label,
         layoutOptions: {
-          "elk.padding": "[top=60,left=10,bottom=10,right=10]",
+          "elk.padding": "[top=80,left=15,bottom=15,right=15]",
         },
         children: children.map(formatChildNode),
         edges: filteredEdges
@@ -172,6 +173,9 @@ const generateGraph = ({
         }));
       closedGroupIds.push(id);
     }
+    const extraLabelLength =
+      value.label.length > 20 ? value.label.length - 19 : 0;
+
     return {
       id,
       label: value.label,
@@ -180,7 +184,8 @@ const generateGraph = ({
         isJoinNode,
         childCount,
       },
-      width: isJoinNode ? 10 : 200,
+      // Make tasks with long names wider
+      width: isJoinNode ? 10 : 200 + extraLabelLength * 5,
       height: isJoinNode ? 10 : 70,
     };
   };
@@ -215,7 +220,7 @@ export const useGraphLayout = ({
   return useQuery(
     [
       "graphLayout",
-      !!nodes?.children,
+      nodes?.children?.length,
       openGroupIds,
       arrange,
       root,

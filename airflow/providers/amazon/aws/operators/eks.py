@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Amazon EKS operators."""
+
 from __future__ import annotations
 
 import logging
@@ -39,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
     EksDeleteNodegroupTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
@@ -72,7 +74,7 @@ FARGATE_FULL_NAME = "AWS Fargate profiles"
 def _create_compute(
     compute: str | None,
     cluster_name: str,
-    aws_conn_id: str,
+    aws_conn_id: str | None,
     region: str | None,
     waiter_delay: int,
     waiter_max_attempts: int,
@@ -230,7 +232,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -245,7 +247,9 @@ class EksCreateClusterOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -421,11 +425,10 @@ class EksCreateClusterOperator(BaseOperator):
         raise AirflowException("Error creating cluster")
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         resource = "fargate profile" if self.compute == "fargate" else self.compute
-        if event is None:
-            self.log.info("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
+        if event["status"] != "success":
             raise AirflowException(f"Error creating {resource}: {event}")
 
         self.log.info("%s created successfully", resource)
@@ -481,7 +484,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
@@ -494,7 +497,9 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -547,10 +552,11 @@ class EksCreateNodegroupOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error creating nodegroup: {event}")
-        return
 
 
 class EksCreateFargateProfileOperator(BaseOperator):
@@ -603,7 +609,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
@@ -615,7 +621,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.pod_execution_role_arn = pod_execution_role_arn
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
@@ -656,12 +664,13 @@ class EksCreateFargateProfileOperator(BaseOperator):
                 timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error creating Fargate profile: {event}")
-        else:
-            self.log.info("Fargate profile created successfully")
-        return
+
+        self.log.info("Fargate profile created successfully")
 
 
 class EksDeleteClusterOperator(BaseOperator):
@@ -704,7 +713,7 @@ class EksDeleteClusterOperator(BaseOperator):
         cluster_name: str,
         force_delete_compute: bool = False,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
@@ -713,7 +722,9 @@ class EksDeleteClusterOperator(BaseOperator):
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        if deferrable:
+            wait_for_completion = False
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.deferrable = deferrable
@@ -788,10 +799,9 @@ class EksDeleteClusterOperator(BaseOperator):
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error. Event is None")
-            raise AirflowException("Trigger error. Event is None")
-        elif event["status"] == "success":
+        event = validate_execute_complete_event(event)
+
+        if event["status"] == "success":
             self.log.info("Cluster deleted successfully.")
 
 
@@ -834,7 +844,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         cluster_name: str,
         nodegroup_name: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
@@ -879,10 +889,11 @@ class EksDeleteNodegroupOperator(BaseOperator):
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error deleting nodegroup: {event}")
-        return
 
 
 class EksDeleteFargateProfileOperator(BaseOperator):
@@ -923,7 +934,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         cluster_name: str,
         fargate_profile_name: str,
         wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
@@ -972,12 +983,13 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error deleting Fargate profile: {event}")
-        else:
-            self.log.info("Fargate profile deleted successfully")
-        return
+
+        self.log.info("Fargate profile deleted successfully")
 
 
 class EksPodOperator(KubernetesPodOperator):
@@ -1034,7 +1046,7 @@ class EksPodOperator(KubernetesPodOperator):
         pod_context: str | None = None,
         pod_name: str | None = None,
         pod_username: str | None = None,
-        aws_conn_id: str = DEFAULT_CONN_ID,
+        aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,

@@ -61,7 +61,7 @@ class SFTPTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SFTPTrigger arguments and classpath."""
+        """Serialize SFTPTrigger arguments and classpath."""
         return (
             "airflow.providers.sftp.triggers.sftp.SFTPTrigger",
             {
@@ -75,7 +75,7 @@ class SFTPTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
-        Makes a series of asynchronous calls to sftp servers via async sftp hook. It yields a Trigger.
+        Make a series of asynchronous calls to sftp servers via async sftp hook. It yields a Trigger.
 
         - If file matching file pattern exists at the specified path return it,
         - If file pattern was not provided, it looks directly into the specific path which was provided.
@@ -113,14 +113,17 @@ class SFTPTrigger(BaseTrigger):
                                 "message": f"Sensed {len(files_sensed)} files: {files_sensed}",
                             }
                         )
+                        return
                 else:
                     mod_time = await hook.get_mod_time(self.path)
                     if _newer_than:
                         mod_time_utc = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                         if _newer_than <= mod_time_utc:
                             yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                            return
                     else:
                         yield TriggerEvent({"status": "success", "message": f"Sensed file: {self.path}"})
+                        return
                 await asyncio.sleep(self.poke_interval)
             except AirflowException:
                 await asyncio.sleep(self.poke_interval)

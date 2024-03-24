@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+
 from __future__ import annotations
 
 import copy
@@ -676,6 +677,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options = self.dataflow_default_options
         options.update(self.options)
 
+        if not self.location:
+            self.location = DEFAULT_DATAFLOW_LOCATION
+
         self.job = self.hook.start_template_dataflow(
             job_name=self.job_name,
             variables=options,
@@ -703,7 +707,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
+                location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
@@ -713,7 +717,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
@@ -781,10 +785,10 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         pipeline code, step two will not start until the process stops. When this process stops,
         steps two will run, but it will only execute one iteration as the job will be in a terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finish=True
+        If you in your pipeline do not call the wait_for_pipeline method but pass wait_until_finished=True
         to the operator, the second loop will wait for the job's terminal state.
 
-        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finish=False
+        If you in your pipeline do not call the wait_for_pipeline method, and pass wait_until_finished=False
         to the operator, the second loop will check once is job not in terminal state and exit the loop.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -903,7 +907,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Job name was changed to %s", job_name)
 
     def execute_complete(self, context: Context, event: dict):
-        """Method which executes after trigger finishes its work."""
+        """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])

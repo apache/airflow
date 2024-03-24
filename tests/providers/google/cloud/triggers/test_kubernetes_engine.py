@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
-from asyncio import CancelledError, Future
+from asyncio import Future
 from unittest import mock
 
 import pytest
@@ -108,13 +108,13 @@ class TestGKEStartPodTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_KUB_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_success_event_should_execute_successfully(
-        self, mock_hook, mock_method, trigger
+        self, mock_hook, mock_wait_pod, trigger
     ):
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
-        mock_method.return_value = ContainerState.TERMINATED
+        mock_wait_pod.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
             {
@@ -129,10 +129,10 @@ class TestGKEStartPodTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_KUB_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_failed_event_should_execute_successfully(
-        self, mock_hook, mock_method, trigger
+        self, mock_hook, mock_wait_pod, trigger
     ):
         mock_hook.get_pod.return_value = self._mock_pod_result(
             mock.MagicMock(
@@ -141,14 +141,14 @@ class TestGKEStartPodTrigger:
                 )
             )
         )
-        mock_method.return_value = ContainerState.FAILED
+        mock_wait_pod.return_value = ContainerState.FAILED
 
         expected_event = TriggerEvent(
             {
                 "name": POD_NAME,
                 "namespace": NAMESPACE,
                 "status": "failed",
-                "message": FAILED_RESULT_MSG,
+                "message": "pod failed",
             }
         )
         actual_event = await trigger.run().asend(None)
@@ -156,10 +156,11 @@ class TestGKEStartPodTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_KUB_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_waiting_event_should_execute_successfully(
-        self, mock_hook, mock_method, trigger, caplog
+        self, mock_hook, mock_method, mock_wait_pod, trigger, caplog
     ):
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.WAITING
@@ -174,10 +175,11 @@ class TestGKEStartPodTrigger:
         assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_KUB_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_run_loop_return_running_event_should_execute_successfully(
-        self, mock_hook, mock_method, trigger, caplog
+        self, mock_hook, mock_method, mock_wait_pod, trigger, caplog
     ):
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.RUNNING
@@ -192,9 +194,10 @@ class TestGKEStartPodTrigger:
         assert f"Sleeping for {POLL_INTERVAL} seconds."
 
     @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_KUB_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
     async def test_logging_in_trigger_when_exception_should_execute_successfully(
-        self, mock_hook, trigger, caplog
+        self, mock_hook, mock_wait_pod, trigger, caplog
     ):
         """
         Test that GKEStartPodTrigger fires the correct event in case of an error.
@@ -228,34 +231,6 @@ class TestGKEStartPodTrigger:
         generator = trigger.run()
         await generator.asend(None)
         assert "Container logs:"
-
-    @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_GKE_PATH}.hook")
-    async def test_logging_in_trigger_when_cancelled_should_execute_successfully(
-        self, mock_hook, trigger, caplog
-    ):
-        """
-        Test that GKEStartPodTrigger fires the correct event in case if the task was cancelled.
-        """
-        mock_hook.get_pod.side_effect = CancelledError()
-        mock_hook.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
-        mock_hook.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
-
-        generator = trigger.run()
-        actual = await generator.asend(None)
-        assert (
-            TriggerEvent(
-                {
-                    "name": POD_NAME,
-                    "namespace": NAMESPACE,
-                    "status": "cancelled",
-                    "message": "Pod execution was cancelled",
-                }
-            )
-            == actual
-        )
-        assert "Outputting container logs..." in caplog.text
-        assert "Deleting pod..." in caplog.text
 
     @pytest.mark.parametrize(
         "container_state, expected_state",
@@ -308,7 +283,7 @@ def operation_trigger():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_operation_result():
     def func(**kwargs):
         m = mock.MagicMock()

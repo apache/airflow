@@ -77,8 +77,9 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
                 console.print(
                     f"File path: {os.path.relpath(error.file_path, start=DOCS_DIR)} ({error.line_no})"
                 )
-                console.print()
-                console.print(prepare_code_snippet(error.file_path, error.line_no))
+                if os.path.isfile(error.file_path):
+                    console.print()
+                    console.print(prepare_code_snippet(error.file_path, error.line_no))
             elif error.file_path:
                 console.print(f"File path: {error.file_path}")
     console.print()

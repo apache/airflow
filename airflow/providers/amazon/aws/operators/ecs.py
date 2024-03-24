@@ -21,7 +21,7 @@ import re
 import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -35,10 +35,12 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import boto3
@@ -256,19 +258,18 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         self,
         *,
         task_definition: str,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.task_definition = task_definition
@@ -310,19 +311,18 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.family = family
@@ -580,7 +580,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             return None
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
+        event = validate_execute_complete_event(event)
+
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
@@ -596,6 +598,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             )
             if len(one_log["events"]) > 0:
                 return one_log["events"][0]["message"]
+        return None
 
     def _after_execution(self):
         self._check_success_task()

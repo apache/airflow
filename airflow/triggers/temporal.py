@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-from typing import Any
+from typing import Any, AsyncIterator
+
+import pendulum
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -42,12 +44,12 @@ class DateTimeTrigger(BaseTrigger):
         elif moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
         else:
-            self.moment = timezone.convert_to_utc(moment)
+            self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Loop until the relevant time is met.
 
@@ -59,13 +61,13 @@ class DateTimeTrigger(BaseTrigger):
         # Sleep in successively smaller increments starting from 1 hour down to 10 seconds at a time
         self.log.info("trigger starting")
         for step in 3600, 60, 10:
-            seconds_remaining = (self.moment - timezone.utcnow()).total_seconds()
+            seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
             while seconds_remaining > 2 * step:
-                self.log.info(f"{int(seconds_remaining)} seconds remaining; sleeping {step} seconds")
+                self.log.info("%d seconds remaining; sleeping %s seconds", seconds_remaining, step)
                 await asyncio.sleep(step)
-                seconds_remaining = (self.moment - timezone.utcnow()).total_seconds()
+                seconds_remaining = (self.moment - pendulum.instance(timezone.utcnow())).total_seconds()
         # Sleep a second at a time otherwise
-        while self.moment > timezone.utcnow():
+        while self.moment > pendulum.instance(timezone.utcnow()):
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
         # Send our single event and then we're done

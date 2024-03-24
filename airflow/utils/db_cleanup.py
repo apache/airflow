@@ -20,6 +20,7 @@ This module took inspiration from the community maintenance dag.
 See:
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
+
 from __future__ import annotations
 
 import csv
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 
     from airflow.models import Base
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 

@@ -36,15 +36,6 @@
 
     Connection types <connections>
 
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -55,32 +46,6 @@
     Installing from sources <installing-providers-from-sources>
     Apprise Notifications <notifications/apprise_notifier_howto_guide>
 
-
-Package apache-airflow-providers-apprise
------------------------------------------
-
-`Apprise <https://github.com/caronc/apprise>`__
-
-
-Release: 1.0.0
-
-Provider package
-----------------
-
-This is a provider package for ``apprise`` notification library. All classes for this provider package
-are in ``airflow.providers.apprise`` python module.
-
-
-Requirements
-------------
-
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
-
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.4.0``
-==================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -93,26 +58,26 @@ PIP package         Version required
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-apprise
+apache-airflow-providers-apprise package
 ------------------------------------------------------
 
 `Apprise <https://github.com/caronc/apprise>`__
 
 
-Release: 1.3.0
+Release: 1.2.2
 
 Provider package
 ----------------
 
-This is a provider package for ``apprise`` provider. All classes for this provider package
-are in ``airflow.providers.apprise`` python package.
+This package is for the ``apprise`` provider.
+All classes for this package are included in the ``airflow.providers.apprise`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-apprise``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-apprise``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------

@@ -35,6 +35,14 @@ ARG_DRY_RUN = Arg(
     action="store_true",
 )
 
+# AWS IAM Identity Center
+ARG_INSTANCE_NAME = Arg(("--instance-name",), help="Instance name in Identity Center", default="Airflow")
+
+ARG_APPLICATION_NAME = Arg(
+    ("--application-name",), help="Application name in Identity Center", default="Airflow"
+)
+
+
 # Amazon Verified Permissions
 ARG_POLICY_STORE_DESCRIPTION = Arg(
     ("--policy-store-description",), help="Policy store description", default="Airflow"
@@ -48,6 +56,12 @@ ARG_POLICY_STORE_ID = Arg(("--policy-store-id",), help="Policy store ID")
 
 AWS_AUTH_MANAGER_COMMANDS = (
     ActionCommand(
+        name="init-identity-center",
+        help="Initialize AWS IAM identity Center resources to be used by AWS manager",
+        func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.idc_commands.init_idc"),
+        args=(ARG_INSTANCE_NAME, ARG_APPLICATION_NAME, ARG_DRY_RUN, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="init-avp",
         help="Initialize Amazon Verified resources to be used by AWS manager",
         func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.init_avp"),
@@ -55,7 +69,7 @@ AWS_AUTH_MANAGER_COMMANDS = (
     ),
     ActionCommand(
         name="update-avp-schema",
-        help="Update Amazon Verified permissions policy store schema to the latest version in 'airflow/providers/amazon/aws/auth_manager/cli/schema.json'",
+        help="Update Amazon Verified permissions policy store schema to the latest version in 'airflow/providers/amazon/aws/auth_manager/avp/schema.json'",
         func=lazy_load_command("airflow.providers.amazon.aws.auth_manager.cli.avp_commands.update_schema"),
         args=(ARG_POLICY_STORE_ID, ARG_DRY_RUN, ARG_VERBOSE),
     ),

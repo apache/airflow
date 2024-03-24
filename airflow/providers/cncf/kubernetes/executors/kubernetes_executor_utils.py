@@ -136,7 +136,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             else:
                 return watcher.stream(kube_client.list_namespaced_pod, self.namespace, **query_kwargs)
         except ApiException as e:
-            if e.status == 410:  # Resource version is too old
+            if str(e.status) == "410":  # Resource version is too old
                 if self.namespace == ALL_NAMESPACES:
                     pods = kube_client.list_pod_for_all_namespaces(watch=False)
                 else:
@@ -235,6 +235,34 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
                 )
+            elif (
+                self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                and "status" in event["raw_object"]
+            ):
+                self.log.info("Event: %s Pending, annotations: %s", pod_name, annotations_string)
+                # Init containers and base container statuses to check.
+                # Skipping the other containers statuses check.
+                container_statuses_to_check = []
+                if "initContainerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.extend(event["raw_object"]["status"]["initContainerStatuses"])
+                if "containerStatuses" in event["raw_object"]["status"]:
+                    container_statuses_to_check.append(event["raw_object"]["status"]["containerStatuses"][0])
+                for container_status in container_statuses_to_check:
+                    container_status_state = container_status["state"]
+                    if "waiting" in container_status_state:
+                        if (
+                            container_status_state["waiting"]["reason"]
+                            in self.kube_config.worker_pod_pending_fatal_container_state_reasons
+                        ):
+                            if (
+                                container_status_state["waiting"]["reason"] == "ErrImagePull"
+                                and container_status_state["waiting"]["message"] == "pull QPS exceeded"
+                            ):
+                                continue
+                            self.watcher_queue.put(
+                                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+                            )
+                            break
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
@@ -425,7 +453,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             )
         except ApiException as e:
             # If the pod is already deleted
-            if e.status != 404:
+            if str(e.status) != "404":
                 raise
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base operator for SQL to GCS operators."""
+
 from __future__ import annotations
 
 import abc
@@ -153,9 +154,10 @@ class BaseSQLToGCSOperator(BaseOperator):
     def execute(self, context: Context):
         if self.partition_columns:
             self.log.info(
-                f"Found partition columns: {','.join(self.partition_columns)}. "
+                "Found partition columns: %s. "
                 "Assuming the SQL statement is properly sorted by these columns in "
-                "ascending or descending order."
+                "ascending or descending order.",
+                ",".join(self.partition_columns),
             )
 
         self.log.info("Executing query")
@@ -228,7 +230,7 @@ class BaseSQLToGCSOperator(BaseOperator):
 
     def _write_local_data_files(self, cursor):
         """
-        Takes a cursor, and writes results to a local file.
+        Take a cursor, and writes results to a local file.
 
         :return: A dictionary where keys are filenames to be used as object
             names in GCS, and values are file handles to local files that
@@ -348,7 +350,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             yield file_to_upload
 
     def _get_file_to_upload(self, file_mime_type, file_no):
-        """Returns a dictionary that represents the file to upload."""
+        """Return a dictionary that represents the file to upload."""
         tmp_file_handle = NamedTemporaryFile(mode="w", encoding="utf-8", delete=True)
         return (
             {
@@ -435,7 +437,7 @@ class BaseSQLToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
+        Take a cursor, and writes the BigQuery schema for the results to a local file system.
 
         Schema for database will be read from cursor if not specified.
 

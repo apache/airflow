@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Vertex AI operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -183,7 +184,7 @@ class RunPipelineJobOperator(GoogleCloudBaseOperator):
         return pipeline_job
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_pipeline_job()
 

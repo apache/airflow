@@ -20,6 +20,7 @@ Base operator for all operators.
 
 :sphinx-autoapi-skip:
 """
+
 from __future__ import annotations
 
 import abc
@@ -31,6 +32,7 @@ import logging
 import sys
 import warnings
 from datetime import datetime, timedelta
+from functools import total_ordering, wraps
 from inspect import signature
 from types import FunctionType
 from typing import (
@@ -74,12 +76,14 @@ from airflow.models.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
 )
+from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -94,7 +98,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
-from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -124,7 +127,7 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or isinstance(retries, int):
+    if retries is None or type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -196,7 +199,8 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
-_PARTIAL_DEFAULTS = {
+_PARTIAL_DEFAULTS: dict[str, Any] = {
+    "map_index_template": None,
     "owner": DEFAULT_OWNER,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "depends_on_past": False,
@@ -213,6 +217,7 @@ _PARTIAL_DEFAULTS = {
     "weight_rule": DEFAULT_WEIGHT_RULE,
     "inlets": [],
     "outlets": [],
+    "allow_nested_operators": True,
 }
 
 
@@ -243,8 +248,9 @@ def partial(
     retry_delay: timedelta | float | ArgNotSet = NOTSET,
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
     priority_weight: int | ArgNotSet = NOTSET,
-    weight_rule: str | ArgNotSet = NOTSET,
+    weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
+    map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -263,6 +269,7 @@ def partial(
     doc_rst: str | None | ArgNotSet = NOTSET,
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
+    allow_nested_operators: bool = True,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -290,6 +297,7 @@ def partial(
         "dag": dag,
         "task_group": task_group,
         "task_id": task_id,
+        "map_index_template": map_index_template,
         "start_date": start_date,
         "end_date": end_date,
         "owner": owner,
@@ -329,6 +337,7 @@ def partial(
         "doc_yaml": doc_yaml,
         "task_display_name": task_display_name,
         "logger_name": logger_name,
+        "allow_nested_operators": allow_nested_operators,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -363,6 +372,35 @@ def partial(
     )
 
 
+class ExecutorSafeguard:
+    """
+    The ExecutorSafeguard decorator.
+
+    Checks if the execute method of an operator isn't manually called outside
+    the TaskInstance as we want to avoid bad mixing between decorated and
+    classic operators.
+    """
+
+    test_mode = conf.getboolean("core", "unit_test_mode")
+
+    @classmethod
+    def decorator(cls, func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            from airflow.decorators.base import DecoratedOperator
+
+            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+
+            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
+                message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
+                if not self.allow_nested_operators:
+                    raise AirflowException(message)
+                self.log.warning(message)
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+
 class BaseOperatorMeta(abc.ABCMeta):
     """Metaclass of BaseOperator."""
 
@@ -394,7 +432,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
         fixup_decorator_warning_stack(func)
 
-        @functools.wraps(func)
+        @wraps(func)
         def apply_defaults(self: BaseOperator, *args: Any, **kwargs: Any) -> Any:
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
@@ -462,6 +500,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         return cast(T, apply_defaults)
 
     def __new__(cls, name, bases, namespace, **kwargs):
+        execute_method = namespace.get("execute")
+        if callable(execute_method) and not getattr(execute_method, "__isabstractmethod__", False):
+            namespace["execute"] = ExecutorSafeguard().decorator(execute_method)
         new_cls = super().__new__(cls, name, bases, namespace, **kwargs)
         with contextlib.suppress(KeyError):
             # Update the partial descriptor with the class method, so it calls the actual function
@@ -473,9 +514,9 @@ class BaseOperatorMeta(abc.ABCMeta):
         return new_cls
 
 
-@functools.total_ordering
+@total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
-    """
+    r"""
     Abstract base class for all operators.
 
     Since operators create objects that become nodes in the DAG, BaseOperator
@@ -574,6 +615,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
+        |experimental|
+        Since 2.9.0, Airflow allows to define custom priority weight strategy,
+        by creating a subclass of
+        ``airflow.task.priority_strategy.PriorityWeightStrategy`` and registering
+        in a plugin, then providing the class path or the class instance via
+        ``weight_rule`` parameter. The custom priority weight strategy will be
+        used to calculate the effective total priority weight of the task instance.
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
         does support targeting specific queues.
@@ -645,6 +693,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     :param do_xcom_push: if True, an XCom is pushed containing the Operator's
         result
+    :param multiple_outputs: if True and do_xcom_push is True, pushes multiple XComs, one for each
+        key in the returned dictionary result. If False and do_xcom_push is True, pushes a single XCom.
     :param task_group: The TaskGroup to which the task should belong. This is typically provided when not
         using a TaskGroup as a context manager.
     :param doc: Add documentation or notes to your Task objects that is visible in
@@ -662,6 +712,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         If set to `None` (default), the logger name will fall back to
         `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
         *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+    :param allow_nested_operators: if True, when an operator is executed within another one a warning message
+        will be logged. If False, then an exception will be raised if the operator is badly used (e.g. nested
+        within another one). In future releases of Airflow this parameter will be removed and an exception
+        will always be thrown when operators are nested within each other (default is True).
+
+        **Example**: example of a bad operator mixin usage::
+
+            @task(provide_context=True)
+            def say_hello_world(**context):
+                hello_world_task = BashOperator(
+                    task_id="hello_world_task",
+                    bash_command="python -c \"print('Hello, world!')\"",
+                    dag=dag,
+                )
+                hello_world_task.execute(context)
     """
 
     # Implementing Operator.
@@ -716,6 +781,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_retry_callback",
         "on_skipped_callback",
         "do_xcom_push",
+        "multiple_outputs",
+        "allow_nested_operators",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -764,7 +831,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str = DEFAULT_WEIGHT_RULE,
+        weight_rule: str | PriorityWeightStrategy = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -781,10 +848,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
+        map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
+        multiple_outputs: bool = False,
         inlets: Any | None = None,
         outlets: Any | None = None,
         task_group: TaskGroup | None = None,
@@ -795,6 +864,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_rst: str | None = None,
         task_display_name: str | None = None,
         logger_name: str | None = None,
+        allow_nested_operators: bool = True,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -914,13 +984,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"received '{type(priority_weight)}'."
             )
         self.priority_weight = priority_weight
-        if not WeightRule.is_valid(weight_rule):
-            raise AirflowException(
-                f"The weight_rule must be one of "
-                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
-                f"received '{weight_rule}'."
-            )
-        self.weight_rule = weight_rule
+        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
@@ -933,6 +997,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
+        self.map_index_template: str | None = map_index_template
+        self.multiple_outputs: bool = multiple_outputs
 
         self.doc_md = doc_md
         self.doc_json = doc_json
@@ -949,6 +1015,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self._log_config_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
+        self.allow_nested_operators: bool = allow_nested_operators
 
         # Lineage
         self.inlets: list = []
@@ -1576,6 +1643,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "is_setup",
                     "is_teardown",
                     "on_failure_fail_dagrun",
+                    "map_index_template",
                 }
             )
             DagContext.pop_context_managed_dag()
@@ -1611,7 +1679,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
-        """This method is called when a deferred task is resumed."""
+        """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
         if next_method == "__fail__":

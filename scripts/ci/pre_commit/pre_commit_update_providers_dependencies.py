@@ -384,6 +384,9 @@ if __name__ == "__main__":
             )
             console.print("breeze static-checks --type update-providers-dependencies --all-files")
             console.print()
+            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
+            console.print()
+            sys.exit(1)
         else:
             console.print()
             console.print(
@@ -401,6 +404,10 @@ if __name__ == "__main__":
             )
             console.print("breeze static-checks --type update-providers-dependencies --all-files")
             console.print()
+            console.print()
+            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
+            console.print()
+            sys.exit(1)
         else:
             console.print(f"Written {PYPROJECT_TOML_FILE_PATH}")
     console.print()

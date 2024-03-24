@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataproc operators."""
+
 from __future__ import annotations
 
 import inspect
@@ -541,7 +542,7 @@ class ClusterGenerator:
 
     def make(self):
         """
-        Helper method for easier migration.
+        Act as a helper method for easier migration.
 
         :return: Dict representing Dataproc cluster.
         """
@@ -835,7 +836,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae_inner, exc_info=True)
+                self.log.exception(ae_inner)
             finally:
                 raise ae
 
@@ -859,7 +860,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1108,7 +1109,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1470,7 +1471,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context, event=None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -1484,7 +1485,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         return job_id
 
     def on_kill(self) -> None:
-        """Callback called when the operator is killed; cancel any running job."""
+        """Act as a callback called when the operator is killed; cancel any running job."""
         if self.dataproc_job_id:
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
@@ -1587,7 +1588,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1681,7 +1682,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1774,7 +1775,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1869,7 +1870,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
     def generate_job(self):
         """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -1959,7 +1960,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         self.files = files
 
     def generate_job(self):
-        """Helper method for easier migration to `DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to `DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -2073,7 +2074,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         self.pyfiles = pyfiles
 
     def generate_job(self):
-        """Helper method for easier migration to :class:`DataprocSubmitJobOperator`.
+        """Act as a helper method for easier migration to :class:`DataprocSubmitJobOperator`.
 
         :return: Dict representing Dataproc job
         """
@@ -2305,7 +2306,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2377,7 +2378,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         region: str,
         project_id: str | None = None,
         request_id: str | None = None,
-        retry: Retry | _MethodDefault = DEFAULT,
+        retry: AsyncRetry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2431,7 +2432,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
         if not self.deferrable:
             self.log.info("Template instantiated. Workflow Id : %s", workflow_id)
-            operation.result()
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
@@ -2447,7 +2448,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2601,7 +2602,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         return self.job_id
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2757,7 +2758,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
-        Callback for when the trigger fires - returns immediately.
+        Act as a callback for when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -2887,7 +2888,7 @@ class DataprocDiagnoseClusterOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
@@ -2911,7 +2912,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param batch: Required. The batch to create. (templated)
-    :param batch_id: Optional. The ID to use for the batch, which will become the final component
+    :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
         This value must be 4-63 characters. Valid characters are /[a-z][0-9]-/. (templated)
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
@@ -3085,7 +3086,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         return Batch.to_dict(result)
 
     def execute_complete(self, context, event=None) -> None:
-        """Callback for when the trigger fires.
+        """Act as a callback for when the trigger fires.
 
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.

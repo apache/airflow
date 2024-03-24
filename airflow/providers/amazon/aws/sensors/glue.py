@@ -51,7 +51,7 @@ class GlueJobSensor(BaseSensorOperator):
         job_name: str,
         run_id: str,
         verbose: bool = False,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

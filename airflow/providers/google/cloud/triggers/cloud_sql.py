@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL triggers."""
+
 from __future__ import annotations
 
 import asyncio
@@ -79,6 +80,7 @@ class CloudSQLExportTrigger(BaseTrigger):
                             }
                         )
                         return
+
                     yield TriggerEvent(
                         {
                             "operation_name": operation["name"],

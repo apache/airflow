@@ -22,6 +22,7 @@ DebugExecutor.
     For more information on how the DebugExecutor works, take a look at the guide:
     :ref:`executor:DebugExecutor`
 """
+
 from __future__ import annotations
 
 import threading
@@ -61,7 +62,7 @@ class DebugExecutor(BaseExecutor):
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
-        """The method is replaced by custom trigger_task implementation."""
+        """Replace the method with a custom trigger_task implementation."""
 
     def sync(self) -> None:
         task_succeeded = True
@@ -106,10 +107,13 @@ class DebugExecutor(BaseExecutor):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance with empty command because we do not need it."""
+        if TYPE_CHECKING:
+            assert task_instance.task
+
         self.queue_command(
             task_instance,
             [str(task_instance)],  # Just for better logging, it's not used anywhere
-            priority=task_instance.task.priority_weight_total,
+            priority=task_instance.priority_weight,
             queue=task_instance.task.queue,
         )
         # Save params for TaskInstance._run_raw_task

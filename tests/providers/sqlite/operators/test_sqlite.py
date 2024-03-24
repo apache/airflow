@@ -70,9 +70,6 @@ class TestSqliteOperator:
 
         from sqlite3 import OperationalError
 
-        try:
-            op = SqliteOperator(task_id="sqlite_operator_with_multiple_statements", sql=sql, dag=self.dag)
+        op = SqliteOperator(task_id="sqlite_operator_with_multiple_statements", sql=sql, dag=self.dag)
+        with pytest.raises(OperationalError, match="no such table: test_airflow2"):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-            pytest.fail("An exception should have been thrown")
-        except OperationalError as e:
-            assert "no such table: test_airflow2" in str(e)

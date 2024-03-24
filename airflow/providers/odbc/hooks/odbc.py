@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
+
 from __future__ import annotations
 
 from collections import namedtuple
@@ -197,7 +198,7 @@ class OdbcHook(DbApiHook):
         return merged_connect_kwargs
 
     def get_conn(self) -> Connection:
-        """Returns a pyodbc connection object."""
+        """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
 

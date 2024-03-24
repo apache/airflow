@@ -18,6 +18,7 @@
 Console used by all processes. We are forcing colors and terminal output as Breeze is supposed
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
+
 from __future__ import annotations
 
 import os
