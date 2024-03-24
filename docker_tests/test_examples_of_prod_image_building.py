@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 import requests
+from python_on_whales import docker
 
 # isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
@@ -52,17 +53,21 @@ def test_shell_script_example(script_file):
 
 
 @pytest.mark.parametrize("dockerfile", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/Dockerfile", recursive=True))
-def test_dockerfile_example(dockerfile):
+def test_dockerfile_example(dockerfile, tmp_path):
     rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
     image_name = str(rel_dockerfile_path).lower().replace("/", "-")
     content = Path(dockerfile).read_text()
     test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
-    new_content = re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content)
+
+    test_image_file = tmp_path / image_name
+    test_image_file.write_text(re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content))
     try:
-        run_command(
-            ["docker", "build", ".", "--tag", image_name, "-f", "-"],
-            cwd=str(Path(dockerfile).parent),
-            input=new_content.encode(),
+        image = docker.build(
+            context_path=Path(dockerfile).parent,
+            tags=image_name,
+            file=test_image_file,
+            load=True,  # Load image to docker daemon
         )
+        assert image
     finally:
-        run_command(["docker", "rmi", "--force", image_name])
+        docker.image.remove(image_name, force=True)

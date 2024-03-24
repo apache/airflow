@@ -249,7 +249,7 @@ statsd = [
     "statsd>=3.3.0",
 ]
 uv = [
-    "uv>=0.1.22",
+    "uv>=0.1.24",
 ]
 virtualenv = [
     "virtualenv",
@@ -647,7 +647,7 @@ atlassian-jira = [ # source: airflow/providers/atlassian/jira/provider.yaml
   "beautifulsoup4",
 ]
 celery = [ # source: airflow/providers/celery/provider.yaml
-  "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+  "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
   "flower>=1.0.0",
   "google-re2>=1.0",
 ]
@@ -821,7 +821,7 @@ microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
   "azure-mgmt-datalake-store>=0.5.0",
   "azure-mgmt-resource>=2.2.0",
   "azure-mgmt-storage>=16.0.0",
-  "azure-servicebus>=7.6.1",
+  "azure-servicebus>=7.12.1",
   "azure-storage-blob>=12.14.0",
   "azure-storage-file-datalake>=12.9.1",
   "azure-storage-file-share",
@@ -906,7 +906,7 @@ qdrant = [ # source: airflow/providers/qdrant/provider.yaml
   "qdrant_client>=1.7.0",
 ]
 redis = [ # source: airflow/providers/redis/provider.yaml
-  "redis>=4.5.2,<5.0.0,!=4.5.5",
+  "redis>=4.5.2,!=4.5.5,!=5.0.2",
 ]
 salesforce = [ # source: airflow/providers/salesforce/provider.yaml
   "pandas>=1.2.5,<2.2",
@@ -975,8 +975,6 @@ weaviate = [ # source: airflow/providers/weaviate/provider.yaml
   "weaviate-client>=3.24.2",
 ]
 yandex = [ # source: airflow/providers/yandex/provider.yaml
-  "python-dateutil>=2.8.0",
-  "requests>=2.27.0,<3",
   "yandex-query-client>=0.1.2",
   "yandexcloud>=0.228.0",
 ]
@@ -1370,7 +1368,6 @@ ignore = [
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT011", # pytest.raises() is too broad, set the match parameter
-    "PT018", # assertion should be broken down into multiple parts
     "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
 ]
 unfixable = [
@@ -1402,7 +1399,7 @@ combine-as-imports = true
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
-"scripts/*" = ["D"]
+"scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules
 "docs/*" = ["D"]
 "provider_packages/*" = ["D"]
 "*/example_dags/*" = ["D"]
@@ -1560,8 +1557,6 @@ combine-as-imports = true
 "tests/providers/sftp/triggers/test_sftp.py" = ["PT012"]
 "tests/providers/ssh/hooks/test_ssh.py" = ["PT012"]
 "tests/providers/ssh/operators/test_ssh.py" = ["PT012"]
-"tests/providers/telegram/hooks/test_telegram.py" = ["PT012"]
-"tests/providers/telegram/operators/test_telegram.py" = ["PT012"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 # Ban certain modules from being imported at module level, instead requiring

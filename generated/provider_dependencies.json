@@ -291,7 +291,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+      "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0",
       "google-re2>=1.0"
     ],
@@ -693,7 +693,7 @@
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
       "azure-mgmt-storage>=16.0.0",
-      "azure-servicebus>=7.6.1",
+      "azure-servicebus>=7.12.1",
       "azure-storage-blob>=12.14.0",
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
@@ -957,7 +957,7 @@
   "redis": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "redis>=4.5.2,<5.0.0,!=4.5.5"
+      "redis>=4.5.2,!=4.5.5,!=5.0.2"
     ],
     "devel-deps": [],
     "cross-providers-deps": [],
@@ -1180,8 +1180,6 @@
   "yandex": {
     "deps": [
       "apache-airflow>=2.6.0",
-      "python-dateutil>=2.8.0",
-      "requests>=2.27.0,<3",
       "yandex-query-client>=0.1.2",
       "yandexcloud>=0.228.0"
     ],
