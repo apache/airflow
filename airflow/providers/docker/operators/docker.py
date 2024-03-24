@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import pickle
 import tarfile
@@ -177,6 +178,8 @@ class DockerOperator(BaseOperator):
         Incompatible with ``"host"`` in ``network_mode``.
     :param ulimits: List of ulimit options to set for the container. Each item should
         be a :py:class:`docker.types.Ulimit` instance.
+    :param execute_log_formatter: The logging formatter is applied when the Docker
+        container is being executed. The input should be a logging.Formatter object.
     """
 
     # !!! Changes in DockerOperator's arguments should be also reflected in !!!
@@ -240,6 +243,7 @@ class DockerOperator(BaseOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
+        container_log_formatter: logging.Formatter | None = None,
         **kwargs,
     ) -> None:
         if skip_exit_code := kwargs.pop("skip_exit_code", None):
@@ -328,6 +332,8 @@ class DockerOperator(BaseOperator):
         self.port_bindings = port_bindings or {}
         if self.port_bindings and self.network_mode == "host":
             raise ValueError("Port bindings is not supported in the host network mode")
+        self._log_formatter_backup = {handler: handler.formatter for handler in self.log.handlers}
+        self.container_log_formatter = container_log_formatter
 
     @cached_property
     def hook(self) -> DockerHook:
@@ -378,6 +384,24 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
+    def _restore_log_formatters(self):
+        try:
+            for handler, formatter in self._log_formatter_backup.items():
+                handler.setFormatter(formatter)
+        except Exception as e:
+            self.log.warning("Failed to restore logging formatters: %s", e)
+
+    def _change_log_formatters(self, new_formatter: logging.Formatter):
+        try:
+            for handler in self.log.handlers:
+                handler.setFormatter(new_formatter)
+        except (ValueError, TypeError) as e:
+            self.log.warning("Unrecognized logging formatters: %s - %s", new_formatter, e)
+            self._restore_log_formatters()
+        except Exception as e:
+            self.log.warning("Failed to change logging formatters: %s", e)
+            self._restore_log_formatters()
+
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
             self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -423,13 +447,19 @@ class DockerOperator(BaseOperator):
         )
         logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
-            self.cli.start(self.container["Id"])
+            if self.container_log_formatter is not None:
+                self._change_log_formatters(self.container_log_formatter)
 
-            log_lines = []
-            for log_chunk in logstream:
-                log_chunk = stringify(log_chunk).strip()
-                log_lines.append(log_chunk)
-                self.log.info("%s", log_chunk)
+            try:
+                self.cli.start(self.container["Id"])
+
+                log_lines = []
+                for log_chunk in logstream:
+                    log_chunk = stringify(log_chunk).strip()
+                    log_lines.append(log_chunk)
+                    self.log.info("%s", log_chunk)
+            finally:
+                self._restore_log_formatters()
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
