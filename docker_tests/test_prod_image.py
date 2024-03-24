@@ -127,7 +127,6 @@ class TestPythonPackages:
             "googleapiclient",
             "google.auth",
             "google_auth_httplib2",
-            "google.cloud.automl",
             "google.cloud.bigquery_datatransfer",
             "google.cloud.bigtable",
             "google.cloud.container",
