@@ -22,7 +22,6 @@ import os
 import sys
 from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
-from enum import Enum
 from pathlib import Path
 from typing import Any, List
 
@@ -182,154 +181,6 @@ STATES: dict[str, str] = {}
 
 FOUND_EXTRAS: dict[str, list[str]] = defaultdict(list)
 
-
-class ParsedDependencyTypes(Enum):
-    CORE_EXTRAS = "core extras"
-    APACHE_NO_PROVIDER_EXTRAS = "Apache no provider extras"
-    DEVEL_EXTRAS = "devel extras"
-    DOC_EXTRAS = "doc extras"
-    BUNDLE_EXTRAS = "bundle extras"
-    DEPRECATED_EXTRAS = "deprecated extras"
-    MANUAL_EXTRAS = "manual extras"
-
-
-GENERATED_DEPENDENCIES_START = "# START OF GENERATED DEPENDENCIES"
-GENERATED_DEPENDENCIES_END = "# END OF GENERATED DEPENDENCIES"
-
-
-def normalize_extra(dependency: str) -> str:
-    return dependency.replace(".", "-").replace("_", "-")
-
-
-def normalize_package_name(dependency: str) -> str:
-    return f"apache-airflow-providers-{dependency.replace('.', '-').replace('_', '-')}"
-
-
-def convert_to_extra_dependency(dependency: str) -> str:
-    # if there is version in dependency - remove it as we do not need it in extra specification
-    # for editable installation
-    if ">=" in dependency:
-        dependency = dependency.split(">=")[0]
-    extra = dependency.replace("apache-airflow-providers-", "").replace("-", "_").replace(".", "_")
-    return f"apache-airflow[{extra}]"
-
-
-def generate_dependencies(
-    result_content: list[str],
-    dependencies: dict[str, dict[str, list[str] | str]],
-):
-    def generate_parsed_extras(type: ParsedDependencyTypes):
-        result_content.append(f"    # {type.value}")
-        for extra in FOUND_EXTRAS[type.value]:
-            result_content.append(f'    "apache-airflow[{extra}]",')
-
-    def get_python_exclusion(dependency_info: dict[str, list[str] | str]):
-        excluded_python_versions = dependency_info.get("excluded-python-versions")
-        exclusion = ""
-        if excluded_python_versions:
-            separator = ";"
-            for version in excluded_python_versions:
-                exclusion += f'{separator}python_version != \\"{version}\\"'
-                separator = " and "
-        return exclusion
-
-    for dependency, dependency_info in dependencies.items():
-        if dependency_info["state"] in ["suspended", "removed"]:
-            continue
-        deps = dependency_info["deps"]
-        deps = [dep for dep in deps if not dep.startswith("apache-airflow>=")]
-        devel_deps = dependency_info.get("devel-deps")
-        if not deps and not devel_deps:
-            result_content.append(
-                f"{normalize_extra(dependency)} = [] "
-                f"# source: airflow/providers/{dependency.replace('.', '/')}/provider.yaml"
-            )
-            continue
-        result_content.append(
-            f"{normalize_extra(dependency)} = "
-            f"[ # source: airflow/providers/{dependency.replace('.', '/')}/provider.yaml"
-        )
-        if not isinstance(deps, list):
-            raise TypeError(f"Wrong type of 'deps' {deps} for {dependency} in {DEPENDENCIES_JSON_FILE_PATH}")
-        for dep in deps:
-            if dep.startswith("apache-airflow-providers-"):
-                dep = convert_to_extra_dependency(dep)
-            result_content.append(f'  "{dep}{get_python_exclusion(dependency_info)}",')
-        if devel_deps:
-            result_content.append(f"  # Devel dependencies for the {dependency} provider")
-            for dep in devel_deps:
-                result_content.append(f'  "{dep}{get_python_exclusion(dependency_info)}",')
-        result_content.append("]")
-    result_content.append("all = [")
-    generate_parsed_extras(ParsedDependencyTypes.CORE_EXTRAS)
-    generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
-    result_content.append("    # Provider extras")
-    for dependency, dependency_info in dependencies.items():
-        result_content.append(f'    "apache-airflow[{normalize_extra(dependency)}]",')
-    result_content.append("]")
-    result_content.append("devel-all = [")
-    result_content.append('    "apache-airflow[all]",')
-    result_content.append('    "apache-airflow[devel]",')
-    result_content.append('    "apache-airflow[doc]",')
-    result_content.append('    "apache-airflow[doc-gen]",')
-    result_content.append('    "apache-airflow[saml]",')
-    generate_parsed_extras(ParsedDependencyTypes.APACHE_NO_PROVIDER_EXTRAS)
-    result_content.append("    # Include all provider deps")
-    for dependency, dependency_info in dependencies.items():
-        result_content.append(f'    "apache-airflow[{normalize_extra(dependency)}]",')
-    result_content.append("]")
-
-
-def get_dependency_type(dependency_type: str) -> ParsedDependencyTypes | None:
-    for dep_type in ParsedDependencyTypes:
-        if dep_type.value == dependency_type:
-            return dep_type
-    return None
-
-
-def update_pyproject_toml(dependencies: dict[str, dict[str, list[str] | str]]) -> bool:
-    file_content = PYPROJECT_TOML_FILE_PATH.read_text()
-    result_content: list[str] = []
-    copying = True
-    current_type: str | None = None
-    line_count: int = 0
-    for line in file_content.splitlines():
-        if copying:
-            result_content.append(line)
-        if line.strip().startswith(GENERATED_DEPENDENCIES_START):
-            copying = False
-            generate_dependencies(result_content, dependencies)
-        elif line.strip().startswith(GENERATED_DEPENDENCIES_END):
-            copying = True
-            result_content.append(line)
-        elif line.strip().startswith("# START OF "):
-            current_type = line.strip().replace("# START OF ", "")
-            type_enum = get_dependency_type(current_type)
-            if type_enum is None:
-                console.print(
-                    f"[red]Wrong start of section '{current_type}' in {PYPROJECT_TOML_FILE_PATH} "
-                    f"at line {line_count}: Unknown section type"
-                )
-                sys.exit(1)
-        elif line.strip().startswith("# END OF "):
-            end_type = line.strip().replace("# END OF ", "")
-            if end_type != current_type:
-                console.print(
-                    f"[red]Wrong end of section {end_type} in {PYPROJECT_TOML_FILE_PATH} at line {line_count}"
-                )
-                sys.exit(1)
-        if current_type:
-            if line.strip().endswith(" = ["):
-                FOUND_EXTRAS[current_type].append(line.split(" = [")[0].strip())
-        line_count += 1
-    result_content.append("")
-    new_file_content = "\n".join(result_content)
-    if file_content != new_file_content:
-        PYPROJECT_TOML_FILE_PATH.write_text(new_file_content)
-        return True
-    return False
-
-
 if __name__ == "__main__":
     find_all_providers_and_provider_files()
     num_files = len(ALL_PROVIDER_FILES)
@@ -395,19 +246,4 @@ if __name__ == "__main__":
             )
             console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
             console.print()
-    if update_pyproject_toml(unique_sorted_dependencies):
-        if os.environ.get("CI"):
-            console.print(f"There is a need to regenerate {PYPROJECT_TOML_FILE_PATH}")
-            console.print(
-                f"[red]You need to run the following command locally and commit generated "
-                f"{PYPROJECT_TOML_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} file:\n"
-            )
-            console.print("breeze static-checks --type update-providers-dependencies --all-files")
-            console.print()
-            console.print()
-            console.print("[yellow]Make sure to rebase your changes on the latest main branch!")
-            console.print()
-            sys.exit(1)
-        else:
-            console.print(f"Written {PYPROJECT_TOML_FILE_PATH}")
     console.print()

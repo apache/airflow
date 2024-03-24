@@ -52,11 +52,11 @@ We have the following Groups of files for CI that determine which tests are run:
 * `API tests files` and `Codegen test files` - those are OpenAPI definition files that impact
   Open API specification and determine that we should run dedicated API tests.
 * `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
-* `Setup files` - change in the setup files indicates that we should run  `upgrade to newer dependencies` -
-  pyproject.toml and  generated dependencies files in `generated` folder. The dependency files and part of
-  the pyproject.toml are automatically generated from the provider.yaml files in provider by
-  the `update-providers-dependencies` pre-commit. The provider.yaml is a single source of truth for each
-  provider.
+* `Build files` - change in the files indicates that we should run  `upgrade to newer dependencies` -
+  build dependencies in `pyproject.toml` and  generated dependencies files in `generated` folder.
+  The dependencies are automatically generated from the `provider.yaml` files in provider by
+  the `hatch_build.py` build hook. The provider.yaml is a single source of truth for each
+  provider and `hatch_build.py` for all regular dependencies.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
@@ -72,7 +72,6 @@ We have the following Groups of files for CI that determine which tests are run:
 * `All Dev Python files` - files that are checked by `mypy-dev` static checks
 * `All Docs Python files` - files that are checked by `mypy-docs` static checks
 * `All Provider Yaml files` - all provider yaml files
-
 
 We have a number of `TEST_TYPES` that can be selectively disabled/enabled based on the
 content of the incoming PR. Usually they are limited to a sub-folder of the "tests" folder but there
@@ -114,7 +113,8 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   types to execute. This is done because changes in core might impact all the other test types.
 * if `CI Image building` is disabled, only basic pre-commits are enabled - no 'image-depending` pre-commits
   are enabled.
-* If there are some setup files changed, `upgrade to newer dependencies` is enabled.
+* If there are some build dependencies changed (`hatch_build.py` and updated system dependencies in
+  the `pyproject.toml` - then `upgrade to newer dependencies` is enabled.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, providers files or docs have changed,
   then corresponding packages are build (including cross-dependent providers). If any of the core files
@@ -164,67 +164,70 @@ separated by spaces. This is to accommodate for the wau how outputs of this kind
 Github Actions to pass the list of parameters to a command to execute
 
 
-| Output                             | Meaning of the output                                                                                | Example value                             | List as string |
-|------------------------------------|------------------------------------------------------------------------------------------------------|-------------------------------------------|----------------|
-| affected-providers-list-as-string  | List of providers affected when they are selectively affected.                                       | airbyte http                              | *              |
-| all-python-versions                | List of all python versions there are available in the form of JSON array                            | ['3.8', '3.9', '3.10']                    |                |
-| all-python-versions-list-as-string | List of all python versions there are available in the form of space separated string                | 3.8 3.9 3.10                              | *              |
-| all-versions                       | If set to true, then all python, k8s, DB versions are used for tests.                                | false                                     |                |
-| basic-checks-only                  | Whether to run all static checks ("false") or only basic set of static checks ("true")               | false                                     |                |
-| cache-directive                    | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                  |                |
-| chicken-egg-providers              | List of providers that should be considered as "chicken-egg" - expecting development Airflow version |                                           |                |
-| ci-image-build                     | Whether CI image build is needed                                                                     | true                                      |                |
-| debug-resources                    | Whether resources usage should be printed during parallel job execution ("true"/ "false")            | false                                     |                |
-| default-branch                     | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)        | main                                      |                |
-| default-constraints-branch         | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)   | constraints-main                          |                |
-| default-helm-version               | Which Helm version to use as default                                                                 | v3.9.4                                    |                |
-| default-kind-version               | Which Kind version to use as default                                                                 | v0.16.0                                   |                |
-| default-kubernetes-version         | Which Kubernetes version to use as default                                                           | v1.25.2                                   |                |
-| default-mysql-version              | Which MySQL version to use as default                                                                | 5.7                                       |                |
-| default-postgres-version           | Which Postgres version to use as default                                                             | 10                                        |                |
-| default-python-version             | Which Python version to use as default                                                               | 3.8                                       |                |
-| docs-build                         | Whether to build documentation ("true"/"false")                                                      | true                                      |                |
-| docs-list-as-string                | What filter to apply to docs building - based on which documentation packages should be built        | apache-airflow helm-chart google          |                |
-| full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds) [1]              | false                                     |                |
-| generated-dependencies-changed     | Whether generated dependencies have changed ("true"/"false")                                         | false                                     |                |
-| helm-version                       | Which Helm version to use for tests                                                                  | v3.9.4                                    |                |
-| is-airflow-runner                  | Whether runner used is an airflow or infrastructure runner (true if airflow/false if infrastructure) | false                                     |                |
-| is-amd-runner                      | Whether runner used is an AMD one                                                                    | true                                      |                |
-| is-arm-runner                      | Whether runner used is an ARM one                                                                    | false                                     |                |
-| is-committer-build                 | Whether the build is triggered by a committer                                                        | false                                     |                |
-| is-k8s-runner                      | Whether the build runs on our k8s infrastructure                                                     | false                                     |                |
-| is-self-hosted-runner              | Whether the runner is self-hosted                                                                    | false                                     |                |
-| is-vm-runner                       | Whether the runner uses VM to run                                                                    | true                                      |                |
-| kind-version                       | Which Kind version to use for tests                                                                  | v0.16.0                                   |                |
-| kubernetes-combos-list-as-string   | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.8-v1.25.2 3.9-v1.26.4                   | *              |
-| kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                               |                |
-| kubernetes-versions-list-as-string | All Kubernetes versions to use for tests as space-separated string                                   | v1.25.2                                   | *              |
-| mypy-folders                       | List of folders to be considered for mypy                                                            | []                                        |                |
-| mysql-exclude                      | Which versions of MySQL to exclude for tests as JSON array                                           | []                                        |                |
-| mysql-versions                     | Which versions of MySQL to use for tests as JSON array                                               | ['5.7']                                   |                |
-| needs-api-codegen                  | Whether "api-codegen" are needed to run ("true"/"false")                                             | true                                      |                |
-| needs-api-tests                    | Whether "api-tests" are needed to run ("true"/"false")                                               | true                                      |                |
-| needs-helm-tests                   | Whether Helm tests are needed to run ("true"/"false")                                                | true                                      |                |
-| needs-javascript-scans             | Whether javascript CodeQL scans should be run ("true"/"false")                                       | true                                      |                |
-| needs-mypy                         | Whether mypy check is supposed to run in this build                                                  | true                                      |                |
-| needs-python-scans                 | Whether Python CodeQL scans should be run ("true"/"false")                                           | true                                      |                |
-| parallel-test-types-list-as-string | Which test types should be run for unit tests                                                        | API Always Providers Providers\[-google\] | *              |
-| postgres-exclude                   | Which versions of Postgres to exclude for tests as JSON array                                        | []                                        |                |
-| postgres-versions                  | Which versions of Postgres to use for tests as JSON array                                            | ['10']                                    |                |
-| prod-image-build                   | Whether PROD image build is needed                                                                   | true                                      |                |
-| prod-image-build                   | Whether PROD image build is needed                                                                   | true                                      |                |
-| providers-compatibility-checks     | List of dicts: (python_version, airflow_version, removed_providers) for compatibility checks         | []                                        |                |
-| python-versions                    | List of python versions to use for that build                                                        | ['3.8']                                   | *              |
-| python-versions-list-as-string     | Which versions of MySQL to use for tests as space-separated string                                   | 3.8                                       | *              |
-| run-amazon-tests                   | Whether Amazon tests should be run ("true"/"false")                                                  | true                                      |                |
-| run-kubernetes-tests               | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
-| run-tests                          | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
-| run-www-tests                      | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
-| runs-on                            | List of labels assigned for runners for that build (used to select runners)                          | ["ubuntu-22.04"]                          |                |
-| skip-pre-commits                   | Which pre-commits should be skipped during the static-checks run                                     | check-provider-yaml-valid,flynt,identity  |                |
-| skip-provider-tests                | When provider tests should be skipped (on non-main branch or when no provider changes detected)      | true                                      |                |
-| sqlite-exclude                     | Which versions of Sqlite to exclude for tests as JSON array                                          | []                                        |                |
-| upgrade-to-newer-dependencies      | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)       | false                                     |                |
+| Output                                 | Meaning of the output                                                                                | Example value                             | List as string |
+|----------------------------------------|------------------------------------------------------------------------------------------------------|-------------------------------------------|----------------|
+| affected-providers-list-as-string      | List of providers affected when they are selectively affected.                                       | airbyte http                              | *              |
+| all-python-versions                    | List of all python versions there are available in the form of JSON array                            | ['3.8', '3.9', '3.10']                    |                |
+| all-python-versions-list-as-string     | List of all python versions there are available in the form of space separated string                | 3.8 3.9 3.10                              | *              |
+| all-versions                           | If set to true, then all python, k8s, DB versions are used for tests.                                | false                                     |                |
+| basic-checks-only                      | Whether to run all static checks ("false") or only basic set of static checks ("true")               | false                                     |                |
+| build_system_changed_in_pyproject_toml | When builds system dependencies changed in pyproject.toml changed in the PR.                         | false                                     |                |
+| cache-directive                        | Which cache should be used for images ("registry", "local" , "disabled")                             | registry                                  |                |
+| chicken-egg-providers                  | List of providers that should be considered as "chicken-egg" - expecting development Airflow version |                                           |                |
+| ci-image-build                         | Whether CI image build is needed                                                                     | true                                      |                |
+| debug-resources                        | Whether resources usage should be printed during parallel job execution ("true"/ "false")            | false                                     |                |
+| default-branch                         | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)        | main                                      |                |
+| default-constraints-branch             | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)   | constraints-main                          |                |
+| default-helm-version                   | Which Helm version to use as default                                                                 | v3.9.4                                    |                |
+| default-kind-version                   | Which Kind version to use as default                                                                 | v0.16.0                                   |                |
+| default-kubernetes-version             | Which Kubernetes version to use as default                                                           | v1.25.2                                   |                |
+| default-mysql-version                  | Which MySQL version to use as default                                                                | 5.7                                       |                |
+| default-postgres-version               | Which Postgres version to use as default                                                             | 10                                        |                |
+| default-python-version                 | Which Python version to use as default                                                               | 3.8                                       |                |
+| docs-build                             | Whether to build documentation ("true"/"false")                                                      | true                                      |                |
+| docs-list-as-string                    | What filter to apply to docs building - based on which documentation packages should be built        | apache-airflow helm-chart google          |                |
+| full-tests-needed                      | Whether this build runs complete set of tests or only subset (for faster PR builds) [1]              | false                                     |                |
+| generated-dependencies-changed         | Whether generated dependencies have changed ("true"/"false")                                         | false                                     |                |
+| hatch-build-changed                    | When hatch build.py changed in the PR.                                                               | false                                     |                |
+| helm-version                           | Which Helm version to use for tests                                                                  | v3.9.4                                    |                |
+| is-airflow-runner                      | Whether runner used is an airflow or infrastructure runner (true if airflow/false if infrastructure) | false                                     |                |
+| is-amd-runner                          | Whether runner used is an AMD one                                                                    | true                                      |                |
+| is-arm-runner                          | Whether runner used is an ARM one                                                                    | false                                     |                |
+| is-committer-build                     | Whether the build is triggered by a committer                                                        | false                                     |                |
+| is-k8s-runner                          | Whether the build runs on our k8s infrastructure                                                     | false                                     |                |
+| is-self-hosted-runner                  | Whether the runner is self-hosted                                                                    | false                                     |                |
+| is-vm-runner                           | Whether the runner uses VM to run                                                                    | true                                      |                |
+| kind-version                           | Which Kind version to use for tests                                                                  | v0.16.0                                   |                |
+| kubernetes-combos-list-as-string       | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.8-v1.25.2 3.9-v1.26.4                   | *              |
+| kubernetes-versions                    | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                               |                |
+| kubernetes-versions-list-as-string     | All Kubernetes versions to use for tests as space-separated string                                   | v1.25.2                                   | *              |
+| mypy-folders                           | List of folders to be considered for mypy                                                            | []                                        |                |
+| mysql-exclude                          | Which versions of MySQL to exclude for tests as JSON array                                           | []                                        |                |
+| mysql-versions                         | Which versions of MySQL to use for tests as JSON array                                               | ['5.7']                                   |                |
+| needs-api-codegen                      | Whether "api-codegen" are needed to run ("true"/"false")                                             | true                                      |                |
+| needs-api-tests                        | Whether "api-tests" are needed to run ("true"/"false")                                               | true                                      |                |
+| needs-helm-tests                       | Whether Helm tests are needed to run ("true"/"false")                                                | true                                      |                |
+| needs-javascript-scans                 | Whether javascript CodeQL scans should be run ("true"/"false")                                       | true                                      |                |
+| needs-mypy                             | Whether mypy check is supposed to run in this build                                                  | true                                      |                |
+| needs-python-scans                     | Whether Python CodeQL scans should be run ("true"/"false")                                           | true                                      |                |
+| parallel-test-types-list-as-string     | Which test types should be run for unit tests                                                        | API Always Providers Providers\[-google\] | *              |
+| postgres-exclude                       | Which versions of Postgres to exclude for tests as JSON array                                        | []                                        |                |
+| postgres-versions                      | Which versions of Postgres to use for tests as JSON array                                            | ['10']                                    |                |
+| prod-image-build                       | Whether PROD image build is needed                                                                   | true                                      |                |
+| prod-image-build                       | Whether PROD image build is needed                                                                   | true                                      |                |
+| providers-compatibility-checks         | List of dicts: (python_version, airflow_version, removed_providers) for compatibility checks         | []                                        |                |
+| pyproject-toml-changed                 | When pyproject.toml changed in the PR.                                                               | false                                     |                |
+| python-versions                        | List of python versions to use for that build                                                        | ['3.8']                                   | *              |
+| python-versions-list-as-string         | Which versions of MySQL to use for tests as space-separated string                                   | 3.8                                       | *              |
+| run-amazon-tests                       | Whether Amazon tests should be run ("true"/"false")                                                  | true                                      |                |
+| run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
+| run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
+| run-www-tests                          | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
+| runs-on                                | List of labels assigned for runners for that build (used to select runners)                          | ["ubuntu-22.04"]                          |                |
+| skip-pre-commits                       | Which pre-commits should be skipped during the static-checks run                                     | check-provider-yaml-valid,flynt,identity  |                |
+| skip-provider-tests                    | When provider tests should be skipped (on non-main branch or when no provider changes detected)      | true                                      |                |
+| sqlite-exclude                         | Which versions of Sqlite to exclude for tests as JSON array                                          | []                                        |                |
+| upgrade-to-newer-dependencies          | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash)       | false                                     |                |
 
 
 [1] Note for deciding if `full tests needed` mode is enabled and provider.yaml files.
