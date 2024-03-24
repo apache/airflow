@@ -37,11 +37,16 @@ FILES_TO_REPLACE_HATCHLING_IN = [
 
 files_changed = False
 
+
 if __name__ == "__main__":
+    python38_bin = shutil.which("python3.8")
+    if not python38_bin:
+        print("Python 3.8 is required to run this script.")
+        sys.exit(1)
     temp_dir = Path(tempfile.mkdtemp())
     hatchling_spec = ""
     try:
-        subprocess.check_call([sys.executable, "-m", "venv", temp_dir.as_posix()])
+        subprocess.check_call([python38_bin, "-m", "venv", temp_dir.as_posix()])
         venv_python = temp_dir / "bin" / "python"
         subprocess.check_call([venv_python, "-m", "pip", "install", "gitpython", "hatchling"])
         frozen_deps = subprocess.check_output([venv_python, "-m", "pip", "freeze"], text=True)
