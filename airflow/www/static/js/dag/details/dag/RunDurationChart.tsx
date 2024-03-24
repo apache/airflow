@@ -164,7 +164,43 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
     `;
   }
 
+  function formatMarkLineLegendName(name: string) {
+    switch (name) {
+      case "runDurationUnit":
+        return "Mean run duration";
+      case "queuedDurationUnit":
+        return "Mean queued duration";
+      case "landingDurationUnit":
+        return "Mean landing duration";
+      default:
+        return name;
+    }
+  }
+
   const option: ReactEChartsProps["option"] = {
+    legend: {
+      orient: "horizontal",
+      icon: "circle",
+      formatter: formatMarkLineLegendName,
+      data: [
+        ...(showLandingTimes
+          ? [
+              {
+                name: "landingDurationUnit",
+                itemStyle: { color: stateColors.scheduled },
+              },
+            ]
+          : []),
+        {
+          name: "runDurationUnit",
+          itemStyle: { color: "blue" },
+        },
+        {
+          name: "queuedDurationUnit",
+          itemStyle: { color: stateColors.queued },
+        },
+      ],
+    },
     series: [
       ...(showLandingTimes
         ? [
@@ -178,7 +214,12 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
               stack: "x",
               markLine: {
                 silent: true,
-                data: [{ type: "median" }],
+                data: [
+                  {
+                    type: "median",
+                    lineStyle: { color: stateColors.scheduled },
+                  },
+                ],
               },
             } as SeriesOption,
           ]
@@ -193,7 +234,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "median" }],
+          data: [{ type: "median", lineStyle: { color: stateColors.queued } }],
         },
       },
       {
@@ -207,7 +248,7 @@ const RunDurationChart = ({ showLandingTimes }: Props) => {
         stack: "x",
         markLine: {
           silent: true,
-          data: [{ type: "median" }],
+          data: [{ type: "median", lineStyle: { color: "blue" } }],
         },
       },
     ],
