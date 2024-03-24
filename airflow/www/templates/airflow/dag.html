@@ -106,7 +106,7 @@
   {% if dag.parent_dag is defined and dag.parent_dag %}
     <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
       <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
-      DAG: {{ dag.parent_dag.dag_display_name }}</a>
+      DAG: <span title="{{ dag.parent_dag.dag_id }}">{{ dag.parent_dag.dag_display_name }}</span></a>
   {% endif %}
 
   <div>
@@ -127,7 +127,7 @@
                    {{ " disabled" if not can_edit_dag else "" }}>
             <span class="switch" aria-hidden="true"></span>
           </label>
-          <span class="text-muted">DAG:</span> {{ dag.dag_display_name }}
+          <span class="text-muted">DAG:</span> <span title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</span>
           <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
           {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
            <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
