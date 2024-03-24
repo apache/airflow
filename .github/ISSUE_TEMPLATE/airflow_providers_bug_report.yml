@@ -82,6 +82,7 @@ body:
         - openfaas
         - openlineage
         - opensearch
+        - opentelemetry
         - opsgenie
         - oracle
         - pagerduty

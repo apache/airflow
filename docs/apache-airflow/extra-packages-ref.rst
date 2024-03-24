@@ -206,6 +206,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | openai              | ``pip install 'apache-airflow[openai]'``            | Open AI hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| opentelemetry       | ``pip install 'apache-airflow[opentelemetry]'``     | OpenTelemetry hooks and listeners                   |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                      |

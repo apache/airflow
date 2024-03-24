@@ -843,6 +843,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "opentelemetry": {
+    "deps": [
+      "apache-airflow>=2.8.0",
+      "opentelemetry-api>=1.15.0",
+      "opentelemetry-exporter-otlp"
+    ],
+    "devel-deps": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "opsgenie": {
     "deps": [
       "apache-airflow>=2.6.0",

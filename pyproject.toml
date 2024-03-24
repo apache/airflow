@@ -871,6 +871,10 @@ openlineage = [ # source: airflow/providers/openlineage/provider.yaml
 opensearch = [ # source: airflow/providers/opensearch/provider.yaml
   "opensearch-py>=2.2.0",
 ]
+opentelemetry = [ # source: airflow/providers/opentelemetry/provider.yaml
+  "opentelemetry-api>=1.15.0",
+  "opentelemetry-exporter-otlp",
+]
 opsgenie = [ # source: airflow/providers/opsgenie/provider.yaml
   "opsgenie-sdk>=2.1.5",
 ]
@@ -1068,6 +1072,7 @@ all = [
     "apache-airflow[openfaas]",
     "apache-airflow[openlineage]",
     "apache-airflow[opensearch]",
+    "apache-airflow[opentelemetry]",
     "apache-airflow[opsgenie]",
     "apache-airflow[oracle]",
     "apache-airflow[pagerduty]",
@@ -1169,6 +1174,7 @@ devel-all = [
     "apache-airflow[openfaas]",
     "apache-airflow[openlineage]",
     "apache-airflow[opensearch]",
+    "apache-airflow[opentelemetry]",
     "apache-airflow[opsgenie]",
     "apache-airflow[oracle]",
     "apache-airflow[pagerduty]",

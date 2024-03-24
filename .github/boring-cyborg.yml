@@ -354,6 +354,11 @@ labelPRBasedOnFilePath:
     - tests/providers/opensearch/**/*
     - tests/system/providers/opensearch/**/*
 
+  provider:opentelemetry:
+    - airflow/providers/opentelemetry/**/*
+    - docs/apache-airflow-providers-opentelemetry/**/*
+    - tests/providers/opentelemetry/**/*
+
   provider:opsgenie:
     - airflow/providers/opsgenie/**/*
     - docs/apache-airflow-providers-opsgenie/**/*
