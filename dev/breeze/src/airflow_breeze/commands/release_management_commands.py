@@ -156,6 +156,7 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.versions import is_pre_release
+from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
 argument_provider_packages = click.argument(
     "provider_packages",
@@ -450,36 +451,8 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                venv_path = (Path(tmp_dir_name) / ".venv").resolve().absolute()
-                venv_command_result = run_command(
-                    [sys.executable, "-m", "venv", venv_path.as_posix()],
-                    check=False,
-                    capture_output=True,
-                )
-                if venv_command_result.returncode != 0:
-                    get_console().print(
-                        f"[error]Error when initializing virtualenv in {venv_path.as_posix()}:[/]\n"
-                        f"{venv_command_result.stdout}\n{venv_command_result.stderr}"
-                    )
-                python_path = venv_path / "bin" / "python"
-                if not python_path.exists():
-                    get_console().print(
-                        f"\n[errors]Python interpreter is not exist in path {python_path}. Exiting!\n"
-                    )
-                    sys.exit(1)
-                pip_command = (python_path.as_posix(), "-m", "pip")
-                result = run_command(
-                    [*pip_command, "install", f"pip=={AIRFLOW_PIP_VERSION}"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.returncode != 0:
-                    get_console().print(
-                        f"[error]Error when installing pip in {venv_path.as_posix()}[/]\n"
-                        f"{result.stdout}\n{result.stderr}"
-                    )
-                    sys.exit(1)
+                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                pip_command = create_pip_command(python_path)
                 venv_created = True
 
             returncode = _check_sdist_to_wheel(di, pip_command, str(tmp_dir_name))
@@ -493,7 +466,7 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
         sys.exit(1)
 
 
-def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: tuple[str, ...], cwd: str) -> int:
+def _check_sdist_to_wheel(dist_info: DistributionPackageInfo, pip_command: list[str], cwd: str) -> int:
     get_console().print(
         f"[info]Validate build wheel from sdist distribution for package {dist_info.package!r}.[/]"
     )

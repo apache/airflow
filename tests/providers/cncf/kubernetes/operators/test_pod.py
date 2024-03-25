@@ -359,7 +359,8 @@ class TestKubernetesPodOperator:
         )
         context = create_context(k)
         label_selector = k._build_find_pod_label_selector(context)
-        assert "foo=bar" in label_selector and "hello=airflow" in label_selector
+        assert "foo=bar" in label_selector
+        assert "hello=airflow" in label_selector
 
     @patch(HOOK_CLASS, new=MagicMock)
     def test_find_pod_labels(self):
@@ -1473,8 +1474,10 @@ class TestKubernetesPodOperator:
     @patch(KUB_OP_PATH.format("find_pod"))
     def test_execute_sync_callbacks(self, find_pod_mock):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
-
-        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+        from tests.providers.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
 
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks
@@ -1536,8 +1539,10 @@ class TestKubernetesPodOperator:
     @patch(HOOK_CLASS, new=MagicMock)
     def test_execute_async_callbacks(self):
         from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
-
-        from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+        from tests.providers.cncf.kubernetes.test_callbacks import (
+            MockKubernetesPodOperatorCallback,
+            MockWrapper,
+        )
 
         MockWrapper.reset()
         mock_callbacks = MockWrapper.mock_callbacks

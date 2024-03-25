@@ -170,6 +170,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-hatch-build-order                                   | Check order of dependencies in hatch_build.py                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |
@@ -190,8 +192,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-no-relative-imports                                 | No relative imports                                          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-only-new-session-with-provide-session               | Check NEW_SESSION is only used with @provide_session         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-persist-credentials-disabled-in-github-workflows    | Check that workflow files have persist-credentials disabled  |         |
@@ -209,8 +209,6 @@ require Breeze Docker image to be built locally.
 | check-providers-subpackages-init-file-exist               | Provider subpackage init files are there                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-pydevd-left-in-code                                 | Check for pydevd debug statements accidentally left          |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-pyproject-toml-order                                | Check order of dependencies in pyproject.toml                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-revision-heads-map                                  | Check that the REVISION_HEADS_MAP is up-to-date              |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
