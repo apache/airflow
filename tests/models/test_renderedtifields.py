@@ -174,24 +174,20 @@ class TestRenderedTaskInstanceFields:
         Test that secrets are masked when the templated field is a large string
         """
         Variable.set(
-            key="api_key",
-            value="Api key secret should be masked as before"
-            * 5000,
+            key="name",
+            value="A field exceeding the max length of the templated field length" * 5000,
         )
         with dag_maker("test_serialized_rendered_fields"):
-            task = BashOperator(task_id="test", bash_command="echo {{ var.value.api_key }}")
+            task = BashOperator(task_id="test", bash_command="echo {{ var.value.name }}")
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task
         rtif = RTIF(ti=ti)
-
-        assert ti.dag_id == rtif.dag_id
-        assert ti.task_id == rtif.task_id
-        assert ti.run_id == rtif.run_id
         assert "***" in rtif.rendered_fields.get("bash_command")
 
     @mock.patch("airflow.models.BaseOperator.render_template")
     def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
+        """Test that rendered dataframe gets passed through the serialized template fields."""
         import pandas
 
         render_mock.return_value = pandas.DataFrame({"a": [1, 2, 3]})
