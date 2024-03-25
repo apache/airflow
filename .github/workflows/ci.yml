@@ -194,6 +194,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -247,7 +248,7 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/additional-ci-image-checks.yml
     with:
-      runs-on: ${{needs.build-info.outputs.runs-on}}
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -268,7 +269,7 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/static-checks-mypy-and-constraints-generation.yml
     with:
-      runs-on: ${{needs.build-info.outputs.runs-on}}
+      runs-on: ${{ needs.build-info.outputs.runs-on }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -493,6 +494,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
+      runs-on: '["ubuntu-22.04"]'
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}

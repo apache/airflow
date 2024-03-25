@@ -136,7 +136,6 @@ jobs:
       PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
       PYDANTIC: "${{ inputs.pydantic }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
-      RUNS_ON: "${{inputs.runs-on}}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
