@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-24T17:38:57.256252
+# This constraints file was automatically generated on 2024-03-25T07:22:22.349529
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -389,7 +389,7 @@ ply==3.11
 plyvel==1.5.1
 portalocker==2.8.2
 pprintpp==0.4.0
-pre-commit==3.6.2
+pre-commit==3.7.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.20.0
@@ -428,7 +428,7 @@ pypsrp==0.8.1
 pyspark==3.5.1
 pyspnego==0.10.2
 pytest-asyncio==0.23.6
-pytest-cov==4.1.0
+pytest-cov==5.0.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.14.0
@@ -472,7 +472,7 @@ rich-click==1.7.4
 rich==13.7.1
 rpds-py==0.18.0
 rsa==4.9
-ruff==0.3.4
+ruff==0.3.3
 s3fs==2023.12.2
 s3transfer==0.10.1
 sarif-om==1.0.4
