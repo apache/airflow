@@ -129,6 +129,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
             r"^pyproject.toml",
+            r"^hatch_build.py",
         ],
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
@@ -439,19 +440,14 @@ class SelectiveChecks:
         if not self._commit_ref:
             get_console().print("[warning]Running everything in all versions as commit is missing[/]")
             return True
-        if self.pyproject_toml_changed:
-            if self.build_system_changed_in_pyproject_toml:
-                get_console().print(
-                    "[warning]Running everything with all versions: build-system"
-                    "changed in pyproject.toml[/]"
-                )
-                return True
-            if self.dependencies_changed_in_pyproject_toml:
-                get_console().print(
-                    "[warning]Running everything with all versions: "
-                    "dependencies changed in pyproject.toml[/]"
-                )
-                return True
+        if self.hatch_build_changed:
+            get_console().print("[warning]Running everything with all versions: hatch_build.py changed[/]")
+            return True
+        if self.pyproject_toml_changed and self.build_system_changed_in_pyproject_toml:
+            get_console().print(
+                "[warning]Running everything with all versions: build-system changed in pyproject.toml[/]"
+            )
+            return True
         if self.generated_dependencies_changed:
             get_console().print(
                 "[warning]Running everything with all versions: provider dependencies changed[/]"
@@ -882,6 +878,10 @@ class SelectiveChecks:
         return "generated/provider_dependencies.json" in self._files
 
     @cached_property
+    def hatch_build_changed(self) -> bool:
+        return "hatch_build.py" in self._files
+
+    @cached_property
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
@@ -940,28 +940,6 @@ class SelectiveChecks:
         return False
 
     @cached_property
-    def dependencies_changed_in_pyproject_toml(self) -> bool:
-        if not self.pyproject_toml_changed:
-            return False
-        new_deps = self._new_toml["project"]["dependencies"]
-        old_deps = self._old_toml["project"]["dependencies"]
-        if new_deps != old_deps:
-            get_console().print("[warning]Project dependencies changed [/]")
-            self._print_diff(old_deps, new_deps)
-            return True
-        new_optional_deps = self._new_toml["project"].get("optional-dependencies", {})
-        old_optional_deps = self._old_toml["project"].get("optional-dependencies", {})
-        if new_optional_deps != old_optional_deps:
-            get_console().print("[warning]Optional dependencies changed [/]")
-            all_dep_keys = set(new_optional_deps.keys()).union(old_optional_deps.keys())
-            for dep in all_dep_keys:
-                if new_optional_deps.get(dep) != old_optional_deps.get(dep):
-                    get_console().print(f"[warning]Optional dependency {dep} changed[/]")
-                    self._print_diff(old_optional_deps.get(dep, []), new_optional_deps.get(dep, []))
-            return True
-        return False
-
-    @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         if (
             len(
@@ -973,10 +951,8 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Upgrade to newer dependencies: Dependency files changed[/]")
             return True
-        if self.dependencies_changed_in_pyproject_toml:
-            get_console().print(
-                "[warning]Upgrade to newer dependencies: Dependencies changed in pyproject.toml[/]"
-            )
+        if self.hatch_build_changed:
+            get_console().print("[warning]Upgrade to newer dependencies: hatch_build.py changed[/]")
             return True
         if self.build_system_changed_in_pyproject_toml:
             get_console().print(

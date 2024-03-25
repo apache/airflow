@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE, OpenLineageAdapter
+from airflow.providers.openlineage import conf
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.utils.utils import get_job_name
 
 if TYPE_CHECKING:
@@ -60,4 +61,4 @@ def lineage_parent_id(task_instance: TaskInstance):
     """
     job_name = get_job_name(task_instance.task)
     run_id = lineage_run_id(task_instance)
-    return f"{_DAG_NAMESPACE}/{job_name}/{run_id}"
+    return f"{conf.namespace()}/{job_name}/{run_id}"

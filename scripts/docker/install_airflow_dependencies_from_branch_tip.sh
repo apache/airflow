@@ -45,13 +45,17 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
+    local TEMP_AIRFLOW_DIR
+    TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Install latest set of dependencies - without constraints. This is to download a "base" set of
     # dependencies that we can cache and reuse when installing airflow using constraints and latest
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
+    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
+        tar xvz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+    # Make sure editable dependencies are calculated when devel-ci dependencies are installed
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
     set +x
     common::install_packaging_tools
     set -x
@@ -67,6 +71,7 @@ function install_airflow_dependencies_from_branch_tip() {
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
     set -x
+    rm -rvf "${TEMP_AIRFLOW_DIR}"
     # If you want to make sure dependency is removed from cache in your PR when you removed it from
     # pyproject.toml - please add your dependency here as a list of strings
     # for example:

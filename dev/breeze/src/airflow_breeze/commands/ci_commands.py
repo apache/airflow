@@ -248,26 +248,30 @@ def selective_check(
     github_actor: str,
     github_context: str,
 ):
-    from airflow_breeze.utils.selective_checks import SelectiveChecks
+    try:
+        from airflow_breeze.utils.selective_checks import SelectiveChecks
 
-    github_context_dict = json.loads(github_context) if github_context else {}
-    github_event = GithubEvents(github_event_name)
-    if commit_ref is not None:
-        changed_files = get_changed_files(commit_ref=commit_ref)
-    else:
-        changed_files = ()
-    sc = SelectiveChecks(
-        commit_ref=commit_ref,
-        files=changed_files,
-        default_branch=default_branch,
-        default_constraints_branch=default_constraints_branch,
-        pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
-        github_event=github_event,
-        github_repository=github_repository,
-        github_actor=github_actor,
-        github_context_dict=github_context_dict,
-    )
-    print(str(sc), file=sys.stderr)
+        github_context_dict = json.loads(github_context) if github_context else {}
+        github_event = GithubEvents(github_event_name)
+        if commit_ref is not None:
+            changed_files = get_changed_files(commit_ref=commit_ref)
+        else:
+            changed_files = ()
+        sc = SelectiveChecks(
+            commit_ref=commit_ref,
+            files=changed_files,
+            default_branch=default_branch,
+            default_constraints_branch=default_constraints_branch,
+            pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
+            github_event=github_event,
+            github_repository=github_repository,
+            github_actor=github_actor,
+            github_context_dict=github_context_dict,
+        )
+        print(str(sc), file=sys.stderr)
+    except Exception:
+        get_console().print_exception(show_locals=True)
+        sys.exit(1)
 
 
 TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")

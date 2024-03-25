@@ -653,18 +653,9 @@ def test_expected_output_pull_request_main(
                 "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
                 {
                     "full-tests-needed": "false",
+                    "all-versions": "false",
                 },
-                id="No full tests needed when pyproject.toml changes in insignificant way",
-            )
-        ),
-        (
-            pytest.param(
-                ("pyproject.toml",),
-                "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
-                {
-                    "full-tests-needed": "true",
-                },
-                id="Full tests needed when only dependencies change in pyproject.toml",
+                id="No full tests needed / all versions when pyproject.toml changes in insignificant way",
             )
         ),
         (
@@ -673,8 +664,9 @@ def test_expected_output_pull_request_main(
                 "c381fdaff42bbda480eee70fb15c5b26a2a3a77d",
                 {
                     "full-tests-needed": "true",
+                    "all-versions": "true",
                 },
-                id="Full tests needed when build-system changes in pyproject.toml",
+                id="Full tests needed / all versions  when build-system changes in pyproject.toml",
             )
         ),
     ],
@@ -689,6 +681,21 @@ def test_full_test_needed_when_pyproject_toml_changes(
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+def test_hatch_build_py_changes():
+    stderr = SelectiveChecks(
+        files=("hatch_build.py",),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "full-tests-needed": "true",
+            "all-versions": "true",
+        },
+        str(stderr),
+    )
 
 
 @pytest.mark.parametrize(
@@ -1432,24 +1439,6 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             # In this commit only ruff configuration changed
             "2bc8e175b3a4cc84fe33e687f1a00d2a49563090",
             id="pyproject.toml changed but no dependency change",
-        ),
-        pytest.param(
-            ("pyproject.toml",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            "90e2b12d6b99d2f7db43e45f5e8b97d3b8a43b36",
-            id="pyproject.toml changed with optional dependencies changed",
-        ),
-        pytest.param(
-            ("pyproject.toml",),
-            {
-                "upgrade-to-newer-dependencies": "true",
-            },
-            (),
-            "74baebe5e774ac575fe3a49291996473b1daa789",
-            id="pyproject.toml changed with core dependencies changed",
         ),
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),

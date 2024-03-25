@@ -271,11 +271,11 @@ function check_pydantic() {
 
 
 # Download minimum supported version of sqlalchemy to run tests with it
-function check_download_sqlalchemy() {
+function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -285,11 +285,11 @@ function check_download_sqlalchemy() {
 }
 
 # Download minimum supported version of pendulum to run tests with it
-function check_download_pendulum() {
+function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
         return
     fi
-    min_pendulum_version=$(grep "\"pendulum>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_pendulum_version=$(grep "\"pendulum>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
@@ -328,8 +328,8 @@ determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_pydantic
-check_download_sqlalchemy
-check_download_pendulum
+check_downgrade_sqlalchemy
+check_downgrade_pendulum
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

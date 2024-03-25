@@ -402,13 +402,17 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
+    local TEMP_AIRFLOW_DIR
+    TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Install latest set of dependencies - without constraints. This is to download a "base" set of
     # dependencies that we can cache and reuse when installing airflow using constraints and latest
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
+    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
+        tar xvz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+    # Make sure editable dependencies are calculated when devel-ci dependencies are installed
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
     set +x
     common::install_packaging_tools
     set -x
@@ -424,6 +428,7 @@ function install_airflow_dependencies_from_branch_tip() {
     set +x
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
     set -x
+    rm -rvf "${TEMP_AIRFLOW_DIR}"
     # If you want to make sure dependency is removed from cache in your PR when you removed it from
     # pyproject.toml - please add your dependency here as a list of strings
     # for example:
@@ -1044,11 +1049,11 @@ function check_pydantic() {
 }
 
 
-function check_download_sqlalchemy() {
+function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
         return
     fi
-    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_sqlalchemy_version=$(grep "\"sqlalchemy>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
     echo
@@ -1057,11 +1062,11 @@ function check_download_sqlalchemy() {
     pip check
 }
 
-function check_download_pendulum() {
+function check_downgrade_pendulum() {
     if [[ ${DOWNGRADE_PENDULUM=} != "true" ]]; then
         return
     fi
-    min_pendulum_version=$(grep "\"pendulum>=" pyproject.toml | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
+    min_pendulum_version=$(grep "\"pendulum>=" hatch_build.py | sed "s/.*>=\([0-9\.]*\).*/\1/" | xargs)
     echo
     echo "${COLOR_BLUE}Downgrading pendulum to minimum supported version: ${min_pendulum_version}${COLOR_RESET}"
     echo
@@ -1099,8 +1104,8 @@ determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_pydantic
-check_download_sqlalchemy
-check_download_pendulum
+check_downgrade_sqlalchemy
+check_downgrade_pendulum
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"
@@ -1309,7 +1314,6 @@ COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE
-COPY airflow_pre_installed_providers.txt ${AIRFLOW_SOURCES}/
 COPY hatch_build.py ${AIRFLOW_SOURCES}/
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
