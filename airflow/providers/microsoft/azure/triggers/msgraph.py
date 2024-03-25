@@ -110,8 +110,6 @@ class MSGraphTrigger(BaseTrigger):
     """
     A Microsoft Graph API trigger which allows you to execute an async REST call to the Microsoft Graph API.
 
-    https://github.com/microsoftgraph/msgraph-sdk-python
-
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: "bytes",
         "str", "int", "float", "bool" and "datetime" (default is None).
