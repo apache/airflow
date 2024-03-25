@@ -170,7 +170,7 @@
             ]
         },
         "orientation": { "type" : "string"},
-        "_dag_display_name": { "type" : "string"},
+        "_dag_display_property_value": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},

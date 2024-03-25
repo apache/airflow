@@ -519,7 +519,7 @@ class DAG(LoggingMixin):
         validate_key(dag_id)
 
         self._dag_id = dag_id
-        self._dag_display_name = dag_display_name
+        self._dag_display_property_value = dag_display_name
 
         if concurrency:
             # TODO: Remove in Airflow 3.0
@@ -1313,7 +1313,7 @@ class DAG(LoggingMixin):
 
     @property
     def dag_display_name(self) -> str:
-        return self._dag_display_name or self._dag_id
+        return self._dag_display_property_value or self._dag_id
 
     @property
     def description(self) -> str | None:
@@ -3148,7 +3148,7 @@ class DAG(LoggingMixin):
             orm_dag.has_import_errors = False
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
-            orm_dag._dag_display_name = dag._dag_display_name
+            orm_dag._dag_display_property_value = dag._dag_display_property_value
             orm_dag.description = dag.description
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
@@ -3606,7 +3606,7 @@ class DagModel(Base):
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
-    _dag_display_name = Column("dag_display_name", String(2000), nullable=True)
+    _dag_display_property_value = Column("dag_display_name", String(2000), nullable=True)
     # Description of the dag
     description = Column(Text)
     # Default view of the DAG inside the webserver
@@ -3803,7 +3803,7 @@ class DagModel(Base):
 
     @hybrid_property
     def dag_display_name(self) -> str:
-        return self._dag_display_name or self.dag_id
+        return self._dag_display_property_value or self.dag_id
 
     @classmethod
     @internal_api_call

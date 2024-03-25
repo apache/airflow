@@ -1005,7 +1005,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.doc_yaml = doc_yaml
         self.doc_rst = doc_rst
         self.doc = doc
-        self._task_display_name = task_display_name
+        self._task_display_property_value = task_display_name
 
         self.upstream_task_ids: set[str] = set()
         self.downstream_task_ids: set[str] = set()
@@ -1195,7 +1195,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def task_display_name(self) -> str:
-        return self._task_display_name or self.task_id
+        return self._task_display_property_value or self.task_id
 
     def has_dag(self):
         """Return True if the Operator has been assigned to a DAG."""
