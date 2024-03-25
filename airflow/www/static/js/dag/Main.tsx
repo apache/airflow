@@ -236,7 +236,14 @@ const MainInContext = () => {
         transition="all 0.2s"
       />
       <Accordion allowToggle index={accordionIndexes} borderTopWidth={0}>
-        <AccordionItem>
+        <AccordionItem
+          sx={{
+            // Override chakra-collapse so our dropdowns still work
+            ".chakra-collapse": {
+              overflow: "visible !important",
+            },
+          }}
+        >
           <AccordionButton display="none" />
           <AccordionPanel p={0}>
             <FilterBar />
