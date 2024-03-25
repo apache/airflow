@@ -954,15 +954,26 @@ def run_generate_constraints_in_parallel(
     name="tag-providers",
     help="Generates tags for airflow provider releases.",
 )
+@click.option(
+    "--clean-local-tags",
+    default=True,
+    is_flag=True,
+    envvar="CLEAN_LOCAL_TAGS",
+    help="Delete local tags that are created due to github connectivity issues to avoid errors. "
+    "The default behaviour would be to clean such local tags.",
+    show_default=True,
+)
 @option_dry_run
 @option_verbose
-def tag_providers():
+def tag_providers(
+    clean_local_tags: bool,
+):
     found_remote = None
     remotes = ["origin", "apache"]
     for remote in remotes:
         try:
             command = ["git", "remote", "get-url", "--push", shlex.quote(remote)]
-            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            result = run_command(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
             if "apache/airflow.git" in result.stdout:
                 found_remote = remote
                 break
@@ -980,7 +991,7 @@ def tag_providers():
                 provider = f"providers-{match.group(1).replace('_', '-')}"
                 tag = f"{provider}/{match.group(2)}"
                 try:
-                    subprocess.run(
+                    run_command(
                         ["git", "tag", shlex.quote(tag), "-m", f"Release {date.today()} of providers"],
                         check=True,
                     )
@@ -991,22 +1002,20 @@ def tag_providers():
     if tags and len(tags) > 0:
         try:
             push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
-            push_result = subprocess.Popen(
-                push_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            push_result = run_command(
+                push_command,
+                text=True,
+                capture_output=True,
+                check=False,
             )
-            push_output, push_error = push_result.communicate()
-            if push_output:
-                get_console().print("[success]{push_output}[/]")
-            if push_error:
-                get_console().print("[error]{push_error}[/]")
-            get_console().print("\n[success]Tags pushed successfully.[/]")
+            if push_result.returncode == 0:
+                get_console().print("\n[success]Tags pushed successfully.[/]")
         except subprocess.CalledProcessError:
             get_console().print("\n[error]Failed to push tags, probably a connectivity issue to Github.[/]")
-            clean_local_tags = os.environ.get("CLEAN_LOCAL_TAGS", "true").lower() == "true"
             if clean_local_tags:
                 for tag in tags:
                     try:
-                        subprocess.run(["git", "tag", "-d", shlex.quote(tag)], check=True)
+                        run_command(["git", "tag", "-d", shlex.quote(tag)], check=True)
                     except subprocess.CalledProcessError:
                         pass
                 get_console().print("\n[success]Cleaning up local tags...[/]")

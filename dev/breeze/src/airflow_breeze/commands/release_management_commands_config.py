@@ -203,6 +203,9 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management tag-providers": [
         {
             "name": "Add tags to providers",
+            "options": [
+                "--clean-local-tags",
+            ],
         },
     ],
     "breeze release-management prepare-provider-documentation": [
