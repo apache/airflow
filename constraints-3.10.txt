@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-25T07:29:41.708208
+# This constraints file was automatically generated on 2024-03-25T15:48:00.503690
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -181,7 +181,7 @@ apache-airflow-providers-vertica==3.7.1
 apache-airflow-providers-weaviate==1.3.3
 apache-airflow-providers-yandex==3.9.0
 apache-airflow-providers-zendesk==4.6.0
-apache-beam==2.54.0
+apache-beam==2.55.0
 apispec==6.6.0
 apprise==1.7.4
 argcomplete==3.2.3
@@ -286,7 +286,7 @@ email_validator==2.1.1
 entrypoints==0.4
 eralchemy2==1.3.8
 et-xmlfile==1.1.0
-eventlet==0.35.2
+eventlet==0.36.0
 exceptiongroup==1.2.0
 execnet==2.0.2
 executing==2.0.1
@@ -294,7 +294,7 @@ facebook_business==19.0.2
 fastavro==1.9.4
 fasteners==0.19
 fastjsonschema==2.19.1
-filelock==3.13.1
+filelock==3.13.2
 flower==2.0.1
 frozenlist==1.4.1
 fsspec==2023.12.2
@@ -468,7 +468,7 @@ nest-asyncio==1.6.0
 networkx==3.2.1
 nh3==0.2.15
 nodeenv==1.8.0
-numpy==1.24.4
+numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
 openai==1.14.2
@@ -495,7 +495,7 @@ orjson==3.9.15
 oss2==2.18.4
 packaging==24.0
 pandas-gbq==0.22.0
-pandas-stubs==2.0.2.230605
+pandas-stubs==2.2.1.240316
 pandas==2.1.4
 papermill==2.5.0
 paramiko==3.4.0
@@ -675,7 +675,7 @@ towncrier==23.11.0
 tqdm==4.66.2
 traitlets==5.14.2
 trino==0.328.0
-trove-classifiers==2024.3.3
+trove-classifiers==2024.3.25
 twine==5.0.0
 types-Deprecated==1.2.9.20240311
 types-Markdown==3.6.0.20240316

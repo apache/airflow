@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-03-25T07:22:30.582169
+# This constraints file was automatically generated on 2024-03-25T15:41:01.145678
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -73,10 +73,10 @@ dnspython==2.6.1
 docopt==0.6.2
 docutils==0.20.1
 email_validator==2.1.1
-eventlet==0.35.2
+eventlet==0.36.0
 exceptiongroup==1.2.0
 fastavro==1.9.4
-filelock==3.13.1
+filelock==3.13.2
 frozenlist==1.4.1
 fsspec==2024.3.1
 gevent==24.2.1
