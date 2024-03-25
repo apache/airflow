@@ -147,6 +147,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
             ssl_ca_cert=self._ssl_ca_cert,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            enable_tcp_keepalive=True,
         )
 
 
