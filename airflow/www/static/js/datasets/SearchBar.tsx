@@ -18,46 +18,47 @@
  */
 
 import React from "react";
-import { HStack } from "@chakra-ui/react";
 import { Size, useChakraSelectProps } from "chakra-react-select";
 
 import type { DatasetDependencies } from "src/api/useDatasetDependencies";
 import MultiSelect from "src/components/MultiSelect";
-import InfoTooltip from "src/components/InfoTooltip";
 
 interface Props {
   datasetDependencies?: DatasetDependencies;
-  filteredDagIds: string[];
-  onFilterDags: (dagIds: string[]) => void;
+  selectedDagId?: string;
+  selectedUri?: string;
+  onSelectNode: (id: string, type: string) => void;
 }
 
-const transformArrayToMultiSelectOptions = (
-  options: string[] | null
-): { label: string; value: string }[] =>
-  options === null
-    ? []
-    : options.map((option) => ({ label: option, value: option }));
+interface Option {
+  value: string;
+  label: string;
+}
 
-const DagFilter = ({
+const SearchBar = ({
   datasetDependencies,
-  filteredDagIds,
-  onFilterDags,
+  selectedDagId,
+  selectedUri,
+  onSelectNode,
 }: Props) => {
-  const dagIds = (datasetDependencies?.nodes || [])
-    .filter((node) => node.value.class === "dag")
-    .map((dag) => dag.value.label);
-  const options = dagIds.map((dagId) => ({ label: dagId, value: dagId }));
+  const dagOptions: Option[] = [];
+  const datasetOptions: Option[] = [];
+  (datasetDependencies?.nodes || []).forEach((node) => {
+    if (node.value.class === "dag")
+      dagOptions.push({ value: node.id, label: node.value.label });
+    if (node.value.class === "dataset")
+      datasetOptions.push({ value: node.id, label: node.value.label });
+  });
 
   const inputStyles: { backgroundColor: string; size: Size } = {
     backgroundColor: "white",
     size: "lg",
   };
-  const multiSelectStyles = useChakraSelectProps({
+  const selectStyles = useChakraSelectProps({
     ...inputStyles,
-    isMulti: true,
     tagVariant: "solid",
-    hideSelectedOptions: false,
-    isClearable: false,
+    // hideSelectedOptions: false,
+    // isClearable: false,
     selectedOptionStyle: "check",
     chakraStyles: {
       container: (p) => ({
@@ -92,26 +93,33 @@ const DagFilter = ({
     },
   });
 
+  const onSelect = ({ label, value }: Option) => {
+    let type = "";
+    if (value.startsWith("dataset:")) type = "dataset";
+    else if (value.startsWith("dag:")) type = "dag";
+    if (type) onSelectNode(label, type);
+  };
+
+  let option;
+  if (selectedUri) {
+    option = { label: selectedUri, value: `dataset:${selectedUri}` };
+  } else if (selectedDagId) {
+    option = { label: selectedDagId, value: `dag:${selectedDagId}` };
+  }
+
   return (
-    <HStack width="100%">
-      <MultiSelect
-        {...multiSelectStyles}
-        isDisabled={!datasetDependencies}
-        value={transformArrayToMultiSelectOptions(filteredDagIds)}
-        onChange={(dagOptions) => {
-          if (
-            Array.isArray(dagOptions) &&
-            dagOptions.every((dagOption) => "value" in dagOption)
-          ) {
-            onFilterDags(dagOptions.map((option) => option.value));
-          }
-        }}
-        options={options}
-        placeholder="Filter graph by DAG ID"
-      />
-      <InfoTooltip label="Filter Datasets graph by anything that may be connected to one or more DAGs. Does not filter the datasets list." />
-    </HStack>
+    <MultiSelect
+      {...selectStyles}
+      isDisabled={!datasetDependencies}
+      value={option}
+      onChange={(e) => onSelect(e as Option)}
+      options={[
+        { label: "DAGs", options: dagOptions },
+        { label: "Datasets", options: datasetOptions },
+      ]}
+      placeholder="Search by DAG Id or Dataset Uri"
+    />
   );
 };
 
-export default DagFilter;
+export default SearchBar;

@@ -43,35 +43,13 @@ const Datasets = () => {
 
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  const datasetUriSearch = decodeURIComponent(
+  const selectedUri = decodeURIComponent(
     searchParams.get(DATASET_URI_PARAM) || ""
   );
-  const filteredDagIds = searchParams
-    .getAll(DAG_ID_PARAM)
-    .map((param) => decodeURIComponent(param));
+  const selectedDagId = searchParams.get(DAG_ID_PARAM);
 
   // We need to load in the raw dependencies in order to generate the list of dagIds
   const { data: datasetDependencies, isLoading } = useDatasetDependencies();
-
-  const onBack = () => {
-    searchParams.delete(DATASET_URI_PARAM);
-    setSearchParams(searchParams);
-  };
-
-  const onSelect = (datasetUri: string) => {
-    searchParams.set(DATASET_URI_PARAM, encodeURIComponent(datasetUri));
-    setSearchParams(searchParams);
-  };
-
-  const onFilterDags = (dagIds: string[]) => {
-    const params = new URLSearchParams(
-      dagIds.map((dagId) => [DAG_ID_PARAM, dagId])
-    );
-    if (datasetUriSearch) {
-      params.append(DATASET_URI_PARAM, encodeURIComponent(datasetUriSearch));
-    }
-    setSearchParams(params);
-  };
 
   const resize = useCallback(
     (e: MouseEvent) => {
@@ -108,6 +86,22 @@ const Datasets = () => {
     return () => {};
   }, [resize]);
 
+  const selectedNodeId = selectedUri || selectedDagId;
+
+  const onSelectNode = (id: string, type: string) => {
+    if (type === "dag") {
+      if (id === selectedDagId) searchParams.delete(DAG_ID_PARAM);
+      else searchParams.set(DAG_ID_PARAM, id);
+      searchParams.delete(DATASET_URI_PARAM);
+    }
+    if (type === "dataset") {
+      if (id === selectedUri) searchParams.delete(DATASET_URI_PARAM);
+      else searchParams.set(DATASET_URI_PARAM, id);
+      searchParams.delete(DAG_ID_PARAM);
+    }
+    setSearchParams(searchParams);
+  };
+
   return (
     <Flex
       alignItems="flex-start"
@@ -122,14 +116,16 @@ const Datasets = () => {
         ref={listRef}
         mr={3}
       >
-        {datasetUriSearch ? (
-          <DatasetDetails uri={datasetUriSearch} onBack={onBack} />
+        {selectedUri ? (
+          <DatasetDetails
+            uri={selectedUri}
+            onBack={() => onSelectNode(selectedUri, "dataset")}
+          />
         ) : (
           <DatasetsList
-            onSelect={onSelect}
             datasetDependencies={datasetDependencies}
-            filteredDagIds={filteredDagIds}
-            onFilterDags={onFilterDags}
+            selectedDagId={selectedDagId || undefined}
+            onSelectNode={onSelectNode}
           />
         )}
       </Box>
@@ -150,12 +146,7 @@ const Datasets = () => {
         position="relative"
       >
         {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
-        <Graph
-          selectedUri={datasetUriSearch}
-          onSelect={onSelect}
-          filteredDagIds={filteredDagIds}
-          onFilterDags={onFilterDags}
-        />
+        <Graph selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
       </Box>
     </Flex>
   );
