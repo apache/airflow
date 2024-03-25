@@ -551,6 +551,15 @@ class TestBigQueryOperator:
         )
 
         operator.execute(MagicMock())
+        mock_hook.assert_called_with(
+            gcp_conn_id="google_cloud_default",
+            use_legacy_sql=True,
+            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
+            impersonation_scopes=[
+                "https://www.googleapis.com/auth/cloud-platform",
+                "https://www.googleapis.com/auth/drive",
+            ],
+        )
         mock_hook.return_value.run_query.assert_called_once_with(
             sql="Select * from test_table",
             destination_dataset_table=None,
@@ -569,11 +578,6 @@ class TestBigQueryOperator:
             api_resource_configs=None,
             cluster_fields=None,
             encryption_configuration=encryption_configuration,
-            impersonation_chain=["service-account@myproject.iam.gserviceaccount.com"],
-            impersonation_scopes=[
-                "https://www.googleapis.com/auth/cloud-platform",
-                "https://www.googleapis.com/auth/drive",
-            ],
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
