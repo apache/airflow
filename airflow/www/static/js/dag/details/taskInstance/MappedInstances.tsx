@@ -106,17 +106,14 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Duration",
         accessor: "duration",
-        disableSortBy: true,
       },
       {
         Header: "Start Date",
         accessor: "startDate",
-        disableSortBy: true,
       },
       {
         Header: "End Date",
         accessor: "endDate",
-        disableSortBy: true,
       },
       {
         Header: "Try Number",
