@@ -655,17 +655,6 @@ def get_attr_renderer():
     }
 
 
-def get_chart_height(dag):
-    """
-    Use the number of tasks in the DAG to approximate the size of generated chart.
-
-    Without this the charts are tiny and unreadable when DAGs have a large number of tasks).
-    Ideally nvd3 should allow for dynamic-height charts, that is charts that take up space
-    based on the size of the components within.
-    """
-    return 600 + len(dag.tasks) * 10
-
-
 class UtcAwareFilterMixin:
     """Mixin for filter for UTC time."""
 
