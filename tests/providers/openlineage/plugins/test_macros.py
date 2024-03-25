@@ -19,8 +19,10 @@ from __future__ import annotations
 import uuid
 from unittest import mock
 
-from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
+
+_DAG_NAMESPACE = namespace()
 
 
 def test_lineage_run_id():
