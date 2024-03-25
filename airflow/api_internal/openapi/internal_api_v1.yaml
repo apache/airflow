@@ -67,7 +67,7 @@ paths:
                   description: Method name
                 params:
                   title: Parameters
-                  type: string
+                  type: object
 x-headers: []
 x-explorer-enabled: true
 x-proxy-enabled: true
