@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import html
 import json
-import re
 import unittest.mock
 import urllib.parse
 from getpass import getuser
@@ -29,11 +28,9 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -1010,49 +1007,6 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
             == 0
         )
     assert session.query(TaskReschedule).count() == 0
-
-
-def test_task_fail_duration(app, admin_client, dag_maker, session):
-    """Task duration page with a TaskFail entry should render without error."""
-    with dag_maker() as dag:
-        op1 = BashOperator(task_id="fail", bash_command="exit 1")
-        op2 = BashOperator(task_id="success", bash_command="exit 0")
-
-    with pytest.raises(AirflowException):
-        op1.run()
-    op2.run()
-
-    op1_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "fail",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    op2_fails = (
-        session.query(TaskFail)
-        .filter(
-            TaskFail.task_id == "success",
-            TaskFail.dag_id == dag.dag_id,
-        )
-        .all()
-    )
-
-    assert len(op1_fails) == 1
-    assert len(op2_fails) == 0
-
-    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
-        mocked_dag_bag.get_dag.return_value = dag
-        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
-        html = resp.get_data().decode()
-        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
-        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
-
-        assert resp.status_code == 200
-        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
-        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]
 
 
 def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client):

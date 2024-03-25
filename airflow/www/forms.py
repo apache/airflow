@@ -39,7 +39,6 @@ from wtforms.validators import InputRequired, Optional
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
-from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.www.validators import ReadOnly, ValidConnID
 from airflow.www.widgets import (
@@ -97,25 +96,6 @@ class DateTimeForm(FlaskForm):
     """Date filter form needed for task views."""
 
     execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
-
-
-class DateTimeWithNumRunsForm(FlaskForm):
-    """Date time and number of runs form for tree view, task duration and landing times."""
-
-    base_date = DateTimeWithTimezoneField(
-        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()
-    )
-    num_runs = SelectField(
-        "Number of runs",
-        default=25,
-        choices=(
-            (5, "5"),
-            (25, "25"),
-            (50, "50"),
-            (100, "100"),
-            (365, "365"),
-        ),
-    )
 
 
 class DagRunEditForm(DynamicForm):

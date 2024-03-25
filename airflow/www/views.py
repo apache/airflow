@@ -41,7 +41,6 @@ from urllib.parse import unquote, urljoin, urlsplit
 import configupdater
 import flask.json
 import lazy_object_proxy
-import nvd3
 import re2
 import sqlalchemy as sqla
 from croniter import croniter
@@ -102,7 +101,7 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom, errors
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
@@ -120,7 +119,6 @@ from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
-from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import exactly_one
@@ -140,7 +138,6 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
-    DateTimeWithNumRunsForm,
     TaskInstanceEditForm,
     create_connection_form_class,
 )
@@ -167,7 +164,7 @@ SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 logger = logging.getLogger(__name__)
 
 
-def sanitize_args(args: dict[str, str]) -> dict[str, str]:
+def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
     """
     Remove all parameters starting with `_`.
 
@@ -2835,111 +2832,11 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.calendar", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/calendar")
-    @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @gzipped
-    @provide_session
-    def calendar(self, dag_id: str, session: Session = NEW_SESSION):
-        """Get DAG runs as calendar."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
-            return redirect(url_for("Airflow.index"))
+    def calendar(self, dag_id: str):
+        """Redirect to the replacement - grid + calendar. Kept for backwards compatibility."""
+        kwargs = {**sanitize_args(request.args), "dag_id": dag_id, "tab": "calendar"}
 
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
-
-        dag_states = session.execute(
-            select(
-                func.date(DagRun.execution_date).label("date"),
-                DagRun.state,
-                func.max(DagRun.data_interval_start).label("data_interval_start"),
-                func.max(DagRun.data_interval_end).label("data_interval_end"),
-                func.count("*").label("count"),
-            )
-            .where(DagRun.dag_id == dag.dag_id)
-            .group_by(func.date(DagRun.execution_date), DagRun.state)
-            .order_by(func.date(DagRun.execution_date).asc())
-        ).all()
-
-        data_dag_states = [
-            {
-                # DATE() in SQLite and MySQL behave differently:
-                # SQLite returns a string, MySQL returns a date.
-                "date": dr.date if isinstance(dr.date, str) else dr.date.isoformat(),
-                "state": dr.state,
-                "count": dr.count,
-            }
-            for dr in dag_states
-        ]
-
-        if dag_states and dag_states[-1].data_interval_start and dag_states[-1].data_interval_end:
-            last_automated_data_interval = DataInterval(
-                timezone.coerce_datetime(dag_states[-1].data_interval_start),
-                timezone.coerce_datetime(dag_states[-1].data_interval_end),
-            )
-
-            year = last_automated_data_interval.end.year
-            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
-            dates: dict[datetime.date, int] = collections.Counter()
-
-            if isinstance(dag.timetable, CronMixin):
-                # Optimized calendar generation for timetables based on a cron expression.
-                dates_iter: Iterator[datetime.datetime | None] = croniter(
-                    dag.timetable._expression,
-                    start_time=last_automated_data_interval.end,
-                    ret_type=datetime.datetime,
-                )
-                for dt in dates_iter:
-                    if dt is None:
-                        break
-                    if dt.year != year:
-                        break
-                    if dag.end_date and dt > dag.end_date:
-                        break
-                    dates[dt.date()] += 1
-            else:
-                prev_logical_date = DateTime.min
-                while True:
-                    curr_info = dag.timetable.next_dagrun_info(
-                        last_automated_data_interval=last_automated_data_interval,
-                        restriction=restriction,
-                    )
-                    if curr_info is None:
-                        break  # Reached the end.
-                    if curr_info.logical_date <= prev_logical_date:
-                        break  # We're not progressing. Maybe a malformed timetable? Give up.
-                    if curr_info.logical_date.year != year:
-                        break  # Crossed the year boundary.
-                    last_automated_data_interval = curr_info.data_interval
-                    dates[curr_info.logical_date] += 1
-                    prev_logical_date = curr_info.logical_date
-
-            data_dag_states.extend(
-                {"date": date.isoformat(), "state": "planned", "count": count}
-                for (date, count) in dates.items()
-            )
-
-        now = timezone.utcnow()
-        data = {
-            "dag_states": data_dag_states,
-            "start_date": (dag.start_date or now).date().isoformat(),
-            "end_date": (dag.end_date or now).date().isoformat(),
-        }
-
-        return self.render_template(
-            "airflow/calendar.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            doc_md=wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
-            data=htmlsafe_json_dumps(data, separators=(",", ":")),  # Avoid spaces to reduce payload size.
-            root=root,
-            dag_model=dag_model,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/object/calendar_data")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
@@ -3079,150 +2976,9 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.duration", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/duration")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @provide_session
-    def duration(self, dag_id: str, session: Session = NEW_SESSION):
-        """Get Dag as duration graph."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        default_dag_run = conf.getint("webserver", "default_dag_run_display_number")
-        base_date_str = request.args.get("base_date")
-        num_runs = request.args.get("num_runs", default=default_dag_run, type=int)
-
-        if base_date_str:
-            base_date = _safe_parse_datetime(base_date_str)
-        else:
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-        chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(
-            name="lineChart",
-            x_custom_format=True,
-            x_axis_date=True,
-            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
-            height=chart_height,
-            chart_attr=self.line_chart_attr,
-        )
-        cum_chart = nvd3.lineChart(
-            name="cumLineChart",
-            x_custom_format=True,
-            x_axis_date=True,
-            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
-            height=chart_height,
-            chart_attr=self.line_chart_attr,
-        )
-
-        y_points = defaultdict(list)
-        x_points = defaultdict(list)
-
-        task_instances = dag.get_task_instances_before(base_date, num_runs, session=session)
-        if task_instances:
-            min_date = task_instances[0].execution_date
-        else:
-            min_date = timezone.utc_epoch()
-        ti_fails = (
-            select(TaskFail)
-            .join(TaskFail.dag_run)
-            .where(
-                TaskFail.dag_id == dag.dag_id,
-                DagRun.execution_date >= min_date,
-                DagRun.execution_date <= base_date,
-            )
-        )
-        if dag.partial:
-            ti_fails = ti_fails.where(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
-        ti_fails = session.scalars(ti_fails)
-        fails_totals: dict[tuple[str, str, str], int] = defaultdict(int)
-        for failed_task_instance in ti_fails:
-            dict_key = (
-                failed_task_instance.dag_id,
-                failed_task_instance.task_id,
-                failed_task_instance.run_id,
-            )
-            if failed_task_instance.duration:
-                fails_totals[dict_key] += failed_task_instance.duration
-
-        # We must group any mapped TIs by dag_id, task_id, run_id
-        def grouping_key(ti: TaskInstance):
-            return ti.dag_id, ti.task_id, ti.run_id
-
-        mapped_tis = set()
-        for _, group in itertools.groupby(sorted(task_instances, key=grouping_key), key=grouping_key):
-            tis = list(group)
-            duration = sum(x.duration for x in tis if x.duration)
-            if duration:
-                first_ti = tis[0]
-                if first_ti.map_index >= 0:
-                    mapped_tis.add(first_ti.task_id)
-                date_time = wwwutils.epoch(first_ti.execution_date)
-                x_points[first_ti.task_id].append(date_time)
-                fails_dict_key = (first_ti.dag_id, first_ti.task_id, first_ti.run_id)
-                fails_total = fails_totals[fails_dict_key]
-                y_points[first_ti.task_id].append(float(duration + fails_total))
-
-        cumulative_y = {k: list(itertools.accumulate(v)) for k, v in y_points.items()}
-
-        # determine the most relevant time unit for the set of task instance
-        # durations for the DAG
-        y_unit = infer_time_unit([d for t in y_points.values() for d in t])
-        cum_y_unit = infer_time_unit([d for t in cumulative_y.values() for d in t])
-        # update the y Axis on both charts to have the correct time units
-        chart.create_y_axis("yAxis", format=".02f", custom_format=False, label=f"Duration ({y_unit})")
-        chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
-        cum_chart.create_y_axis("yAxis", format=".02f", custom_format=False, label=f"Duration ({cum_y_unit})")
-        cum_chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
-
-        for task_id in x_points:
-            chart.add_serie(
-                name=task_id + "[]" if task_id in mapped_tis else task_id,
-                x=x_points[task_id],
-                y=scale_time_units(y_points[task_id], y_unit),
-            )
-            cum_chart.add_serie(
-                name=task_id + "[]" if task_id in mapped_tis else task_id,
-                x=x_points[task_id],
-                y=scale_time_units(cumulative_y[task_id], cum_y_unit),
-            )
-
-        max_date = max((ti.execution_date for ti in task_instances), default=None)
-
-        session.commit()
-
-        form = DateTimeWithNumRunsForm(
-            data={
-                "base_date": max_date or timezone.utcnow(),
-                "num_runs": num_runs,
-            }
-        )
-        chart.buildcontent()
-        cum_chart.buildcontent()
-        s_index = cum_chart.htmlcontent.rfind("});")
-        cum_chart.htmlcontent = (
-            f"{cum_chart.htmlcontent[:s_index]}"
-            "$( document ).trigger('chartload')"
-            f"{cum_chart.htmlcontent[s_index:]}"
-        )
-
-        return self.render_template(
-            "airflow/duration_chart.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            root=root,
-            form=form,
-            chart=Markup(chart.htmlcontent),
-            cum_chart=Markup(cum_chart.htmlcontent),
-            dag_model=dag_model,
-        )
+    def duration(self, dag_id: str):
+        """Redirect to Grid view."""
+        return redirect(url_for("Airflow.grid", dag_id=dag_id))
 
     @expose("/tries")
     def legacy_tries(self):
@@ -3230,80 +2986,13 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.tries", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/tries")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @provide_session
-    def tries(self, dag_id: str, session: Session = NEW_SESSION):
-        """Show all tries."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        default_dag_run = conf.getint("webserver", "default_dag_run_display_number")
-        base_date_str = request.args.get("base_date")
-        num_runs = request.args.get("num_runs", default=default_dag_run, type=int)
-
-        if base_date_str:
-            base_date = _safe_parse_datetime(base_date_str)
-        else:
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
-        chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(
-            name="lineChart",
-            x_custom_format=True,
-            x_axis_date=True,
-            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
-            height=chart_height,
-            chart_attr=self.line_chart_attr,
-        )
-
-        tis = dag.get_task_instances_before(base_date, num_runs, session=session)
-        for task in dag.tasks:
-            y_points = []
-            x_points = []
-            for ti in tis:
-                if ti.task_id == task.task_id:
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    x_points.append(dttm)
-                    # y value should reflect completed tries to have a 0 baseline.
-                    y_points.append(ti.prev_attempted_tries)
-            if x_points:
-                chart.add_serie(name=task.task_id, x=x_points, y=y_points)
-
-        max_date = max((ti.execution_date for ti in tis), default=None)
-        chart.create_y_axis("yAxis", format=".02f", custom_format=False, label="Tries")
-        chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
-
-        session.commit()
-
-        form = DateTimeWithNumRunsForm(
-            data={
-                "base_date": max_date or timezone.utcnow(),
-                "num_runs": num_runs,
-            }
-        )
-
-        chart.buildcontent()
-
-        return self.render_template(
-            "airflow/chart.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            root=root,
-            form=form,
-            chart=Markup(chart.htmlcontent),
-            tab_title="Tries",
-            dag_model=dag_model,
-        )
+    def tries(self, dag_id: str):
+        """Redirect to grid view."""
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+        }
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/landing_times")
     def legacy_landing_times(self):
@@ -3311,93 +3000,15 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.landing_times", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/landing-times")
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    @provide_session
-    def landing_times(self, dag_id: str, session: Session = NEW_SESSION):
-        """Show landing times."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
+    def landing_times(self, dag_id: str):
+        """Redirect to run duration page."""
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "run_duration",
+        }
 
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        default_dag_run = conf.getint("webserver", "default_dag_run_display_number")
-        base_date_str = request.args.get("base_date")
-        num_runs = request.args.get("num_runs", default=default_dag_run, type=int)
-
-        if base_date_str:
-            base_date = _safe_parse_datetime(base_date_str)
-        else:
-            base_date = dag.get_latest_execution_date() or timezone.utcnow()
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
-        tis = dag.get_task_instances_before(base_date, num_runs, session=session)
-
-        chart_height = wwwutils.get_chart_height(dag)
-        chart = nvd3.lineChart(
-            name="lineChart",
-            x_custom_format=True,
-            x_axis_date=True,
-            x_axis_format=LINECHART_X_AXIS_TICKFORMAT,
-            height=chart_height,
-            chart_attr=self.line_chart_attr,
-        )
-
-        y_points: dict[str, list[float]] = defaultdict(list)
-        x_points: dict[str, list[tuple[int]]] = defaultdict(list)
-        for task in dag.tasks:
-            task_id = task.task_id
-            for ti in tis:
-                if ti.task_id == task.task_id:
-                    ts = dag.get_run_data_interval(ti.dag_run).end
-                    if ti.end_date:
-                        dttm = wwwutils.epoch(ti.execution_date)
-                        secs = (ti.end_date - ts).total_seconds()
-                        x_points[task_id].append(dttm)
-                        y_points[task_id].append(secs)
-
-        # determine the most relevant time unit for the set of landing times
-        # for the DAG
-        y_unit = infer_time_unit([d for t in y_points.values() for d in t])
-        # update the y Axis to have the correct time units
-        chart.create_y_axis("yAxis", format=".02f", custom_format=False, label=f"Landing Time ({y_unit})")
-        chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
-
-        for task_id in x_points:
-            chart.add_serie(
-                name=task_id,
-                x=x_points[task_id],
-                y=scale_time_units(y_points[task_id], y_unit),
-            )
-        max_date = max(ti.execution_date for ti in tis) if tis else None
-
-        session.commit()
-
-        form = DateTimeWithNumRunsForm(
-            data={
-                "base_date": max_date or timezone.utcnow(),
-                "num_runs": num_runs,
-            }
-        )
-        chart.buildcontent()
-
-        return self.render_template(
-            "airflow/chart.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            chart=Markup(chart.htmlcontent),
-            height=f"{chart_height + 100}px",
-            root=root,
-            form=form,
-            tab_title="Landing times",
-            dag_model=dag_model,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/paused", methods=["POST"])
     @auth.has_access_dag("PUT")
@@ -3861,65 +3472,22 @@ class Airflow(AirflowBaseView):
         return redirect(url_for("Airflow.audit_log", **sanitize_args(request.args)))
 
     @expose("/dags/<string:dag_id>/audit_log")
-    @auth.has_access_dag("GET", DagAccessEntity.AUDIT_LOG)
-    @provide_session
-    def audit_log(self, dag_id: str, session: Session = NEW_SESSION):
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
-            return redirect(url_for("Airflow.index"))
+    def audit_log(self, dag_id: str):
+        current_page = request.args.get("page")
+        arg_sorting_key = request.args.get("sorting_key")
+        arg_sorting_direction = request.args.get("sorting_direction")
+        sort_args = {
+            "offset": current_page,
+            f"sort.{arg_sorting_key}": arg_sorting_direction,
+            "limit": PAGE_SIZE,
+        }
+        kwargs = {
+            **sanitize_args(sort_args),
+            "dag_id": dag_id,
+            "tab": "audit_log",
+        }
 
-        included_events_raw = conf.get("webserver", "audit_view_included_events", fallback=None)
-        excluded_events_raw = conf.get("webserver", "audit_view_excluded_events", fallback=None)
-
-        query = select(Log).where(Log.dag_id == dag_id)
-        if included_events_raw:
-            included_events = {event.strip() for event in included_events_raw.split(",")}
-            query = query.where(Log.event.in_(included_events))
-        elif excluded_events_raw:
-            excluded_events = {event.strip() for event in excluded_events_raw.split(",")}
-            query = query.where(Log.event.notin_(excluded_events))
-
-        current_page = request.args.get("page", default=0, type=int)
-        arg_sorting_key = request.args.get("sorting_key", "dttm")
-        arg_sorting_direction = request.args.get("sorting_direction", default="desc")
-
-        logs_per_page = PAGE_SIZE
-        audit_logs_count = get_query_count(query, session=session)
-        num_of_pages = math.ceil(audit_logs_count / logs_per_page)
-
-        start = current_page * logs_per_page
-        end = start + logs_per_page
-
-        sort_column = Log.__table__.c.get(arg_sorting_key)
-        if sort_column is not None:
-            if arg_sorting_direction == "desc":
-                sort_column = sort_column.desc()
-            query = query.order_by(sort_column)
-
-        dag_audit_logs = session.scalars(query.offset(start).limit(logs_per_page)).all()
-        return self.render_template(
-            "airflow/dag_audit_log.html",
-            dag=dag,
-            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
-            dag_model=dag_model,
-            root=request.args.get("root"),
-            dag_id=dag_id,
-            dag_logs=dag_audit_logs,
-            num_log_from=min(start + 1, audit_logs_count),
-            num_log_to=min(end, audit_logs_count),
-            audit_logs_count=audit_logs_count,
-            page_size=PAGE_SIZE,
-            paging=wwwutils.generate_pages(
-                current_page,
-                num_of_pages,
-                sorting_key=arg_sorting_key or None,
-                sorting_direction=arg_sorting_direction or None,
-            ),
-            sorting_key=arg_sorting_key,
-            sorting_direction=arg_sorting_direction,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
 
 class ConfigurationView(AirflowBaseView):
