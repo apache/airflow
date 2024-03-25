@@ -21,6 +21,7 @@ import operator
 import os
 import random
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -29,7 +30,7 @@ import textwrap
 import time
 from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime
+from datetime import date, datetime
 from functools import partial
 from multiprocessing import Pool
 from pathlib import Path
@@ -974,6 +975,70 @@ def run_generate_constraints_in_parallel(
         summarize_on_ci=SummarizeAfter.SUCCESS,
         summary_start_regexp=".*Constraints generated in.*",
     )
+
+
+@release_management.command(
+    name="tag-providers",
+    help="Generates tags for providers.",
+)
+@option_dry_run
+@option_verbose
+def tag_providers():
+    found_remote = None
+    remotes = ["origin", "apache"]
+    for remote in remotes:
+        try:
+            command = ["git", "remote", "get-url", "--push", shlex.quote(remote)]
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+            if "apache/airflow.git" in result.stdout:
+                found_remote = remote
+                break
+        except subprocess.CalledProcessError:
+            pass
+
+    if found_remote is None:
+        raise ValueError("Could not find remote configured to push to apache/airflow")
+
+    tags = []
+    for file in os.listdir(os.path.join(SOURCE_DIR_PATH, "dist")):
+        if file.endswith(".whl"):
+            match = re.match(r".*airflow_providers_(.*)-(.*)-py3.*", file)
+            if match:
+                provider = f"providers-{match.group(1).replace('_', '-')}"
+                tag = f"{provider}/{match.group(2)}"
+                try:
+                    subprocess.run(
+                        ["git", "tag", shlex.quote(tag), "-m", f"Release {date.today()} of providers"],
+                        check=True,
+                    )
+                    tags.append(tag)
+                except subprocess.CalledProcessError:
+                    pass
+
+    if tags and len(tags) > 0:
+        try:
+            push_command = ["git", "push", remote] + [shlex.quote(tag) for tag in tags]
+            push_result = subprocess.Popen(
+                push_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            push_output, push_error = push_result.communicate()
+            if push_output:
+                print(push_output)
+            if push_error:
+                print(push_error)
+            print("Tags pushed successfully")
+        except subprocess.CalledProcessError:
+            print("Failed to push tags, probably a connectivity issue to Github")
+            clean_local_tags = os.environ.get("CLEAN_LOCAL_TAGS", "true").lower() == "true"
+            if clean_local_tags:
+                for tag in tags:
+                    try:
+                        subprocess.run(["git", "tag", "-d", shlex.quote(tag)], check=True)
+                    except subprocess.CalledProcessError:
+                        pass
+                print("Cleaning up local tags...")
+            else:
+                print("Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true")
 
 
 @release_management.command(
