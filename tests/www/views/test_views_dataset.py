@@ -55,7 +55,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "datasets": [
                 {
@@ -89,7 +89,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
-        assert response.json["detail"] == msg
+        assert response.json()["detail"] == msg
 
     def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, session):
         datasets = [
@@ -139,15 +139,15 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?updated_after={cutoff}")
 
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
-        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [2, 3]
+        assert response.json()["total_entries"] == 2
+        assert [json_dict["id"] for json_dict in response.json()["datasets"]] == [2, 3]
 
         cutoff = today.add(days=-1).add(minutes=5).to_iso8601_string()
         response = admin_client.get(f"/object/datasets_summary?updated_before={cutoff}")
 
         assert response.status_code == 200
-        assert response.json["total_entries"] == 2
-        assert [json_dict["id"] for json_dict in response.json["datasets"]] == [1, 2]
+        assert response.json()["total_entries"] == 2
+        assert [json_dict["id"] for json_dict in response.json()["datasets"]] == [1, 2]
 
     @pytest.mark.parametrize(
         "order_by, ordered_dataset_ids",
@@ -188,8 +188,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
         assert response.status_code == 200
-        assert ordered_dataset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
-        assert response.json["total_entries"] == len(ordered_dataset_ids)
+        assert ordered_dataset_ids == [json_dict["id"] for json_dict in response.json()["datasets"]]
+        assert response.json()["total_entries"] == len(ordered_dataset_ids)
 
     def test_search_uri_pattern(self, admin_client, session):
         datasets = [
@@ -207,7 +207,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "datasets": [
                 {
@@ -224,7 +224,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "datasets": [
                 {
@@ -342,7 +342,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
-        response_data = response.json
+        response_data = response.json()
         assert response_data == {
             "datasets": [
                 {
@@ -408,7 +408,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get(url)
 
         assert response.status_code == 200
-        dataset_uris = [dataset["uri"] for dataset in response.json["datasets"]]
+        dataset_uris = [dataset["uri"] for dataset in response.json()["datasets"]]
         assert dataset_uris == expected_dataset_uris
 
     def test_should_respect_page_size_limit_default(self, admin_client, session):
@@ -425,7 +425,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary")
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 25
+        assert len(response.json()["datasets"]) == 25
 
     def test_should_return_max_if_req_above(self, admin_client, session):
         datasets = [
@@ -441,7 +441,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         response = admin_client.get("/object/datasets_summary?limit=180")
 
         assert response.status_code == 200
-        assert len(response.json["datasets"]) == 50
+        assert len(response.json()["datasets"]) == 50
 
 
 class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
@@ -452,4 +452,4 @@ class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
         response = admin_client.post("/next_run_datasets_summary", data={"dag_ids": ["upstream"]})
 
         assert response.status_code == 200
-        assert response.json == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}
+        assert response.json() == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}
