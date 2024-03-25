@@ -158,9 +158,9 @@ const TaskDuration = () => {
   function formatMarkLineLegendName(name: string) {
     switch (name) {
       case "runDurationUnit":
-        return "Mean run duration";
+        return "Median total duration";
       case "queuedDurationUnit":
-        return "Mean queued duration";
+        return "Median queued duration";
       default:
         return name;
     }
