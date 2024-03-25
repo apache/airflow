@@ -178,7 +178,6 @@ newer versions of ``bazel`` will handle it.
 If you wish to install Airflow using those tools, you should use the constraint files and convert
 them to the appropriate format and workflow that your tool requires.
 
-
 ```bash
 pip install 'apache-airflow==2.8.3' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.3/constraints-3.8.txt"
@@ -189,6 +188,27 @@ pip install 'apache-airflow==2.8.3' \
 ```bash
 pip install 'apache-airflow[postgres,google]==2.8.3' \
  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.3/constraints-3.8.txt"
+```
+
+In case you encounter the following error
+
+```bash
+At line:2 char:4
++  --constraint "https://raw.githubusercontent.com/apache/airflow/const ...
++    ~
+Missing expression after unary operator '--'.
+At line:2 char:4
++  --constraint "https://raw.githubusercontent.com/apache/airflow/const ...
++    ~~~~~~~~~~
+Unexpected token 'constraint' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingExpressionAfterOperator
+```
+
+Try using the command
+
+```bash
+pip install 'apache-airflow==2.8.2' --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.8.2/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
