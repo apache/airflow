@@ -41,6 +41,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +=================================+===================+===================+==============================================================+
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 | ``1949afb29106`` (head)         | ``ee1467d4aa35``  | ``2.9.0``         | update trigger kwargs type                                   |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ee1467d4aa35``                | ``b4078ac230a1``  | ``2.9.0``         | add display name for dag and task instance                   |
@@ -52,17 +53,13 @@ Here's the list of all the Database Migrations that are executed via when you ru
 <<<<<<< HEAD
 | ``b4078ac230a1`` (head)         | ``8e1c784a4fc7``  | ``2.9.0``         | Change value column type to longblob in xcom table for mysql |
 >>>>>>> 5b2489abf4... Add executor field to the DB
+=======
+| ``677fdbb7fc54`` (head)         | ``b4078ac230a1``  | ``2.10.0``        | add new executor field to db                                 |
+>>>>>>> 946158562e... Rebase yet another migration overtop
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``b4078ac230a1``                | ``8e1c784a4fc7``  | ``2.9.0``         | Change value column type to longblob in xcom table for mysql |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``8e1c784a4fc7``                | ``ab34f260b71c``  | ``2.9.0``         | Adding max_consecutive_failed_dag_runs column to dag_model   |
-=======
-<<<<<<< HEAD
-| ``8e1c784a4fc7`` (head)         | ``ab34f260b71c``  | ``2.9.0``         | Adding max_consecutive_failed_dag_runs column to dag_model   |
->>>>>>> d5f63cc309... Add executor field to the DB
-=======
-| ``677fdbb7fc54`` (head)         | ``8e1c784a4fc7``  | ``2.9.0``         | add new executor field to db                                 |
-+---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``8e1c784a4fc7``                | ``ab34f260b71c``  | ``2.9.0``         | Adding max_consecutive_failed_dag_runs column to dag_model   |
->>>>>>> a25a99d7cc... Repair migration after rebase
 |                                 |                   |                   | table                                                        |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``ab34f260b71c``                | ``d75389605139``  | ``2.9.0``         | add dataset_expression in DagModel                           |
