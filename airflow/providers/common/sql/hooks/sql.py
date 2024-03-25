@@ -610,6 +610,42 @@ class DbApiHook(BaseHook):
         """
         raise NotImplementedError()
 
+    def data_transfer(
+        self,
+        table: str,
+        source_hook: DbApiHook,
+        source_sql: str,
+        source_sql_parameters: Mapping[str, Any] | list[Any] | None = None,
+        rows_chunk: int = 5000,
+    ) -> None:
+        """Copy data from source database to table."""
+        self.log.info("Using DbHookAPI data transfer mode")
+        self.log.info("Executing sql: %s", source_sql)
+
+        with source_hook.get_cursor() as source_cursor:
+            if source_sql_parameters:
+                source_cursor.execute(source_sql, source_sql_parameters)
+            else:
+                source_cursor.execute(source_sql)
+
+            rows_transfered = 0
+
+            for rows in iter(lambda: source_cursor.fetchmany(rows_chunk), []):
+                # Additional check for mySQL. It provides empty list instead of None object
+                if len(rows) == 0:
+                    break
+
+                self.insert_rows(
+                    table=table,
+                    rows=rows,
+                    commit_every=rows_chunk,
+                    replace=False,
+                )
+                rows_transfered += len(rows)
+
+            self.log.info("Transferred a total of %s rows into %s", rows_transfered, table)
+        self.log.info("Done data trasnferring")
+
     def test_connection(self):
         """Tests the connection using db-specific query."""
         status, message = False, ""
