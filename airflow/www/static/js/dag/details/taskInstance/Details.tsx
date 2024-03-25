@@ -18,7 +18,17 @@
  */
 
 import React from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
+import {
+  Text,
+  Flex,
+  Table,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Code,
+  Box,
+} from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
@@ -95,10 +105,36 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isStateFinal =
     state &&
     ["success", "failed", "upstream_failed", "skipped"].includes(state);
+  const isStateScheduled = !state || (state && ["scheduled"].includes(state));
   const isOverall = (isMapped || isGroup) && "Overall ";
 
   return (
     <Box mt={3} flexGrow={1}>
+      {isStateScheduled && (
+        <Box>
+          <Text as="strong" mb={3}>
+            Task Failed Dependencies
+          </Text>
+          <br />
+          <br />
+          <Text>Dependencies Blocking Task From Getting Scheduled</Text>
+          <Table variant="striped">
+            <Tbody>
+              <Tr>
+                <Th>Dependency</Th>
+                <Th>Reason</Th>
+              </Tr>
+              {taskInstance?.taskFailedDeps &&
+                taskInstance.taskFailedDeps.map((dep) => (
+                  <Tr key={dep.name}>
+                    <Td>{dep.name}</Td>
+                    <Td>{dep.reason}</Td>
+                  </Tr>
+                ))}
+            </Tbody>
+          </Table>
+        </Box>
+      )}
       <Text as="strong" mb={3}>
         Task Instance Details
       </Text>

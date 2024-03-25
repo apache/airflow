@@ -1394,6 +1394,10 @@ export interface components {
       created_date?: string;
       triggerer_id?: number | null;
     } | null;
+    TaskFailedDependency: {
+      name?: string;
+      reason?: string;
+    };
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1462,6 +1466,12 @@ export interface components {
       rendered_fields?: { [key: string]: unknown };
       trigger?: components["schemas"]["Trigger"];
       triggerer_job?: components["schemas"]["Job"];
+      /**
+       * @description Array of failed dependencies blocking task from getting scheduled.
+       *
+       * *New in version 2.9.0*
+       */
+      task_failed_deps?: components["schemas"]["TaskFailedDependency"][];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -5147,6 +5157,9 @@ export type SLAMiss = CamelCasedPropertiesDeep<
 >;
 export type Trigger = CamelCasedPropertiesDeep<
   components["schemas"]["Trigger"]
+>;
+export type TaskFailedDependency = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskFailedDependency"]
 >;
 export type Job = CamelCasedPropertiesDeep<components["schemas"]["Job"]>;
 export type TaskInstance = CamelCasedPropertiesDeep<

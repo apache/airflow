@@ -3557,6 +3557,14 @@ components:
           type: integer
           nullable: true
 
+    TaskFailedDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+
     Job:
       type: object
       nullable: true
@@ -3683,6 +3691,14 @@ components:
           $ref: "#/components/schemas/Trigger"
         triggerer_job:
           $ref: "#/components/schemas/Job"
+        task_failed_deps:
+          description: |
+            Array of failed dependencies blocking task from getting scheduled.
+
+            *New in version 2.9.0*
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskFailedDependency"
         note:
           type: string
           description: |
