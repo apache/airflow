@@ -871,7 +871,16 @@ class Airflow(AirflowBaseView):
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
 
-            if arg_sorting_key == "last_dagrun":
+            if arg_sorting_key == "dag_id":
+                if arg_sorting_direction == "desc":
+                    current_dags = current_dags.order_by(
+                        func.coalesce(DagModel.dag_display_name, DagModel.dag_id).desc()
+                    )
+                else:
+                    current_dags = current_dags.order_by(
+                        func.coalesce(DagModel.dag_display_name, DagModel.dag_id)
+                    )
+            elif arg_sorting_key == "last_dagrun":
                 dag_run_subquery = (
                     select(
                         DagRun.dag_id,
@@ -888,10 +897,8 @@ class Airflow(AirflowBaseView):
                     current_dags = current_dags.order_by(
                         null_case, dag_run_subquery.c.max_execution_date.desc()
                     )
-
                 else:
                     current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_execution_date)
-
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
