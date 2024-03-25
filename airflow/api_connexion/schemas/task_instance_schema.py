@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from sqlalchemy import inspect
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
@@ -94,7 +95,9 @@ class TaskInstanceSchema(SQLAlchemySchema):
         # Get failed deps only for tasks in None or scheduled state
         if obj and (obj[0].state in [None, TaskInstanceState.SCHEDULED]):
             ti = obj[0]
-            dag = get_airflow_app().dag_bag.get_dag(ti.dag_id)
+
+            session = inspect(ti).session
+            dag = get_airflow_app().dag_bag.get_dag(ti.dag_id, session=session)
 
             if dag:
                 try:
@@ -106,7 +109,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
             return sorted(
                 [
                     {"name": dep.dep_name, "reason": dep.reason}
-                    for dep in ti.get_failed_dep_statuses(dep_context=dep_context)
+                    for dep in ti.get_failed_dep_statuses(dep_context=dep_context, session=session)
                 ],
                 key=lambda x: x["name"],
             )
