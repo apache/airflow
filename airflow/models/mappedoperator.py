@@ -200,7 +200,6 @@ class OperatorPartial:
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
-        task_display_name = partial_kwargs.pop("task_display_name", None)
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
         start_date = partial_kwargs.pop("start_date")
@@ -216,7 +215,6 @@ class OperatorPartial:
             expand_input=expand_input,
             partial_kwargs=partial_kwargs,
             task_id=task_id,
-            task_display_name=task_display_name,
             params=self.params,
             deps=MappedOperator.deps_for(self.operator_class),
             operator_extra_links=self.operator_class.operator_extra_links,
@@ -267,7 +265,6 @@ class MappedOperator(AbstractOperator):
 
     # Needed for serialization.
     task_id: str
-    task_display_name: str | None
     params: ParamsDict | dict
     deps: frozenset[BaseTIDep]
     operator_extra_links: Collection[BaseOperatorLink]
@@ -388,6 +385,10 @@ class MappedOperator(AbstractOperator):
     def leaves(self) -> Sequence[AbstractOperator]:
         """Implementing DAGNode."""
         return [self]
+
+    @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name", None)
 
     @property
     def owner(self) -> str:  # type: ignore[override]

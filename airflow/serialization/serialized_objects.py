@@ -1188,7 +1188,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 expand_input=EXPAND_INPUT_EMPTY,
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
-                task_display_name=encoded_op.get("task_display_name", None),
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
