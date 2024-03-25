@@ -24,6 +24,8 @@ from airflow.models import BaseOperator
 from airflow.providers.cohere.hooks.cohere import CohereHook
 
 if TYPE_CHECKING:
+    from cohere.core.request_options import RequestOptions
+
     from airflow.utils.context import Context
 
 
@@ -39,6 +41,17 @@ class CohereEmbeddingOperator(BaseOperator):
         information for Cohere. Defaults to "cohere_default".
     :param timeout: Timeout in seconds for Cohere API.
     :param max_retries: Number of times to retry before failing.
+    :param request_options: Request-specific configuration.
+        Fields:
+        - timeout_in_seconds: int. The number of seconds to await an API call before timing out.
+
+        - max_retries: int. The max number of retries to attempt if the API call fails.
+
+        - additional_headers: typing.Dict[str, typing.Any]. A dictionary containing additional parameters to spread into the request's header dict
+
+        - additional_query_parameters: typing.Dict[str, typing.Any]. A dictionary containing additional parameters to spread into the request's query parameters dict
+
+        - additional_body_parameters: typing.Dict[str, typing.Any]. A dictionary containing additional parameters to spread into the request's body parameters dict
     """
 
     template_fields: Sequence[str] = ("input_text",)
@@ -49,6 +62,7 @@ class CohereEmbeddingOperator(BaseOperator):
         conn_id: str = CohereHook.default_conn_name,
         timeout: int | None = None,
         max_retries: int | None = None,
+        request_options: RequestOptions | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -58,11 +72,17 @@ class CohereEmbeddingOperator(BaseOperator):
         self.input_text = input_text
         self.timeout = timeout
         self.max_retries = max_retries
+        self.request_options = request_options
 
     @cached_property
     def hook(self) -> CohereHook:
         """Return an instance of the CohereHook."""
-        return CohereHook(conn_id=self.conn_id, timeout=self.timeout, max_retries=self.max_retries)
+        return CohereHook(
+            conn_id=self.conn_id,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+            request_options=self.request_options,
+        )
 
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""

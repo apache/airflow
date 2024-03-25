@@ -31,16 +31,14 @@ class TestCohereHook:
 
     def test__get_api_key(self):
         api_key = "test"
-        api_url = "http://some_host.com"
+        base_url = "http://some_host.com"
         timeout = 150
         max_retries = 5
         with patch.object(
             CohereHook,
             "get_connection",
-            return_value=Connection(conn_type="cohere", password=api_key, host=api_url),
+            return_value=Connection(conn_type="cohere", password=api_key, host=base_url),
         ), patch("cohere.Client") as client:
             hook = CohereHook(timeout=timeout, max_retries=max_retries)
             _ = hook.get_conn
-            client.assert_called_once_with(
-                api_key=api_key, timeout=timeout, max_retries=max_retries, api_url=api_url
-            )
+            client.assert_called_once_with(api_key=api_key, timeout=timeout, base_url=base_url)
