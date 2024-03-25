@@ -1862,6 +1862,11 @@ def get_prs_for_package(provider_id: str) -> list[int]:
     changelog_lines = provider_details.changelog_path.read_text().splitlines()
     extract_prs = False
     skip_line = False
+
+    version_line_index = -1
+    exclusion_line_index = -1
+    line_number = 0
+
     for line in changelog_lines:
         if skip_line:
             # Skip first "....." header
@@ -1869,16 +1874,26 @@ def get_prs_for_package(provider_id: str) -> list[int]:
         elif line.strip() == current_release_version:
             extract_prs = True
             skip_line = True
+            version_line_index = line_number
         elif extract_prs:
             if len(line) > 1 and all(c == "." for c in line.strip()):
                 # Header for next version reached
                 break
             if line.startswith(".. Below changes are excluded from the changelog"):
                 # The reminder of PRs is not important skipping it
+                exclusion_line_index = line_number
+                changelog_lines_sublist = changelog_lines[version_line_index:exclusion_line_index]
+                valid_format = False
+                for sublist_line in changelog_lines_sublist:
+                    if sublist_line.startswith("*"):
+                        valid_format = True
+                if not valid_format:
+                    prs = [-1]
                 break
             match_result = pr_matcher.match(line.strip())
             if match_result:
                 prs.append(int(match_result.group(1)))
+        line_number += 1
     return prs
 
 
@@ -1963,6 +1978,12 @@ def generate_issue_content_providers(
                 )
                 continue
             prs = get_prs_for_package(provider_id)
+            if prs == [-1]:
+                get_console().print(
+                    f"[warning]Skipping provider {provider_id}. "
+                    "The changelog file doesn't contain any PRs for the release.\n"
+                )
+                return
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[provider_id])
         g = Github(github_token)
