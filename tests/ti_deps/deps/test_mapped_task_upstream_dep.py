@@ -149,7 +149,8 @@ def test_mapped_task_upstream_dep(
     )
     assert get_dep_statuses(dr, mapped_task, session) == expected_statuses
     ti = dr.get_task_instance(session=session, task_id=mapped_task)
-    assert ti is not None and ti.state == expected_state
+    assert ti is not None
+    assert ti.state == expected_state
 
 
 @pytest.mark.parametrize("failure_mode", [None, FAILED, UPSTREAM_FAILED])
