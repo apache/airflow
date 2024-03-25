@@ -424,7 +424,7 @@ DEPENDENCIES = [
     # The usage was added in #30596, seemingly only to override and improve the default error message.
     # Either revert that change or find another way, preferably without using connexion internals.
     # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.10.0,<3.0",
+    "connexion[flask,uvicorn]>=3.0",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
     "cryptography>=39.0.0",
@@ -483,6 +483,7 @@ DEPENDENCIES = [
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
+    "starlette>=0.37.1",
     "tabulate>=0.7.5",
     "tenacity>=6.2.0,!=8.2.0",
     "termcolor>=1.1.0",
