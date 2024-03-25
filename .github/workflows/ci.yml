@@ -196,7 +196,6 @@ jobs:
     with:
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       upload-constraints: "true"
       branch: ${{ needs.build-info.outputs.default-branch }}
@@ -497,7 +496,6 @@ jobs:
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
-      platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
