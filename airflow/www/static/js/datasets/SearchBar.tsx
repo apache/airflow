@@ -117,7 +117,7 @@ const SearchBar = ({
         { label: "DAGs", options: dagOptions },
         { label: "Datasets", options: datasetOptions },
       ]}
-      placeholder="Search by DAG Id or Dataset Uri"
+      placeholder="Search by DAG ID or Dataset URI"
     />
   );
 };
