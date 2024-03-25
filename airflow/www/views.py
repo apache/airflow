@@ -3290,6 +3290,8 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
+            latest_run = dag_model.get_last_dagrun(session=session)
+
             events = [
                 dict(info)
                 for info in session.execute(
@@ -3311,7 +3313,12 @@ class Airflow(AirflowBaseView):
                     )
                     .join(
                         DatasetEvent,
-                        DatasetEvent.dataset_id == DatasetModel.id,
+                        and_(
+                            DatasetEvent.dataset_id == DatasetModel.id,
+                            DatasetEvent.timestamp >= latest_run.execution_date
+                            if latest_run and latest_run.execution_date
+                            else True,
+                        ),
                         isouter=True,
                     )
                     .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
