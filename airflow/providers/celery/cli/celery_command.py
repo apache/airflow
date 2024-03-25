@@ -59,12 +59,12 @@ def _providers_configuration_loaded(func):
             from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
             providers_configuration_loaded(func)(*args, **kwargs)
-        except ImportError:
+        except ImportError as e:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
-            )
+            ) from e
 
     return wrapper
 
