@@ -45,7 +45,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         :param ti:
         :return:
         """
-        if ti.raw or self.formatter is None:
+        if ti.raw or self.formatter is None or self.prefix_jinja_template is not None:
             return
         prefix = conf.get("logging", "task_log_prefix_template")
 
