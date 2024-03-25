@@ -24,6 +24,7 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests.test_utils.mock_cors_middeleware import init_mock_cors_middleware
 
 
 @pytest.fixture(scope="session")
@@ -43,6 +44,29 @@ def minimal_app_for_api():
         with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
             _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
             _app.config["AUTH_ROLE_PUBLIC"] = None
+            init_mock_cors_middleware(_app, allow_origins=["http://apache.org", "http://example.com"])
+            return _app
+
+    return factory()
+
+
+@pytest.fixture(scope="session")
+def minimal_app_for_api_cors_allow_all():
+    @dont_initialize_flask_app_submodules(
+        skip_all_except=[
+            "init_appbuilder",
+            "init_api_experimental_auth",
+            "init_api_connexion",
+            "init_jinja_globals",
+            "init_api_error_handlers",
+            "init_airflow_session_interface",
+            "init_appbuilder_views",
+        ]
+    )
+    def factory():
+        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
+            _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            init_mock_cors_middleware(_app, allow_origins=["*"])
             return _app
 
     return factory()
