@@ -233,7 +233,7 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     else:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
-    dag = dagbag.get_dag(dag_id)
+    dag = dagbag.dags[dag_id]
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
