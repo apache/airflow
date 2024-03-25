@@ -394,10 +394,6 @@ def generate_args_for_pytest(
                 "--disable-warnings",
             ]
         )
-    else:
-        # Avoid edge cases when there are no available tests, e.g. No-Pydantic for Weaviate provider.
-        # https://docs.pytest.org/en/stable/reference/exit-codes.html
-        args.append("--suppress-no-test-exit-code")
     return args
 
 
