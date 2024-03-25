@@ -63,7 +63,6 @@ from airflow.exceptions import (
 )
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
-    DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -209,7 +208,6 @@ _PARTIAL_DEFAULTS: dict[str, Any] = {
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
     "retries": DEFAULT_RETRIES,
-    "executor": DEFAULT_EXECUTOR,
     "queue": DEFAULT_QUEUE,
     "pool_slots": DEFAULT_POOL_SLOTS,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
@@ -261,7 +259,6 @@ def partial(
     on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_skipped_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     run_as_user: str | None | ArgNotSet = NOTSET,
-    executor: str | None | ArgNotSet = NOTSET,
     executor_config: dict | None | ArgNotSet = NOTSET,
     inlets: Any | None | ArgNotSet = NOTSET,
     outlets: Any | None | ArgNotSet = NOTSET,
@@ -328,7 +325,6 @@ def partial(
         "on_success_callback": on_success_callback,
         "on_skipped_callback": on_skipped_callback,
         "run_as_user": run_as_user,
-        "executor": executor,
         "executor_config": executor_config,
         "inlets": inlets,
         "outlets": outlets,
@@ -684,7 +680,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         runs across execution_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
-    :param executor: Which executor to target when running this task. NOT YET SUPPORTED
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -785,7 +780,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "do_xcom_push",
         "multiple_outputs",
         "allow_nested_operators",
-        "executor",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -854,7 +848,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
-        executor: str | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         multiple_outputs: bool = False,
@@ -927,12 +920,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if end_date:
             self.end_date = timezone.convert_to_utc(end_date)
 
-        if executor:
-            warnings.warn(
-                "Specifying executors for operators is not yet"
-                f"supported, the value {executor!r} will have no effect"
-            )
-        self.executor = executor
         self.executor_config = executor_config or {}
         self.run_as_user = run_as_user
         self.retries = parse_retries(retries)

@@ -1265,7 +1265,6 @@ class TestStringifiedDAGs:
             "email_on_failure": True,
             "email_on_retry": True,
             "execution_timeout": None,
-            "executor": None,
             "executor_config": {},
             "ignore_first_depends_on_past": True,
             "inlets": [],
